@@ -12,7 +12,10 @@ use super::*;
 #[test]
 fn clippy_driver_wrapping_rustc_is_recognized() {
     let driver = Path::new("/toolchain/bin/clippy-driver");
-    assert!(is_clippy(driver, &["/toolchain/bin/rustc", "--crate-name", "a"]));
+    assert!(is_clippy(
+        driver,
+        &["/toolchain/bin/rustc", "--crate-name", "a"]
+    ));
     assert!(is_clippy(Path::new("clippy-driver.exe"), &["rustc.exe"]));
 }
 
@@ -31,11 +34,17 @@ fn the_nearest_configuration_wins_and_the_dotted_name_first() {
     assert_eq!(find_config(&crate_dir), None);
 
     fs::write(dir.path().join("clippy.toml"), "").unwrap();
-    assert_eq!(find_config(&crate_dir), Some(dir.path().join("clippy.toml")));
+    assert_eq!(
+        find_config(&crate_dir),
+        Some(dir.path().join("clippy.toml"))
+    );
 
     fs::write(crate_dir.join("clippy.toml"), "").unwrap();
     fs::write(crate_dir.join(".clippy.toml"), "").unwrap();
-    assert_eq!(find_config(&crate_dir), Some(crate_dir.join(".clippy.toml")));
+    assert_eq!(
+        find_config(&crate_dir),
+        Some(crate_dir.join(".clippy.toml"))
+    );
 }
 
 #[test]

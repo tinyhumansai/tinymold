@@ -32,9 +32,11 @@ pub(crate) fn is_clippy<S: AsRef<str>>(program: &Path, args: &[S]) -> bool {
     program
         .file_stem()
         .is_some_and(|stem| stem == "clippy-driver")
-        && args
-            .first()
-            .is_some_and(|first| Path::new(first.as_ref()).file_stem().is_some_and(|s| s == "rustc"))
+        && args.first().is_some_and(|first| {
+            Path::new(first.as_ref())
+                .file_stem()
+                .is_some_and(|s| s == "rustc")
+        })
 }
 
 /// Where clippy starts looking for its configuration: `CLIPPY_CONF_DIR`,
@@ -67,7 +69,10 @@ pub(crate) fn clippy_identity(
         }
         None => "none".to_owned(),
     };
-    Ok(format!("clippy-driver\n{}\nconfig {config}", version.trim_end()))
+    Ok(format!(
+        "clippy-driver\n{}\nconfig {config}",
+        version.trim_end()
+    ))
 }
 
 /// The configuration file clippy reads when it starts looking in `start`:
