@@ -171,7 +171,7 @@ and 4.6 s on bat today.
   - Linux uses mold 3.x or wild when present.
 - An advisor for consolidating test binaries, with an opt-in codemod.
 - Affected work ([spec](../specs/test-cache.md), [plan](test-cache.md)):
-  lint flags leave the key of capped dependencies, `tinymold run-test`
+  `tinymold run-test`
   replays passing test runs keyed by the binary digest, and `clippy-driver`
   calls are cached.
 
