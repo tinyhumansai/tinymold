@@ -443,6 +443,7 @@ def edits_section(name: str, result: dict) -> list[str]:
     footprint = ["", "| Project | Mode | target/ final | target/ per step | incremental final "
                  "| coverage final | store final | store per step | peak RSS |",
                  "| --- | --- |" + " ---: |" * 7]
+    charts = [""]
     for project in dict.fromkeys(r["project"] for r in rows):
         mine = [r for r in rows if r["project"] == project]
         series: dict[str, list[tuple[int, float]]] = {}
@@ -486,10 +487,8 @@ def edits_section(name: str, result: dict) -> list[str]:
                                                 for s in steps]
         svg = RESULTS / f"{name}-{project}.svg"
         growth_chart(f"{project}: target/ and store size by step (MiB allocated)", series, svg)
-        footprint.append("")
-        footprint.append(f"![{project} size by step](results/{svg.name})")
-        footprint.append("")
-    return lines + footprint + [""]
+        charts += [f"![{project} size by step](results/{svg.name})", ""]
+    return lines + footprint + charts
 
 
 def main() -> None:

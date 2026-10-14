@@ -7,11 +7,13 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bench  # noqa: E402
 import edits  # noqa: E402
+import report  # noqa: E402
 
 
 class Schedule(unittest.TestCase):
@@ -102,6 +104,39 @@ class CumulativeEdits(unittest.TestCase):
             changes.apply("comment", 1)
             changes.apply("comment", 2)
             self.assertNotIn("edit 1", path.read_text())
+
+
+def step(n, edit, build, target, store=None):
+    commands = {"build": {"wall_s": build, "rss_mb": 100.0 + n}}
+    row = {"step": n, "edit": edit, "commands": commands,
+           "target": {"total": {"allocated": target}, "incremental": {"allocated": 0},
+                      "coverage": {"allocated": 0}}}
+    if store is not None:
+        row["store"] = {"allocated": store}
+    return row
+
+
+class Report(unittest.TestCase):
+    def test_latency_skips_churn_and_reads_the_edit_after_a_fresh_build(self):
+        mib = 2**20
+        steps = [step(0, "clean", 9.0, 100 * mib, 50 * mib), step(1, "comment", 1.0, 110 * mib,
+                 60 * mib), step(2, "churn", 5.0, 150 * mib, 90 * mib),
+                 step(3, "fresh", 2.0, 120 * mib, 90 * mib),
+                 step(4, "private_body", 3.0, 140 * mib, 100 * mib)]
+        result = {"machine": {"os": "darwin", "arch": "arm64", "cpus": 8, "rustc": "rustc 1"},
+                  "runs": 1, "date": "2026-10-15", "commands": ["build"], "schedule": "s",
+                  "results": [{"project": "rg", "rev": "v1", "mode": "tinymold",
+                               "steps": steps}]}
+        with tempfile.TemporaryDirectory() as tmp, \
+                unittest.mock.patch.object(report, "RESULTS", Path(tmp)):
+            text = "\n".join(report.edits_section("edits-test", result))
+            self.assertTrue((Path(tmp) / "edits-test-rg.svg").exists())
+        # build median over the two edit steps (1.0 and 3.0), the fresh build,
+        # and the edit after it
+        self.assertIn("| rg v1 | tinymold | 2.00s | – | – | – | – | 2.00s | 3.00s |", text)
+        # target/ grows (140 - 100) / 4 = 10 MiB a step, the store 12 or 13
+        self.assertIn("| 140 MiB | 10 MiB |", text)
+        self.assertIn("| 100 MiB | 12 MiB | 104 MiB |", text)
 
 
 if __name__ == "__main__":
