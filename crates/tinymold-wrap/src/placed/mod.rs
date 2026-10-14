@@ -46,10 +46,9 @@ pub(crate) struct Placed {
 impl Placed {
     /// Where the record of the unit `stem` placing outputs in `out_dir` lives.
     pub(crate) fn path(store: &Path, out_dir: &Path, stem: &str) -> PathBuf {
-        let name = Digest::of_bytes(
-            format!("placed:{}\0{stem}", out_dir.to_string_lossy()).as_bytes(),
-        )
-        .to_hex();
+        let name =
+            Digest::of_bytes(format!("placed:{}\0{stem}", out_dir.to_string_lossy()).as_bytes())
+                .to_hex();
         store.join("stat").join(&name[..2]).join(&name[2..])
     }
 

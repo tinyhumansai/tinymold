@@ -425,8 +425,7 @@ impl Unit<'_> {
                 let identity = stat::identity(&destination)?;
                 if is_library(&output.name) {
                     // Dependents hash this file next; they need not read it.
-                    let _ =
-                        stat::remember(self.store_dir, &destination, identity, output.digest);
+                    let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
                 }
                 placed.push((output.name.clone(), identity, output.digest));
             }

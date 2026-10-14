@@ -21,8 +21,14 @@ fn the_record_format_is_pinned() {
     let placed = Placed {
         recorded_ns: 99,
         files: HashMap::from([
-            ("libdemo-1.rmeta".to_owned(), (identity(8, 5), Digest::of_bytes(b"m"))),
-            ("demo-1.a.rcgu.o".to_owned(), (identity(7, 4), Digest::of_bytes(b"o"))),
+            (
+                "libdemo-1.rmeta".to_owned(),
+                (identity(8, 5), Digest::of_bytes(b"m")),
+            ),
+            (
+                "demo-1.a.rcgu.o".to_owned(),
+                (identity(7, 4), Digest::of_bytes(b"o")),
+            ),
         ]),
     };
     let text = placed.encode();
@@ -73,7 +79,11 @@ fn a_saved_record_loads_back_and_a_bad_one_is_empty() {
     let old = nanos(SystemTime::now() - Duration::from_secs(60));
     let digest = Digest::of_bytes(b"o");
     Placed::save(&path, &[("demo-1.o".to_owned(), identity(7, old), digest)]).unwrap();
-    assert!(Placed::load(&path).unwrap().holds("demo-1.o", identity(7, old), digest));
+    assert!(
+        Placed::load(&path)
+            .unwrap()
+            .holds("demo-1.o", identity(7, old), digest)
+    );
 
     for bad in [
         "",
