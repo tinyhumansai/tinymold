@@ -198,6 +198,7 @@ fn a_compile_without_dep_info_is_not_stored() {
         &rustc(),
         &args,
         &invocation,
+        LOCK_WAIT,
         &mut Trace::start(),
     )
     .unwrap()
@@ -302,7 +303,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &rustc(),
             &args,
             &invocation,
-            wait,
+            LOCK_WAIT,
             &mut Trace::start(),
         )
         .unwrap(),
@@ -316,6 +317,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &rustc(),
             &args,
             &invocation,
+            LOCK_WAIT,
             &mut Trace::start()
         )
         .unwrap(),
@@ -541,6 +543,7 @@ fn a_remote_action_missing_an_object_is_a_miss_with_the_reason() {
             code: 0,
             stored: Ok(_),
             remote: Some(reason),
+            ..
         } => assert!(reason.contains("does not provide object"), "{reason}"),
         other => panic!("expected a miss, got {other:?}"),
     }
@@ -577,6 +580,7 @@ fn a_failing_remote_only_makes_the_unit_compile() {
             code: 0,
             stored: Ok(_),
             remote: Some(reason),
+            ..
         } => assert_eq!(reason, "connection refused"),
         other => panic!("expected a miss, got {other:?}"),
     }
@@ -592,6 +596,7 @@ fn a_remote_without_the_unit_is_a_plain_miss() {
             code: 0,
             stored: Ok(_),
             remote: None,
+            ..
         } => {}
         other => panic!("expected a plain miss, got {other:?}"),
     }
