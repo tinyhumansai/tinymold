@@ -16,6 +16,7 @@
 //!    outputs, the action, and the input set, if the compile succeeded and no
 //!    input changed while it ran.
 
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Write};
@@ -28,6 +29,7 @@ use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, 
 
 use crate::error::io;
 use crate::exec::{self, Captured};
+use crate::placed::Placed;
 use crate::record::{
     self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
@@ -315,27 +317,84 @@ impl Unit<'_> {
     }
 
     /// Places every output of `action` and replays rustc's output.
+    ///
+    /// Outputs the out-dir already holds, as recorded by the last hit or
+    /// miss of this unit there ([`Placed`]), stay where they are; the rest
+    /// are placed in parallel.
     fn restore(&self, action: &Action) -> Result<()> {
         // Read the replayed text first, so a missing object fails the hit
         // before any output is touched.
         let stdout = self.expand_object(&action.stdout)?;
         let stderr = self.expand_object(&action.stderr)?;
-        // Clear every file of this unit first: a stale `.rmeta` from another
+        let record = self.placed_path();
+        let placed = Placed::load(&record)?;
+        let wanted: HashMap<&str, Digest> = action
+            .outputs
+            .iter()
+            .filter(|output| !output.text)
+            .map(|output| (output.name.as_str(), output.digest))
+            .collect();
+        // Clear every other file of this unit: a stale `.rmeta` from another
         // branch left beside a restored `.rlib` would have dependents compiled
         // against one version and linked against another.
-        for (_, path) in self.unit_files()? {
+        let mut kept = HashSet::new();
+        for (name, path) in self.unit_files()? {
+            let holds = wanted.get(name.as_str()).is_some_and(|digest| {
+                fs::symlink_metadata(&path).is_ok_and(|meta| {
+                    meta.is_file() && placed.holds(&name, stat::identity_of(&meta), *digest)
+                })
+            });
+            if holds {
+                kept.insert(name);
+                continue;
+            }
             match fs::remove_file(&path) {
                 Ok(()) => {}
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {}
                 Err(error) => return Err(io("replace", &path)(error)),
             }
         }
-        for output in &action.outputs {
+
+        let placing: Vec<&Output> = action.outputs.iter().collect();
+        let workers = std::thread::available_parallelism().map_or(4, |n| n.get().min(8));
+        let chunk = placing.len().div_ceil(workers).max(1);
+        let mut now_placed = Vec::with_capacity(placing.len());
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = placing
+                .chunks(chunk)
+                .map(|batch| scope.spawn(|| self.place_outputs(batch, &kept)))
+                .collect();
+            for handle in handles {
+                match handle.join() {
+                    Ok(batch) => now_placed.extend(batch?),
+                    Err(_) => return Err(Error::Panicked),
+                }
+            }
+            Ok(())
+        })?;
+        Placed::save(&record, &now_placed)?;
+        // Like rustc, report errors writing our own output only through the
+        // exit status of whoever reads it.
+        let _ = io::stdout().lock().write_all(stdout.as_bytes());
+        let _ = io::stderr().lock().write_all(stderr.as_bytes());
+        Ok(())
+    }
+
+    /// Places one batch of outputs, leaving those in `kept` where they are,
+    /// and returns the binary outputs as they now are on disk.
+    fn place_outputs(
+        &self,
+        batch: &[&Output],
+        kept: &HashSet<String>,
+    ) -> Result<Vec<(String, Identity, Digest)>> {
+        let mut placed = Vec::with_capacity(batch.len());
+        for output in batch {
             let destination = self.out_dir.join(&output.name);
+            let in_place = kept.contains(&output.name);
             if output.text {
                 let text = self.expand_object(&output.digest)?;
                 fs::write(&destination, text).map_err(io("write", &destination))?;
-            } else {
+            } else if !in_place {
                 // A reflink or a copy, never a hardlink: a linker may rewrite
                 // its output in place, and that must not be the store's inode.
                 if self
@@ -348,24 +407,35 @@ impl Unit<'_> {
                 }
             }
             set_mode(&destination, output.executable)?;
-            let file = fs::OpenOptions::new()
-                .write(true)
-                .open(&destination)
-                .map_err(io("open", &destination))?;
-            file.set_modified(SystemTime::now())
-                .map_err(io("set the mtime of", &destination))?;
-            if !output.text
-                && let Ok(identity) = stat::identity(&destination)
-            {
-                // Dependents hash this file next; they need not read it.
-                let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
+            // Cargo compares the mtimes of a unit's outputs with its inputs,
+            // so every output looks freshly written. Objects are the
+            // exception: rustc itself leaves the ones it reuses with their
+            // old mtimes, and nothing compares them.
+            if !(in_place && is_object(&output.name)) {
+                let file = fs::OpenOptions::new()
+                    .write(true)
+                    .open(&destination)
+                    .map_err(io("open", &destination))?;
+                file.set_modified(SystemTime::now())
+                    .map_err(io("set the mtime of", &destination))?;
+            }
+            if !output.text {
+                let identity = stat::identity(&destination)?;
+                if is_library(&output.name) {
+                    // Dependents hash this file next; they need not read it.
+                    let _ =
+                        stat::remember(self.store_dir, &destination, identity, output.digest);
+                }
+                placed.push((output.name.clone(), identity, output.digest));
             }
         }
-        // Like rustc, report errors writing our own output only through the
-        // exit status of whoever reads it.
-        let _ = io::stdout().lock().write_all(stdout.as_bytes());
-        let _ = io::stderr().lock().write_all(stderr.as_bytes());
-        Ok(())
+        Ok(placed)
+    }
+
+    /// Where this unit records the outputs it left in its out-dir.
+    fn placed_path(&self) -> PathBuf {
+        let [_, stem] = self.invocation.output_prefixes();
+        Placed::path(self.store_dir, &self.out_dir, &stem)
     }
 
     fn expand_object(&self, digest: &Digest) -> Result<String> {
@@ -409,13 +479,14 @@ impl Unit<'_> {
             .collect();
         let key = full_key(pre, &key_inputs, &info.env);
 
-        let outputs = self.ingest_outputs()?;
+        let (outputs, placed) = self.ingest_outputs()?;
         let action = Action {
             stdout: self.store_text(&captured.stdout)?,
             stderr: self.store_text(&captured.stderr)?,
             outputs,
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
+        Placed::save(&self.placed_path(), &placed)?;
 
         let set = InputSet {
             recorded_ns,
@@ -426,8 +497,12 @@ impl Unit<'_> {
         Ok(())
     }
 
-    /// Stores every output this compile wrote and describes them.
-    fn ingest_outputs(&self) -> std::result::Result<Vec<Output>, Unstorable> {
+    /// Stores every output this compile wrote and describes them, with the
+    /// binary outputs as they are on disk.
+    #[allow(clippy::type_complexity)]
+    fn ingest_outputs(
+        &self,
+    ) -> std::result::Result<(Vec<Output>, Vec<(String, Identity, Digest)>), Unstorable> {
         // Every file with this unit's prefix, whatever its mtime: incremental
         // rustc hardlinks artifacts it reuses (objects, sometimes the .rmeta)
         // back into the out-dir with their old mtimes, and they are as much
@@ -471,7 +546,13 @@ impl Unit<'_> {
             Ok(())
         })?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(outputs)
+        let placed = found
+            .iter()
+            .zip(&outputs)
+            .filter(|(_, output)| !output.text)
+            .map(|((name, _, meta), output)| (name.clone(), stat::identity_of(meta), output.digest))
+            .collect();
+        Ok((outputs, placed))
     }
 
     /// Stores one batch of output files.
@@ -488,7 +569,7 @@ impl Unit<'_> {
                 self.store_text(&content)?
             } else {
                 let digest = self.store.insert_file(path)?;
-                if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
+                if is_library(name) {
                     // A dependent hashes this file next; it need not read it.
                     let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
                 }
@@ -580,6 +661,19 @@ impl Unit<'_> {
         sets.truncate(MAX_SETS);
         write_atomically(&path, &encode_sets(&sets))
     }
+}
+
+/// Whether dependents read the output `name` as an `--extern`.
+fn is_library(name: &str) -> bool {
+    matches!(
+        Path::new(name).extension().and_then(|ext| ext.to_str()),
+        Some("rlib" | "rmeta" | "dylib" | "so" | "dll")
+    )
+}
+
+/// Whether `name` is an object file.
+fn is_object(name: &str) -> bool {
+    Path::new(name).extension().is_some_and(|ext| ext == "o")
 }
 
 #[cfg(unix)]
