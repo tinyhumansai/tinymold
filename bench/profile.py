@@ -405,6 +405,14 @@ def opportunities(summary: dict) -> list[str]:
         found.append((top["length"], f"the longest low-parallelism window ran "
                       f"{top['length']:.2f}s at {top['avg_running']:.1f} units: "
                       f"{', '.join(top['units'][:3])}."))
+    runs = [step for step in summary["critical_path"] if step["kind"] == "build-script-run"]
+    if summary.get("os") == "darwin" and runs and max(r["on_path"] for r in runs) > 0.5:
+        slowest = max(runs, key=lambda r: r["on_path"])
+        found.append((slowest["on_path"], f"{slowest['label']} ran {slowest['on_path']:.2f}s on "
+                      "the critical path. On macOS the first exec of every newly written "
+                      "binary waits on a malware assessment (~0.1-0.2s alone, seconds when "
+                      "several build scripts start at once); listing the terminal under System "
+                      "Settings > Privacy & Security > Developer Tools exempts its children."))
     wrapper = summary["wrapper"]
     if wrapper and wrapper["overhead_total"] > 0.05:
         found.append((wrapper["overhead_total"], "the tinymold wrapper spent "
@@ -657,6 +665,7 @@ def profile_build(args: argparse.Namespace) -> None:
     jobs = os.cpu_count() or 1
     summary = analyze(data, jobs, wall, links, wrapper)
     machine = bench.machine()
+    summary["os"] = machine["os"]
     context = [f"- Project: {project['name']} {project['rev']} ({project.get('role', '')}).",
                f"- Case: {args.case}; mode: {args.mode}"
                + (", warm store" if args.warm else "") + "; toolchain: "
