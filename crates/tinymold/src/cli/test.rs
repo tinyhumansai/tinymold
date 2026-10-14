@@ -251,11 +251,16 @@ fn snapshot_save_list_and_restore_round_trip() {
             .starts_with("restored snapshot main (")
     );
     assert!(
-        out.ends_with(
-            "1 of 1 files match)\nfresh: 0 restored, 1 unchanged, 0 changed, 0 missing\n"
-        ),
-        "{out}"
+        lines
+            .next()
+            .unwrap()
+            .starts_with("kept the previous target as snapshot auto-")
     );
+    assert_eq!(
+        lines.next(),
+        Some("fresh: 0 restored, 1 unchanged, 0 changed, 0 missing")
+    );
+    assert!(out.contains("1 of 1 files match)"), "{out}");
 }
 
 #[test]
