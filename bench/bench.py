@@ -1049,17 +1049,12 @@ def main() -> None:
     name = f"{result['benchmark']}-{result['machine']['os']}-{result['machine']['arch']}.json"
     path = RESULTS / name
     if getattr(args, "project", None) and path.exists():
-        # A run limited to one project (and, for scenarios, to some modes or
-        # cases) replaces exactly the rows it measured and keeps the rest.
+        # A run limited to one project replaces exactly the rows it measured,
+        # by project and, for scenarios, mode and case; the rest are kept.
         previous = json.loads(path.read_text())
         measured = {(r["project"], r.get("mode"), r.get("case")) for r in result["results"]}
-        limited = bool(getattr(args, "cases", None)) or getattr(args, "modes", None) not in (
-            None, "baseline,sccache")
-        if limited:
-            kept = [r for r in previous["results"]
-                    if (r["project"], r.get("mode"), r.get("case")) not in measured]
-        else:
-            kept = [r for r in previous["results"] if r["project"] != args.project]
+        kept = [r for r in previous["results"]
+                if (r["project"], r.get("mode"), r.get("case")) not in measured]
         result["results"] = kept + result["results"]
     path.write_text(json.dumps(result, indent=2) + "\n")
     print(f"wrote bench/results/{name}", file=sys.stderr)
