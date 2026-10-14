@@ -652,6 +652,7 @@ fn unit_for<'a>(unit: &'a Crate, invocation: &'a Invocation) -> Unit<'a> {
         cwd: unit.root.clone(),
         out_dir: unit.out(),
         roots: Roots::new(&unit.root, &invocation.out_dir, None),
+        now_ns: crate::clock::filesystem_now(&unit.store.join("stat")).unwrap(),
     }
 }
 
