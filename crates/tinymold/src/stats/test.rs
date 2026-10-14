@@ -40,7 +40,10 @@ fn the_hit_rate_counts_cacheable_invocations_only() {
 
 #[test]
 fn keeps_the_slowest_misses_slowest_first() {
-    let log: String = (1..=7).map(|n| format!("miss c{n} {n}00.0ms\n")).collect();
+    let log = (1..=7)
+        .map(|n| format!("miss c{n} {n}00.0ms"))
+        .collect::<Vec<_>>()
+        .join("\n");
     let stats = Stats::parse(&log);
     let names: Vec<_> = stats
         .slowest
