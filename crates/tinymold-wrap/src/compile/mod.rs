@@ -26,6 +26,7 @@ use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
 use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
+use crate::clock::{filesystem_now, written_before};
 use crate::error::io;
 use crate::exec::{self, Captured};
 use crate::record::{
@@ -33,7 +34,7 @@ use crate::record::{
     write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
-use crate::stat::{self, nanos};
+use crate::stat;
 use crate::trace::Trace;
 use crate::{Error, Result};
 
@@ -62,6 +63,11 @@ struct Unit<'a> {
     cwd: PathBuf,
     out_dir: PathBuf,
     roots: Roots,
+    /// The filesystem clock read before anything was hashed or run: the
+    /// moment input sets and stat entries are recorded as of, and the
+    /// moment an input must have been written before for the compile to be
+    /// stored.
+    now_ns: u64,
 }
 
 /// Serves `invocation` from the cache in `store_dir`, or by running
@@ -88,6 +94,7 @@ pub(crate) fn serve(
         out_dir: cwd.join(&invocation.out_dir),
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
+        now_ns: filesystem_now(&store_dir.join("stat"))?,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program))?;
     if let Some((action, entry)) = trace.span("lookup", || unit.lookup(&pre))?
@@ -111,12 +118,11 @@ pub(crate) fn serve(
         }
     }
 
-    let started = SystemTime::now();
     let captured = trace.span("rustc", || exec::run_captured(program, args))?;
     let stored = if captured.code == 0 {
         let ingesting = std::time::Instant::now();
         trace
-            .span("ingest", || unit.ingest(&pre, started, &captured))
+            .span("ingest", || unit.ingest(&pre, &captured))
             .map(|()| ingesting.elapsed())
             .map_err(|error| error.to_string())
     } else {
@@ -161,7 +167,7 @@ impl Unit<'_> {
             .map(|ext| {
                 ext.path
                     .as_ref()
-                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path)))
+                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path), self.now_ns))
                     .transpose()
             })
             .collect::<Result<Vec<_>>>()?;
@@ -208,7 +214,8 @@ impl Unit<'_> {
                     .into_owned();
                 // Archives a build script rebuilt keep their digest when only
                 // their build stamps changed.
-                let digest = stat::digest_as(self.store_dir, &path, stat::Kind::Archive)?;
+                let digest =
+                    stat::digest_as(self.store_dir, &path, stat::Kind::Archive, self.now_ns)?;
                 files.push((name, digest));
             }
         }
@@ -374,15 +381,8 @@ impl Unit<'_> {
     }
 
     /// Stores what a successful compile produced.
-    fn ingest(
-        &self,
-        pre: &Digest,
-        started: SystemTime,
-        captured: &Captured,
-    ) -> std::result::Result<(), Unstorable> {
+    fn ingest(&self, pre: &Digest, captured: &Captured) -> std::result::Result<(), Unstorable> {
         let invocation = self.invocation;
-        let started_ns = nanos(started);
-        let recorded_ns = nanos(SystemTime::now());
         let stem = format!("{}{}", invocation.crate_name, invocation.extra_filename);
         let dep_info = self.out_dir.join(format!("{stem}.d"));
         let Some(text) = record::read(&dep_info)? else {
@@ -394,7 +394,10 @@ impl Unit<'_> {
         for written in &info.inputs {
             let path = self.cwd.join(written);
             let identity = stat::identity(&path)?;
-            if identity.mtime_ns >= started_ns {
+            // Inputs are hashed after the compile, so one written since
+            // the unit's clock reading, or within a tick before it, may not
+            // be what rustc read.
+            if !written_before(identity.mtime_ns, self.now_ns) {
                 return Err(Unstorable::Reason("an input changed during the compile"));
             }
             inputs.push(Input {
@@ -418,7 +421,7 @@ impl Unit<'_> {
         write_atomically(&self.action_path(&key), &action.encode())?;
 
         let set = InputSet {
-            recorded_ns,
+            recorded_ns: self.now_ns,
             inputs,
             env: info.env.into_iter().map(|(name, _)| name).collect(),
         };
