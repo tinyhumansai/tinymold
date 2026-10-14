@@ -143,18 +143,18 @@ pub(crate) fn restore(store: &Store, session: &SessionRecord, incremental: &Path
     if crate_dir.parent() != Some(incremental) || crate_dir.exists() {
         return false;
     }
-    let placed = place(store, session, &crate_dir);
+    // Written beside the crate directory, then renamed into place, so rustc
+    // never finds a session with files missing.
+    let staging = crate_dir.with_extension("tinymold-restoring");
+    let placed = place(store, session, &staging, &crate_dir);
     if placed.is_err() {
-        let _ = fs::remove_dir_all(&crate_dir);
+        let _ = fs::remove_dir_all(&staging);
     }
     placed.is_ok()
 }
 
-fn place(store: &Store, session: &SessionRecord, crate_dir: &Path) -> Result<()> {
-    // Written beside the crate directory, then renamed into place, so rustc
-    // never finds a session with files missing.
-    let staging = crate_dir.with_extension("tinymold-restoring");
-    let _ = fs::remove_dir_all(&staging);
+fn place(store: &Store, session: &SessionRecord, staging: &Path, crate_dir: &Path) -> Result<()> {
+    let _ = fs::remove_dir_all(staging);
     let dir = staging.join(&session.name);
     fs::create_dir_all(&dir).map_err(io("create", &dir))?;
     for (file, digest) in &session.files {
@@ -173,7 +173,7 @@ fn place(store: &Store, session: &SessionRecord, crate_dir: &Path) -> Result<()>
         let lock = staging.join(format!("{stem}.lock"));
         fs::write(&lock, b"").map_err(io("write", &lock))?;
     }
-    fs::rename(&staging, crate_dir).map_err(io("rename into place", crate_dir))
+    fs::rename(staging, crate_dir).map_err(io("rename into place", crate_dir))
 }
 
 /// Store objects are read-only; rustc rewrites a session's files.
