@@ -106,7 +106,9 @@ numbers and deletes nothing.
   entry.
 - **The grace period protects ingest in progress.** A wrapper inserts
   objects before it writes their action, so an object younger than the grace
-  period is never swept for being unreferenced.
+  period is never swept for being unreferenced. Storing an object that is
+  already present refreshes its mtime, so an old object a new action is
+  about to reuse counts as young too.
 - **Policy stays out of the CAS.** `tinymold-cas` gains listing and removal
   primitives only. Which objects to remove is decided in `tinymold`.
 
