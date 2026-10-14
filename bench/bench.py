@@ -1327,16 +1327,19 @@ def bench_retest(args: argparse.Namespace) -> dict:
                 raise SystemExit(f"{project['name']}: cargo test failed on the {side} side")
             return {"wall": wall, **runner_counts(log)}
 
-        print(f"{project['name']}: building and recording", file=sys.stderr)
-        for side in sides:
-            measure(side)  # builds the tests, then records every pass
         samples = {(case, side): [] for case in RETEST_CASES for side in sides}
         edit = 0
         try:
-            for n in range(args.runs):
-                order = list(sides) if n % 2 == 0 else list(reversed(sides))
-                for case in RETEST_CASES:
-                    for side in order:
+            for case in RETEST_CASES:
+                if case == "again":
+                    # Both sides build the unedited source and the runner
+                    # records every pass; the timed runs then change nothing.
+                    print(f"{project['name']}: building and recording", file=sys.stderr)
+                    edits.restore()
+                    for side in sides:
+                        measure(side)
+                for n in range(args.runs):
+                    for side in list(sides) if n % 2 == 0 else list(reversed(sides)):
                         if case == "private_body":
                             edit += 1
                             edits.apply("private_body", edit)
@@ -1347,10 +1350,10 @@ def bench_retest(args: argparse.Namespace) -> dict:
             results.append({"project": project["name"], "rev": project["rev"], "case": case,
                             "mode": side, "wall": summarize([s["wall"] for s in taken]),
                             "replayed": statistics.median(s["replayed"] for s in taken),
-                            "ran": statistics.median(s["ran"] for s in taken)})
+                            "ran": statistics.median(s["ran"] for s in taken),
+                            "counts": [[s["replayed"], s["ran"]] for s in taken]})
             print(f"  {case} {side}: {results[-1]['wall']['median_s']}s, "
-                  f"replayed {results[-1]['replayed']:.0f}, ran {results[-1]['ran']:.0f}",
-                  file=sys.stderr)
+                  f"replayed/ran per run {results[-1]['counts']}", file=sys.stderr)
         shutil.rmtree(store, ignore_errors=True)
         shutil.rmtree(tmp, ignore_errors=True)
     return {"benchmark": "retest", "pins": pins(), "results": results}
