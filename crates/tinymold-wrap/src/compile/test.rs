@@ -154,16 +154,14 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
     write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 2 }\n",
-    )
-    .unwrap();
+    );
     assert_stored(&unit.serve(&[]).unwrap());
     assert_ne!(unit.outputs(), first);
 
     write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 1 }\n",
-    )
-    .unwrap();
+    );
     assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
     assert_eq!(unit.outputs(), first);
 }
@@ -375,8 +373,7 @@ fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
     write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn a() -> u32 { 1 }\n// edited\npub fn b() -> u32 { 2 }\n",
-    )
-    .unwrap();
+    );
     assert_stored(&unit.serve(&flags).unwrap());
     let built: Vec<String> = unit.outputs().into_iter().map(|(name, _)| name).collect();
 
@@ -465,8 +462,7 @@ fn a_miss_leaves_the_last_use_of_other_actions_alone() {
     write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 7 }\n",
-    )
-    .unwrap();
+    );
     assert_stored(&unit.serve(&[]).unwrap());
     for path in before {
         assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), long_ago);
@@ -626,8 +622,7 @@ fn a_remote_input_set_whose_files_differ_here_is_not_used() {
     write_settled(
         second.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 7 }\n",
-    )
-    .unwrap();
+    );
     let remote = StoreRemote::new(&remote);
     assert!(matches!(
         second.serve_with(Some(&remote), &[]).unwrap(),
