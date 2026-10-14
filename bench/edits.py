@@ -170,9 +170,11 @@ class EditSession:
     """One project in one mode with one linker: its env, target dir, store."""
 
     def __init__(self, project: dict, src: Path, mode: str, linker: str,
-                 linker_flags: list[str], tinymold: Path | None, sccache: str | None):
+                 linker_flags: list[str], tinymold: Path | None, sccache: str | None,
+                 name: str | None = None):
         self.project, self.src, self.mode, self.linker = project, src, mode, linker
-        self.label = mode if linker == "default" else f"{mode}+{linker}"
+        name = name or mode
+        self.label = name if linker == "default" else f"{name}+{linker}"
         self.target = src / "target" / f"edits-{self.label}"
         self.log = bench.WORK / f"link-edits-{project['name']}-{self.label}.log"
         triple = bench.host_triple().upper().replace("-", "_")
@@ -305,6 +307,12 @@ def bench_edits(args: argparse.Namespace) -> dict:
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         sessions = [EditSession(project, src, mode, linker, available[linker], tinymold, sccache)
                     for linker in linkers for mode in modes]
+        if args.against:
+            # Another build of tinymold on the same edits, with its own store:
+            # the before side of a before-and-after comparison.
+            sessions += [EditSession(project, src, "tinymold", linker, available[linker],
+                                     Path(args.against).resolve(), sccache, "tinymold-base")
+                         for linker in linkers]
         rows: dict[str, list[dict]] = {s.label: [] for s in sessions}
         plan = schedule(args.steps, args.churn_every, "churn" in project, args.fresh_every)
         edits = bench.Edits(src, project["edits"], cumulative=True)
@@ -356,5 +364,7 @@ def add_parser(sub) -> None:
                        help=f"comma-separated, from: {', '.join(EDIT_MODES)}")
     edits.add_argument("--commands", default=",".join(COMMANDS),
                        help=f"comma-separated, from: {', '.join(COMMANDS)}")
+    edits.add_argument("--against", metavar="BINARY",
+                       help="another tinymold binary, run as mode tinymold-base")
     edits.add_argument("--linkers", default="default",
                        help="comma-separated: default, rust-lld, and on Linux mold or wild")
