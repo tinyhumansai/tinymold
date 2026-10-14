@@ -324,10 +324,19 @@ def cas_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def openhuman_section(result: dict) -> list[str]:
+    """The OpenHuman Docker benchmark's table; docker_openhuman.py owns its
+    layout so the report and the run print the same thing."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import docker_openhuman
+
+    return docker_openhuman.tables(result).splitlines() + [""]
+
+
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "dedup": 6, "link": 7, "native": 8, "cas": 9}
+             "openhuman": 6, "dedup": 7, "link": 8, "native": 9, "cas": 10}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -350,6 +359,8 @@ def main() -> None:
             sections += cas_section(result)
         elif result["benchmark"] == "ci":
             sections += ci_section(result)
+        elif result["benchmark"] == "openhuman-docker":
+            sections += openhuman_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()
