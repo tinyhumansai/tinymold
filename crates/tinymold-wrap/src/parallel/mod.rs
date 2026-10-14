@@ -24,7 +24,7 @@ where
     let chunk = items.len().div_ceil(workers());
     let work = &work;
     let mut results = Vec::with_capacity(items.len());
-    std::thread::scope(|scope| {
+    std::thread::scope(|scope| -> std::result::Result<(), E> {
         let handles: Vec<_> = items
             .chunks(chunk)
             .map(|batch| scope.spawn(move || batch.iter().map(work).collect::<std::result::Result<Vec<R>, E>>()))
