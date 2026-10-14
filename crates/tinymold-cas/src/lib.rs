@@ -2,7 +2,7 @@
 //!
 //! A [`Store`] keeps build artifacts — rlibs, rmeta files, binaries, anything
 //! a build produces — as immutable objects named by their
-//! [`Digest`](tinymold_hash::Digest). Identical bytes are stored once, no
+//! [`Digest`]. Identical bytes are stored once, no
 //! matter how many worktrees, agents, or projects produce them, which is how
 //! tinymold keeps N checkouts of one project from costing N copies of its
 //! dependency artifacts.

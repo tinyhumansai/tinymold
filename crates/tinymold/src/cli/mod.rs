@@ -179,7 +179,7 @@ fn run_cas(command: &CasCommand, store: &Store, out: &mut impl Write) -> Result<
 fn store_dir(cli: &Cli) -> Option<PathBuf> {
     cli.store
         .clone()
-        .or_else(|| default_store(std::env::var_os))
+        .or_else(|| default_store(|name| std::env::var_os(name)))
 }
 
 fn open_store(cli: &Cli) -> Result<Store> {
