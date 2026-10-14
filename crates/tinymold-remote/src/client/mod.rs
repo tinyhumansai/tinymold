@@ -10,7 +10,6 @@
 
 use std::time::Duration;
 
-use tokio_stream::StreamExt as _;
 use tonic::client::Grpc;
 use tonic::codegen::http::uri::PathAndQuery;
 use tonic::metadata::MetadataValue;
@@ -165,8 +164,8 @@ impl Client {
                 .map_err(status(CALL))?
                 .into_inner();
             let mut data = Vec::with_capacity(usize::try_from(digest.size_bytes).unwrap_or(0));
-            while let Some(chunk) = stream.next().await {
-                data.extend_from_slice(&chunk.map_err(status(CALL))?.data);
+            while let Some(chunk) = stream.message().await.map_err(status(CALL))? {
+                data.extend_from_slice(&chunk.data);
             }
             Ok(data)
         };
