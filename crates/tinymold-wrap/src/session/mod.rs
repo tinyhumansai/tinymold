@@ -52,7 +52,7 @@ pub(crate) fn find(
     let mut written = Vec::new();
     for crate_dir in fs::read_dir(incremental)
         .ok()?
-        .filter_map(|entry| entry.ok())
+        .filter_map(std::result::Result::ok)
     {
         if !crate_dir.file_name().to_string_lossy().starts_with(&prefix) {
             continue;
@@ -60,7 +60,7 @@ pub(crate) fn find(
         let Ok(sessions) = fs::read_dir(crate_dir.path()) else {
             continue;
         };
-        for session in sessions.filter_map(|entry| entry.ok()) {
+        for session in sessions.filter_map(std::result::Result::ok) {
             let name = session.file_name().to_string_lossy().into_owned();
             let Ok(meta) = session.metadata() else {
                 continue;
@@ -83,7 +83,7 @@ pub(crate) fn find(
 /// not a lock file and not one still being written (`-working`).
 fn is_finished(name: &str) -> bool {
     name.starts_with("s-")
-        && !name.ends_with(".lock")
+        && !Path::new(name).extension().is_some_and(|ext| ext == "lock")
         && !name.ends_with("-working")
         && name.split('-').count() == 4
 }
@@ -92,7 +92,7 @@ fn holds_any(dir: &Path, inodes: &HashSet<(u64, u64)>) -> bool {
     !inodes.is_empty()
         && fs::read_dir(dir).is_ok_and(|files| {
             files
-                .filter_map(|entry| entry.ok())
+                .filter_map(std::result::Result::ok)
                 .filter_map(|entry| entry.metadata().ok())
                 .any(|meta| inodes.contains(&dev_ino(&meta)))
         })
