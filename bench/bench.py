@@ -41,6 +41,12 @@ into its own checkout's target/ directory.
          link time (via a timing linker wrapper), units compiled versus fresh,
          target/ bytes by kind, and cache hits.
 
+  ci     A fresh CI runner at the same path, per corpus project: a cold build,
+         target/ restored from an archive with every source touched (what a
+         target/ cache does), tinymold's store restored from an archive (the
+         GitHub Action's default backend), and tinymold fed only by a local
+         bazel-remote container (the remote backend; needs docker).
+
   dedup  Builds two worktrees of each project and reports how much of the
          second's target/ is byte-identical to the first's, at file level,
          rlib-member level, and DWARF-section level.
@@ -52,6 +58,7 @@ Usage:
   python3 bench/bench.py baseline [--runs N] [--project NAME]
   python3 bench/bench.py link [--runs N] [--project NAME]
   python3 bench/bench.py cas [--runs N] [--size-mb N]
+  python3 bench/bench.py ci [--runs N] [--project NAME] [--no-remote]
   python3 bench/report.py      # render results into bench/README.md
 """
 
