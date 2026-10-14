@@ -10,1184 +10,6 @@
   },
   "results": [
     {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "clean",
-      "wall": {
-        "median_s": 7.7725,
-        "min_s": 7.4337,
-        "max_s": 14.5527,
-        "samples_s": [
-          14.5527,
-          7.4337,
-          7.7725
-        ]
-      },
-      "link": {
-        "median_s": 1.4704,
-        "min_s": 1.3102,
-        "max_s": 1.596,
-        "samples_s": [
-          1.3102,
-          1.4704,
-          1.596
-        ]
-      },
-      "links": 25,
-      "compiled": 109,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 208886584,
-        "rmeta": 64152263,
-        "debuginfo": 0,
-        "objects": 162590312,
-        "incremental": 48028528,
-        "executables": 85817344,
-        "other": 9613831
-      },
-      "first_wall_s": 14.5527
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "noop",
-      "wall": {
-        "median_s": 0.0998,
-        "min_s": 0.0994,
-        "max_s": 0.108,
-        "samples_s": [
-          0.108,
-          0.0994,
-          0.0998
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 109,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.7911,
-        "min_s": 0.772,
-        "max_s": 0.8547,
-        "samples_s": [
-          0.772,
-          0.8547,
-          0.7911
-        ]
-      },
-      "link": {
-        "median_s": 0.0746,
-        "min_s": 0.0701,
-        "max_s": 0.082,
-        "samples_s": [
-          0.0701,
-          0.082,
-          0.0746
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.8237,
-        "min_s": 0.8076,
-        "max_s": 0.8344,
-        "samples_s": [
-          0.8237,
-          0.8344,
-          0.8076
-        ]
-      },
-      "link": {
-        "median_s": 0.0728,
-        "min_s": 0.07,
-        "max_s": 0.0748,
-        "samples_s": [
-          0.0748,
-          0.0728,
-          0.07
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 0.8574,
-        "min_s": 0.8414,
-        "max_s": 0.8699,
-        "samples_s": [
-          0.8414,
-          0.8699,
-          0.8574
-        ]
-      },
-      "link": {
-        "median_s": 0.0721,
-        "min_s": 0.0696,
-        "max_s": 0.0782,
-        "samples_s": [
-          0.0696,
-          0.0721,
-          0.0782
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "touch_all",
-      "wall": {
-        "median_s": 0.9328,
-        "min_s": 0.9224,
-        "max_s": 0.9407,
-        "samples_s": [
-          0.9328,
-          0.9224,
-          0.9407
-        ]
-      },
-      "link": {
-        "median_s": 0.101,
-        "min_s": 0.1001,
-        "max_s": 0.1034,
-        "samples_s": [
-          0.101,
-          0.1001,
-          0.1034
-        ]
-      },
-      "links": 2,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "second_worktree",
-      "wall": {
-        "median_s": 13.8363,
-        "min_s": 13.0656,
-        "max_s": 13.9823,
-        "samples_s": [
-          13.8363,
-          13.0656,
-          13.9823
-        ]
-      },
-      "link": {
-        "median_s": 2.0399,
-        "min_s": 1.2061,
-        "max_s": 2.1449,
-        "samples_s": [
-          1.2061,
-          2.1449,
-          2.0399
-        ]
-      },
-      "links": 25,
-      "compiled": 109,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 1.8762,
-        "min_s": 1.7783,
-        "max_s": 2.5363,
-        "samples_s": [
-          1.8762,
-          1.7783,
-          2.5363
-        ]
-      },
-      "link": {
-        "median_s": 0.1567,
-        "min_s": 0.1468,
-        "max_s": 0.2272,
-        "samples_s": [
-          0.1567,
-          0.1468,
-          0.2272
-        ]
-      },
-      "links": 2,
-      "compiled": 2,
-      "fresh": 216,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "baseline",
-      "case": "test_no_run",
-      "wall": {
-        "median_s": 2.6936,
-        "min_s": 2.2596,
-        "max_s": 3.5013,
-        "samples_s": [
-          3.5013,
-          2.6936,
-          2.2596
-        ]
-      },
-      "link": {
-        "median_s": 2.6368,
-        "min_s": 2.4512,
-        "max_s": 2.8834,
-        "samples_s": [
-          2.4512,
-          2.8834,
-          2.6368
-        ]
-      },
-      "links": 20,
-      "compiled": 29,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 230653000,
-        "rmeta": 72290030,
-        "debuginfo": 0,
-        "objects": 191523416,
-        "incremental": 95929607,
-        "executables": 235871864,
-        "other": 9851114
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "clean",
-      "wall": {
-        "median_s": 5.1421,
-        "min_s": 4.9427,
-        "max_s": 14.1533,
-        "samples_s": [
-          14.1533,
-          4.9427,
-          5.1421
-        ]
-      },
-      "link": {
-        "median_s": 1.3519,
-        "min_s": 1.3179,
-        "max_s": 1.9173,
-        "samples_s": [
-          1.9173,
-          1.3179,
-          1.3519
-        ]
-      },
-      "links": 25,
-      "compiled": 109,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 205409488,
-        "rmeta": 64151819,
-        "debuginfo": 0,
-        "objects": 33097824,
-        "incremental": 0,
-        "executables": 85508032,
-        "other": 9622628
-      },
-      "first_wall_s": 14.1533,
-      "cache": {
-        "hits": 698,
-        "misses": 349
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "noop",
-      "wall": {
-        "median_s": 0.0647,
-        "min_s": 0.0637,
-        "max_s": 0.0652,
-        "samples_s": [
-          0.0652,
-          0.0637,
-          0.0647
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 109,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 0,
-        "misses": 0
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.5965,
-        "min_s": 0.5923,
-        "max_s": 0.6093,
-        "samples_s": [
-          0.5923,
-          0.5965,
-          0.6093
-        ]
-      },
-      "link": {
-        "median_s": 0.0603,
-        "min_s": 0.0591,
-        "max_s": 0.0608,
-        "samples_s": [
-          0.0608,
-          0.0591,
-          0.0603
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 3,
-        "misses": 0
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.6451,
-        "min_s": 0.6173,
-        "max_s": 0.6868,
-        "samples_s": [
-          0.6173,
-          0.6868,
-          0.6451
-        ]
-      },
-      "link": {
-        "median_s": 0.0646,
-        "min_s": 0.0614,
-        "max_s": 0.0666,
-        "samples_s": [
-          0.0646,
-          0.0666,
-          0.0614
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 3,
-        "misses": 0
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 1.0874,
-        "min_s": 1.0665,
-        "max_s": 1.1491,
-        "samples_s": [
-          1.1491,
-          1.0874,
-          1.0665
-        ]
-      },
-      "link": {
-        "median_s": 0.0601,
-        "min_s": 0.06,
-        "max_s": 0.0622,
-        "samples_s": [
-          0.0622,
-          0.0601,
-          0.06
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 0,
-        "misses": 3
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "touch_all",
-      "wall": {
-        "median_s": 0.7388,
-        "min_s": 0.7287,
-        "max_s": 0.7491,
-        "samples_s": [
-          0.7287,
-          0.7388,
-          0.7491
-        ]
-      },
-      "link": {
-        "median_s": 0.0923,
-        "min_s": 0.091,
-        "max_s": 0.0941,
-        "samples_s": [
-          0.0941,
-          0.0923,
-          0.091
-        ]
-      },
-      "links": 2,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 3,
-        "misses": 0
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "second_worktree",
-      "wall": {
-        "median_s": 4.261,
-        "min_s": 3.8868,
-        "max_s": 13.8683,
-        "samples_s": [
-          13.8683,
-          3.8868,
-          4.261
-        ]
-      },
-      "link": {
-        "median_s": 1.3022,
-        "min_s": 1.1173,
-        "max_s": 1.3925,
-        "samples_s": [
-          1.1173,
-          1.3925,
-          1.3022
-        ]
-      },
-      "links": 25,
-      "compiled": 109,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 823,
-        "misses": 224
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 1.3047,
-        "min_s": 1.3013,
-        "max_s": 1.358,
-        "samples_s": [
-          1.3047,
-          1.3013,
-          1.358
-        ]
-      },
-      "link": {
-        "median_s": 0.1247,
-        "min_s": 0.1232,
-        "max_s": 0.1272,
-        "samples_s": [
-          0.1232,
-          0.1247,
-          0.1272
-        ]
-      },
-      "links": 2,
-      "compiled": 2,
-      "fresh": 216,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 6,
-        "misses": 0
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "sccache",
-      "case": "test_no_run",
-      "wall": {
-        "median_s": 1.4382,
-        "min_s": 1.4107,
-        "max_s": 1.9469,
-        "samples_s": [
-          1.9469,
-          1.4107,
-          1.4382
-        ]
-      },
-      "link": {
-        "median_s": 2.1199,
-        "min_s": 2.1007,
-        "max_s": 2.1801,
-        "samples_s": [
-          2.1199,
-          2.1801,
-          2.1007
-        ]
-      },
-      "links": 20,
-      "compiled": 29,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 227175904,
-        "rmeta": 72289586,
-        "debuginfo": 0,
-        "objects": 43540680,
-        "incremental": 0,
-        "executables": 234391416,
-        "other": 9859903
-      },
-      "cache": {
-        "hits": 54,
-        "misses": 27
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "clean",
-      "wall": {
-        "median_s": 8.1334,
-        "min_s": 7.9951,
-        "max_s": 8.2058,
-        "samples_s": [
-          8.1334,
-          8.2058,
-          7.9951
-        ]
-      },
-      "link": {
-        "median_s": 1.5134,
-        "min_s": 1.4559,
-        "max_s": 1.5385,
-        "samples_s": [
-          1.4559,
-          1.5134,
-          1.5385
-        ]
-      },
-      "links": 25,
-      "compiled": 109,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0401,
-        "min_s": 0.0381,
-        "max_s": 0.5053,
-        "samples_s": [
-          0.5053,
-          0.0401,
-          0.0381
-        ]
-      },
-      "target_kinds": {
-        "rlib": 208886584,
-        "rmeta": 64152263,
-        "debuginfo": 0,
-        "objects": 162590312,
-        "incremental": 48028545,
-        "executables": 85817344,
-        "other": 9716795
-      },
-      "first_wall_s": 8.1334
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "noop",
-      "wall": {
-        "median_s": 0.1184,
-        "min_s": 0.1181,
-        "max_s": 0.1199,
-        "samples_s": [
-          0.1181,
-          0.1184,
-          0.1199
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 109,
-      "tinymold": {
-        "median_s": 0.0258,
-        "min_s": 0.0255,
-        "max_s": 0.0263,
-        "samples_s": [
-          0.0263,
-          0.0255,
-          0.0258
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.7891,
-        "min_s": 0.7598,
-        "max_s": 0.8228,
-        "samples_s": [
-          0.7598,
-          0.7891,
-          0.8228
-        ]
-      },
-      "link": {
-        "median_s": 0.0714,
-        "min_s": 0.0682,
-        "max_s": 0.0725,
-        "samples_s": [
-          0.0682,
-          0.0714,
-          0.0725
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0291,
-        "min_s": 0.0289,
-        "max_s": 0.0304,
-        "samples_s": [
-          0.0291,
-          0.0289,
-          0.0304
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.8196,
-        "min_s": 0.8159,
-        "max_s": 0.8393,
-        "samples_s": [
-          0.8393,
-          0.8159,
-          0.8196
-        ]
-      },
-      "link": {
-        "median_s": 0.0696,
-        "min_s": 0.0667,
-        "max_s": 0.0779,
-        "samples_s": [
-          0.0696,
-          0.0667,
-          0.0779
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0293,
-        "min_s": 0.0286,
-        "max_s": 0.0294,
-        "samples_s": [
-          0.0294,
-          0.0286,
-          0.0293
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 0.8554,
-        "min_s": 0.8549,
-        "max_s": 0.8573,
-        "samples_s": [
-          0.8573,
-          0.8549,
-          0.8554
-        ]
-      },
-      "link": {
-        "median_s": 0.0722,
-        "min_s": 0.0692,
-        "max_s": 0.0747,
-        "samples_s": [
-          0.0692,
-          0.0722,
-          0.0747
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0301,
-        "min_s": 0.0298,
-        "max_s": 0.0305,
-        "samples_s": [
-          0.0301,
-          0.0298,
-          0.0305
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "touch_all",
-      "wall": {
-        "median_s": 0.3981,
-        "min_s": 0.127,
-        "max_s": 0.4379,
-        "samples_s": [
-          0.4379,
-          0.3981,
-          0.127
-        ]
-      },
-      "link": {
-        "median_s": 0.067,
-        "min_s": 0,
-        "max_s": 0.069,
-        "samples_s": [
-          0.067,
-          0.069,
-          0
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0306,
-        "min_s": 0.0303,
-        "max_s": 0.0324,
-        "samples_s": [
-          0.0306,
-          0.0303,
-          0.0324
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "second_worktree",
-      "wall": {
-        "median_s": 1.8121,
-        "min_s": 1.6842,
-        "max_s": 2.1283,
-        "samples_s": [
-          1.6842,
-          1.8121,
-          2.1283
-        ]
-      },
-      "link": {
-        "median_s": 0.0931,
-        "min_s": 0.0864,
-        "max_s": 0.1051,
-        "samples_s": [
-          0.0931,
-          0.1051,
-          0.0864
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.2512,
-        "min_s": 0.1936,
-        "max_s": 0.4823,
-        "samples_s": [
-          0.1936,
-          0.2512,
-          0.4823
-        ]
-      },
-      "snapshot_save_s": [
-        0.1092,
-        0.5441,
-        0.6661
-      ]
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 3.2863,
-        "min_s": 3.0056,
-        "max_s": 4.0622,
-        "samples_s": [
-          4.0622,
-          3.2863,
-          3.0056
-        ]
-      },
-      "link": {
-        "median_s": 0.1566,
-        "min_s": 0.1522,
-        "max_s": 0.1599,
-        "samples_s": [
-          0.1599,
-          0.1566,
-          0.1522
-        ]
-      },
-      "links": 2,
-      "compiled": 2,
-      "fresh": 216,
-      "tinymold": {
-        "median_s": 0.7566,
-        "min_s": 0.721,
-        "max_s": 0.7677,
-        "samples_s": [
-          0.721,
-          0.7566,
-          0.7677
-        ]
-      }
-    },
-    {
-      "project": "bat",
-      "rev": "v0.24.0",
-      "role": "binary with build scripts and C dependencies",
-      "mode": "tinymold",
-      "case": "test_no_run",
-      "wall": {
-        "median_s": 1.9353,
-        "min_s": 1.9306,
-        "max_s": 1.9629,
-        "samples_s": [
-          1.9629,
-          1.9353,
-          1.9306
-        ]
-      },
-      "link": {
-        "median_s": 2.2115,
-        "min_s": 2.182,
-        "max_s": 2.2393,
-        "samples_s": [
-          2.182,
-          2.2393,
-          2.2115
-        ]
-      },
-      "links": 20,
-      "compiled": 29,
-      "fresh": 108,
-      "tinymold": {
-        "median_s": 0.0318,
-        "min_s": 0.0312,
-        "max_s": 0.033,
-        "samples_s": [
-          0.0312,
-          0.0318,
-          0.033
-        ]
-      },
-      "target_kinds": {
-        "rlib": 230653000,
-        "rmeta": 72290030,
-        "debuginfo": 0,
-        "objects": 191523416,
-        "incremental": 95929624,
-        "executables": 235871864,
-        "other": 9954094
-      }
-    },
-    {
       "project": "tinymold",
       "rev": "d08295f",
       "role": "this repository, as a small workspace",
@@ -3577,6 +2399,1220 @@
       "cache": {
         "hits": 16,
         "misses": 11
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "clean",
+      "wall": {
+        "median_s": 7.2519,
+        "min_s": 7.0278,
+        "max_s": 13.5773,
+        "samples_s": [
+          13.5773,
+          7.0278,
+          7.2519
+        ]
+      },
+      "link": {
+        "median_s": 1.411,
+        "min_s": 1.2775,
+        "max_s": 1.4533,
+        "samples_s": [
+          1.2775,
+          1.411,
+          1.4533
+        ]
+      },
+      "links": 25,
+      "compiled": 109,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 208886584,
+        "rmeta": 64152263,
+        "debuginfo": 0,
+        "objects": 162590312,
+        "incremental": 48028515,
+        "executables": 85817344,
+        "other": 9613833
+      },
+      "first_wall_s": 13.5773
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0959,
+        "min_s": 0.0949,
+        "max_s": 0.0963,
+        "samples_s": [
+          0.0949,
+          0.0963,
+          0.0959
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.7832,
+        "min_s": 0.7451,
+        "max_s": 0.8197,
+        "samples_s": [
+          0.7451,
+          0.7832,
+          0.8197
+        ]
+      },
+      "link": {
+        "median_s": 0.0706,
+        "min_s": 0.0693,
+        "max_s": 0.071,
+        "samples_s": [
+          0.0693,
+          0.0706,
+          0.071
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.8261,
+        "min_s": 0.8189,
+        "max_s": 0.9037,
+        "samples_s": [
+          0.8189,
+          0.8261,
+          0.9037
+        ]
+      },
+      "link": {
+        "median_s": 0.0708,
+        "min_s": 0.0706,
+        "max_s": 0.079,
+        "samples_s": [
+          0.0706,
+          0.079,
+          0.0708
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.9093,
+        "min_s": 0.8787,
+        "max_s": 1.0712,
+        "samples_s": [
+          0.8787,
+          1.0712,
+          0.9093
+        ]
+      },
+      "link": {
+        "median_s": 0.0843,
+        "min_s": 0.0767,
+        "max_s": 0.0945,
+        "samples_s": [
+          0.0767,
+          0.0945,
+          0.0843
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.9875,
+        "min_s": 0.9335,
+        "max_s": 1.2025,
+        "samples_s": [
+          1.2025,
+          0.9875,
+          0.9335
+        ]
+      },
+      "link": {
+        "median_s": 0.1192,
+        "min_s": 0.1094,
+        "max_s": 0.1345,
+        "samples_s": [
+          0.1345,
+          0.1192,
+          0.1094
+        ]
+      },
+      "links": 2,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 15.7455,
+        "min_s": 15.2968,
+        "max_s": 20.6496,
+        "samples_s": [
+          15.7455,
+          15.2968,
+          20.6496
+        ]
+      },
+      "link": {
+        "median_s": 2.1548,
+        "min_s": 1.3579,
+        "max_s": 3.1448,
+        "samples_s": [
+          1.3579,
+          2.1548,
+          3.1448
+        ]
+      },
+      "links": 25,
+      "compiled": 109,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 2.6059,
+        "min_s": 2.5332,
+        "max_s": 3.2998,
+        "samples_s": [
+          2.6059,
+          3.2998,
+          2.5332
+        ]
+      },
+      "link": {
+        "median_s": 0.214,
+        "min_s": 0.2116,
+        "max_s": 0.265,
+        "samples_s": [
+          0.214,
+          0.265,
+          0.2116
+        ]
+      },
+      "links": 2,
+      "compiled": 2,
+      "fresh": 216,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "test_no_run",
+      "wall": {
+        "median_s": 4.0154,
+        "min_s": 2.7697,
+        "max_s": 5.5709,
+        "samples_s": [
+          5.5709,
+          4.0154,
+          2.7697
+        ]
+      },
+      "link": {
+        "median_s": 6.1817,
+        "min_s": 2.8854,
+        "max_s": 7.4439,
+        "samples_s": [
+          7.4439,
+          6.1817,
+          2.8854
+        ]
+      },
+      "links": 20,
+      "compiled": 29,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 230653000,
+        "rmeta": 72290030,
+        "debuginfo": 0,
+        "objects": 191523416,
+        "incremental": 95929630,
+        "executables": 235871864,
+        "other": 9851112
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "clean",
+      "wall": {
+        "median_s": 5.9597,
+        "min_s": 5.8346,
+        "max_s": 23.7912,
+        "samples_s": [
+          23.7912,
+          5.9597,
+          5.8346
+        ]
+      },
+      "link": {
+        "median_s": 1.6672,
+        "min_s": 1.5197,
+        "max_s": 3.6464,
+        "samples_s": [
+          3.6464,
+          1.6672,
+          1.5197
+        ]
+      },
+      "links": 25,
+      "compiled": 109,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 205409488,
+        "rmeta": 64151819,
+        "debuginfo": 0,
+        "objects": 33097824,
+        "incremental": 0,
+        "executables": 85508032,
+        "other": 9622629
+      },
+      "first_wall_s": 23.7912,
+      "cache": {
+        "hits": 698,
+        "misses": 349
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0888,
+        "min_s": 0.086,
+        "max_s": 0.1216,
+        "samples_s": [
+          0.1216,
+          0.0888,
+          0.086
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6244,
+        "min_s": 0.6233,
+        "max_s": 0.6615,
+        "samples_s": [
+          0.6615,
+          0.6244,
+          0.6233
+        ]
+      },
+      "link": {
+        "median_s": 0.0615,
+        "min_s": 0.0603,
+        "max_s": 0.0638,
+        "samples_s": [
+          0.0638,
+          0.0615,
+          0.0603
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 3,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.647,
+        "min_s": 0.6325,
+        "max_s": 0.6487,
+        "samples_s": [
+          0.647,
+          0.6325,
+          0.6487
+        ]
+      },
+      "link": {
+        "median_s": 0.0692,
+        "min_s": 0.0634,
+        "max_s": 0.0741,
+        "samples_s": [
+          0.0692,
+          0.0741,
+          0.0634
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 3,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.1223,
+        "min_s": 1.1104,
+        "max_s": 1.1225,
+        "samples_s": [
+          1.1223,
+          1.1225,
+          1.1104
+        ]
+      },
+      "link": {
+        "median_s": 0.0678,
+        "min_s": 0.063,
+        "max_s": 0.0689,
+        "samples_s": [
+          0.063,
+          0.0689,
+          0.0678
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 3
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.7899,
+        "min_s": 0.7637,
+        "max_s": 0.9529,
+        "samples_s": [
+          0.7899,
+          0.7637,
+          0.9529
+        ]
+      },
+      "link": {
+        "median_s": 0.0938,
+        "min_s": 0.0929,
+        "max_s": 0.1017,
+        "samples_s": [
+          0.1017,
+          0.0929,
+          0.0938
+        ]
+      },
+      "links": 2,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 3,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 8.0979,
+        "min_s": 5.7822,
+        "max_s": 23.2545,
+        "samples_s": [
+          23.2545,
+          5.7822,
+          8.0979
+        ]
+      },
+      "link": {
+        "median_s": 1.3865,
+        "min_s": 1.2866,
+        "max_s": 1.5936,
+        "samples_s": [
+          1.3865,
+          1.2866,
+          1.5936
+        ]
+      },
+      "links": 25,
+      "compiled": 109,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 823,
+        "misses": 224
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 1.3913,
+        "min_s": 1.286,
+        "max_s": 1.4371,
+        "samples_s": [
+          1.3913,
+          1.286,
+          1.4371
+        ]
+      },
+      "link": {
+        "median_s": 0.1298,
+        "min_s": 0.1294,
+        "max_s": 0.1338,
+        "samples_s": [
+          0.1338,
+          0.1298,
+          0.1294
+        ]
+      },
+      "links": 2,
+      "compiled": 2,
+      "fresh": 216,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 6,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "sccache",
+      "case": "test_no_run",
+      "wall": {
+        "median_s": 1.7118,
+        "min_s": 1.5067,
+        "max_s": 2.611,
+        "samples_s": [
+          2.611,
+          1.5067,
+          1.7118
+        ]
+      },
+      "link": {
+        "median_s": 2.462,
+        "min_s": 2.1922,
+        "max_s": 2.6405,
+        "samples_s": [
+          2.6405,
+          2.1922,
+          2.462
+        ]
+      },
+      "links": 20,
+      "compiled": 29,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 227175904,
+        "rmeta": 72289586,
+        "debuginfo": 0,
+        "objects": 43540680,
+        "incremental": 0,
+        "executables": 234391416,
+        "other": 9859918
+      },
+      "cache": {
+        "hits": 54,
+        "misses": 27
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "clean",
+      "wall": {
+        "median_s": 7.1538,
+        "min_s": 7.0967,
+        "max_s": 10.6711,
+        "samples_s": [
+          10.6711,
+          7.1538,
+          7.0967
+        ]
+      },
+      "link": {
+        "median_s": 0.0898,
+        "min_s": 0.0864,
+        "max_s": 2.1016,
+        "samples_s": [
+          2.1016,
+          0.0898,
+          0.0864
+        ]
+      },
+      "links": 1,
+      "compiled": 109,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0415,
+        "min_s": 0.041,
+        "max_s": 0.5576,
+        "samples_s": [
+          0.5576,
+          0.0415,
+          0.041
+        ]
+      },
+      "target_kinds": {
+        "rlib": 208886584,
+        "rmeta": 64152263,
+        "debuginfo": 0,
+        "objects": 162590312,
+        "incremental": 46764530,
+        "executables": 85817344,
+        "other": 9718762
+      },
+      "first_wall_s": 10.6711,
+      "cache": {
+        "hits": 242,
+        "misses": 151
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0892,
+        "min_s": 0.0891,
+        "max_s": 0.0894,
+        "samples_s": [
+          0.0892,
+          0.0894,
+          0.0891
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0279,
+        "min_s": 0.0278,
+        "max_s": 0.0282,
+        "samples_s": [
+          0.0278,
+          0.0282,
+          0.0279
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6509,
+        "min_s": 0.6332,
+        "max_s": 0.7236,
+        "samples_s": [
+          0.6509,
+          0.7236,
+          0.6332
+        ]
+      },
+      "link": {
+        "median_s": 0.0929,
+        "min_s": 0.085,
+        "max_s": 0.0933,
+        "samples_s": [
+          0.0933,
+          0.0929,
+          0.085
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0319,
+        "min_s": 0.031,
+        "max_s": 0.035,
+        "samples_s": [
+          0.031,
+          0.035,
+          0.0319
+        ]
+      },
+      "cache": {
+        "hits": 3,
+        "misses": 3
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6591,
+        "min_s": 0.6468,
+        "max_s": 0.6715,
+        "samples_s": [
+          0.6715,
+          0.6468,
+          0.6591
+        ]
+      },
+      "link": {
+        "median_s": 0.0882,
+        "min_s": 0.0873,
+        "max_s": 0.0883,
+        "samples_s": [
+          0.0883,
+          0.0882,
+          0.0873
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0313,
+        "min_s": 0.0312,
+        "max_s": 0.0318,
+        "samples_s": [
+          0.0312,
+          0.0318,
+          0.0313
+        ]
+      },
+      "cache": {
+        "hits": 3,
+        "misses": 3
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.8588,
+        "min_s": 0.8438,
+        "max_s": 0.8735,
+        "samples_s": [
+          0.8588,
+          0.8438,
+          0.8735
+        ]
+      },
+      "link": {
+        "median_s": 0.075,
+        "min_s": 0.0721,
+        "max_s": 0.0796,
+        "samples_s": [
+          0.0721,
+          0.075,
+          0.0796
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.03,
+        "min_s": 0.0295,
+        "max_s": 0.0303,
+        "samples_s": [
+          0.03,
+          0.0303,
+          0.0295
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 6
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.097,
+        "min_s": 0.0945,
+        "max_s": 0.0983,
+        "samples_s": [
+          0.0983,
+          0.0945,
+          0.097
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0305,
+        "min_s": 0.0301,
+        "max_s": 0.0331,
+        "samples_s": [
+          0.0305,
+          0.0301,
+          0.0331
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 0
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 1.7863,
+        "min_s": 1.6269,
+        "max_s": 1.8621,
+        "samples_s": [
+          1.7863,
+          1.8621,
+          1.6269
+        ]
+      },
+      "link": {
+        "median_s": 0.1029,
+        "min_s": 0.0849,
+        "max_s": 0.1129,
+        "samples_s": [
+          0.1029,
+          0.1129,
+          0.0849
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.1591,
+        "min_s": 0.1584,
+        "max_s": 0.167,
+        "samples_s": [
+          0.1591,
+          0.1584,
+          0.167
+        ]
+      },
+      "snapshot_save_s": [
+        0.1016,
+        0.3595,
+        0.3234
+      ],
+      "cache": {
+        "hits": 0,
+        "misses": 3
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 2.5177,
+        "min_s": 2.4097,
+        "max_s": 2.5879,
+        "samples_s": [
+          2.5177,
+          2.4097,
+          2.5879
+        ]
+      },
+      "link": {
+        "median_s": 0.1789,
+        "min_s": 0.1728,
+        "max_s": 0.1824,
+        "samples_s": [
+          0.1789,
+          0.1728,
+          0.1824
+        ]
+      },
+      "links": 2,
+      "compiled": 2,
+      "fresh": 216,
+      "tinymold": {
+        "median_s": 0.5706,
+        "min_s": 0.5679,
+        "max_s": 0.6126,
+        "samples_s": [
+          0.5679,
+          0.5706,
+          0.6126
+        ]
+      },
+      "cache": {
+        "hits": 3,
+        "misses": 6
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "tinymold",
+      "case": "test_no_run",
+      "wall": {
+        "median_s": 1.8486,
+        "min_s": 1.8033,
+        "max_s": 3.0094,
+        "samples_s": [
+          3.0094,
+          1.8486,
+          1.8033
+        ]
+      },
+      "link": {
+        "median_s": 2.3046,
+        "min_s": 2.1989,
+        "max_s": 3.2317,
+        "samples_s": [
+          3.2317,
+          2.3046,
+          2.1989
+        ]
+      },
+      "links": 15,
+      "compiled": 29,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0494,
+        "min_s": 0.0493,
+        "max_s": 0.0556,
+        "samples_s": [
+          0.0556,
+          0.0493,
+          0.0494
+        ]
+      },
+      "target_kinds": {
+        "rlib": 230653000,
+        "rmeta": 72290030,
+        "debuginfo": 0,
+        "objects": 191523416,
+        "incremental": 94665614,
+        "executables": 235871864,
+        "other": 9956012
+      },
+      "cache": {
+        "hits": 64,
+        "misses": 77
       }
     }
   ],
