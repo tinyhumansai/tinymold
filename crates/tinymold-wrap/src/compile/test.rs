@@ -437,19 +437,21 @@ impl Remote for StoreRemote {
     }
 }
 
-/// A unit compiled into one store, and the same source in a second, empty
-/// store and worktree that can reach the first as its remote.
-fn remote_pair() -> (Crate, Crate) {
-    let source = "pub fn answer() -> u32 { 42 }\n";
-    let first = Crate::new(source);
-    assert_stored(&first.serve(&[]).unwrap());
-    (first, Crate::new(source))
+/// A unit compiled once, whose store is then moved aside to serve as the
+/// remote of the now empty local store, as on a fresh machine.
+fn remote_pair() -> (Crate, PathBuf) {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let remote = unit.root.join("remote-store");
+    fs::rename(&unit.store, &remote).unwrap();
+    unit.clear_outputs();
+    (unit, remote)
 }
 
 #[test]
 fn a_local_miss_is_served_from_the_remote_and_then_hits_locally() {
-    let (first, second) = remote_pair();
-    let remote = StoreRemote::new(&first.store);
+    let (second, remote) = remote_pair();
+    let remote = StoreRemote::new(&remote);
 
     assert!(matches!(
         second.serve_with(Some(&remote), &[]).unwrap(),
@@ -464,13 +466,13 @@ fn a_local_miss_is_served_from_the_remote_and_then_hits_locally() {
 
 #[test]
 fn a_remote_action_missing_an_object_is_a_miss_with_the_reason() {
-    let (first, second) = remote_pair();
-    let entry = files_under(&first.store.join("entries")).pop().unwrap();
+    let (second, remote) = remote_pair();
+    let entry = files_under(&remote.join("entries")).pop().unwrap();
     let text = fs::read_to_string(&entry).unwrap();
     let action = Action::decode(&text, &entry).unwrap();
     let remote = StoreRemote {
         withhold: Some(action.outputs[1].digest),
-        ..StoreRemote::new(&first.store)
+        ..StoreRemote::new(&remote)
     };
 
     match second.serve_with(Some(&remote), &[]).unwrap() {
@@ -485,10 +487,10 @@ fn a_remote_action_missing_an_object_is_a_miss_with_the_reason() {
 
 #[test]
 fn a_failing_remote_only_makes_the_unit_compile() {
-    let (first, second) = remote_pair();
+    let (second, remote) = remote_pair();
     let remote = StoreRemote {
         fail: Some("connection refused"),
-        ..StoreRemote::new(&first.store)
+        ..StoreRemote::new(&remote)
     };
     match second.serve_with(Some(&remote), &[]).unwrap() {
         Served::Miss {
@@ -517,9 +519,9 @@ fn a_remote_without_the_unit_is_a_plain_miss() {
 
 #[test]
 fn a_remote_input_set_whose_files_differ_here_is_not_used() {
-    let (first, second) = remote_pair();
+    let (second, remote) = remote_pair();
     fs::write(second.root.join("src/lib.rs"), "pub fn answer() -> u32 { 7 }\n").unwrap();
-    let remote = StoreRemote::new(&first.store);
+    let remote = StoreRemote::new(&remote);
     assert!(matches!(
         second.serve_with(Some(&remote), &[]).unwrap(),
         Served::Miss { remote: None, .. }
