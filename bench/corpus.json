@@ -7,6 +7,14 @@
       "package": "ripgrep",
       "bin": "rg",
       "edit": "crates/core/main.rs"
+    },
+    {
+      "name": "bat",
+      "repo": "https://github.com/sharkdp/bat",
+      "rev": "v0.24.0",
+      "package": "bat",
+      "bin": "bat",
+      "edit": "src/bin/bat/main.rs"
     }
   ]
 }
