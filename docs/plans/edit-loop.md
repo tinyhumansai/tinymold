@@ -72,8 +72,11 @@ The 128-unit run ended at load 11.5, so its +22% may be partly noise.
 - **64 is the only value with no meaningful regression.** 32 slows a
   private-body edit on ripgrep, where the regenerated unit gets too big, and
   128 slowed a public-signature edit.
-- **Clean builds are neutral with 64.** ripgrep took 3.21 s against 3.40 s,
-  bat was within noise, and incremental caches were 2-6% smaller.
+- **Clean builds are about neutral with 64.** In an interleaved clean A/B
+  (`bench.py ab --variant cgu-64 --cases clean`, 7 runs each), ripgrep took
+  3.72 s against 3.97 s (−6%) and bat 8.01 s against 7.83 s (+2%), at load
+  averages up to 12. Smaller incremental caches (2-6%) were seen but not
+  recorded in a result file.
 
 **Recommendation:** add this to the workspace's `Cargo.toml` for the dev loop:
 

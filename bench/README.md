@@ -163,7 +163,7 @@ Each cell: median wall time, then median link time, then units compiled (cargo's
 | bat v0.24.0 | Private function body edit | 0.903s (0.86–0.95) | 0.663s (0.64–0.70) | -27% |
 | bat v0.24.0 | Public signature edit | 0.941s (0.91–1.02) | 0.678s (0.67–0.71) | -28% |
 
-### A/B: baseline vs `cgu-64` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+### A/B: baseline vs `cgu-64` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-15)
 
 `cgu-64`: `profile.dev.codegen-units=64`. Each edit is built by both sides back to back, in alternating order, each in its own target directory. Cells: median wall time (min–max).
 
@@ -172,9 +172,11 @@ Each cell: median wall time, then median link time, then units compiled (cargo's
 | ripgrep 14.1.1 | Comment edit | 0.598s (0.57–0.64) | 0.512s (0.44–0.69) | -14% |
 | ripgrep 14.1.1 | Private function body edit | 0.641s (0.61–0.66) | 0.558s (0.51–0.58) | -13% |
 | ripgrep 14.1.1 | Public signature edit | 0.640s (0.61–0.69) | 0.507s (0.49–0.56) | -21% |
+| ripgrep 14.1.1 | Clean build | 3.969s (3.85–9.14) | 3.723s (3.55–6.02) | -6% |
 | bat v0.24.0 | Comment edit | 0.807s (0.77–1.07) | 0.680s (0.64–1.35) | -16% |
 | bat v0.24.0 | Private function body edit | 0.830s (0.82–0.86) | 0.688s (0.67–0.81) | -17% |
 | bat v0.24.0 | Public signature edit | 0.862s (0.85–1.07) | 0.736s (0.68–0.81) | -15% |
+| bat v0.24.0 | Clean build | 7.835s (7.62–19.52) | 8.006s (7.72–13.47) | +2% |
 | tinymold 3574dd6 | Comment edit | 0.166s (0.16–0.18) | 0.172s (0.17–0.18) | +4% |
 | tinymold 3574dd6 | Private function body edit | 0.327s (0.31–0.35) | 0.282s (0.27–0.30) | -14% |
 | tinymold 3574dd6 | Public signature edit | 0.631s (0.57–0.78) | 0.548s (0.47–0.64) | -13% |
