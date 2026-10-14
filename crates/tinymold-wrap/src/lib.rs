@@ -105,7 +105,7 @@ pub fn run(config: &Config, program: &Path, args: &[OsString]) -> i32 {
         }
         Ok(Served::Miss { code, stored }) => {
             let detail = match &stored {
-                Ok(()) => "stored".to_owned(),
+                Ok(took) => format!("stored in {:.1}ms", took.as_secs_f64() * 1000.0),
                 Err(reason) => format!("not stored: {reason}"),
             };
             log(config, started, "miss", crate_name, &detail);

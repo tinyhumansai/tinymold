@@ -36,11 +36,11 @@ use crate::{Error, Result};
 pub(crate) enum Served {
     /// Restored from the cache; rustc did not run.
     Hit,
-    /// rustc ran and exited with `code`; `stored` says whether its outputs
-    /// were cached, or why not.
+    /// rustc ran and exited with `code`; `stored` says how long storing its
+    /// outputs took, or why they were not stored.
     Miss {
         code: i32,
-        stored: std::result::Result<(), String>,
+        stored: std::result::Result<std::time::Duration, String>,
     },
 }
 
@@ -87,7 +87,10 @@ pub(crate) fn serve(
     let started = SystemTime::now();
     let captured = exec::run_captured(program, args)?;
     let stored = if captured.code == 0 {
-        unit.ingest(&pre, started, &captured).map_err(|error| error.to_string())
+        let ingesting = std::time::Instant::now();
+        unit.ingest(&pre, started, &captured)
+            .map(|()| ingesting.elapsed())
+            .map_err(|error| error.to_string())
     } else {
         Err("rustc failed".to_owned())
     };
