@@ -1300,8 +1300,13 @@ def bench_retest(args: argparse.Namespace) -> dict:
         shutil.rmtree(store, ignore_errors=True)
         plain = {name: value for name, value in STOCK_ENV.items()
                  if not (name.startswith("CARGO_TARGET_") and name.endswith("_RUNNER"))}
+        # Tests such as ripgrep's share fixed directories under TMPDIR, which
+        # another run on the machine can disturb; each project gets its own,
+        # emptied before every measurement. Its path stays the same, since
+        # the runner keys on the environment.
+        tmp = WORK / f"retest-tmp-{project['name']}"
         plain.update(RUSTC_WRAPPER=str(tinymold), TINYMOLD_STORE=str(store),
-                     TINYMOLD_LOG=str(log))
+                     TINYMOLD_LOG=str(log), TMPDIR=str(tmp))
         sides = {"cargo": plain, "run-test": dict(plain, **runner_env(tinymold))}
         command = cargo("test", "--locked", "--no-fail-fast", "--package", project["package"],
                         *(["--features", project["features"]] if "features" in project else []))
@@ -1309,6 +1314,8 @@ def bench_retest(args: argparse.Namespace) -> dict:
 
         def measure(side: str) -> dict:
             log.unlink(missing_ok=True)
+            shutil.rmtree(tmp, ignore_errors=True)
+            tmp.mkdir(parents=True)
             start = time.perf_counter()
             done = subprocess.run(command, cwd=src, env=sides[side],
                                   capture_output=True, text=True)
