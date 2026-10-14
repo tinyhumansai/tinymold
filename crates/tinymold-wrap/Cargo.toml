@@ -1,0 +1,23 @@
+[package]
+name = "tinymold-wrap"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "tinymold's RUSTC_WRAPPER: serves rustc invocations from a content-addressed unit cache."
+readme = "../../README.md"
+keywords = ["build", "cache", "rustc", "cargo", "wrapper"]
+categories = ["development-tools::build-utils"]
+
+[dependencies]
+tinymold-hash = { workspace = true }
+tinymold-cas = { workspace = true }
+tinymold-key = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
