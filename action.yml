@@ -18,7 +18,7 @@ inputs:
     description: "`release` downloads the binary and checks SHA256SUMS; `source` runs cargo install from `source-path`; `none` expects tinymold on PATH."
     default: release
   source-path:
-    description: With `install: source`, the path of a tinymold checkout.
+    description: "With `install: source`, the path of a tinymold checkout."
     default: .
   backend:
     description: "Where the cache lives between jobs: `github` (GitHub's cache, no server), `remote` (a REAPI server), `both`, or `none` (a persistent local store, for self-hosted runners)."
