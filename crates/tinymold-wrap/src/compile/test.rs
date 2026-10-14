@@ -144,7 +144,7 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
 fn a_failed_compile_is_not_stored() {
     let unit = Crate::new("pub fn broken( {\n");
     match unit.serve(&[]).unwrap() {
-        Served::Miss { code, stored } => {
+        Served::Miss { code, stored, .. } => {
             assert_ne!(code, 0);
             assert_eq!(stored.unwrap_err(), "rustc failed");
         }
@@ -165,8 +165,8 @@ fn a_compile_without_dep_info_is_not_stored() {
         panic!("cacheable");
     };
     let args: Vec<OsString> = text.into_iter().map(OsString::from).collect();
-    match serve(&unit.store, &rustc(), &args, &invocation).unwrap() {
-        Served::Miss { code: 0, stored } => assert_eq!(stored.unwrap_err(), "no dep-info"),
+    match serve(&unit.store, None, &rustc(), &args, &invocation).unwrap() {
+        Served::Miss { code: 0, stored, .. } => assert_eq!(stored.unwrap_err(), "no dep-info"),
         other => panic!("{other:?}"),
     }
 }
@@ -182,7 +182,7 @@ fn an_input_modified_during_the_compile_is_not_stored() {
         .set_modified(future)
         .unwrap();
     match unit.serve(&[]).unwrap() {
-        Served::Miss { code: 0, stored } => {
+        Served::Miss { code: 0, stored, .. } => {
             assert_eq!(stored.unwrap_err(), "an input changed during the compile");
         }
         other => panic!("{other:?}"),
@@ -194,7 +194,7 @@ fn an_output_that_is_a_directory_is_not_stored() {
     let unit = Crate::new("pub fn f() {}\n");
     fs::create_dir_all(unit.out().join("demo-1.dSYM")).unwrap();
     match unit.serve(&[]).unwrap() {
-        Served::Miss { code: 0, stored } => {
+        Served::Miss { code: 0, stored, .. } => {
             assert_eq!(stored.unwrap_err(), "an output is not a regular file");
         }
         other => panic!("{other:?}"),
@@ -253,11 +253,11 @@ fn a_restored_binary_is_executable_and_fresh() {
         panic!("cacheable");
     };
     let args: Vec<OsString> = text.into_iter().map(OsString::from).collect();
-    assert_stored(&serve(&unit.store, &rustc(), &args, &invocation).unwrap());
+    assert_stored(&serve(&unit.store, None, &rustc(), &args, &invocation).unwrap());
     unit.clear_outputs();
     let before = SystemTime::now() - Duration::from_secs(1);
     assert!(matches!(
-        serve(&unit.store, &rustc(), &args, &invocation).unwrap(),
+        serve(&unit.store, None, &rustc(), &args, &invocation).unwrap(),
         Served::Hit
     ));
     let binary = unit.out().join("demo-1");
