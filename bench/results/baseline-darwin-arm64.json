@@ -1,0 +1,108 @@
+{
+  "benchmark": "baseline",
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "clean_build_s": 3.5,
+      "noop_rebuild": {
+        "median_s": 0.0655,
+        "min_s": 0.0639,
+        "max_s": 0.0688,
+        "samples_s": [
+          0.0688,
+          0.0641,
+          0.0639,
+          0.0655,
+          0.0665
+        ]
+      },
+      "edit_rebuild": {
+        "median_s": 0.5172,
+        "min_s": 0.5024,
+        "max_s": 0.5491,
+        "samples_s": [
+          0.5159,
+          0.5024,
+          0.5172,
+          0.5323,
+          0.5491
+        ]
+      },
+      "touch_all_rebuild": {
+        "median_s": 0.8402,
+        "min_s": 0.7969,
+        "max_s": 0.8604,
+        "samples_s": [
+          0.7969,
+          0.8402,
+          0.8379,
+          0.8452,
+          0.8604
+        ]
+      },
+      "build_tests_s": 3.299,
+      "target_bytes": 864714455,
+      "second_worktree_build_s": 3.792,
+      "second_worktree_deps_bytes": 204307771,
+      "second_worktree_identical_deps_bytes": 125571608
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "clean_build_s": 21.564,
+      "noop_rebuild": {
+        "median_s": 0.0959,
+        "min_s": 0.0928,
+        "max_s": 0.3601,
+        "samples_s": [
+          0.3601,
+          0.1038,
+          0.0959,
+          0.0953,
+          0.0928
+        ]
+      },
+      "edit_rebuild": {
+        "median_s": 0.7478,
+        "min_s": 0.7261,
+        "max_s": 0.7937,
+        "samples_s": [
+          0.7478,
+          0.7338,
+          0.7261,
+          0.7552,
+          0.7937
+        ]
+      },
+      "touch_all_rebuild": {
+        "median_s": 0.9065,
+        "min_s": 0.8737,
+        "max_s": 0.9415,
+        "samples_s": [
+          0.8737,
+          0.912,
+          0.9415,
+          0.9065,
+          0.886
+        ]
+      },
+      "build_tests_s": 4.564,
+      "target_bytes": 999101745,
+      "second_worktree_build_s": 13.218,
+      "second_worktree_deps_bytes": 455360819,
+      "second_worktree_identical_deps_bytes": 377788956
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 5
+}

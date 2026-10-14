@@ -35,14 +35,21 @@ without its machine is not a result.
 
 <!-- results:start -->
 
-### Restoring a 512 MiB artifact (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
+### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
-| Method | Median | min–max |
+What every tinymold phase is measured against. Times are wall clock; loops report the median.
+
+| Scenario | ripgrep 14.1.1 | bat v0.24.0 |
 | --- | ---: | ---: |
-| python byte copy (baseline) | 223.4 ms | 213.3–246.8 ms |
-| tinymold cas get --strategy reflink | 3.5 ms | 3.2–6.2 ms |
-| tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.4 ms |
-| tinymold cas get --strategy copy | 288.5 ms | 279.4–291.4 ms |
+| Clean build | 3.5s | 21.6s |
+| No-op rebuild | 0.07s | 0.10s |
+| One-line edit → rebuilt binary | 0.52s | 0.75s |
+| Every source file touched, no content change | 0.84s | 0.91s |
+| Build tests (after the binary) | 3.3s | 4.6s |
+| Second worktree, same commit, clean build | 3.8s | 13.2s |
+| `target/` after binary + tests | 825 MiB | 953 MiB |
+| Second worktree `deps/` artifacts | 195 MiB | 434 MiB |
+| …of which byte-identical to the first worktree's | 120 MiB (61%) | 360 MiB (83%) |
 
 ### Edit-rebuild loop (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
 
@@ -52,6 +59,15 @@ without its machine is not a result.
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | ripgrep 14.1.1 | default | 0.84s | 0.82–0.86s | 8.1s | 11 MiB | 112 MiB |
 | ripgrep 14.1.1 | rust-lld | 0.88s | 0.87–0.92s | 7.0s | 11 MiB | 111 MiB |
+
+### Restoring a 512 MiB artifact (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
+
+| Method | Median | min–max |
+| --- | ---: | ---: |
+| python byte copy (baseline) | 223.4 ms | 213.3–246.8 ms |
+| tinymold cas get --strategy reflink | 3.5 ms | 3.2–6.2 ms |
+| tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.4 ms |
+| tinymold cas get --strategy copy | 288.5 ms | 279.4–291.4 ms |
 
 <!-- results:end -->
 
