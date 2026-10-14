@@ -188,3 +188,106 @@ fn store_failures_carry_the_path() {
     ));
     remove_tree(&f.dir.path().join("missing")).unwrap();
 }
+
+#[test]
+fn a_file_that_differs_from_the_snapshot_is_made_newer_than_its_outputs() {
+    // A worktree checked out long ago, at other content, must not inherit a
+    // newer snapshot's outputs as if they were built from its own files.
+    let f = Fixture::new();
+    let (a, a_target) = f.worktree("a", "fn main() { new() }");
+    save(&f.store, "new", &a, &a_target).unwrap();
+    let (old, _) = f.worktree("old", "fn main() { old() }");
+    fs::remove_dir_all(old.join("target")).unwrap();
+    let target = old.join("target");
+
+    let restored = restore(&f.store, Some("new"), &old, &target, false).unwrap();
+    let Restore::Applied(report) = restored.fresh else {
+        panic!("expected the manifest to apply");
+    };
+    assert_eq!(report.changed, 1);
+    let source = fs::metadata(old.join("src/main.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    let output = fs::metadata(target.join("debug/demo"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    assert!(
+        source > output,
+        "cargo would treat the stale output as current"
+    );
+}
+
+#[test]
+fn equal_mtimes_from_another_workspace_are_not_trusted() {
+    let f = Fixture::new();
+    let (a, a_target) = f.worktree("a", "version a");
+    save(&f.store, "a", &a, &a_target).unwrap();
+    // Same size and the very same mtime, different bytes.
+    let (b, _) = f.worktree("b", "version b");
+    let target = b.join("restored");
+
+    let restored = restore(&f.store, Some("a"), &b, &target, false).unwrap();
+    let Restore::Applied(report) = restored.fresh else {
+        panic!("expected the manifest to apply");
+    };
+    assert_eq!((report.changed, report.unchanged), (1, 0));
+}
+
+#[test]
+fn a_snapshot_whose_outputs_moved_is_refused_and_removed() {
+    let f = Fixture::new();
+    let (a, a_target) = f.worktree("a", "one");
+    save(&f.store, "main", &a, &a_target).unwrap();
+    let output = snapshots_dir(&f.store).join("main/debug/demo");
+    set_modified(&output, SystemTime::now()).unwrap();
+
+    let target = a.join("elsewhere");
+    let error = restore(&f.store, Some("main"), &a, &target, false).unwrap_err();
+    assert!(matches!(error, Error::SnapshotUnusable(name) if name == "main"));
+    assert!(!target.exists());
+}
+
+#[test]
+fn replacing_keeps_a_valid_target_as_an_automatic_snapshot() {
+    let f = Fixture::new();
+    let (a, a_target) = f.worktree("a", "one");
+    save(&f.store, "main", &a, &a_target).unwrap();
+    fs::write(a_target.join("debug/branch-b-output"), "b").unwrap();
+    fresh::record(&a, &a_target).unwrap();
+
+    let restored = restore(&f.store, Some("main"), &a, &a_target, true).unwrap();
+    let kept = restored.kept.unwrap();
+    assert!(kept.starts_with("auto-"), "{kept}");
+    let kept_dir = snapshots_dir(&f.store).join(&kept);
+    assert!(kept_dir.join("debug/branch-b-output").exists());
+    assert!(!a_target.join("debug/branch-b-output").exists());
+
+    // The same outputs set aside again are not stored twice.
+    fs::write(a_target.join("debug/branch-b-output"), "b").unwrap();
+    set_modified(
+        &a_target.join("debug/branch-b-output"),
+        fs::metadata(kept_dir.join("debug/branch-b-output"))
+            .unwrap()
+            .modified()
+            .unwrap(),
+    )
+    .unwrap();
+    fresh::record(&a, &a_target).unwrap();
+    assert_eq!(set_aside(&f.store, &a_target).unwrap(), Some(kept));
+    assert!(!a_target.exists());
+}
+
+#[test]
+fn replacing_deletes_a_target_without_a_valid_manifest() {
+    let f = Fixture::new();
+    let (a, a_target) = f.worktree("a", "one");
+    save(&f.store, "main", &a, &a_target).unwrap();
+    // Built since the record: its manifest no longer describes it.
+    fs::write(a_target.join("debug/newer"), "x").unwrap();
+
+    let restored = restore(&f.store, Some("main"), &a, &a_target, true).unwrap();
+    assert_eq!(restored.kept, None);
+    assert!(!a_target.join("debug/newer").exists());
+}

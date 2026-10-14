@@ -168,7 +168,11 @@ pub(crate) type Digests = HashMap<String, Option<Digest>>;
 /// With `verify`, a file whose size and mtime match the manifest is still
 /// hashed (memoized in the map), which is what a target cloned in from
 /// another workspace needs: equal mtimes there say nothing about content.
-pub(crate) fn apply(workspace: &Path, target: &Path, verify: Option<&mut Digests>) -> Result<Restore> {
+pub(crate) fn apply(
+    workspace: &Path,
+    target: &Path,
+    verify: Option<&mut Digests>,
+) -> Result<Restore> {
     let Some(manifest) = load(target)? else {
         return Ok(Restore::NoManifest);
     };
@@ -209,7 +213,8 @@ pub(crate) fn apply(workspace: &Path, target: &Path, verify: Option<&mut Digests
             if mtime_ns <= manifest.stamp_ns {
                 // Older than the outputs, so cargo would call them current.
                 let newer = nanos(SystemTime::now()).max(manifest.stamp_ns + 1_000_000_000);
-                set_modified(&path, from_nanos(newer)).map_err(io_error("set the mtime of", &path))?;
+                set_modified(&path, from_nanos(newer))
+                    .map_err(io_error("set the mtime of", &path))?;
             }
         } else if mtime_ns == entry.mtime_ns {
             report.unchanged += 1;

@@ -275,3 +275,39 @@ fn times_convert_to_nanoseconds_and_back() {
         Path::new("t/.tinymold/fresh")
     );
 }
+
+#[test]
+fn verified_restore_hashes_even_when_mtimes_match_and_memoizes() {
+    let f = fixture();
+    record(&f.workspace, &f.target).unwrap();
+    let mut digests = Digests::new();
+    let Restore::Applied(report) = apply(&f.workspace, &f.target, Some(&mut digests)).unwrap()
+    else {
+        panic!("expected the manifest to apply");
+    };
+    assert_eq!(report.unchanged, 2);
+    assert_eq!(digests.len(), 2);
+
+    // A memoized digest is used as-is: a wrong one reads as changed.
+    digests.insert("src/main.rs".into(), None);
+    let Restore::Applied(report) = apply(&f.workspace, &f.target, Some(&mut digests)).unwrap()
+    else {
+        panic!("expected the manifest to apply");
+    };
+    assert_eq!(report.changed, 1);
+}
+
+#[test]
+fn a_changed_file_older_than_the_outputs_is_made_newer() {
+    let f = fixture();
+    record(&f.workspace, &f.target).unwrap();
+    let main = f.workspace.join("src/main.rs");
+    fs::write(&main, b"fn main() { 1 }").unwrap();
+    set_modified(&main, from_nanos(OLD)).unwrap();
+
+    let Restore::Applied(report) = restore(&f.workspace, &f.target).unwrap() else {
+        panic!("expected the manifest to apply");
+    };
+    assert_eq!(report.changed, 1);
+    assert!(mtime(&main) > BUILT);
+}

@@ -58,6 +58,10 @@ fn freshness_and_snapshot_errors_say_what_went_wrong() {
         ),
         (Error::SnapshotNotFound("x".into()), "no snapshot named x"),
         (
+            Error::SnapshotUnusable("x".into()),
+            "snapshot x has no valid freshness manifest and was not restored",
+        ),
+        (
             Error::NoSnapshots,
             "the store holds no snapshots: run tinymold snapshot save after a build",
         ),

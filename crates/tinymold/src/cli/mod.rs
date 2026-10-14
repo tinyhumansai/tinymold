@@ -318,6 +318,12 @@ fn run_snapshot(cli: &Cli, command: &SnapshotCommand, out: &mut impl Write) -> R
                     restored.name, restored.clone, restored.matched, restored.files
                 ),
             )?;
+            if let Some(kept) = &restored.kept {
+                line(
+                    out,
+                    format_args!("kept the previous target as snapshot {kept}"),
+                )?;
+            }
             report_restore(restored.fresh, &target, out)
         }
         SnapshotCommand::List => {
