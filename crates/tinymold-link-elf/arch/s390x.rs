@@ -33,7 +33,7 @@
 //! offset from TP. So we need to add TP to the return value before use. I
 //! don't know why it is different, but that is the way it is.
 //!
-//! https://github.com/IBM/s390x-abi/releases/download/v1.6.1/lzsabi_s390x.pdf
+//! <https://github.com/IBM/s390x-abi/releases/download/v1.6.1/lzsabi_s390x.pdf>
 
 use mold_common::bits::{bits, is_int};
 use mold_common::endian::{read_ub16, read_ub32, write_ub16, write_ub32, write_ub64};

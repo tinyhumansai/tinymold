@@ -38,7 +38,7 @@
 //! doesn't seem to be worth its complexity. Our PLT simply doesn't rely
 //! on a %r30 value.
 //!
-//! https://github.com/rui314/psabi/blob/main/ppc32.pdf
+//! <https://github.com/rui314/psabi/blob/main/ppc32.pdf>
 
 use std::sync::atomic::Ordering;
 

@@ -29,7 +29,7 @@
 //! aligned). Likewise, if a function pointer has value 0x2001, it
 //! refers to a Thumb function at 0x2000.
 //!
-//! https://github.com/ARM-software/abi-aa/blob/main/aaelf32/aaelf32.rst
+//! <https://github.com/ARM-software/abi-aa/blob/main/aaelf32/aaelf32.rst>
 //!
 //! Relocations are of the REL type, and addends are packed into the
 //! instruction fields they relocate.

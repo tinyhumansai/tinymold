@@ -14,7 +14,7 @@
 //! 3. The IR objects are dropped, the compiled objects take their place,
 //!    and linking continues as usual.
 //!
-//! The plugin API (https://gcc.gnu.org/wiki/whopr/driver) is a set of C
+//! The plugin API (<https://gcc.gnu.org/wiki/whopr/driver>) is a set of C
 //! callbacks: `onload` receives a table of linker-provided functions and
 //! registers the plugin's hooks, and results are "returned" by calling
 //! back into the linker. The plugin isn't thread-safe and keeps global

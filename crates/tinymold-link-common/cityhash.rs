@@ -2,7 +2,7 @@
 //! Mach-O mergeable record hashes its names with that.
 //!
 //! This implementation is based on CityHash v1.0.3 at
-//! https://github.com/google/cityhash. libc++ differs from it in two
+//! <https://github.com/google/cityhash>. libc++ differs from it in two
 //! places, marked "libc++:" below.
 
 // The license of https://github.com/google/cityhash, from its COPYING:

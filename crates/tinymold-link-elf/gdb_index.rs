@@ -63,7 +63,7 @@
 //! don't want to add an extra run-time dependency just for --gdb-index.
 //!
 //! This page explains the format of .gdb_index:
-//! https://sourceware.org/gdb/onlinedocs/gdb/Index-Section-Format.html
+//! <https://sourceware.org/gdb/onlinedocs/gdb/Index-Section-Format.html>
 
 // DWARF constants keep the spelling of the specification.
 #![allow(non_upper_case_globals)]

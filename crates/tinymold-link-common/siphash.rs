@@ -2,7 +2,7 @@
 //!
 //! The compression rounds, finalization rounds and 64- or 128-bit output are
 //! selected with const generic parameters. This implementation is based on
-//! the reference implementation at https://github.com/rui314/siphash.
+//! the reference implementation at <https://github.com/rui314/siphash>.
 
 pub struct SipHashTmpl<const C_ROUNDS: usize, const D_ROUNDS: usize, const OUTLEN: usize> {
     v0: u64,

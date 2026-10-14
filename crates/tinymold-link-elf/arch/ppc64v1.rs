@@ -45,7 +45,7 @@
 //! The OPD address is used for relocations that refer to the address of a
 //! function as a function pointer.
 //!
-//! https://github.com/rui314/psabi/blob/main/ppc64v1.pdf
+//! <https://github.com/rui314/psabi/blob/main/ppc64v1.pdf>
 
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;

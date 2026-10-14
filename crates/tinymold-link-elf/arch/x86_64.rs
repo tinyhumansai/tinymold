@@ -23,7 +23,7 @@
 //! TLS block as TP (with some addend). As a result, offsets from TP to
 //! thread-local variables (TLVs) in the main executable are all negative.
 //!
-//! https://gitlab.com/x86-psABIs/x86-64-ABI
+//! <https://gitlab.com/x86-psABIs/x86-64-ABI>
 
 use mold_common::bits::is_int;
 use mold_common::endian::{write_ul16, write_ul32, write_ul64};

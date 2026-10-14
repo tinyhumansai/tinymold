@@ -8,10 +8,10 @@
 //!
 //! are combined into an Aho-Corasick matcher, essentially a trie with
 //! additional links that searches for all of them in one pass over the
-//! input (https://en.wikipedia.org/wiki/Aho-Corasick_algorithm). It can only
+//! input (<https://en.wikipedia.org/wiki/Aho-Corasick_algorithm>). It can only
 //! search substrings, so complex patterns such as `*foo*bar*` are matched
 //! with the non-recursive algorithm described at
-//! https://research.swtch.com/glob, and if there are many of them, a
+//! <https://research.swtch.com/glob>, and if there are many of them, a
 //! bit-parallel NFA matches them together.
 
 use std::collections::VecDeque;

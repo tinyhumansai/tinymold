@@ -52,7 +52,7 @@
 //! address. That also means each function needs to execute the above piece
 //! of code to become position-independent.
 //!
-//! https://github.com/rui314/psabi/blob/main/sparc.pdf
+//! <https://github.com/rui314/psabi/blob/main/sparc.pdf>
 //!
 //! Relocations carry a second addend in the upper 24 bits of the type
 //! field; only `R_SPARC_OLO10` uses it.

@@ -15,7 +15,7 @@
 //! atomic unit of copying. See the file comments in shrink_sections.rs for
 //! details.
 //!
-//! https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc
+//! <https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc>
 
 // Binary literals are grouped by instruction field.
 #![allow(clippy::unusual_byte_groupings)]

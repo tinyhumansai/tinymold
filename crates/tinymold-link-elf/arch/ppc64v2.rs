@@ -79,7 +79,7 @@
 //! confusing. Since the runtime only cares about segments, we should be
 //! able to name sections whatever we want.
 //!
-//! https://github.com/rui314/psabi/blob/main/ppc64v2.pdf
+//! <https://github.com/rui314/psabi/blob/main/ppc64v2.pdf>
 //!
 //! The distance between the global and local entry points is encoded in
 //! the symbol's `st_other`.

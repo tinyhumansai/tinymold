@@ -19,7 +19,7 @@
 //! That is, it allows linkers to rewrite certain instruction sequences to
 //! shorter ones. Sections are not an atomic unit of copying.
 //!
-//! https://github.com/loongson/la-abi-specs/blob/release/laelf.adoc
+//! <https://github.com/loongson/la-abi-specs/blob/release/laelf.adoc>
 
 // Binary literals are grouped by instruction field.
 #![allow(clippy::unusual_byte_groupings)]

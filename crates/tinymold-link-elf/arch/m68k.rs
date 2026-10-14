@@ -12,7 +12,7 @@
 //! access instructions and therefore can support position-independent
 //! code without too much hassle.
 //!
-//! https://github.com/rui314/psabi/blob/main/m68k.pdf
+//! <https://github.com/rui314/psabi/blob/main/m68k.pdf>
 
 use std::sync::atomic::Ordering;
 

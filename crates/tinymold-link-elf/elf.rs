@@ -834,7 +834,7 @@ const _: () = assert!(size_of::<ElfVerdaux<I386>>() == 8);
 /// array of Function Descriptor Entries (FDEs) sorted by PC, and a blob
 /// of Frame Row Entries (FREs). mold understands SFrame Version 3.
 ///
-/// https://sourceware.org/binutils/docs/sframe-spec.html
+/// <https://sourceware.org/binutils/docs/sframe-spec.html>
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SFrameHeader<E: Target> {

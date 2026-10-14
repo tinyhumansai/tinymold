@@ -2,7 +2,7 @@
 //! the number of unique items in a given multiset.
 //!
 //! For more info, read
-//! https://engineering.fb.com/2018/12/13/data-infrastructure/hyperloglog
+//! <https://engineering.fb.com/2018/12/13/data-infrastructure/hyperloglog>
 
 /// Estimates the number of distinct values in a stream of hashes.
 ///

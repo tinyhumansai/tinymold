@@ -15,7 +15,7 @@
 //! -mtls-dialect=trad flag. Since GD is used rarely, we don't need to
 //! implement GD → LE relaxation.
 //!
-//! https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst
+//! <https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst>
 //!
 //! Instructions are little-endian even on big-endian targets, where only
 //! data is byte-swapped.

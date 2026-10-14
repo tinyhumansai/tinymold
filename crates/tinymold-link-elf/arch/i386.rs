@@ -32,7 +32,7 @@
 //! assume that %ebx is set to .got. For PDE, we need to create position-
 //! dependent PLT entries which don't use %ebx.
 //!
-//! https://github.com/rui314/psabi/blob/main/i386.pdf
+//! <https://github.com/rui314/psabi/blob/main/i386.pdf>
 //!
 //! Relocations are of the REL type: addends live in the relocated
 //! locations rather than in the relocation entries.
