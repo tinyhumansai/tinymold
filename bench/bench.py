@@ -64,6 +64,7 @@ import json
 import os
 import platform
 import shutil
+import socket
 import statistics
 import subprocess
 import sys
@@ -895,7 +896,6 @@ def start_bazel_remote() -> str | None:
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if started.returncode != 0:
         return None
-    import socket
     for _ in range(60):
         try:
             socket.create_connection(("127.0.0.1", BAZEL_REMOTE_PORT), timeout=1).close()
