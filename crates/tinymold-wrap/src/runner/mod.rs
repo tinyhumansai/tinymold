@@ -29,7 +29,7 @@ use tinymold_key::{Roots, TestKeyInputs, test_key, tree_digest};
 use crate::clock::filesystem_now;
 use crate::declared::{self, Declared};
 use crate::exec;
-use crate::package_tree::{declared_files, package_files};
+use crate::package_tree::{declared_files, named_files, package_files};
 use crate::record::{self, write_atomically};
 use crate::stat;
 use crate::test_record::{TestBinary, TestRun};
@@ -83,7 +83,8 @@ struct Prepared {
     /// after the run.
     observed: (Digest, Digest),
     declared: Vec<String>,
-    dylibs: Vec<String>,
+    built: TestBinary,
+    roots: Roots,
     now_ns: u64,
 }
 
@@ -148,7 +149,8 @@ fn record_run(
         &config.store,
         command,
         &prepared.declared,
-        &prepared.dylibs,
+        &prepared.built,
+        &prepared.roots,
         prepared.now_ns,
     )?;
     if after != prepared.observed {
@@ -209,12 +211,12 @@ fn prepare(
         Declared::Uncached(reason) => return Ok(Err(reason)),
     };
 
-    let (package_tree, files) = observed(store_dir, command, &declared, &built.dylibs, now_ns)?;
     let binary_dir = binary.parent().unwrap_or(command.cwd);
     let cargo_home = var("CARGO_HOME")
         .map(PathBuf::from)
         .or_else(|| var("HOME").map(|home| Path::new(home).join(".cargo")));
     let roots = Roots::new(command.cwd, binary_dir, cargo_home.as_deref());
+    let (package_tree, files) = observed(store_dir, command, &declared, &built, &roots, now_ns)?;
     let via = command
         .via
         .map(|via| stat::linker_identity(via, command.cwd));
@@ -231,34 +233,48 @@ fn prepare(
     Ok(Ok(Prepared {
         store,
         key,
-        crate_name: built.crate_name,
+        crate_name: built.crate_name.clone(),
         binary_record,
         observed: (package_tree, files),
         declared,
-        dylibs: built.dylibs,
+        built,
+        roots,
         now_ns,
     }))
 }
 
 /// What a run may read besides its binary: the digest of the package tree,
-/// and that of the declared inputs together with the dynamic libraries the
-/// binary loads, which its own bytes do not cover.
+/// and that of everything else it can reach which its own bytes do not
+/// cover: the declared inputs, the dynamic libraries it loads, the package
+/// binaries it can run, and its build script's output.
 fn observed(
     store_dir: &Path,
     command: &TestCommand<'_>,
     declared: &[String],
-    dylibs: &[String],
+    built: &TestBinary,
+    roots: &Roots,
     now_ns: u64,
 ) -> Result<(Digest, Digest)> {
     let binary = command.cwd.join(command.binary);
     let package_tree = tree_digest(&package_files(store_dir, command.cwd, &binary, now_ns)?);
     let mut files = declared_files(store_dir, command.cwd, declared, now_ns)?;
     let dir = binary.parent().unwrap_or(command.cwd);
-    for name in dylibs {
-        files.push((
-            format!("dylib/{name}"),
-            stat::digest(store_dir, &dir.join(name), now_ns)?,
-        ));
+    for name in &built.dylibs {
+        files.extend(named_files(
+            store_dir,
+            &dir.join(name),
+            &format!("dylib/{name}"),
+            now_ns,
+        )?);
+    }
+    for path in built.exes.iter().chain(&built.out_dirs) {
+        let expanded = PathBuf::from(roots.expand(path));
+        files.extend(named_files(
+            store_dir,
+            &expanded,
+            &format!("build/{path}"),
+            now_ns,
+        )?);
     }
     Ok((package_tree, tree_digest(&files)))
 }

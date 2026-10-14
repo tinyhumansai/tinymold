@@ -91,11 +91,20 @@ impl TestBinary {
         };
         for (index, line) in lines.enumerate() {
             let (list, value) = if let Some(name) = line.strip_prefix("dylib ") {
-                (&mut binary.dylibs, Some(name).filter(|name| is_file_name(name)))
+                (
+                    &mut binary.dylibs,
+                    Some(name).filter(|name| is_file_name(name)),
+                )
             } else if let Some(path) = line.strip_prefix("exe ") {
-                (&mut binary.exes, Some(path).filter(|path| is_build_path(path)))
+                (
+                    &mut binary.exes,
+                    Some(path).filter(|path| is_build_path(path)),
+                )
             } else if let Some(path) = line.strip_prefix("outdir ") {
-                (&mut binary.out_dirs, Some(path).filter(|path| is_build_path(path)))
+                (
+                    &mut binary.out_dirs,
+                    Some(path).filter(|path| is_build_path(path)),
+                )
             } else {
                 return Err(corrupt(index + 3));
             };
@@ -162,7 +171,10 @@ pub(crate) fn is_build_path(path: &str) -> bool {
     else {
         return false;
     };
-    !rest.is_empty() && rest.split(['/', '\\']).all(|part| !part.is_empty() && part != "..")
+    !rest.is_empty()
+        && rest
+            .split(['/', '\\'])
+            .all(|part| !part.is_empty() && part != "..")
 }
 
 /// Whether `name` is one plain file name: a record must not name a file

@@ -246,7 +246,10 @@ fn an_integration_test_reruns_when_the_binary_it_runs_changes() {
         &root.join("digits/Cargo.toml"),
         "[package]\nname = \"digits\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
     );
-    write(&root.join("digits/src/lib.rs"), "pub fn one() -> u32 { 1 }\n");
+    write(
+        &root.join("digits/src/lib.rs"),
+        "pub fn one() -> u32 { 1 }\n",
+    );
     write(
         &root.join("tool/Cargo.toml"),
         "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\ndigits = { path = \"../digits\" }\n",
@@ -265,7 +268,11 @@ fn an_integration_test_reruns_when_the_binary_it_runs_changes() {
     assert!(second.status.success(), "{second:?}");
 
     // Break `digits`: the integration test must run again, and fail.
-    fs::write(root.join("digits/src/lib.rs"), "pub fn one() -> u32 { 2 }\n").unwrap();
+    fs::write(
+        root.join("digits/src/lib.rs"),
+        "pub fn one() -> u32 { 2 }\n",
+    )
+    .unwrap();
     let (third, lines) = cargo_test_tool(&root, &store);
     assert!(!third.status.success(), "replayed a stale pass: {lines:?}");
 }

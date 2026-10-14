@@ -47,22 +47,36 @@ pub(crate) fn declared_files(
 ) -> Result<Vec<(String, Digest)>> {
     let mut files = Vec::new();
     for path in declared {
-        let full = root.join(path);
-        match fs::symlink_metadata(&full) {
-            Ok(meta) if meta.is_dir() => {
-                let mut found = Vec::new();
-                walk(store, &full, path, Path::new(""), now_ns, &mut found)?;
-                found.sort();
-                files.extend(found);
-            }
-            Ok(meta) => files.push((path.clone(), entry_digest(store, &full, &meta, now_ns)?)),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                files.push((format!("{path}!missing"), Digest::of_bytes(b"")));
-            }
-            Err(error) => return Err(io("read", &full)(error)),
-        }
+        files.extend(named_files(store, &root.join(path), path, now_ns)?);
     }
     Ok(files)
+}
+
+/// The file at `path`, or every file under it when it is a directory,
+/// listed under `name` rather than under its absolute path, so the listing
+/// is the same in every worktree. Missing, it is listed as `<name>!missing`.
+pub(crate) fn named_files(
+    store: &Path,
+    path: &Path,
+    name: &str,
+    now_ns: u64,
+) -> Result<Vec<(String, Digest)>> {
+    match fs::symlink_metadata(path) {
+        Ok(meta) if meta.is_dir() => {
+            let mut found = Vec::new();
+            walk(store, path, name, Path::new(""), now_ns, &mut found)?;
+            found.sort();
+            Ok(found)
+        }
+        Ok(meta) => Ok(vec![(
+            name.to_owned(),
+            entry_digest(store, path, &meta, now_ns)?,
+        )]),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            Ok(vec![(format!("{name}!missing"), Digest::of_bytes(b""))])
+        }
+        Err(error) => Err(io("read", path)(error)),
+    }
 }
 
 fn walk(
