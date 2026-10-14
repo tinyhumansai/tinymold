@@ -31,6 +31,7 @@ use tinymold_hash::Digest;
 use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
 use crate::clock::{filesystem_now, written_before};
+use crate::driver;
 use crate::error::io;
 use crate::exec::{self, Captured};
 use crate::flight::{self, Claim};
@@ -129,7 +130,7 @@ pub(crate) fn serve(
         cwd,
         now_ns: filesystem_now(&store_dir.join("stat"))?,
     };
-    let pre = trace.span("pre_key", || unit.pre_key(program))?;
+    let pre = trace.span("pre_key", || unit.pre_key(program, args))?;
     let found = trace.span("lookup", || unit.lookup(&pre))?;
     if unit.restore_hit(&pre, found.hit, trace) {
         return Ok(Served::Hit { waited: None });
@@ -206,9 +207,22 @@ impl<E: Into<Error>> From<E> for Unstorable {
 }
 
 impl Unit<'_> {
-    fn pre_key(&self, program: &Path) -> Result<Digest> {
+    fn pre_key(&self, program: &Path, args: &[OsString]) -> Result<Digest> {
         let invocation = self.invocation;
-        let rustc_version = stat::rustc_version(self.store_dir, program)?;
+        let first = args.first().and_then(|arg| arg.to_str()).unwrap_or("");
+        let (rustc, driver) = if driver::is_clippy(program, &[first]) {
+            let identity = driver::clippy_identity(
+                self.store_dir,
+                program,
+                &self.cwd,
+                &self.roots,
+                self.now_ns,
+            )?;
+            (Path::new(first), Some(identity))
+        } else {
+            (program, None)
+        };
+        let rustc_version = stat::rustc_version(self.store_dir, rustc)?;
         let externs = invocation
             .externs
             .iter()
@@ -240,6 +254,7 @@ impl Unit<'_> {
             externs: &externs,
             search_paths: &search_paths,
             linker: linker.as_deref(),
+            driver: driver.as_deref(),
         }))
     }
 

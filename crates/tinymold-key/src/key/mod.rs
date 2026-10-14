@@ -56,6 +56,9 @@ pub struct PreKeyInputs<'a> {
     pub search_paths: &'a [Vec<(String, Digest)>],
     /// The linker's identity, for units that link.
     pub linker: Option<&'a str>,
+    /// The identity of a driver wrapping rustc, such as clippy-driver's
+    /// version and configuration; `None` for rustc itself.
+    pub driver: Option<&'a str>,
 }
 
 /// The pre-key: the digest of everything known before rustc runs.
@@ -105,6 +108,10 @@ pub fn pre_key(inputs: &PreKeyInputs<'_>) -> Digest {
 
     hash_env(&mut hasher, inputs.env);
     hasher.field(inputs.linker.unwrap_or("").as_bytes());
+    if let Some(driver) = inputs.driver {
+        // Only a driver adds this field, so rustc's own keys are unchanged.
+        hasher.field(b"driver").field(driver.as_bytes());
+    }
     if invocation.instruments_coverage() {
         // Coverage mappings name source files by absolute path, so a hit from
         // another workspace would report coverage of that workspace's files.
