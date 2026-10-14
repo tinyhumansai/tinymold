@@ -334,7 +334,8 @@ def hit_section(result: dict) -> list[str]:
              + " keep one object file per codegen unit, so a hit places hundreds of "
              "files. Before is the `--against` revision, after is the checkout's; they "
              "take alternate turns on the same store. Restore times come from "
-             "`TINYMOLD_TRACE`; cells are medians (min–max).", "",
+             "`TINYMOLD_TRACE`; cells are medians (min–max). A crate's row adds up all "
+             "of its units, such as a library and a binary of the same name.", "",
              "| Project | What | before | after | change |",
              "| --- | --- | ---: | ---: | ---: |"]
 
