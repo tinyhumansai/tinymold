@@ -82,6 +82,47 @@ merging of unchanged inputs is under 25% of the edit-loop link on both
 platforms, stop after L1, write an ADR superseding the cache phases, and keep
 the fork only for link-skip, the governor and Mach-O linking.
 
+### L1 results so far (2026-10-15)
+
+darwin-arm64 (Apple M5 Pro, 18 CPUs, 48 GiB), release `tinymold-link` in
+Mach-O mode, replaying the captured debug link of ripgrep 14.1.1 and bat
+0.24.0 with every input unchanged, which is a relink in the edit loop.
+`-print_statistics`, median of 3:
+
+| Pass | ripgrep | bat |
+| --- | ---: | ---: |
+| whole link, inside the linker | 56 ms | 77 ms |
+| `read_input_files` | 14 ms | 20 ms |
+| `resolve_symbols` | 9 ms | 10 ms |
+| `set_osec_offsets` (symtab, export trie) | 10 ms | 14 ms |
+| ICF | 8 ms | 9 ms |
+| `dead_strip` | 5 ms | 5 ms |
+| copy | 6 ms | 6 ms |
+
+- Reading and resolving are 41% (ripgrep) and 39% (bat) of the link, over the
+  25% bar. But not all of it is work a parse cache removes. mold's readers
+  are already zero-copy: an object's symbol table is borrowed from the
+  mapping, so "parsing" is header casts. On bat, `read_input_files` splits
+  into staging 4 ms, gathering 2 ms, integrating 4 ms and about 5 ms of
+  opening and mapping files; resolution is two 3 ms passes. A per-input
+  cache saves the per-symbol name scans and hashes inside that, an estimated
+  5-10 ms of 77 ms. The rest needs state carried across links (L4).
+- About 30 ms per link happens outside the linker (the `cc` driver, fork and
+  exit): 86 ms end to end for ripgrep and 108 ms for bat. Apple's ld-prime
+  takes 76 ms and 102 ms end to end on the same links, so on macOS
+  tinymold-link is 6-13% slower than the system linker today.
+- ICF runs by default in Mach-O mode, as in ld64, and costs 8-9 ms of a
+  debug relink.
+
+Linux aarch64 (Docker Desktop, 12 CPUs): on OpenHuman's 956 MB debug
+`openhuman-core` link, tinymold-link and mold 3.0.0 take the same time,
+0.748 s against 0.750 s median of 30 interleaved runs
+([`bench/DOCKER.md`](../../bench/DOCKER.md#tinymold-link-2026-10-15-second-run)).
+No per-pass split on Linux yet.
+
+Go/no-go: open. The bar is met on paper, and the cache's likely saving is
+5-10% of a relink.
+
 ## L2: the per-input parse cache
 
 Goal: unchanged objects are not parsed again. ELF first, then Mach-O.
@@ -177,8 +218,8 @@ saved on a debug output of at least 500 MB.
 
 ## Completion checklist
 
-- [ ] L0: fork imported, contract commands green, FORK.md written
-- [ ] L1: link benchmark with per-pass split on darwin-arm64 and Linux
+- [x] L0: fork imported, contract commands green, FORK.md written
+- [ ] L1: link benchmark with per-pass split on darwin-arm64 (done) and Linux
 - [ ] L1: go/no-go recorded
 - [ ] L2: entry format and known vector
 - [ ] L2: ELF seam and differential test
