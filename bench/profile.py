@@ -585,17 +585,19 @@ def profile_build(args: argparse.Namespace) -> None:
         tinymold = bench.tinymold_binary()
         env.update(RUSTC_WRAPPER=str(tinymold),
                    TINYMOLD_STORE=str(bench.WORK / "tinymold-store" / f"profile-{project['name']}"))
+    # The primed build and the profiled one share every flag but --timings,
+    # so cargo's fingerprints carry over and an edit case rebuilds only what
+    # the edit touched.
     unstable = ["-Zsection-timings"] if toolchain else []
-    build = ["cargo", *toolchain, *bench.STOCK_CONFIG, *config, "build", "--locked",
+    build = ["cargo", *toolchain, *unstable, *bench.STOCK_CONFIG, *config, "build", "--locked",
              *bench.target_args(project)]
     if args.self_profile:
         profdir = out / "self-profile"
         profdir.mkdir()
         env["RUSTFLAGS"] = f"-Zself-profile={profdir} -Zself-profile-events=default"
 
-    def quiet(cmd: list[str], extra_env: dict | None = None) -> None:
-        done = subprocess.run(cmd, cwd=src, env=dict(env, **(extra_env or {})),
-                              capture_output=True, text=True)
+    def quiet(cmd: list[str]) -> None:
+        done = subprocess.run(cmd, cwd=src, env=env, capture_output=True, text=True)
         if done.returncode:
             sys.stderr.write(done.stderr[-4000:])
             raise SystemExit(f"{project['name']}: build failed")
@@ -606,7 +608,10 @@ def profile_build(args: argparse.Namespace) -> None:
     if args.case != "clean" or (args.mode == "tinymold" and args.warm):
         # Prime: the build the profiled one starts from. Under tinymold with
         # --warm, a clean case profiles restoring every unit from the store.
-        quiet(build, {"RUSTFLAGS": ""} if args.self_profile else None)
+        quiet(build)
+        if args.self_profile:
+            shutil.rmtree(profdir)
+            profdir.mkdir()
         if args.case == "clean":
             shutil.rmtree(src / "target", ignore_errors=True)
     if args.case in ("comment", "private_body", "public_signature"):
@@ -617,8 +622,7 @@ def profile_build(args: argparse.Namespace) -> None:
     if args.mode == "tinymold":
         env["TINYMOLD_TRACE"] = str(wrapper_log)
     shutil.rmtree(src / "target" / "cargo-timings", ignore_errors=True)
-    command = ["cargo", *toolchain, *unstable, *bench.STOCK_CONFIG, *config, "build", "--locked",
-               "--timings", *bench.target_args(project)]
+    command = [*build, "--timings"]
     try:
         t0 = time.time()
         done = subprocess.run(command, cwd=src, env=env, capture_output=True, text=True)
