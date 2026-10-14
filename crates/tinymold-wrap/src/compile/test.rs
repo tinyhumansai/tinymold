@@ -596,3 +596,102 @@ fn a_remote_input_set_whose_files_differ_here_is_not_used() {
         Served::Miss { remote: None, .. }
     ));
 }
+
+/// The parsed invocation of `unit`'s plain library compile.
+fn invocation_of(unit: &Crate) -> Invocation {
+    let text = unit
+        .args(&[])
+        .iter()
+        .map(|a| a.to_str().unwrap().to_owned())
+        .collect();
+    let Classified::Cacheable(invocation) = Invocation::parse(text) else {
+        panic!("the test compile must be cacheable");
+    };
+    invocation
+}
+
+/// A `Unit` for `unit`'s compile, to restore actions into directly.
+fn unit_for<'a>(unit: &'a Crate, invocation: &'a Invocation) -> Unit<'a> {
+    Unit {
+        store_dir: &unit.store,
+        store: Store::open(&unit.store).unwrap(),
+        invocation,
+        cwd: unit.root.clone(),
+        out_dir: unit.out(),
+        roots: Roots::new(&unit.root, &invocation.out_dir, None),
+    }
+}
+
+/// An action with `count` object outputs, every third one executable, each
+/// stored with distinct content, plus a text dep-info.
+fn many_output_action(store: &Store, count: usize) -> Action {
+    let empty = store.insert_bytes(b"").unwrap();
+    let mut outputs: Vec<Output> = (0..count)
+        .map(|n| Output {
+            name: format!("demo-1.cgu{n:03}.rcgu.o"),
+            digest: store
+                .insert_bytes(format!("object {n}").as_bytes())
+                .unwrap(),
+            executable: n % 3 == 0,
+            text: false,
+        })
+        .collect();
+    outputs.push(Output {
+        name: "demo-1.d".to_owned(),
+        digest: store.insert_bytes(b"demo-1.d: src/lib.rs\n").unwrap(),
+        executable: false,
+        text: true,
+    });
+    Action {
+        stdout: empty,
+        stderr: empty,
+        outputs,
+    }
+}
+
+#[test]
+fn a_hit_with_many_outputs_restores_every_one_fresh_with_its_content_and_mode() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let count = PARALLEL_RESTORE_MIN * 4;
+    let action = many_output_action(&restoring.store, count);
+    fs::write(unit.out().join("demo-1.stale.rcgu.o"), b"stale").unwrap();
+    let before = SystemTime::now() - Duration::from_secs(1);
+
+    restoring.restore(&action).unwrap();
+
+    let restored = unit.outputs();
+    assert_eq!(restored.len(), count + 1, "the stale object must be gone");
+    for output in &action.outputs {
+        let path = unit.out().join(&output.name);
+        let content = fs::read(&path).unwrap();
+        assert_eq!(
+            content,
+            restoring.store.read(&output.digest).unwrap(),
+            "{}",
+            output.name
+        );
+        let meta = fs::metadata(&path).unwrap();
+        assert!(meta.modified().unwrap() > before, "{} is stale", output.name);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = if output.executable { 0o755 } else { 0o644 };
+            assert_eq!(meta.permissions().mode() & 0o777, mode, "{}", output.name);
+        }
+    }
+}
+
+#[test]
+fn a_hit_with_many_outputs_fails_when_one_object_is_missing() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let mut action = many_output_action(&restoring.store, PARALLEL_RESTORE_MIN * 4);
+    let gone = Digest::of_bytes(b"never stored");
+    action.outputs[PARALLEL_RESTORE_MIN * 3].digest = gone;
+
+    let error = restoring.restore(&action).unwrap_err();
+    assert!(matches!(error, Error::Cas(_)), "{error}");
+}
