@@ -9,7 +9,7 @@ use crate::Classified;
 
 fn invocation(args: &[&str]) -> Invocation {
     match Invocation::parse(args.iter().copied()) {
-        Classified::Cacheable(invocation) => invocation,
+        Classified::Cacheable(invocation) => *invocation,
         Classified::PassThrough(reason) => panic!("{reason}"),
     }
 }

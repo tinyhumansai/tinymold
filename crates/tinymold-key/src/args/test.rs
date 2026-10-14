@@ -40,7 +40,7 @@ fn library() -> Vec<&'static str> {
 
 fn cacheable(args: &[&str]) -> Invocation {
     match Invocation::parse(args.iter().copied()) {
-        Classified::Cacheable(invocation) => invocation,
+        Classified::Cacheable(invocation) => *invocation,
         Classified::PassThrough(reason) => panic!("expected cacheable, got {reason}"),
     }
 }

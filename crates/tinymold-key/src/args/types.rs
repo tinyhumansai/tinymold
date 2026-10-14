@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[non_exhaustive]
 pub enum Classified {
     /// A crate compile the cache can key and restore.
-    Cacheable(Invocation),
+    Cacheable(Box<Invocation>),
     /// Anything else, run unchanged. The reason is for remarks and logs.
     PassThrough(&'static str),
 }

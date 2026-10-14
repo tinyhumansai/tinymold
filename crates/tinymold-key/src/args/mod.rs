@@ -61,7 +61,7 @@ impl Invocation {
     {
         let args: Vec<String> = args.into_iter().map(Into::into).collect();
         match Parser::default().run(&args) {
-            Ok(invocation) => Classified::Cacheable(invocation),
+            Ok(invocation) => Classified::Cacheable(Box::new(invocation)),
             Err(reason) => Classified::PassThrough(reason),
         }
     }
@@ -199,7 +199,7 @@ impl Parser {
                 self.externs.push(Extern { name, path });
                 return Ok(());
             }
-            "--codegen" => return self.codegen(value),
+            "--codegen" => return self.codegen(&value),
             _ => {}
         }
         self.text(format!("{name}={value}"));
@@ -209,7 +209,7 @@ impl Parser {
     fn short(&mut self, flag: &str, value: String) -> Result<(), &'static str> {
         match flag {
             "-o" => Err("writes to an explicit output path"),
-            "-C" => self.codegen(value),
+            "-C" => self.codegen(&value),
             "-L" => {
                 let (kind, path) = match value.split_once('=') {
                     Some((kind, path)) => (kind.to_owned(), path.to_owned()),
@@ -231,10 +231,10 @@ impl Parser {
         }
     }
 
-    fn codegen(&mut self, value: String) -> Result<(), &'static str> {
+    fn codegen(&mut self, value: &str) -> Result<(), &'static str> {
         let (key, setting) = match value.split_once('=') {
             Some((key, setting)) => (key, Some(setting)),
-            None => (value.as_str(), None),
+            None => (value, None),
         };
         match (key, setting) {
             // Where incremental state lives is not an input; whether the
