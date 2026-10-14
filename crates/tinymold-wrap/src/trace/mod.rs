@@ -15,6 +15,7 @@
 //! `classify`, `pre_key`, `lookup`, `restore`, `rustc`, `ingest`, and
 //! `pass_through`, plus one `invocation` event spanning them all.
 
+use std::fmt::Write as _;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
@@ -57,7 +58,7 @@ impl Trace {
         self.spans.push(Span {
             name,
             start_us: started.as_micros(),
-            dur_us: (ended - started).as_micros(),
+            dur_us: ended.saturating_sub(started).as_micros(),
         });
         value
     }
@@ -106,7 +107,9 @@ fn escape(text: &str) -> String {
         match c {
             '"' => escaped.push_str("\\\""),
             '\\' => escaped.push_str("\\\\"),
-            c if u32::from(c) < 0x20 => escaped.push_str(&format!("\\u{:04x}", u32::from(c))),
+            c if u32::from(c) < 0x20 => {
+                let _ = write!(escaped, "\\u{:04x}", u32::from(c));
+            }
             c => escaped.push(c),
         }
     }
