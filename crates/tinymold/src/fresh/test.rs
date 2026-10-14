@@ -157,6 +157,7 @@ fn cargo_bookkeeping_files_do_not_move_the_stamp() {
     record(&f.workspace, &f.target).unwrap();
     fs::write(f.target.join("debug/.cargo-lock"), b"").unwrap();
     fs::write(f.target.join(".rustc_info.json"), b"{}").unwrap();
+    fs::write(f.target.join("debug/demo.d"), b"demo: src/main.rs").unwrap();
     assert!(matches!(
         restore(&f.workspace, &f.target).unwrap(),
         Restore::Applied(_)

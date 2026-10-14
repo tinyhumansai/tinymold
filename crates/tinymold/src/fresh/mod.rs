@@ -47,6 +47,10 @@ const STATE_DIR: &str = ".tinymold";
 
 /// Files cargo rewrites on every invocation, even a no-op one. They describe
 /// cargo's bookkeeping, not build outputs, so they are left out of the stamp.
+/// Dep-info (`*.d`) files are left out too, by [`counts_for_stamp`]: cargo
+/// rewrites the uplifted `target/debug/<bin>.d` on every build. Any build that
+/// compiles or links also writes fingerprints, objects or binaries, so the
+/// stamp still moves.
 const STAMP_IGNORED: &[&str] = &[
     ".cargo-lock",
     ".rustc_info.json",
@@ -264,7 +268,7 @@ fn stamp_dir(dir: &Path, top: bool, newest: &mut u64) -> Result<()> {
     for entry in entries {
         let entry = entry.map_err(io_error("read", dir))?;
         let name = entry.file_name();
-        if (top && name == STATE_DIR) || STAMP_IGNORED.iter().any(|ignored| name == *ignored) {
+        if (top && name == STATE_DIR) || !counts_for_stamp(&name) {
             continue;
         }
         let path = entry.path();
@@ -280,6 +284,13 @@ fn stamp_dir(dir: &Path, top: bool, newest: &mut u64) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Whether a target entry named `name` can move the stamp.
+fn counts_for_stamp(name: &std::ffi::OsStr) -> bool {
+    let ignored = STAMP_IGNORED.iter().any(|ignored| name == *ignored);
+    let dep_info = Path::new(name).extension().is_some_and(|ext| ext == "d");
+    !ignored && !dep_info
 }
 
 /// Writes `bytes` to `path` through a temporary file and a rename, so a
