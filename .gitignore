@@ -23,3 +23,6 @@ worktrees/*
 .idea/
 .vscode/
 *.swp
+
+# Benchmark corpus checkouts and scratch files
+/bench/.work/
