@@ -1143,7 +1143,10 @@ def main() -> None:
     result["runs"] = getattr(args, "runs", 1)
 
     RESULTS.mkdir(exist_ok=True)
-    name = f"{result['benchmark']}-{result['machine']['os']}-{result['machine']['arch']}.json"
+    stem = result["benchmark"]
+    if stem == "ab":
+        stem = f"ab-{result['variant']}"  # one file per variant tried
+    name = f"{stem}-{result['machine']['os']}-{result['machine']['arch']}.json"
     path = RESULTS / name
     if getattr(args, "project", None) and path.exists():
         # A run limited to one project replaces exactly the rows it measured,
