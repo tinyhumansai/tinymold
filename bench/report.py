@@ -324,10 +324,48 @@ def cas_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def hit_section(result: dict) -> list[str]:
+    """Cache hits on many-output units: one tinymold revision against another."""
+    rows = result["results"]
+    sides = list(dict.fromkeys(r["tinymold"] for r in rows))
+    lines = [f"### Cache hits on many-output units ({describe(result)})", "",
+             "Every source file touched, then rebuilt through the wrapper, so each "
+             "workspace unit is a cache hit. Incremental units with "
+             + ", ".join(f"`{value}`" for value in result["config"])
+             + " keep one object file per codegen unit, so a hit places hundreds of "
+             "files. Each tinymold revision takes alternate turns on the same store. "
+             "Restore times come from `TINYMOLD_TRACE`; cells are medians (min–max).", "",
+             "| Project | What | " + " | ".join(f"tinymold {side}" for side in sides)
+             + " | change |", "| --- | --- |" + " ---: |" * (len(sides) + 1)]
+
+    def cell(stats: dict, scale: float, unit: str, digits: int) -> str:
+        return (f"{stats['median_s'] * scale:.{digits}f}{unit} "
+                f"({stats['min_s'] * scale:.{digits}f}–{stats['max_s'] * scale:.{digits}f})")
+
+    for project in dict.fromkeys(r["project"] for r in rows):
+        mine = {r["tinymold"]: r for r in rows if r["project"] == project}
+        first = mine[sides[0]]
+        measures = [("Build wall time", lambda r: r["wall"], 1, "s", 2),
+                    (f"All {first['hits']:.0f} restores, summed", lambda r: r["restore"],
+                     1000, " ms", 0)]
+        for unit in first["units"][:3]:
+            def pick(r: dict, crate: str = unit["crate"]) -> dict:
+                return next(u["restore"] for u in r["units"] if u["crate"] == crate)
+            measures.append((f"`{unit['crate']}` restore ({unit['files']} files)", pick,
+                             1000, " ms", 1))
+        for label, pick, scale, unit, digits in measures:
+            cells = [cell(pick(mine[side]), scale, unit, digits) for side in sides]
+            base, last = pick(mine[sides[0]])["median_s"], pick(mine[sides[-1]])["median_s"]
+            change = f"{last / base - 1:+.0%}" if base else "–"
+            lines.append(f"| {project} {first['rev']} | {label} | " + " | ".join(cells)
+                         + f" | {change} |")
+    return lines + [""]
+
+
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "dedup": 6, "link": 7, "native": 8, "cas": 9}
+             "hit": 6, "dedup": 7, "link": 8, "native": 9, "cas": 10}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -350,6 +388,8 @@ def main() -> None:
             sections += cas_section(result)
         elif result["benchmark"] == "ci":
             sections += ci_section(result)
+        elif result["benchmark"] == "hit":
+            sections += hit_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()

@@ -259,6 +259,18 @@ Cache: sccache 0.17.0, private directory and port. Each cell is the median clean
 | `target/` archive | 259 MiB | 698 MiB | 559 MiB |
 | tinymold store archive | 241 MiB | 592 MiB | 527 MiB |
 
+### Cache hits on many-output units (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
+
+Every source file touched, then rebuilt through the wrapper, so each workspace unit is a cache hit. Incremental units with `profile.dev.split-debuginfo="unpacked"` keep one object file per codegen unit, so a hit places hundreds of files. Each tinymold revision takes alternate turns on the same store. Restore times come from `TINYMOLD_TRACE`; cells are medians (min–max).
+
+| Project | What | tinymold b99e8c9 | tinymold f67b755 | change |
+| --- | --- | ---: | ---: | ---: |
+| ripgrep 14.1.1 | Build wall time | 0.31s (0.31–0.31) | 0.29s (0.29–0.29) | -6% |
+| ripgrep 14.1.1 | All 10 restores, summed | 382 ms (382–382) | 342 ms (342–342) | -11% |
+| ripgrep 14.1.1 | `rg` restore (258 files) | 75.5 ms (75.5–75.5) | 63.1 ms (63.1–63.1) | -16% |
+| ripgrep 14.1.1 | `ignore` restore (212 files) | 77.5 ms (77.5–77.5) | 72.7 ms (72.7–72.7) | -6% |
+| ripgrep 14.1.1 | `globset` restore (132 files) | 65.7 ms (65.7–65.7) | 49.5 ms (49.5–49.5) | -25% |
+
 ### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 
 Share of the second worktree's `target/` bytes that are byte-identical to something in the first's, at three granularities. Incremental state is excluded.
