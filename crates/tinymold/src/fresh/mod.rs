@@ -344,7 +344,12 @@ fn profile_dirs(target: &Path) -> Result<Vec<PathBuf>> {
 fn subdirs(dir: &Path) -> Result<Vec<PathBuf>> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
-        Err(error) if matches!(error.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory) => {
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+            ) =>
+        {
             return Ok(Vec::new());
         }
         Err(error) => return Err(io_error("read", dir)(error)),
@@ -352,7 +357,11 @@ fn subdirs(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut dirs = Vec::new();
     for entry in entries {
         let entry = entry.map_err(io_error("read", dir))?;
-        if entry.file_type().map_err(io_error("read", &entry.path()))?.is_dir() {
+        if entry
+            .file_type()
+            .map_err(io_error("read", &entry.path()))?
+            .is_dir()
+        {
             dirs.push(entry.path());
         }
     }
@@ -362,7 +371,10 @@ fn subdirs(dir: &Path) -> Result<Vec<PathBuf>> {
 /// Adds every file under the fingerprint directory `dir` to `found`, as its
 /// path relative to `target` and its mtime.
 fn collect_fingerprints(target: &Path, dir: &Path, found: &mut Vec<(String, u64)>) -> Result<()> {
-    for unit in subdirs(dir)?.into_iter().chain(std::iter::once(dir.to_path_buf())) {
+    for unit in subdirs(dir)?
+        .into_iter()
+        .chain(std::iter::once(dir.to_path_buf()))
+    {
         let Ok(entries) = fs::read_dir(&unit) else {
             continue;
         };

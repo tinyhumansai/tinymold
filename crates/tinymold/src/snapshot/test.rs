@@ -7,6 +7,9 @@ use std::time::{Duration, SystemTime};
 use super::*;
 use crate::tree::set_modified;
 
+/// The fixture target's one cargo fingerprint file.
+const FINGERPRINT: &str = "debug/.fingerprint/demo-1/bin-demo";
+
 struct Fixture {
     dir: tempfile::TempDir,
     store: PathBuf,
@@ -25,12 +28,15 @@ impl Fixture {
         let workspace = self.dir.path().join(name);
         let target = workspace.join("target");
         fs::create_dir_all(workspace.join("src")).unwrap();
-        fs::create_dir_all(target.join("debug")).unwrap();
+        fs::create_dir_all(target.join("debug/.fingerprint/demo-1")).unwrap();
         fs::write(workspace.join("src/main.rs"), source).unwrap();
         fs::write(target.join("debug/demo"), format!("built from {source}")).unwrap();
+        fs::write(target.join(FINGERPRINT), b"0123").unwrap();
         let old = SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+        let built = old + Duration::from_secs(60);
         set_modified(&workspace.join("src/main.rs"), old).unwrap();
-        set_modified(&target.join("debug/demo"), old + Duration::from_secs(60)).unwrap();
+        set_modified(&target.join("debug/demo"), built).unwrap();
+        set_modified(&target.join(FINGERPRINT), built).unwrap();
         (workspace, target)
     }
 }
@@ -243,8 +249,8 @@ fn a_snapshot_whose_outputs_moved_is_refused_and_removed() {
     let f = Fixture::new();
     let (a, a_target) = f.worktree("a", "one");
     save(&f.store, "main", &a, &a_target).unwrap();
-    let output = snapshots_dir(&f.store).join("main/debug/demo");
-    set_modified(&output, SystemTime::now()).unwrap();
+    let fingerprint = snapshots_dir(&f.store).join("main").join(FINGERPRINT);
+    set_modified(&fingerprint, SystemTime::now()).unwrap();
 
     let target = a.join("elsewhere");
     let error = restore(&f.store, Some("main"), &a, &target, false).unwrap_err();
@@ -257,26 +263,27 @@ fn replacing_keeps_a_valid_target_as_an_automatic_snapshot() {
     let f = Fixture::new();
     let (a, a_target) = f.worktree("a", "one");
     save(&f.store, "main", &a, &a_target).unwrap();
-    fs::write(a_target.join("debug/branch-b-output"), "b").unwrap();
+    // Branch B built one more unit, and its manifest was recorded.
+    let unit = a_target.join("debug/.fingerprint/b-1");
+    fs::create_dir_all(&unit).unwrap();
+    fs::write(unit.join("lib-b"), "b").unwrap();
     fresh::record(&a, &a_target).unwrap();
 
     let restored = restore(&f.store, Some("main"), &a, &a_target, true).unwrap();
     let kept = restored.kept.unwrap();
     assert!(kept.starts_with("auto-"), "{kept}");
     let kept_dir = snapshots_dir(&f.store).join(&kept);
-    assert!(kept_dir.join("debug/branch-b-output").exists());
-    assert!(!a_target.join("debug/branch-b-output").exists());
+    assert!(kept_dir.join("debug/.fingerprint/b-1/lib-b").exists());
+    assert!(!a_target.join("debug/.fingerprint/b-1").exists());
 
-    // The same outputs set aside again are not stored twice.
-    fs::write(a_target.join("debug/branch-b-output"), "b").unwrap();
-    set_modified(
-        &a_target.join("debug/branch-b-output"),
-        fs::metadata(kept_dir.join("debug/branch-b-output"))
-            .unwrap()
-            .modified()
-            .unwrap(),
-    )
-    .unwrap();
+    // The same build set aside again is not stored twice.
+    fs::create_dir_all(&unit).unwrap();
+    fs::write(unit.join("lib-b"), "b").unwrap();
+    let built = fs::metadata(kept_dir.join("debug/.fingerprint/b-1/lib-b"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    set_modified(&unit.join("lib-b"), built).unwrap();
     fresh::record(&a, &a_target).unwrap();
     assert_eq!(set_aside(&f.store, &a_target).unwrap(), Some(kept));
     assert!(!a_target.exists());
@@ -288,9 +295,10 @@ fn replacing_deletes_a_target_without_a_valid_manifest() {
     let (a, a_target) = f.worktree("a", "one");
     save(&f.store, "main", &a, &a_target).unwrap();
     // Built since the record: its manifest no longer describes it.
-    fs::write(a_target.join("debug/newer"), "x").unwrap();
+    fs::create_dir_all(a_target.join("debug/.fingerprint/new-1")).unwrap();
+    fs::write(a_target.join("debug/.fingerprint/new-1/lib-new"), "x").unwrap();
 
     let restored = restore(&f.store, Some("main"), &a, &a_target, true).unwrap();
     assert_eq!(restored.kept, None);
-    assert!(!a_target.join("debug/newer").exists());
+    assert!(!a_target.join("debug/.fingerprint/new-1").exists());
 }

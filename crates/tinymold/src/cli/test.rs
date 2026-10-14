@@ -177,9 +177,10 @@ fn built_workspace(root: &Path) -> (std::path::PathBuf, std::path::PathBuf) {
     let workspace = root.join("ws");
     let target = workspace.join("target");
     fs::create_dir_all(workspace.join("src")).unwrap();
-    fs::create_dir_all(target.join("debug")).unwrap();
+    fs::create_dir_all(target.join("debug/.fingerprint/demo-1")).unwrap();
     fs::write(workspace.join("src/main.rs"), b"fn main() {}").unwrap();
     fs::write(target.join("debug/demo"), b"binary").unwrap();
+    fs::write(target.join("debug/.fingerprint/demo-1/bin-demo"), b"0123").unwrap();
     (workspace, target)
 }
 
@@ -207,7 +208,8 @@ fn fresh_record_then_restore_reports_counts() {
         "fresh: 0 restored, 1 unchanged, 0 changed, 0 missing\n"
     );
 
-    fs::write(target.join("debug/new-output"), b"").unwrap();
+    // A build since the record writes a new fingerprint.
+    fs::write(target.join("debug/.fingerprint/demo-1/lib-demo"), b"").unwrap();
     let (result, out) = exec(&[&["fresh", "restore"][..], &at].concat());
     assert_eq!(result.unwrap(), Outcome::Absent);
     assert_eq!(

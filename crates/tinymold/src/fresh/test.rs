@@ -192,7 +192,10 @@ fn every_fingerprint_location_cargo_uses_is_read() {
     // A deleted fingerprint, as cargo does before a rebuild, also counts.
     let state = target_state(&f.target).unwrap();
     fs::remove_file(f.target.join(FINGERPRINT)).unwrap();
-    assert_ne!(target_state(&f.target).unwrap().fingerprints, state.fingerprints);
+    assert_ne!(
+        target_state(&f.target).unwrap().fingerprints,
+        state.fingerprints
+    );
     // tinymold's own state directory is not a profile.
     let state = target_state(&f.target).unwrap();
     fs::create_dir_all(f.target.join(".tinymold/.fingerprint/u")).unwrap();
@@ -257,7 +260,10 @@ fn a_corrupt_manifest_names_the_bad_line() {
         ("tinymold-fresh 1\nrecorded x\n", 2),
         ("tinymold-fresh 1\nrecorded 1\nstamp\n", 3),
         ("tinymold-fresh 1\nrecorded 1\nstamp x\n", 3),
-        ("tinymold-fresh 1\nrecorded 1\nstamp 1\nfingerprints zz\n", 4),
+        (
+            "tinymold-fresh 1\nrecorded 1\nstamp 1\nfingerprints zz\n",
+            4,
+        ),
         (&format!("{head}1 2 nothex a\n"), 5),
         (&format!("{head}1 2\n"), 5),
     ];
