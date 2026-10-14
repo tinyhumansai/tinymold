@@ -112,7 +112,7 @@ directory was deleted, three samples each.
 | bat | tinymold + wild | **0.30 s** | **0.24 s** | 1.31–1.90 s | 0.26–0.56 s |
 
 - **Is tinymold faster than mold?** They do different jobs. mold and wild make
-  the link fast: the default GNU linker is two thirds of a ripgrep edit,
+  the link fast: the default GNU linker is 0.58 s of a 0.79 s ripgrep edit,
   and either takes the edit from 0.79 s to about 0.25–0.28 s. tinymold makes
   everything that did not change free: a fresh target directory builds in
   0.13 s instead of 3.4 s, and bat's test build drops from 1.62 s to 0.94 s.
