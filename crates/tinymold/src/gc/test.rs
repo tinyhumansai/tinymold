@@ -498,7 +498,7 @@ fn each_unit_keeps_only_its_most_recent_generations() {
     assert!(middle.exists() && newest.exists());
     assert!(other.exists() && unnamed.exists());
     assert_eq!(report.actions_removed, 1);
-    // `first` is still the other unit's; only nothing is freed here.
+    // `first` is still the other unit's, so no object is freed yet.
     assert!(fixture.store.contains(&first));
     assert!(fixture.store.contains(&carried));
 
@@ -512,7 +512,8 @@ fn each_unit_keeps_only_its_most_recent_generations() {
     .unwrap();
     assert!(!middle.exists() && newest.exists());
     assert_eq!(report.actions_removed, 1);
-    assert!(!fixture.store.contains(&second) || unnamed.exists());
+    // The unnamed action still needs `second`.
+    assert!(fixture.store.contains(&second));
     assert!(fixture.store.contains(&third) && fixture.store.contains(&carried));
 }
 
