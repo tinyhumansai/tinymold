@@ -24,7 +24,6 @@
 //! so snapshots are kept until removed. Clones share data blocks with the
 //! target they came from until either side is rewritten.
 
-use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -57,8 +56,11 @@ pub struct Restored {
     pub files: usize,
     /// How the target directory was placed.
     pub clone: TreeClone,
-    /// The freshness restore that followed.
+    /// The freshness restore that followed; always [`Restore::Applied`].
     pub fresh: Restore,
+    /// When `--replace` moved the previous target directory into the store
+    /// instead of deleting it, the snapshot name it was kept under.
+    pub kept: Option<String>,
 }
 
 /// The directory in the store that holds every snapshot.
@@ -125,15 +127,22 @@ pub fn list(store: &Path) -> Result<Vec<Snapshot>> {
 /// fresh against it.
 ///
 /// With `name`, that snapshot is used. Without one, the snapshot whose
-/// manifest matches the most workspace files wins. When `target` exists it
-/// is replaced if `replace` is set, and is an error otherwise.
+/// manifest matches the most workspace files wins. Every file is checked by
+/// content, and a file that differs from the snapshot is given an mtime newer
+/// than the snapshot's outputs, so cargo rebuilds what depends on it.
+///
+/// When `target` exists it is an error unless `replace` is set. Replacing
+/// keeps the old target as a snapshot named `auto-<stamp>` when its own
+/// manifest is still valid and it can be moved into the store without a copy,
+/// so switching back to it later is just as fast. Otherwise it is deleted.
 ///
 /// # Errors
 ///
 /// Returns [`Error::SnapshotNotFound`] or [`Error::NoSnapshots`] when there is
 /// nothing to restore, [`Error::AlreadyExists`] when `target` exists and
-/// `replace` is not set, and any error of [`clone_tree`] or
-/// [`fresh::restore`].
+/// `replace` is not set, [`Error::SnapshotUnusable`] when the snapshot's
+/// manifest does not describe its outputs, and any error of [`clone_tree`]
+/// or [`fresh::restore`].
 pub fn restore(
     store: &Path,
     name: Option<&str>,
@@ -141,6 +150,7 @@ pub fn restore(
     target: &Path,
     replace: bool,
 ) -> Result<Restored> {
+    let mut digests = fresh::Digests::new();
     let (name, matched, files) = match name {
         Some(name) => {
             check_name(name)?;
@@ -148,36 +158,72 @@ pub fn restore(
             if !source.is_dir() {
                 return Err(Error::SnapshotNotFound(name.to_owned()));
             }
-            let (matched, files) = score(&source, workspace, &mut HashMap::new())?;
+            let (matched, files) = score(&source, workspace, &mut digests)?;
             (name.to_owned(), matched, files)
         }
-        None => best_match(store, workspace)?,
+        None => best_match(store, workspace, &mut digests)?,
     };
+    let mut kept = None;
     if fs::symlink_metadata(target).is_ok() {
         if !replace {
             return Err(Error::AlreadyExists(target.to_path_buf()));
         }
-        remove_tree(target)?;
+        kept = set_aside(store, target)?;
     }
     let clone = clone_tree(&snapshots_dir(store).join(&name), target)?;
-    let fresh = fresh::restore(workspace, target)?;
+    let fresh = fresh::apply(workspace, target, Some(&mut digests))?;
+    if !matches!(fresh, Restore::Applied(_)) {
+        // Without a valid manifest the clone's mtimes say nothing about the
+        // workspace, and cargo could take its outputs for current ones.
+        remove_tree(target)?;
+        return Err(Error::SnapshotUnusable(name));
+    }
     Ok(Restored {
         name,
         matched,
         files,
         clone,
         fresh,
+        kept,
     })
+}
+
+/// Moves an existing target directory out of the way: into the store as a
+/// snapshot when that is valid and free, otherwise into the bin.
+fn set_aside(store: &Path, target: &Path) -> Result<Option<String>> {
+    let valid = match fresh::load(target) {
+        Ok(Some(manifest)) => fresh::stamp(target).ok() == Some(manifest.stamp_ns),
+        _ => false,
+    };
+    if valid {
+        let stamp = fresh::stamp(target)?;
+        let name = format!("auto-{stamp}");
+        let dir = snapshots_dir(store);
+        let destination = dir.join(&name);
+        if destination.exists() {
+            // The same outputs are already kept under this name.
+            remove_tree(target)?;
+            return Ok(Some(name));
+        }
+        if fs::create_dir_all(&dir).is_ok() && fs::rename(target, &destination).is_ok() {
+            return Ok(Some(name));
+        }
+    }
+    remove_tree(target)?;
+    Ok(None)
 }
 
 /// The snapshot matching the most workspace files; ties go to the name that
 /// sorts last, so a later `main-2` beats `main-1`.
-fn best_match(store: &Path, workspace: &Path) -> Result<(String, usize, usize)> {
-    let mut digests = HashMap::new();
+fn best_match(
+    store: &Path,
+    workspace: &Path,
+    digests: &mut fresh::Digests,
+) -> Result<(String, usize, usize)> {
     let mut best: Option<(String, usize, usize)> = None;
     for snapshot in list(store)? {
         let dir = snapshots_dir(store).join(&snapshot.name);
-        let (matched, files) = score(&dir, workspace, &mut digests)?;
+        let (matched, files) = score(&dir, workspace, digests)?;
         if best.as_ref().is_none_or(|(_, top, _)| matched >= *top) {
             best = Some((snapshot.name, matched, files));
         }
@@ -191,7 +237,7 @@ fn best_match(store: &Path, workspace: &Path) -> Result<(String, usize, usize)> 
 fn score(
     snapshot: &Path,
     workspace: &Path,
-    digests: &mut HashMap<String, Option<Digest>>,
+    digests: &mut fresh::Digests,
 ) -> Result<(usize, usize)> {
     let Some(manifest) = fresh::load(snapshot)? else {
         return Ok((0, 0));

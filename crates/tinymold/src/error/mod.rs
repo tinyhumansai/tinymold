@@ -69,6 +69,11 @@ pub enum Error {
     #[error("the store holds no snapshots: run tinymold snapshot save after a build")]
     NoSnapshots,
 
+    /// A restored snapshot's manifest does not describe its outputs, so its
+    /// mtimes cannot be trusted; the restored copy was removed.
+    #[error("snapshot {0} has no valid freshness manifest and was not restored")]
+    SnapshotUnusable(String),
+
     /// No snapshot name was given and none could be derived from git.
     #[error("cannot name the snapshot from git HEAD: pass a name")]
     NoSnapshotName,
