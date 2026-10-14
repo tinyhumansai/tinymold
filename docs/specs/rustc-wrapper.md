@@ -110,17 +110,25 @@ miss in another worktree, and it does.
 1. runs rustc, streaming its stdout and stderr through line by line, so that
    cargo's pipelining still sees the `artifact` notifications on time;
 2. if rustc succeeded, and no input changed during the compile, stores the
-   unit's outputs. The outputs are the files in `--out-dir` whose names start
-   with `<crate><extra-filename>` or `lib<crate><extra-filename>`, modified
-   since the compile started;
+   unit's outputs: every file in `--out-dir` whose name starts with
+   `<crate><extra-filename>` or `lib<crate><extra-filename>`.
+   - **The mtime is not checked.** Incremental rustc hardlinks artifacts it
+     reuses (objects, sometimes the `.rmeta`) back into the out-dir with
+     their old mtimes. An earlier version that filtered by mtime stored
+     actions without them. That left a stale `.rmeta` next to a restored
+     `.rlib`, and the final link combined a crate with dependents compiled
+     against another version of it.
+   - **The outputs the `--emit` kinds imply must be present:** `.d`,
+     `.rmeta`, and a library's `.rlib`.
 3. stores the outputs in the CAS, then writes the ActionResult
    (`entries/<crate>/<key>`, per ADR 0004), and records the input set under
    the pre-key.
 
 **On a hit**, tinymold:
 
-1. places every output by reflink, falling back to copy, and never by
-   hardlink, because linkers may rewrite outputs in place;
+1. removes every file in the out-dir with the unit's prefix, then places
+   every output by reflink, falling back to copy, and never by hardlink,
+   because linkers may rewrite outputs in place;
 2. sets each output's mtime to now, as if rustc had just written it;
 3. replays stdout and stderr, then exits 0.
 
@@ -139,6 +147,8 @@ files' mtimes. Binary outputs are restored as stored.
 
 ## Invariants
 
+- **After a hit, the out-dir holds exactly the stored outputs for the
+  unit.** Nothing from another compile of the unit remains beside them.
 - **A hit is only served when every input matches.** Every input file named
   by the recorded dep-info matches by content, and every recorded env-dep
   value matches. Absolute workspace paths never enter the key except through
