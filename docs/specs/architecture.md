@@ -37,8 +37,10 @@ Goals:
 5. Stay correct: a cache hit must be indistinguishable from a rebuild, and
    every miss must be explainable.
 
-Non-goals (see [Out of scope](#out-of-scope)): a new linker, a rustc fork, a
-cargo replacement, a custom remote protocol.
+Non-goals (see [Out of scope](#out-of-scope)): a linker written from scratch
+or one that competes with mold on cold links, a rustc fork, a cargo
+replacement, a custom remote protocol. A *stateful fork of mold* is in scope
+([ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md)).
 
 ## Components
 
@@ -55,12 +57,19 @@ the `tinymold` binary is a thin CLI over them.
 | `tinymold run-test` | Planned (Phase 4) | The test result cache: a cargo `runner` that replays recorded passes keyed by the test binary's digest and its run-time inputs ([test-cache spec](test-cache.md)). Lives in `tinymold-wrap` beside the wrapper. |
 | `tinymold-server` | Planned (Phase 6) | The hot cache daemon: stat cache, FSEvents/inotify dirty set, Unix-socket protocol, single-flight dedup, per-key incremental-dir store, storage tiers and eviction. |
 | `tinymold-remote` | Planned (Phase 6) | REAPI v2 client for the LAN/remote tier, with zstd-compressed transfers and `FindMissingBlobs` batching. |
-| `tinymold-link` | Planned (Phase 4) | Linker autoselect, link-skip, link concurrency governor, test-binary consolidation, dylib dev mode, prelinked dependency archive. |
+| `tinymold-link` | Phase L0 (fork imported) | A fork of mold 3.0 at `c522789`, MIT-licensed, built as the `tinymold-link` binary from `tinymold-link-common`, `tinymold-link-elf`, `tinymold-link-macho` and one crate per kept target ([ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md)). It behaves exactly as mold until state that persists across links is added: a per-input parse cache in the CAS, then a warm daemon and append linking ([linker spec](linker.md), [plan](../plans/linker.md)). Autoselect, link-skip and the concurrency governor stay planned for Phase 4. |
 | `tinymold-bench` | Phase 1 (as the Python harness in `bench/`) | Pinned benchmark harness: filesystem, output reuse, fork mode and thread count are fixed and recorded per run ([linkers §2](../research/linkers.md#2-benchmarks-with-sources)). |
 
 Dependency direction is strictly downward: `hash` ← `cas` ← `key` ← `wrap` /
 `server` / `link` / `remote` ← `tinymold`. Nothing below `wrap` knows about
 cargo's process model, and `hash` and `cas` know nothing about Rust at all.
+
+The `tinymold-link*` crates are the one exception to the workspace's house
+rules. They keep mold's source verbatim so upstream changes can be merged, keep
+mold's MIT license inside the GPL-3.0 workspace, and allow `unsafe_code`
+instead of opting into the workspace lint set. The cache code tinymold adds to
+them sits behind narrow seams and depends on `tinymold-hash` and
+`tinymold-cas`, never the other way round.
 
 ### Distribution
 
@@ -288,9 +297,14 @@ links that remain.
   into one. Dylib dev mode puts dependencies in one shared library so each
   relink touches only the top crate. A prelinked dependency archive reduces
   the final link to a few inputs. All three are opt-in and reversible.
-- **Upstream, not a new linker.** Incremental linking is pursued with wild's
-  design, not in tinymold
-  ([linkers §5](../research/linkers.md#5-incremental-linking-and-hot-patching)).
+- **A stateful fork, not a new linker.** mold forgets everything between
+  links, while most inputs of the next Rust link are byte-identical. The fork
+  caches per-input parse results in the CAS first, then keeps dependency state
+  warm in the server, then links by appending to a prelinked dependency image
+  ([mold-and-bun](../research/mold-and-bun.md),
+  [ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md),
+  [linker spec](linker.md)). Changes that generalize are offered upstream to
+  mold.
 
 ## Platform notes
 
@@ -366,8 +380,10 @@ A cache that is wrong once gets switched off. tinymold builds trust with:
 
 ## Out of scope
 
-- **Writing a linker.** tinymold configures and wraps existing linkers and
-  contributes incremental-linking work to wild or mold.
+- **Writing a linker from scratch, or racing mold on cold links.** tinymold
+  forks mold and adds state across links
+  ([ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md)); it does not
+  rewrite the passes mold already runs near copy speed.
 - **Forking rustc or depending on unstable rustc internals by default.**
   Nightly-only features (`-Zchecksum-hash-algorithm`, `-Zthreads`, Cranelift,
   a persistent `rustc_driver` worker) are opt-in accelerators, never
