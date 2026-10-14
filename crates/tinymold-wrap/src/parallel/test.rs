@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 
 use super::*;
+use crate::Result;
 
 #[test]
 fn every_item_is_mapped_and_results_keep_the_item_order() {
