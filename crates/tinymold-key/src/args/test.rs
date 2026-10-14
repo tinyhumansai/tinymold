@@ -260,5 +260,18 @@ fn coverage_instrumentation_is_recognized_in_every_spelling() {
     assert!(with(&["-Z", "instrument-coverage"]));
     assert!(!with(&["-C", "instrument-coverage=off"]));
     assert!(!with(&["-C", "instrument-coverage=no"]));
+    // rustc takes the last setting of a `-C` option.
+    assert!(!with(&[
+        "-C",
+        "instrument-coverage",
+        "-C",
+        "instrument-coverage=no"
+    ]));
+    assert!(with(&[
+        "-C",
+        "instrument-coverage=no",
+        "-C",
+        "instrument-coverage"
+    ]));
     assert!(!with(&[]));
 }
