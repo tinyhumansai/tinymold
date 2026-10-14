@@ -298,9 +298,13 @@ probe first
 
 ## 3. Where a forked linker can beat mold
 
-Ranked by expected impact on Rust dev loops, highest first. None of these
-numbers are measured yet; the first phase of the [plan](../plans/linker.md)
-measures them.
+Ranked by expected impact on Rust dev loops, highest first, as estimated
+before measuring. The first measurements, in the
+[plan's L1 results](../plans/linker.md#l1-results-so-far-2026-10-15), cut
+item 1 down: mold's readers are already zero-copy, so a per-input cache saves
+an estimated 5-10% of a macOS relink, not the parse cost of every input. The
+larger shares of reading and resolving need state carried across links
+(item 3).
 
 | # | Improvement | Bun technique | Expected effect | Difficulty |
 |---|---|---|---|---|
