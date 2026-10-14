@@ -80,12 +80,12 @@ def pin_cargo_config() -> Path:
 def schedule(steps: int, churn_every: int, has_churn: bool) -> list[str]:
     """The edit applied at each step: the three edit kinds in turn, with a
     churn step every `churn_every` steps when the project defines one."""
-    plan = []
+    plan: list[str] = []
     for step in range(1, steps + 1):
         if has_churn and churn_every and step % churn_every == 0:
             plan.append("churn")
         else:
-            plan.append(KINDS[(step - 1) % len(KINDS)])
+            plan.append(KINDS[sum(kind != "churn" for kind in plan) % len(KINDS)])
     return plan
 
 
