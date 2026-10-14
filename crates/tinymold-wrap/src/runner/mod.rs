@@ -313,6 +313,13 @@ fn build(command: &TestCommand<'_>, program: &Path, args: &[OsString]) -> Comman
     process
 }
 
+/// Runs one test binary unchanged, as cargo asked, and returns its exit
+/// code, or 1 when it cannot be started. Used when no store is available.
+#[must_use]
+pub fn run_test_uncached(command: &TestCommand<'_>) -> i32 {
+    run_plain(command)
+}
+
 /// Runs the test unchanged and returns its exit code, or 1 when it cannot
 /// be started.
 fn run_plain(command: &TestCommand<'_>) -> i32 {

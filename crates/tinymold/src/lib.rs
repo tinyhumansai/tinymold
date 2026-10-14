@@ -58,7 +58,7 @@ mod wrapper;
 
 pub use cli::{
     CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, RemoteCommand,
-    SnapshotCommand, StatsArgs, StrategyArg, run,
+    RunTestArgs, SnapshotCommand, StatsArgs, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
