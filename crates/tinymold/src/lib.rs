@@ -13,7 +13,11 @@
 //!
 //! - `tinymold hash` — BLAKE3 digests of files, via [`tinymold_hash`];
 //! - `tinymold cas` — the local content-addressed store, via [`tinymold_cas`];
-//! - `tinymold doctor` — which fast linkers and caches this machine has.
+//! - `tinymold doctor` — which fast linkers and caches this machine has;
+//! - `tinymold fresh` — undo mtime changes that did not change content, via
+//!   [`fresh`];
+//! - `tinymold snapshot` — whole `target/` snapshots for new worktrees and
+//!   branch switches, via [`snapshot`].
 //!
 //! # Example
 //!
@@ -35,11 +39,17 @@
 mod cli;
 mod doctor;
 mod error;
+pub mod fresh;
 mod location;
+pub mod snapshot;
+mod tree;
 
-pub use cli::{CasCommand, Cli, Command, Outcome, StrategyArg, run};
+pub use cli::{
+    CasCommand, Cli, Command, FreshCommand, Location, Outcome, SnapshotCommand, StrategyArg, run,
+};
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
 pub use location::default_store;
+pub use tree::{TreeClone, clone_tree};
 pub use tinymold_cas;
 pub use tinymold_hash;
