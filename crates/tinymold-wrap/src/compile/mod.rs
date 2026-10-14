@@ -37,6 +37,15 @@ use crate::stat::{self, nanos};
 use crate::trace::Trace;
 use crate::{Error, Result};
 
+/// The fewest outputs a hit places on worker threads rather than in turn.
+///
+/// Most units have two to four outputs, and spawning a thread costs about as
+/// much as reflinking a small file, so those stay serial. An incremental
+/// compile with split debuginfo leaves dozens to hundreds of object files,
+/// and 16 is where every one of up to eight workers still gets a couple of
+/// files to amortize its spawn over.
+const PARALLEL_RESTORE_MIN: usize = 16;
+
 /// How a cacheable invocation was served.
 #[derive(Debug)]
 pub(crate) enum Served {

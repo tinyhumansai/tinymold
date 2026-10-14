@@ -607,7 +607,7 @@ fn invocation_of(unit: &Crate) -> Invocation {
     let Classified::Cacheable(invocation) = Invocation::parse(text) else {
         panic!("the test compile must be cacheable");
     };
-    invocation
+    *invocation
 }
 
 /// A `Unit` for `unit`'s compile, to restore actions into directly.
