@@ -10,1184 +10,6 @@
   },
   "results": [
     {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "clean",
-      "wall": {
-        "median_s": 3.0601,
-        "min_s": 2.8446,
-        "max_s": 4.2477,
-        "samples_s": [
-          4.2477,
-          2.8446,
-          3.0601
-        ]
-      },
-      "link": {
-        "median_s": 0.2799,
-        "min_s": 0.2731,
-        "max_s": 0.2841,
-        "samples_s": [
-          0.2799,
-          0.2731,
-          0.2841
-        ]
-      },
-      "links": 7,
-      "compiled": 30,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 49892544,
-        "rmeta": 8533893,
-        "debuginfo": 0,
-        "objects": 50344216,
-        "incremental": 17867746,
-        "executables": 26639328,
-        "other": 314827
-      },
-      "first_wall_s": 4.2477
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "noop",
-      "wall": {
-        "median_s": 0.0829,
-        "min_s": 0.0819,
-        "max_s": 0.0829,
-        "samples_s": [
-          0.0829,
-          0.0819,
-          0.0829
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 30,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.1778,
-        "min_s": 0.1686,
-        "max_s": 0.187,
-        "samples_s": [
-          0.187,
-          0.1778,
-          0.1686
-        ]
-      },
-      "link": {
-        "median_s": 0.0414,
-        "min_s": 0.0398,
-        "max_s": 0.0429,
-        "samples_s": [
-          0.0429,
-          0.0414,
-          0.0398
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.3385,
-        "min_s": 0.3364,
-        "max_s": 0.3425,
-        "samples_s": [
-          0.3364,
-          0.3425,
-          0.3385
-        ]
-      },
-      "link": {
-        "median_s": 0.0411,
-        "min_s": 0.0404,
-        "max_s": 0.0414,
-        "samples_s": [
-          0.0414,
-          0.0404,
-          0.0411
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 0.4109,
-        "min_s": 0.3944,
-        "max_s": 0.4434,
-        "samples_s": [
-          0.3944,
-          0.4109,
-          0.4434
-        ]
-      },
-      "link": {
-        "median_s": 0.0384,
-        "min_s": 0.0384,
-        "max_s": 0.0394,
-        "samples_s": [
-          0.0384,
-          0.0384,
-          0.0394
-        ]
-      },
-      "links": 1,
-      "compiled": 3,
-      "fresh": 27,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "touch_all",
-      "wall": {
-        "median_s": 0.4229,
-        "min_s": 0.4094,
-        "max_s": 0.4307,
-        "samples_s": [
-          0.4229,
-          0.4307,
-          0.4094
-        ]
-      },
-      "link": {
-        "median_s": 0.0412,
-        "min_s": 0.0387,
-        "max_s": 0.0439,
-        "samples_s": [
-          0.0439,
-          0.0412,
-          0.0387
-        ]
-      },
-      "links": 1,
-      "compiled": 3,
-      "fresh": 27,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "second_worktree",
-      "wall": {
-        "median_s": 3.4377,
-        "min_s": 2.6683,
-        "max_s": 3.8044,
-        "samples_s": [
-          3.8044,
-          2.6683,
-          3.4377
-        ]
-      },
-      "link": {
-        "median_s": 0.2871,
-        "min_s": 0.2793,
-        "max_s": 0.2943,
-        "samples_s": [
-          0.2871,
-          0.2793,
-          0.2943
-        ]
-      },
-      "links": 7,
-      "compiled": 30,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 0.9045,
-        "min_s": 0.886,
-        "max_s": 0.9148,
-        "samples_s": [
-          0.9148,
-          0.886,
-          0.9045
-        ]
-      },
-      "link": {
-        "median_s": 0.0838,
-        "min_s": 0.0835,
-        "max_s": 0.0845,
-        "samples_s": [
-          0.0838,
-          0.0835,
-          0.0845
-        ]
-      },
-      "links": 2,
-      "compiled": 6,
-      "fresh": 54,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "baseline",
-      "case": "test_no_run",
-      "wall": {
-        "median_s": 1.6608,
-        "min_s": 1.6548,
-        "max_s": 2.56,
-        "samples_s": [
-          2.56,
-          1.6548,
-          1.6608
-        ]
-      },
-      "link": {
-        "median_s": 0.2677,
-        "min_s": 0.2624,
-        "max_s": 0.2694,
-        "samples_s": [
-          0.2694,
-          0.2624,
-          0.2677
-        ]
-      },
-      "links": 7,
-      "compiled": 9,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 58592224,
-        "rmeta": 14383612,
-        "debuginfo": 0,
-        "objects": 62424696,
-        "incremental": 39559600,
-        "executables": 40498296,
-        "other": 396510
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "clean",
-      "wall": {
-        "median_s": 1.6978,
-        "min_s": 1.6557,
-        "max_s": 3.4136,
-        "samples_s": [
-          3.4136,
-          1.6978,
-          1.6557
-        ]
-      },
-      "link": {
-        "median_s": 0.2613,
-        "min_s": 0.2525,
-        "max_s": 0.2798,
-        "samples_s": [
-          0.2798,
-          0.2525,
-          0.2613
-        ]
-      },
-      "links": 7,
-      "compiled": 30,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 48282584,
-        "rmeta": 8533002,
-        "debuginfo": 0,
-        "objects": 11674504,
-        "incremental": 0,
-        "executables": 26460992,
-        "other": 316792
-      },
-      "first_wall_s": 3.4136,
-      "cache": {
-        "hits": 62,
-        "misses": 31
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "noop",
-      "wall": {
-        "median_s": 0.0302,
-        "min_s": 0.0302,
-        "max_s": 0.0314,
-        "samples_s": [
-          0.0314,
-          0.0302,
-          0.0302
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 30,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 0,
-        "misses": 0
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.1384,
-        "min_s": 0.1364,
-        "max_s": 0.1426,
-        "samples_s": [
-          0.1364,
-          0.1426,
-          0.1384
-        ]
-      },
-      "link": {
-        "median_s": 0.0371,
-        "min_s": 0.0363,
-        "max_s": 0.0385,
-        "samples_s": [
-          0.0363,
-          0.0385,
-          0.0371
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 0,
-        "misses": 0
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.4438,
-        "min_s": 0.4272,
-        "max_s": 0.4771,
-        "samples_s": [
-          0.4438,
-          0.4771,
-          0.4272
-        ]
-      },
-      "link": {
-        "median_s": 0.0384,
-        "min_s": 0.0367,
-        "max_s": 0.0413,
-        "samples_s": [
-          0.0384,
-          0.0413,
-          0.0367
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 0,
-        "misses": 3
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 0.6143,
-        "min_s": 0.6013,
-        "max_s": 0.6259,
-        "samples_s": [
-          0.6013,
-          0.6259,
-          0.6143
-        ]
-      },
-      "link": {
-        "median_s": 0.0359,
-        "min_s": 0.0355,
-        "max_s": 0.0363,
-        "samples_s": [
-          0.0355,
-          0.0359,
-          0.0363
-        ]
-      },
-      "links": 1,
-      "compiled": 3,
-      "fresh": 27,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 0,
-        "misses": 9
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "touch_all",
-      "wall": {
-        "median_s": 0.2702,
-        "min_s": 0.2584,
-        "max_s": 0.2953,
-        "samples_s": [
-          0.2584,
-          0.2953,
-          0.2702
-        ]
-      },
-      "link": {
-        "median_s": 0.0357,
-        "min_s": 0.0356,
-        "max_s": 0.0399,
-        "samples_s": [
-          0.0356,
-          0.0399,
-          0.0357
-        ]
-      },
-      "links": 1,
-      "compiled": 3,
-      "fresh": 27,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 9,
-        "misses": 0
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "second_worktree",
-      "wall": {
-        "median_s": 1.7134,
-        "min_s": 1.6731,
-        "max_s": 3.238,
-        "samples_s": [
-          3.238,
-          1.7134,
-          1.6731
-        ]
-      },
-      "link": {
-        "median_s": 0.264,
-        "min_s": 0.2625,
-        "max_s": 0.27,
-        "samples_s": [
-          0.27,
-          0.2625,
-          0.264
-        ]
-      },
-      "links": 7,
-      "compiled": 30,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 88,
-        "misses": 5
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 0.5464,
-        "min_s": 0.5161,
-        "max_s": 0.5491,
-        "samples_s": [
-          0.5161,
-          0.5491,
-          0.5464
-        ]
-      },
-      "link": {
-        "median_s": 0.0756,
-        "min_s": 0.0731,
-        "max_s": 0.0759,
-        "samples_s": [
-          0.0731,
-          0.0756,
-          0.0759
-        ]
-      },
-      "links": 2,
-      "compiled": 6,
-      "fresh": 54,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "cache": {
-        "hits": 18,
-        "misses": 0
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "sccache",
-      "case": "test_no_run",
-      "wall": {
-        "median_s": 1.2205,
-        "min_s": 1.1687,
-        "max_s": 1.822,
-        "samples_s": [
-          1.822,
-          1.1687,
-          1.2205
-        ]
-      },
-      "link": {
-        "median_s": 0.2455,
-        "min_s": 0.2454,
-        "max_s": 0.2662,
-        "samples_s": [
-          0.2662,
-          0.2454,
-          0.2455
-        ]
-      },
-      "links": 7,
-      "compiled": 9,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0
-        ]
-      },
-      "target_kinds": {
-        "rlib": 56982264,
-        "rmeta": 14382721,
-        "debuginfo": 0,
-        "objects": 19266112,
-        "incremental": 0,
-        "executables": 40134136,
-        "other": 398465
-      },
-      "cache": {
-        "hits": 16,
-        "misses": 8
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "clean",
-      "wall": {
-        "median_s": 2.8867,
-        "min_s": 2.6624,
-        "max_s": 3.3061,
-        "samples_s": [
-          3.3061,
-          2.6624,
-          2.8867
-        ]
-      },
-      "link": {
-        "median_s": 0.278,
-        "min_s": 0.2684,
-        "max_s": 0.2788,
-        "samples_s": [
-          0.2788,
-          0.2684,
-          0.278
-        ]
-      },
-      "links": 7,
-      "compiled": 30,
-      "fresh": 0,
-      "tinymold": {
-        "median_s": 0.0135,
-        "min_s": 0.0134,
-        "max_s": 0.4361,
-        "samples_s": [
-          0.4361,
-          0.0134,
-          0.0135
-        ]
-      },
-      "target_kinds": {
-        "rlib": 49892544,
-        "rmeta": 8533893,
-        "debuginfo": 0,
-        "objects": 50344216,
-        "incremental": 17867743,
-        "executables": 26639328,
-        "other": 326295
-      },
-      "first_wall_s": 3.3061
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "noop",
-      "wall": {
-        "median_s": 0.0813,
-        "min_s": 0.0773,
-        "max_s": 0.082,
-        "samples_s": [
-          0.0773,
-          0.082,
-          0.0813
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 30,
-      "tinymold": {
-        "median_s": 0.0156,
-        "min_s": 0.0143,
-        "max_s": 0.0158,
-        "samples_s": [
-          0.0143,
-          0.0156,
-          0.0158
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.1813,
-        "min_s": 0.1766,
-        "max_s": 0.1862,
-        "samples_s": [
-          0.1862,
-          0.1766,
-          0.1813
-        ]
-      },
-      "link": {
-        "median_s": 0.0392,
-        "min_s": 0.0391,
-        "max_s": 0.0439,
-        "samples_s": [
-          0.0439,
-          0.0391,
-          0.0392
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0159,
-        "min_s": 0.0157,
-        "max_s": 0.0162,
-        "samples_s": [
-          0.0157,
-          0.0159,
-          0.0162
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.3669,
-        "min_s": 0.3401,
-        "max_s": 0.5555,
-        "samples_s": [
-          0.3401,
-          0.5555,
-          0.3669
-        ]
-      },
-      "link": {
-        "median_s": 0.0409,
-        "min_s": 0.0396,
-        "max_s": 0.0571,
-        "samples_s": [
-          0.0409,
-          0.0571,
-          0.0396
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0268,
-        "min_s": 0.0176,
-        "max_s": 0.0277,
-        "samples_s": [
-          0.0176,
-          0.0277,
-          0.0268
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 0.4446,
-        "min_s": 0.4381,
-        "max_s": 0.66,
-        "samples_s": [
-          0.4446,
-          0.4381,
-          0.66
-        ]
-      },
-      "link": {
-        "median_s": 0.0393,
-        "min_s": 0.0392,
-        "max_s": 0.05,
-        "samples_s": [
-          0.0392,
-          0.0393,
-          0.05
-        ]
-      },
-      "links": 1,
-      "compiled": 3,
-      "fresh": 27,
-      "tinymold": {
-        "median_s": 0.0309,
-        "min_s": 0.0276,
-        "max_s": 0.0453,
-        "samples_s": [
-          0.0276,
-          0.0309,
-          0.0453
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "touch_all",
-      "wall": {
-        "median_s": 0.1034,
-        "min_s": 0.1033,
-        "max_s": 0.1066,
-        "samples_s": [
-          0.1033,
-          0.1066,
-          0.1034
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 30,
-      "tinymold": {
-        "median_s": 0.0403,
-        "min_s": 0.04,
-        "max_s": 0.0403,
-        "samples_s": [
-          0.0403,
-          0.0403,
-          0.04
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "second_worktree",
-      "wall": {
-        "median_s": 0.1987,
-        "min_s": 0.1936,
-        "max_s": 0.2479,
-        "samples_s": [
-          0.1936,
-          0.1987,
-          0.2479
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 0,
-      "fresh": 30,
-      "tinymold": {
-        "median_s": 0.1132,
-        "min_s": 0.0999,
-        "max_s": 0.1392,
-        "samples_s": [
-          0.1132,
-          0.0999,
-          0.1392
-        ]
-      },
-      "snapshot_save_s": [
-        0.0477,
-        0.179,
-        0.1991
-      ]
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 1.3248,
-        "min_s": 0.9012,
-        "max_s": 1.4426,
-        "samples_s": [
-          0.9012,
-          1.3248,
-          1.4426
-        ]
-      },
-      "link": {
-        "median_s": 0.0493,
-        "min_s": 0.0401,
-        "max_s": 0.0505,
-        "samples_s": [
-          0.0401,
-          0.0505,
-          0.0493
-        ]
-      },
-      "links": 1,
-      "compiled": 3,
-      "fresh": 57,
-      "tinymold": {
-        "median_s": 0.394,
-        "min_s": 0.3868,
-        "max_s": 0.4006,
-        "samples_s": [
-          0.3868,
-          0.394,
-          0.4006
-        ]
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "172a85d",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
-      "case": "test_no_run",
-      "wall": {
-        "median_s": 1.7978,
-        "min_s": 1.7314,
-        "max_s": 1.8736,
-        "samples_s": [
-          1.8736,
-          1.7978,
-          1.7314
-        ]
-      },
-      "link": {
-        "median_s": 0.2847,
-        "min_s": 0.2744,
-        "max_s": 0.3096,
-        "samples_s": [
-          0.3096,
-          0.2847,
-          0.2744
-        ]
-      },
-      "links": 7,
-      "compiled": 9,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0191,
-        "min_s": 0.0187,
-        "max_s": 0.0253,
-        "samples_s": [
-          0.0253,
-          0.0187,
-          0.0191
-        ]
-      },
-      "target_kinds": {
-        "rlib": 58592224,
-        "rmeta": 14383612,
-        "debuginfo": 0,
-        "objects": 62424696,
-        "incremental": 39559580,
-        "executables": 40498296,
-        "other": 407978
-      }
-    },
-    {
       "project": "ripgrep",
       "rev": "14.1.1",
       "role": "small, link-bound binary",
@@ -3541,6 +2363,1184 @@
         "incremental": 95929624,
         "executables": 235871864,
         "other": 9954094
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "clean",
+      "wall": {
+        "median_s": 2.9321,
+        "min_s": 2.7578,
+        "max_s": 3.877,
+        "samples_s": [
+          3.877,
+          2.9321,
+          2.7578
+        ]
+      },
+      "link": {
+        "median_s": 0.2673,
+        "min_s": 0.2605,
+        "max_s": 0.2687,
+        "samples_s": [
+          0.2673,
+          0.2687,
+          0.2605
+        ]
+      },
+      "links": 7,
+      "compiled": 30,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 50204264,
+        "rmeta": 8543103,
+        "debuginfo": 0,
+        "objects": 50629280,
+        "incremental": 18551386,
+        "executables": 26776384,
+        "other": 314827
+      },
+      "first_wall_s": 3.877
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.063,
+        "min_s": 0.0629,
+        "max_s": 0.065,
+        "samples_s": [
+          0.063,
+          0.065,
+          0.0629
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 30,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1559,
+        "min_s": 0.1558,
+        "max_s": 0.1649,
+        "samples_s": [
+          0.1649,
+          0.1559,
+          0.1558
+        ]
+      },
+      "link": {
+        "median_s": 0.0391,
+        "min_s": 0.0379,
+        "max_s": 0.0395,
+        "samples_s": [
+          0.0395,
+          0.0379,
+          0.0391
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.319,
+        "min_s": 0.3057,
+        "max_s": 0.329,
+        "samples_s": [
+          0.3057,
+          0.319,
+          0.329
+        ]
+      },
+      "link": {
+        "median_s": 0.0387,
+        "min_s": 0.0382,
+        "max_s": 0.0397,
+        "samples_s": [
+          0.0382,
+          0.0397,
+          0.0387
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.4215,
+        "min_s": 0.4039,
+        "max_s": 0.4269,
+        "samples_s": [
+          0.4039,
+          0.4269,
+          0.4215
+        ]
+      },
+      "link": {
+        "median_s": 0.0382,
+        "min_s": 0.0374,
+        "max_s": 0.0391,
+        "samples_s": [
+          0.0374,
+          0.0391,
+          0.0382
+        ]
+      },
+      "links": 1,
+      "compiled": 3,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.4011,
+        "min_s": 0.4001,
+        "max_s": 0.4105,
+        "samples_s": [
+          0.4011,
+          0.4001,
+          0.4105
+        ]
+      },
+      "link": {
+        "median_s": 0.0391,
+        "min_s": 0.0386,
+        "max_s": 0.0437,
+        "samples_s": [
+          0.0386,
+          0.0391,
+          0.0437
+        ]
+      },
+      "links": 1,
+      "compiled": 3,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 2.8381,
+        "min_s": 2.6871,
+        "max_s": 4.08,
+        "samples_s": [
+          4.08,
+          2.6871,
+          2.8381
+        ]
+      },
+      "link": {
+        "median_s": 0.2675,
+        "min_s": 0.2644,
+        "max_s": 0.2784,
+        "samples_s": [
+          0.2644,
+          0.2675,
+          0.2784
+        ]
+      },
+      "links": 7,
+      "compiled": 30,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 0.8526,
+        "min_s": 0.8405,
+        "max_s": 0.8662,
+        "samples_s": [
+          0.8405,
+          0.8526,
+          0.8662
+        ]
+      },
+      "link": {
+        "median_s": 0.0777,
+        "min_s": 0.0773,
+        "max_s": 0.0799,
+        "samples_s": [
+          0.0799,
+          0.0777,
+          0.0773
+        ]
+      },
+      "links": 2,
+      "compiled": 6,
+      "fresh": 54,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "test_no_run",
+      "wall": {
+        "median_s": 1.7258,
+        "min_s": 1.6584,
+        "max_s": 2.609,
+        "samples_s": [
+          2.609,
+          1.7258,
+          1.6584
+        ]
+      },
+      "link": {
+        "median_s": 0.2595,
+        "min_s": 0.2577,
+        "max_s": 0.2623,
+        "samples_s": [
+          0.2595,
+          0.2577,
+          0.2623
+        ]
+      },
+      "links": 7,
+      "compiled": 9,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 58903944,
+        "rmeta": 14392822,
+        "debuginfo": 0,
+        "objects": 63029152,
+        "incremental": 41063312,
+        "executables": 40713544,
+        "other": 396510
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "clean",
+      "wall": {
+        "median_s": 1.8029,
+        "min_s": 1.6731,
+        "max_s": 3.3738,
+        "samples_s": [
+          3.3738,
+          1.6731,
+          1.8029
+        ]
+      },
+      "link": {
+        "median_s": 0.2615,
+        "min_s": 0.2584,
+        "max_s": 0.2882,
+        "samples_s": [
+          0.2882,
+          0.2615,
+          0.2584
+        ]
+      },
+      "links": 7,
+      "compiled": 30,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 48551056,
+        "rmeta": 8542205,
+        "debuginfo": 0,
+        "objects": 11674504,
+        "incremental": 0,
+        "executables": 26595104,
+        "other": 316792
+      },
+      "first_wall_s": 3.3738,
+      "cache": {
+        "hits": 62,
+        "misses": 31
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0281,
+        "min_s": 0.028,
+        "max_s": 0.03,
+        "samples_s": [
+          0.0281,
+          0.03,
+          0.028
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 30,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 0
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1332,
+        "min_s": 0.1244,
+        "max_s": 0.1361,
+        "samples_s": [
+          0.1244,
+          0.1332,
+          0.1361
+        ]
+      },
+      "link": {
+        "median_s": 0.0372,
+        "min_s": 0.0358,
+        "max_s": 0.0377,
+        "samples_s": [
+          0.0358,
+          0.0377,
+          0.0372
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 0
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.442,
+        "min_s": 0.4325,
+        "max_s": 0.4572,
+        "samples_s": [
+          0.4572,
+          0.442,
+          0.4325
+        ]
+      },
+      "link": {
+        "median_s": 0.0375,
+        "min_s": 0.0369,
+        "max_s": 0.0378,
+        "samples_s": [
+          0.0378,
+          0.0375,
+          0.0369
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 3
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6161,
+        "min_s": 0.6108,
+        "max_s": 0.6264,
+        "samples_s": [
+          0.6108,
+          0.6264,
+          0.6161
+        ]
+      },
+      "link": {
+        "median_s": 0.0363,
+        "min_s": 0.0349,
+        "max_s": 0.0376,
+        "samples_s": [
+          0.0363,
+          0.0349,
+          0.0376
+        ]
+      },
+      "links": 1,
+      "compiled": 3,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 0,
+        "misses": 9
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.2666,
+        "min_s": 0.2649,
+        "max_s": 0.2685,
+        "samples_s": [
+          0.2649,
+          0.2666,
+          0.2685
+        ]
+      },
+      "link": {
+        "median_s": 0.0369,
+        "min_s": 0.0367,
+        "max_s": 0.0409,
+        "samples_s": [
+          0.0369,
+          0.0409,
+          0.0367
+        ]
+      },
+      "links": 1,
+      "compiled": 3,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 9,
+        "misses": 0
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 1.6462,
+        "min_s": 1.5451,
+        "max_s": 3.1694,
+        "samples_s": [
+          3.1694,
+          1.6462,
+          1.5451
+        ]
+      },
+      "link": {
+        "median_s": 0.2581,
+        "min_s": 0.2495,
+        "max_s": 0.2609,
+        "samples_s": [
+          0.2609,
+          0.2581,
+          0.2495
+        ]
+      },
+      "links": 7,
+      "compiled": 30,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 88,
+        "misses": 5
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 0.5367,
+        "min_s": 0.5143,
+        "max_s": 0.5368,
+        "samples_s": [
+          0.5143,
+          0.5367,
+          0.5368
+        ]
+      },
+      "link": {
+        "median_s": 0.0772,
+        "min_s": 0.0762,
+        "max_s": 0.0791,
+        "samples_s": [
+          0.0772,
+          0.0762,
+          0.0791
+        ]
+      },
+      "links": 2,
+      "compiled": 6,
+      "fresh": 54,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "cache": {
+        "hits": 18,
+        "misses": 0
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "sccache",
+      "case": "test_no_run",
+      "wall": {
+        "median_s": 2.0174,
+        "min_s": 1.2448,
+        "max_s": 4.1211,
+        "samples_s": [
+          2.0174,
+          4.1211,
+          1.2448
+        ]
+      },
+      "link": {
+        "median_s": 0.2451,
+        "min_s": 0.2426,
+        "max_s": 0.2529,
+        "samples_s": [
+          0.2529,
+          0.2426,
+          0.2451
+        ]
+      },
+      "links": 7,
+      "compiled": 9,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "target_kinds": {
+        "rlib": 57250736,
+        "rmeta": 14391924,
+        "debuginfo": 0,
+        "objects": 19624856,
+        "incremental": 0,
+        "executables": 40346152,
+        "other": 398465
+      },
+      "cache": {
+        "hits": 16,
+        "misses": 8
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "clean",
+      "wall": {
+        "median_s": 2.8888,
+        "min_s": 2.8138,
+        "max_s": 5.09,
+        "samples_s": [
+          5.09,
+          2.8888,
+          2.8138
+        ]
+      },
+      "link": {
+        "median_s": 0.2759,
+        "min_s": 0.2742,
+        "max_s": 0.299,
+        "samples_s": [
+          0.299,
+          0.2742,
+          0.2759
+        ]
+      },
+      "links": 7,
+      "compiled": 30,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0115,
+        "min_s": 0.011,
+        "max_s": 0.1774,
+        "samples_s": [
+          0.1774,
+          0.0115,
+          0.011
+        ]
+      },
+      "target_kinds": {
+        "rlib": 50204264,
+        "rmeta": 8543103,
+        "debuginfo": 0,
+        "objects": 50629280,
+        "incremental": 18551406,
+        "executables": 26776384,
+        "other": 326508
+      },
+      "first_wall_s": 5.09
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0697,
+        "min_s": 0.0696,
+        "max_s": 0.0721,
+        "samples_s": [
+          0.0696,
+          0.0721,
+          0.0697
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 30,
+      "tinymold": {
+        "median_s": 0.0083,
+        "min_s": 0.0081,
+        "max_s": 0.0085,
+        "samples_s": [
+          0.0085,
+          0.0081,
+          0.0083
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1622,
+        "min_s": 0.1613,
+        "max_s": 0.1724,
+        "samples_s": [
+          0.1613,
+          0.1622,
+          0.1724
+        ]
+      },
+      "link": {
+        "median_s": 0.0395,
+        "min_s": 0.0379,
+        "max_s": 0.04,
+        "samples_s": [
+          0.04,
+          0.0379,
+          0.0395
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0092,
+        "min_s": 0.0091,
+        "max_s": 0.0102,
+        "samples_s": [
+          0.0091,
+          0.0092,
+          0.0102
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.3295,
+        "min_s": 0.318,
+        "max_s": 0.3326,
+        "samples_s": [
+          0.318,
+          0.3326,
+          0.3295
+        ]
+      },
+      "link": {
+        "median_s": 0.0386,
+        "min_s": 0.0385,
+        "max_s": 0.0392,
+        "samples_s": [
+          0.0386,
+          0.0385,
+          0.0392
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0091,
+        "min_s": 0.009,
+        "max_s": 0.0094,
+        "samples_s": [
+          0.009,
+          0.0094,
+          0.0091
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.4321,
+        "min_s": 0.4199,
+        "max_s": 0.4441,
+        "samples_s": [
+          0.4199,
+          0.4321,
+          0.4441
+        ]
+      },
+      "link": {
+        "median_s": 0.0406,
+        "min_s": 0.0386,
+        "max_s": 0.0408,
+        "samples_s": [
+          0.0406,
+          0.0408,
+          0.0386
+        ]
+      },
+      "links": 1,
+      "compiled": 3,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0099,
+        "min_s": 0.0098,
+        "max_s": 0.01,
+        "samples_s": [
+          0.01,
+          0.0098,
+          0.0099
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.0748,
+        "min_s": 0.0743,
+        "max_s": 0.0774,
+        "samples_s": [
+          0.0774,
+          0.0748,
+          0.0743
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 30,
+      "tinymold": {
+        "median_s": 0.0098,
+        "min_s": 0.0096,
+        "max_s": 0.0101,
+        "samples_s": [
+          0.0101,
+          0.0098,
+          0.0096
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 0.1368,
+        "min_s": 0.1274,
+        "max_s": 0.1413,
+        "samples_s": [
+          0.1413,
+          0.1368,
+          0.1274
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 30,
+      "tinymold": {
+        "median_s": 0.0615,
+        "min_s": 0.0547,
+        "max_s": 0.0618,
+        "samples_s": [
+          0.0618,
+          0.0615,
+          0.0547
+        ]
+      },
+      "snapshot_save_s": [
+        0.0347,
+        0.1849,
+        0.1663
+      ]
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 1.2024,
+        "min_s": 0.7726,
+        "max_s": 1.2822,
+        "samples_s": [
+          0.7726,
+          1.2024,
+          1.2822
+        ]
+      },
+      "link": {
+        "median_s": 0.0506,
+        "min_s": 0.0386,
+        "max_s": 0.0515,
+        "samples_s": [
+          0.0386,
+          0.0506,
+          0.0515
+        ]
+      },
+      "links": 1,
+      "compiled": 3,
+      "fresh": 57,
+      "tinymold": {
+        "median_s": 0.2736,
+        "min_s": 0.2515,
+        "max_s": 0.2809,
+        "samples_s": [
+          0.2809,
+          0.2736,
+          0.2515
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "d08295f",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "test_no_run",
+      "wall": {
+        "median_s": 1.6474,
+        "min_s": 1.6138,
+        "max_s": 1.6856,
+        "samples_s": [
+          1.6138,
+          1.6856,
+          1.6474
+        ]
+      },
+      "link": {
+        "median_s": 0.262,
+        "min_s": 0.2586,
+        "max_s": 0.2633,
+        "samples_s": [
+          0.2586,
+          0.2633,
+          0.262
+        ]
+      },
+      "links": 7,
+      "compiled": 9,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0099,
+        "min_s": 0.0096,
+        "max_s": 0.0105,
+        "samples_s": [
+          0.0096,
+          0.0105,
+          0.0099
+        ]
+      },
+      "target_kinds": {
+        "rlib": 58903944,
+        "rmeta": 14392822,
+        "debuginfo": 0,
+        "objects": 63029152,
+        "incremental": 41063262,
+        "executables": 40713544,
+        "other": 408191
       }
     }
   ],
