@@ -114,8 +114,13 @@ def units_of(raw: list[dict]) -> dict[int, dict]:
     units this one was the *last* dependency of, so every unit has at most one
     unblocker: the dependency it was waiting on when it became ready.
     """
+    Units cargo found fresh are listed with no duration; they did no work in
+    this build and are left out.
+    """
     units = {}
     for raw_unit in raw:
+        if raw_unit["duration"] <= 0:
+            continue
         unit = dict(raw_unit)
         unit["end"] = unit["start"] + unit["duration"]
         unit["kind"] = kind_of(unit)
