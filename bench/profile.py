@@ -562,6 +562,18 @@ def link_tracer() -> Path:
     return path
 
 
+def summarize_rows(table: str, limit: int = 6) -> list[tuple[str, str, str]]:
+    """The top `(item, self time, % of total)` rows of a measureme
+    `summarize summarize` table, which it sorts by self time."""
+    rows = []
+    for line in table.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 3 or cells[0] in ("Item", "") or line.startswith("+"):
+            continue
+        rows.append((cells[0].rstrip(" ."), cells[1], cells[2]))
+    return rows[:limit]
+
+
 def self_profile_outputs(directory: Path, out: Path) -> list[str]:
     """Runs measureme's tools over -Zself-profile output, when installed."""
     notes = []
@@ -584,7 +596,12 @@ def self_profile_outputs(directory: Path, out: Path) -> list[str]:
                                   text=True, check=False)
             (out / f"{profile.stem}.summary.txt").write_text(done.stdout)
         notes.append(f"- `summarize` tables for the {len(largest)} largest profiles: "
-                     f"`{out}/*.summary.txt`.")
+                     f"`{out}/*.summary.txt`. Top rustc queries by self time:")
+        for profile in largest:
+            crate = profile.stem.rsplit("-", 1)[0]
+            rows = summarize_rows((out / f"{profile.stem}.summary.txt").read_text())
+            notes.append(f"  - {crate}: " + "; ".join(f"{item} {self_time} ({pct}%)"
+                                                     for item, self_time, pct in rows))
     else:
         notes.append("- Install measureme's `summarize` for per-query tables.")
     return notes
