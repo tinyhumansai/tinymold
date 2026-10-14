@@ -6,6 +6,8 @@ use std::time::Duration;
 
 use tinymold_key::Classified;
 
+use crate::remote::{Remote, RemoteError};
+
 use super::*;
 
 /// The rustc cargo is testing with.
@@ -63,6 +65,10 @@ impl Crate {
     }
 
     fn serve(&self, extra: &[&str]) -> Result<Served> {
+        self.serve_with(None, extra)
+    }
+
+    fn serve_with(&self, remote: Option<&dyn Remote>, extra: &[&str]) -> Result<Served> {
         let args = self.args(extra);
         let text: Vec<String> = args
             .iter()
@@ -71,7 +77,7 @@ impl Crate {
         let Classified::Cacheable(invocation) = Invocation::parse(text) else {
             panic!("the test compile must be cacheable");
         };
-        serve(&self.store, None, &rustc(), &args, &invocation)
+        serve(&self.store, remote, &rustc(), &args, &invocation)
     }
 
     fn outputs(&self) -> Vec<(String, Vec<u8>)> {
@@ -148,7 +154,7 @@ fn a_failed_compile_is_not_stored() {
             assert_ne!(code, 0);
             assert_eq!(stored.unwrap_err(), "rustc failed");
         }
-        Served::Hit => panic!("a failing compile cannot hit"),
+        Served::Hit | Served::RemoteHit => panic!("a failing compile cannot hit"),
     }
 }
 
@@ -383,4 +389,139 @@ fn a_miss_leaves_the_last_use_of_other_actions_alone() {
     for path in before {
         assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), long_ago);
     }
+}
+
+/// A remote tier backed by another machine's store directory.
+struct StoreRemote {
+    store: PathBuf,
+    /// Leave this object out when fetching, as a remote with a hole would.
+    withhold: Option<Digest>,
+    /// Fail every call with this message.
+    fail: Option<&'static str>,
+}
+
+impl StoreRemote {
+    fn new(store: &Path) -> Self {
+        Self {
+            store: store.to_path_buf(),
+            withhold: None,
+            fail: None,
+        }
+    }
+}
+
+impl Remote for StoreRemote {
+    fn input_sets(&self, pre: &Digest) -> std::result::Result<Option<String>, RemoteError> {
+        if let Some(message) = self.fail {
+            return Err(message.into());
+        }
+        Ok(record::read(&self.store.join("prekeys").join(pre.to_hex()))?)
+    }
+
+    fn fetch_action(
+        &self,
+        key: &Digest,
+        store: &Store,
+    ) -> std::result::Result<Option<String>, RemoteError> {
+        let path = self.store.join("entries/demo").join(key.to_hex());
+        let Some(text) = record::read(&path)? else {
+            return Ok(None);
+        };
+        let source = Store::open(&self.store)?;
+        for digest in Action::decode(&text, &path)?.references() {
+            if Some(digest) != self.withhold {
+                store.insert_bytes(&source.read(&digest)?)?;
+            }
+        }
+        Ok(Some(text))
+    }
+}
+
+/// A unit compiled into one store, and the same source in a second, empty
+/// store and worktree that can reach the first as its remote.
+fn remote_pair() -> (Crate, Crate) {
+    let source = "pub fn answer() -> u32 { 42 }\n";
+    let first = Crate::new(source);
+    assert_stored(&first.serve(&[]).unwrap());
+    (first, Crate::new(source))
+}
+
+#[test]
+fn a_local_miss_is_served_from_the_remote_and_then_hits_locally() {
+    let (first, second) = remote_pair();
+    let remote = StoreRemote::new(&first.store);
+
+    assert!(matches!(
+        second.serve_with(Some(&remote), &[]).unwrap(),
+        Served::RemoteHit
+    ));
+    let names: Vec<_> = second.outputs().into_iter().map(|(name, _)| name).collect();
+    assert_eq!(names, ["demo-1.d", "libdemo-1.rlib", "libdemo-1.rmeta"]);
+
+    second.clear_outputs();
+    assert!(matches!(second.serve(&[]).unwrap(), Served::Hit));
+}
+
+#[test]
+fn a_remote_action_missing_an_object_is_a_miss_with_the_reason() {
+    let (first, second) = remote_pair();
+    let entry = files_under(&first.store.join("entries")).pop().unwrap();
+    let text = fs::read_to_string(&entry).unwrap();
+    let action = Action::decode(&text, &entry).unwrap();
+    let remote = StoreRemote {
+        withhold: Some(action.outputs[1].digest),
+        ..StoreRemote::new(&first.store)
+    };
+
+    match second.serve_with(Some(&remote), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            remote: Some(reason),
+        } => assert!(reason.contains("does not provide object"), "{reason}"),
+        other => panic!("expected a miss, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_failing_remote_only_makes_the_unit_compile() {
+    let (first, second) = remote_pair();
+    let remote = StoreRemote {
+        fail: Some("connection refused"),
+        ..StoreRemote::new(&first.store)
+    };
+    match second.serve_with(Some(&remote), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            remote: Some(reason),
+        } => assert_eq!(reason, "connection refused"),
+        other => panic!("expected a miss, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_remote_without_the_unit_is_a_plain_miss() {
+    let empty = tempfile::tempdir().unwrap();
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    let remote = StoreRemote::new(empty.path());
+    match unit.serve_with(Some(&remote), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            remote: None,
+        } => {}
+        other => panic!("expected a plain miss, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_remote_input_set_whose_files_differ_here_is_not_used() {
+    let (first, second) = remote_pair();
+    fs::write(second.root.join("src/lib.rs"), "pub fn answer() -> u32 { 7 }\n").unwrap();
+    let remote = StoreRemote::new(&first.store);
+    assert!(matches!(
+        second.serve_with(Some(&remote), &[]).unwrap(),
+        Served::Miss { remote: None, .. }
+    ));
 }
