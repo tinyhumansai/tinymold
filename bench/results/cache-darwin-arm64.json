@@ -1,0 +1,137 @@
+{
+  "benchmark": "cache",
+  "cache": "sccache 0.17.0",
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "no_cache": {
+        "median_s": 3.2785,
+        "min_s": 3.1603,
+        "max_s": 3.5112,
+        "samples_s": [
+          3.2785,
+          3.1603,
+          3.5112
+        ]
+      },
+      "cold_cache": {
+        "median_s": 4.1919,
+        "min_s": 4.0236,
+        "max_s": 4.1998,
+        "samples_s": [
+          4.0236,
+          4.1919,
+          4.1998
+        ]
+      },
+      "cold_stats": {
+        "hits": 0,
+        "misses": 32,
+        "non_cacheable": 0
+      },
+      "warm_cache": {
+        "median_s": 1.8603,
+        "min_s": 1.7676,
+        "max_s": 1.9929,
+        "samples_s": [
+          1.7676,
+          1.8603,
+          1.9929
+        ]
+      },
+      "warm_stats": {
+        "hits": 32,
+        "misses": 0,
+        "non_cacheable": 0
+      },
+      "second_worktree_warm_cache": {
+        "median_s": 1.7913,
+        "min_s": 1.756,
+        "max_s": 2.1414,
+        "samples_s": [
+          2.1414,
+          1.7913,
+          1.756
+        ]
+      },
+      "second_worktree_stats": {
+        "hits": 32,
+        "misses": 0,
+        "non_cacheable": 0
+      },
+      "cache_bytes": 37404913
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "no_cache": {
+        "median_s": 7.5245,
+        "min_s": 6.977,
+        "max_s": 7.8001,
+        "samples_s": [
+          6.977,
+          7.5245,
+          7.8001
+        ]
+      },
+      "cold_cache": {
+        "median_s": 11.2307,
+        "min_s": 9.4095,
+        "max_s": 13.9543,
+        "samples_s": [
+          9.4095,
+          11.2307,
+          13.9543
+        ]
+      },
+      "cold_stats": {
+        "hits": 0,
+        "misses": 349,
+        "non_cacheable": 0
+      },
+      "warm_cache": {
+        "median_s": 6.4684,
+        "min_s": 5.5299,
+        "max_s": 7.1567,
+        "samples_s": [
+          5.5299,
+          6.4684,
+          7.1567
+        ]
+      },
+      "warm_stats": {
+        "hits": 349,
+        "misses": 0,
+        "non_cacheable": 0
+      },
+      "second_worktree_warm_cache": {
+        "median_s": 8.9448,
+        "min_s": 8.5819,
+        "max_s": 14.7746,
+        "samples_s": [
+          14.7746,
+          8.5819,
+          8.9448
+        ]
+      },
+      "second_worktree_stats": {
+        "hits": 349,
+        "misses": 0,
+        "non_cacheable": 0
+      },
+      "cache_bytes": 133791449
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 3
+}

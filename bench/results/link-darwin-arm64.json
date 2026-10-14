@@ -6,21 +6,21 @@
       "rev": "14.1.1",
       "linker": "default",
       "rustflags": [],
-      "full_build_s": 8.127,
+      "full_build_s": 9.255,
       "edit_rebuild": {
-        "median_s": 0.8353,
-        "min_s": 0.8198,
-        "max_s": 0.8579,
+        "median_s": 0.9085,
+        "min_s": 0.8744,
+        "max_s": 0.9842,
         "samples_s": [
-          0.8539,
-          0.8579,
-          0.8353,
-          0.8198,
-          0.8246
+          0.9493,
+          0.8881,
+          0.8744,
+          0.9085,
+          0.9842
         ]
       },
-      "binary_bytes": 11704576,
-      "target_bytes": 117676553
+      "binary_bytes": 15295904,
+      "target_bytes": 473238597
     },
     {
       "project": "ripgrep",
@@ -30,21 +30,66 @@
         "-Clink-arg=-B/Users/enamakel/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld",
         "-Clink-arg=-fuse-ld=lld"
       ],
-      "full_build_s": 6.96,
+      "full_build_s": 8.995,
       "edit_rebuild": {
-        "median_s": 0.8843,
-        "min_s": 0.8706,
-        "max_s": 0.9183,
+        "median_s": 0.9403,
+        "min_s": 0.8913,
+        "max_s": 1.1234,
         "samples_s": [
-          0.8805,
-          0.9183,
-          0.894,
-          0.8843,
-          0.8706
+          1.1234,
+          1.0984,
+          0.9403,
+          0.8913,
+          0.9012
         ]
       },
-      "binary_bytes": 11281408,
-      "target_bytes": 116805218
+      "binary_bytes": 14480192,
+      "target_bytes": 471368865
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "linker": "default",
+      "rustflags": [],
+      "full_build_s": 20.535,
+      "edit_rebuild": {
+        "median_s": 1.0653,
+        "min_s": 0.8449,
+        "max_s": 5.5055,
+        "samples_s": [
+          1.0653,
+          0.9542,
+          0.8449,
+          1.0683,
+          5.5055
+        ]
+      },
+      "binary_bytes": 19964024,
+      "target_bytes": 726346972
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "linker": "rust-lld",
+      "rustflags": [
+        "-Clink-arg=-B/Users/enamakel/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld",
+        "-Clink-arg=-fuse-ld=lld"
+      ],
+      "full_build_s": 29.813,
+      "edit_rebuild": {
+        "median_s": 3.4969,
+        "min_s": 2.5734,
+        "max_s": 3.7202,
+        "samples_s": [
+          3.5457,
+          3.2897,
+          3.4969,
+          3.7202,
+          2.5734
+        ]
+      },
+      "binary_bytes": 19003280,
+      "target_bytes": 722118002
     }
   ],
   "machine": {
@@ -52,8 +97,9 @@
     "os_release": "25.5.0",
     "arch": "arm64",
     "cpus": 18,
-    "rustc": "rustc 1.96.1 (31fca3adb 2026-06-26)",
-    "python": "3.12.0"
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
   },
   "date": "2026-10-14",
   "runs": 5
