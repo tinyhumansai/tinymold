@@ -32,9 +32,11 @@ into its own checkout's target/ directory.
 
   scenarios
          The full edit-loop matrix: per corpus project and per mode
-         (baseline, sccache, later tinymold), the cases clean, no-op, comment
-         edit, private-body edit, public-signature edit, second worktree,
-         branch switch A->B->A, and cargo test --no-run. Records wall time,
+         (baseline, sccache, tinymold), the cases clean, no-op, comment
+         edit, private-body edit, public-signature edit, every file touched,
+         second worktree, branch switch A->B->A, and cargo test --no-run.
+         Mode tinymold runs `tinymold fresh` around every build and restores
+         `target/` snapshots for the worktree and branch-switch cases. Records wall time,
          link time (via a timing linker wrapper), units compiled versus fresh,
          target/ bytes by kind, and cache hits.
 
