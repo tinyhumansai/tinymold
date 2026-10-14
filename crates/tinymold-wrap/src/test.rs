@@ -92,7 +92,8 @@ fn queries_other_programs_and_odd_arguments_pass_through() {
     {
         use std::os::unix::ffi::OsStringExt;
         let odd = OsString::from_vec(vec![0xff]);
-        let _ = run(&config, &rustc(), &[odd]);
+        // A program that cannot start, so only the classification runs.
+        assert_eq!(run(&config, Path::new("/no/such/rustc"), &[odd]), 1);
         assert!(log_lines(dir.path())[2].contains("not UTF-8"));
     }
 
