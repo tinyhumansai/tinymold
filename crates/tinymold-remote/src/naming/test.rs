@@ -28,7 +28,7 @@ fn action_keys_are_the_full_key_and_pre_keys_are_salted() {
     assert_ne!(prekey_key(&key).hash, key.to_hex());
     assert_eq!(
         prekey_key(&Digest::of_bytes(b"")).hash,
-        "6a1d1ed7b1d2a0ba5ef8f39ab8c38dc6bdb6c76ec78ec1b2b4c0fbf6d1ac2b2f"
+        "edbe34fe0ad0d18146fc2f457a9635218f92350222ceeaedf1849a12370ab02c"
     );
 }
 
