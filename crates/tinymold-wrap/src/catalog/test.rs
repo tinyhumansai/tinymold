@@ -23,7 +23,7 @@ fn kinds(store: &Path) -> Vec<(RecordKind, PathBuf)> {
 }
 
 #[test]
-fn records_lists_actions_pre_keys_caches_and_temporaries() {
+fn records_lists_actions_pre_keys_caches_locks_and_temporaries() {
     let dir = tempfile::tempdir().unwrap();
     let store = dir.path();
     let key = Digest::of_bytes(b"key");
@@ -33,7 +33,8 @@ fn records_lists_actions_pre_keys_caches_and_temporaries() {
     let stat = store.join("stat/ab/cdef");
     let rustc = store.join("rustc/0123");
     let temp = store.join("entries/demo/.abc.42.tmp");
-    for path in [&action, &prekey, &stat, &rustc, &temp] {
+    let lock = store.join("locks").join(key.to_hex());
+    for path in [&action, &prekey, &stat, &rustc, &temp, &lock] {
         write(path, "x");
     }
     write(&store.join("entries/demo/README"), "not a record");
@@ -50,6 +51,7 @@ fn records_lists_actions_pre_keys_caches_and_temporaries() {
                 },
                 action,
             ),
+            (RecordKind::Lock, lock),
             (RecordKind::PreKey { key: pre }, prekey),
             (RecordKind::Cache, rustc),
             (RecordKind::Cache, stat),

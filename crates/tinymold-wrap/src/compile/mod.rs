@@ -118,21 +118,20 @@ pub(crate) fn serve(
     // Held until the compile is stored, so that a build wanting the same
     // unit waits for it rather than compiling it again.
     let lock_key = found.likely.unwrap_or(pre);
-    let (_flight, waited) = match trace.span("wait", || {
-        flight::claim(store_dir, &lock_key, lock_wait)
-    }) {
-        Claim::Held(flight) => (Some(flight), None),
-        Claim::Waited(flight, waited) => {
-            let again = trace.span("lookup", || unit.lookup(&pre))?;
-            if unit.restore_hit(&pre, again.hit, trace) {
-                return Ok(Served::Hit {
-                    waited: Some(waited),
-                });
+    let (_flight, waited) =
+        match trace.span("wait", || flight::claim(store_dir, &lock_key, lock_wait)) {
+            Claim::Held(flight) => (Some(flight), None),
+            Claim::Waited(flight, waited) => {
+                let again = trace.span("lookup", || unit.lookup(&pre))?;
+                if unit.restore_hit(&pre, again.hit, trace) {
+                    return Ok(Served::Hit {
+                        waited: Some(waited),
+                    });
+                }
+                (Some(flight), Some(waited))
             }
-            (Some(flight), Some(waited))
-        }
-        Claim::Unlocked => (None, None),
-    };
+            Claim::Unlocked => (None, None),
+        };
     let mut remote_failure = None;
     if let Some(remote) = remote {
         match trace.span("remote", || unit.remote_lookup(remote, &pre)) {
@@ -293,12 +292,7 @@ impl Unit<'_> {
     /// Restores `hit`, when there is one, and records it as the last use of
     /// its action and of the pre-key. False when there is nothing to restore
     /// or restoring failed, so the unit must be compiled.
-    fn restore_hit(
-        &self,
-        pre: &Digest,
-        hit: Option<(Action, PathBuf)>,
-        trace: &mut Trace,
-    ) -> bool {
+    fn restore_hit(&self, pre: &Digest, hit: Option<(Action, PathBuf)>, trace: &mut Trace) -> bool {
         let Some((action, entry)) = hit else {
             return false;
         };

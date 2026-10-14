@@ -270,7 +270,10 @@ fn native_libraries_are_part_of_the_key() {
     fs::write(native.join("libthing.a"), b"one").unwrap();
     let flag = format!("native={}", native.display());
     assert_stored(&unit.serve(&["-L", &flag]).unwrap());
-    assert!(matches!(unit.serve(&["-L", &flag]).unwrap(), Served::Hit { .. }));
+    assert!(matches!(
+        unit.serve(&["-L", &flag]).unwrap(),
+        Served::Hit { .. }
+    ));
 
     fs::write(native.join("libthing.a"), b"two").unwrap();
     assert_stored(&unit.serve(&["-L", &flag]).unwrap());

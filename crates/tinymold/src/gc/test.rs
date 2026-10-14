@@ -320,7 +320,10 @@ fn old_lock_files_go_unless_a_wrapper_holds_them() {
     let report = collect(&fixture.root, &fixture.policy()).unwrap();
 
     assert!(!stale.exists());
-    assert!(held.exists(), "a held lock belongs to a compile in progress");
+    assert!(
+        held.exists(),
+        "a held lock belongs to a compile in progress"
+    );
     assert!(young.exists());
     assert_eq!(report.caches_removed, 1);
 }
