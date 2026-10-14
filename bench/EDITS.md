@@ -41,24 +41,38 @@ edit by hand. The benchmark is `python3 bench/bench.py edits` (see
 
 ### Edit sequence (linux aarch64, 12 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 
-12 cumulative steps per project (comment, private_body, public_signature in turn; churn every 6 steps; fresh target every 9 steps), each followed by: build, clippy, test. Latency cells are medians over the edit steps; *after fresh* is the first edit after the target directory was deleted with the store kept. Sizes are allocated blocks with each inode counted once, so reflinked files count in full; growth is per step after the warm-up build. Peak RSS is the largest single process (rustc, linker or wrapper) of any command.
+12 cumulative steps per project (comment, private_body, public_signature in turn; churn every 6 steps; fresh target every 4 steps; gc --keep-generations 3 after each step), each followed by: build, clippy, test. Latency cells are medians over the edit steps; *after fresh* is the first edit after the target directory was deleted with the store kept. Sizes are allocated blocks with each inode counted once, so reflinked files count in full; growth is per step after the warm-up build. Peak RSS is the largest single process (rustc, linker or wrapper) of any command.
 
 | Project | Mode | build | clippy | test build | test run | coverage | fresh build | after fresh |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| ripgrep 14.1.1 | baseline | 1.22s | 0.33s | 0.72s | 0.72s | – | 4.18s | 1.31s |
-| ripgrep 14.1.1 | tinymold | 1.00s | 0.33s | 0.78s | 0.64s | – | 0.19s | 2.51s |
-| ripgrep 14.1.1 | baseline+mold | 0.39s | 0.31s | 0.33s | 0.72s | – | 3.13s | 0.52s |
-| ripgrep 14.1.1 | tinymold+mold | 0.44s | 0.27s | 0.35s | 0.72s | – | 0.17s | 1.25s |
-| ripgrep 14.1.1 | baseline+wild | 0.39s | 0.35s | 0.35s | 0.72s | – | 3.24s | 0.67s |
-| ripgrep 14.1.1 | tinymold+wild | 0.38s | 0.35s | 0.35s | 0.67s | – | 0.33s | 1.64s |
+| ripgrep 14.1.1 | baseline | 0.79s | 0.21s | 0.61s | 0.81s | – | 3.40s | 0.79s |
+| ripgrep 14.1.1 | tinymold | 0.85s | 0.25s | 0.65s | 0.80s | – | 0.13s | 0.86s |
+| ripgrep 14.1.1 | baseline+mold | 0.28s | 0.21s | 0.27s | 0.82s | – | 2.95s | 0.32s |
+| ripgrep 14.1.1 | tinymold+mold | 0.37s | 0.24s | 0.31s | 0.80s | – | 0.13s | 0.42s |
+| ripgrep 14.1.1 | baseline+wild | 0.25s | 0.21s | 0.25s | 0.81s | – | 2.91s | 0.26s |
+| ripgrep 14.1.1 | tinymold+wild | 0.32s | 0.24s | 0.29s | 0.80s | – | 0.12s | 0.34s |
+| bat v0.24.0 | baseline | 1.17s | 0.25s | 1.62s | 1.87s | – | 6.50s | 1.23s |
+| bat v0.24.0 | tinymold | 1.42s | 0.19s | 0.94s | 1.79s | – | 1.39s | 1.72s |
+| bat v0.24.0 | baseline+mold | 0.37s | 0.26s | 0.64s | 1.84s | – | 5.56s | 0.44s |
+| bat v0.24.0 | tinymold+mold | 0.35s | 0.15s | 0.34s | 1.78s | – | 1.32s | 0.50s |
+| bat v0.24.0 | baseline+wild | 0.40s | 0.26s | 0.51s | 1.82s | – | 5.38s | 0.38s |
+| bat v0.24.0 | tinymold+wild | 0.30s | 0.16s | 0.24s | 1.76s | – | 1.34s | 0.41s |
 
 | Project | Mode | target/ final | target/ per step | incremental final | coverage final | store final | store per step | store after gc | peak RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| ripgrep 14.1.1 | baseline | 994 MiB | 35 MiB | 501 MiB | 0 MiB | – | – | – | 406 MiB |
-| ripgrep 14.1.1 | tinymold | 909 MiB | 28 MiB | 414 MiB | 0 MiB | 695 MiB | 30 MiB | – | 432 MiB |
-| ripgrep 14.1.1 | baseline+mold | 998 MiB | 35 MiB | 501 MiB | 0 MiB | – | – | – | 430 MiB |
-| ripgrep 14.1.1 | tinymold+mold | 913 MiB | 28 MiB | 414 MiB | 0 MiB | 701 MiB | 30 MiB | – | 451 MiB |
-| ripgrep 14.1.1 | baseline+wild | 993 MiB | 35 MiB | 501 MiB | 0 MiB | – | – | – | 434 MiB |
-| ripgrep 14.1.1 | tinymold+wild | 907 MiB | 28 MiB | 414 MiB | 0 MiB | 691 MiB | 30 MiB | – | 485 MiB |
+| ripgrep 14.1.1 | baseline | 617 MiB | 4 MiB | 242 MiB | 0 MiB | – | – | – | 472 MiB |
+| ripgrep 14.1.1 | tinymold | 608 MiB | 3 MiB | 229 MiB | 0 MiB | 1,230 MiB | 55 MiB | 1,230 MiB | 422 MiB |
+| ripgrep 14.1.1 | baseline+mold | 619 MiB | 4 MiB | 242 MiB | 0 MiB | – | – | – | 473 MiB |
+| ripgrep 14.1.1 | tinymold+mold | 610 MiB | 3 MiB | 229 MiB | 0 MiB | 1,235 MiB | 56 MiB | 1,235 MiB | 470 MiB |
+| ripgrep 14.1.1 | baseline+wild | 616 MiB | 4 MiB | 242 MiB | 0 MiB | – | – | – | 473 MiB |
+| ripgrep 14.1.1 | tinymold+wild | 607 MiB | 3 MiB | 229 MiB | 0 MiB | 1,228 MiB | 56 MiB | 1,228 MiB | 464 MiB |
+| bat v0.24.0 | baseline | 1,530 MiB | 2 MiB | 135 MiB | 0 MiB | – | – | – | 417 MiB |
+| bat v0.24.0 | tinymold | 1,498 MiB | 0 MiB | 101 MiB | 0 MiB | 3,671 MiB | 185 MiB | 3,671 MiB | 410 MiB |
+| bat v0.24.0 | baseline+mold | 1,541 MiB | 3 MiB | 135 MiB | 0 MiB | – | – | – | 417 MiB |
+| bat v0.24.0 | tinymold+mold | 1,509 MiB | 0 MiB | 101 MiB | 0 MiB | 3,688 MiB | 186 MiB | 3,688 MiB | 416 MiB |
+| bat v0.24.0 | baseline+wild | 1,531 MiB | 3 MiB | 135 MiB | 0 MiB | – | – | – | 419 MiB |
+| bat v0.24.0 | tinymold+wild | 1,520 MiB | 2 MiB | 123 MiB | 0 MiB | 3,684 MiB | 187 MiB | 3,684 MiB | 415 MiB |
 
 ![ripgrep size by step](results/edits-linux-aarch64-ripgrep.svg)
+
+![bat size by step](results/edits-linux-aarch64-bat.svg)
