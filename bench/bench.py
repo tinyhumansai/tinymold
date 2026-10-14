@@ -713,6 +713,9 @@ def run_case(session: Session, case: str, runs: int) -> dict:
             extra["target_kinds"] = target_kinds(src / "target")
     if case == "clean":
         extra["target_kinds"] = target_kinds(src / "target")
+        # Under sccache the first clean build fills the cache (the dry run)
+        # and later ones hit it, so the first run is reported on its own.
+        extra["first_wall_s"] = round(samples[0]["wall"], 4)
 
     result = {
         "wall": summarize([s["wall"] for s in samples]),
