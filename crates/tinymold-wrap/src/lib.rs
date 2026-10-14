@@ -37,6 +37,7 @@ mod error;
 mod exec;
 mod flight;
 mod parallel;
+mod package_tree;
 mod placed;
 mod record;
 mod remote;
