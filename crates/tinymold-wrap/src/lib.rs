@@ -118,6 +118,13 @@ pub fn run(config: &Config, program: &Path, args: &[OsString]) -> i32 {
     }
 }
 
+/// Runs the compiler unchanged and returns its exit code, or 1 when it cannot
+/// be started. Used when no store is available.
+#[must_use]
+pub fn run_uncached(program: &Path, args: &[OsString]) -> i32 {
+    pass_through(program, args)
+}
+
 fn pass_through(program: &Path, args: &[OsString]) -> i32 {
     exec::pass_through(program, args).unwrap_or_else(|error| {
         eprintln!("tinymold: {error}");
