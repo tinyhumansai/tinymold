@@ -126,9 +126,11 @@ options hash = BLAKE3(
 
 The arguments that change parsing are listed in one place in the code, next
 to the code that reads them, and a test fails if a parsing-related argument is
-added without being listed. At the fork point they include `--exclude-libs`,
-`--wrap`, `--strip-debug`, `--strip-all`, `--gc-sections` (which changes which
-sections are parsed) and the emulation (`-m`).
+added without being listed. Phase L2 derives the list by reading what
+`ObjectFile::new` and `register_global_symbols` consult at the fork point;
+the candidates are `--exclude-libs`, `--wrap`, `--strip-debug`, `--strip-all`
+and the emulation (`-m`). Until an argument is shown not to matter, it is
+included.
 
 Two hashes instead of one follows Bun's transpiler cache
 ([mold-and-bun §2.1](../research/mold-and-bun.md#21-two-hash-cache-entries)): the
