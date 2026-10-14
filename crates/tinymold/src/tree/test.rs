@@ -49,6 +49,11 @@ fn clones_a_tree_with_contents_mtimes_and_symlinks() {
     if cfg!(not(target_vendor = "apple")) {
         assert!(matches!(method, TreeClone::Files { .. }));
     }
+
+    let walked = dir.path().join("walked");
+    let method = clone_tree_with(&source, &walked, false).unwrap();
+    assert!(matches!(method, TreeClone::Files { reflinked, copied } if reflinked + copied == 2));
+    assert_cloned(&source, &walked, old);
 }
 
 #[test]

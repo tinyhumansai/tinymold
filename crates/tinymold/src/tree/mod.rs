@@ -57,13 +57,19 @@ impl fmt::Display for TreeClone {
 /// reading the source or writing the clone fails. A failed walk may leave a
 /// partial `destination` behind.
 pub fn clone_tree(source: &Path, destination: &Path) -> Result<TreeClone> {
+    clone_tree_with(source, destination, true)
+}
+
+/// [`clone_tree`], with the whole-tree clone optional so the per-file walk can
+/// be exercised on filesystems where the whole-tree clone always succeeds.
+fn clone_tree_with(source: &Path, destination: &Path, whole: bool) -> Result<TreeClone> {
     if !fs::metadata(source).is_ok_and(|meta| meta.is_dir()) {
         return Err(Error::NotADirectory(source.to_path_buf()));
     }
     if fs::symlink_metadata(destination).is_ok() {
         return Err(Error::AlreadyExists(destination.to_path_buf()));
     }
-    if clone_whole(source, destination) {
+    if whole && clone_whole(source, destination) {
         return Ok(TreeClone::Whole);
     }
     let mut counts = (0, 0);
