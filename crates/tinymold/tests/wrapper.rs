@@ -195,7 +195,7 @@ fn a_wrapper_call_starts_a_background_collection_unless_switched_off() {
     let dir = tempfile::tempdir().unwrap();
     let store = dir.path().join("store");
     let root = dir.path().join("a");
-    workspace(&root);
+    worktree(&root, "pub fn f() {}\n");
 
     build(&root, &store, &[]);
     assert!(!store.join("gc-stamp").exists());
