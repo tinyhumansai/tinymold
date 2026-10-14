@@ -104,9 +104,9 @@ impl Invocation {
     /// leaves path remapping to it rather than adding its own.
     #[must_use]
     pub fn remaps_paths(&self) -> bool {
-        self.key_args.iter().any(|arg| {
-            matches!(arg, KeyArg::Text(text) if text.starts_with("--remap-path-prefix"))
-        })
+        self.key_args
+            .iter()
+            .any(|arg| matches!(arg, KeyArg::Text(text) if text.starts_with("--remap-path-prefix")))
     }
 
     /// The name prefixes every output of this invocation starts with:

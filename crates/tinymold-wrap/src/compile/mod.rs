@@ -37,7 +37,7 @@ use crate::flight::{self, Claim};
 use crate::parallel;
 use crate::placed::{Placed, Placement};
 use crate::record::{
-    self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
+    self, Action, EnvDep, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
@@ -787,7 +787,10 @@ impl Unit<'_> {
 /// Whether dependents read the output `name` as an `--extern`.
 /// Whether `needle` occurs anywhere in `haystack`.
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    !needle.is_empty() && haystack.windows(needle.len()).any(|window| window == needle)
+    !needle.is_empty()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
 }
 
 fn is_library(name: &str) -> bool {
