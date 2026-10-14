@@ -96,12 +96,16 @@ The remaining cost is spread across cargo, the incremental machinery,
 codegen and the link, so the next gains have to remove work rather than tune
 it:
 
-1. **Early cutoff and interface hashing (RDR-lite).** A private-body edit in
-   a library rebuilds dependents because its `.rmeta` changes.
-   - The rustc wrapper already cuts off when the `.rmeta` bytes are
-     identical. The bench's edits add a line, which shifts spans, so they
-     never are.
-   - A span-insensitive interface digest would let dependents hit.
+1. **Early cutoff and interface hashing (RDR-lite): spiked, not pursued on
+   stable rustc** ([ADR 0007](../adr/0007-no-interface-hashing-in-the-wrapper.md)).
+   - A private-body edit in a library rebuilds its dependents because its
+     `.rmeta` changes.
+   - The dependents' object code is unchanged, but each dependent records
+     the upstream crate hash, and rustc refuses (E0460) to mix a dependent
+     with a newer upstream.
+   - The wrapper still cuts off when the `.rmeta` bytes are identical. Those
+     hits used to spend nearly all their time re-placing outputs that were
+     already in place; they now keep them (`bench.py hit`).
 2. **A prelinked dependency image and Roc-style append linking,** to shrink
    the 0.06-0.08 s link toward the size of the workspace code.
 3. **Hot patching** (Subsecond-style) for `cargo run` loops, which skips the

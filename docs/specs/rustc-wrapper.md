@@ -126,18 +126,35 @@ miss in another worktree, and it does.
 
 **On a hit**, tinymold:
 
-1. removes every file in the out-dir with the unit's prefix, then places
-   every output by reflink, falling back to copy, and never by hardlink,
-   because linkers may rewrite outputs in place;
-2. sets each output's mtime to now, as if rustc had just written it;
-3. replays stdout and stderr, then exits 0.
+1. keeps every output already in the out-dir that the last hit or miss of
+   this unit there placed, unchanged since and with the digest the action
+   wants (see below);
+2. removes every other file in the out-dir with the unit's prefix, then
+   places the remaining outputs by reflink, falling back to copy, and never by
+   hardlink, because linkers may rewrite outputs in place;
+3. sets each output's mtime to now, as if rustc had just written it, except
+   for object files kept in place: rustc itself leaves the objects it reuses
+   with their old mtimes, and nothing compares them;
+4. replays stdout and stderr, then exits 0.
 
-Steps 1 and 2 run per output, in turn for a unit with fewer than 16
+Steps 2 and 3 run per output, in turn for a unit with fewer than 16
 outputs and spread over up to eight threads above that, since an
 incremental compile with split debuginfo leaves hundreds of object files.
 Either way, stdout and stderr are read before any file is removed, so a
 missing replay object fails the hit with the out-dir untouched, and any
 output that cannot be placed fails the whole hit, which then runs rustc.
+
+**Outputs kept in place.** After every hit and every stored miss, the
+wrapper records the identity (device, inode, size, mtime) and digest of each
+binary output it left, one record per unit and out-dir, under `stat/`. An
+output is kept when its identity still matches that record. As with the stat
+cache's entries for outputs, identity alone is trusted, because these are
+files whose writer has finished and which nothing rewrites without going
+through the wrapper again. A replaced file gets a new inode or mtime. Without
+this, a hit after early cutoff spent nearly all its time placing again the
+hundreds of objects already there: 63 ms for ripgrep's `grep_printer` and
+151 ms for `rg`, against under 1 ms for the lookup. A missing or unreadable
+record only means every output is placed again.
 
 **Text gets placeholders.** Dep-info, stdout and stderr name absolute paths,
 so they are stored with the out-dir, profile, current-directory and

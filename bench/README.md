@@ -275,26 +275,26 @@ Cache: sccache 0.17.0, private directory and port. Each cell is the median clean
 | `target/` archive | 259 MiB | 698 MiB | 559 MiB |
 | tinymold store archive | 241 MiB | 592 MiB | 527 MiB |
 
-### Cache hits on many-output units (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+### Cache hits on many-output units (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-15)
 
 Every source file touched, then rebuilt through the wrapper, so each workspace unit is a cache hit. Incremental units with `profile.dev.split-debuginfo="unpacked"` keep one object file per codegen unit, so a hit places hundreds of files. Before is the `--against` revision, after is the checkout's; they take alternate turns on the same store. Restore times come from `TINYMOLD_TRACE`; cells are medians (min–max). A crate's row adds up all of its units, such as a library and a binary of the same name.
 
 | Project | What | before | after | change |
 | --- | --- | ---: | ---: | ---: |
-| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | Build wall time | 0.39s (0.34–0.84) | 0.34s (0.28–1.10) | -12% |
-| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | All 10 restores, summed | 514 ms (428–615) | 324 ms (306–455) | -37% |
-| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | `rg` restore (258 files) | 100.8 ms (81.2–113.4) | 49.1 ms (44.2–77.3) | -51% |
-| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | `ignore` restore (212 files) | 96.2 ms (87.4–124.3) | 70.7 ms (66.3–88.1) | -27% |
-| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | `globset` restore (132 files) | 92.2 ms (70.3–120.2) | 46.8 ms (46.0–67.4) | -49% |
-| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | Build wall time | 0.92s (0.71–1.30) | 0.69s (0.63–0.76) | -25% |
-| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | All 2 restores, summed | 113 ms (83–163) | 54 ms (49–58) | -52% |
-| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | `bat` restore (2901 files) | 112.2 ms (82.0–162.9) | 53.2 ms (48.2–56.9) | -53% |
-| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | `build_script_build` restore (0 files) | 0.6 ms (0.5–1.1) | 0.6 ms (0.5–0.8) | +0% |
-| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | Build wall time | 0.43s (0.32–0.74) | 0.31s (0.23–0.35) | -29% |
-| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | All 6 restores, summed | 313 ms (252–544) | 169 ms (156–206) | -46% |
-| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | `tinymold` restore (211 files) | 84.3 ms (67.2–124.4) | 42.5 ms (39.9–54.7) | -50% |
-| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | `tinymold_remote` restore (192 files) | 80.4 ms (59.0–122.3) | 39.4 ms (34.6–62.4) | -51% |
-| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | `tinymold_wrap` restore (138 files) | 61.1 ms (44.1–104.3) | 29.3 ms (23.7–33.0) | -52% |
+| ripgrep 14.1.1<br>tinymold 185d6ba → 7312d99 | Build wall time | 0.26s (0.24–0.33) | 0.18s (0.16–0.20) | -30% |
+| ripgrep 14.1.1<br>tinymold 185d6ba → 7312d99 | All 10 restores, summed | 315 ms (300–365) | 31 ms (28–42) | -90% |
+| ripgrep 14.1.1<br>tinymold 185d6ba → 7312d99 | `rg` restore (258 files) | 43.6 ms (41.3–59.4) | 3.4 ms (3.2–4.3) | -92% |
+| ripgrep 14.1.1<br>tinymold 185d6ba → 7312d99 | `ignore` restore (212 files) | 70.0 ms (64.6–86.0) | 5.8 ms (4.5–6.6) | -92% |
+| ripgrep 14.1.1<br>tinymold 185d6ba → 7312d99 | `globset` restore (132 files) | 47.6 ms (44.5–54.5) | 2.9 ms (2.6–7.2) | -94% |
+| bat v0.24.0<br>tinymold 185d6ba → 7312d99 | Build wall time | 0.60s (0.57–0.75) | 0.59s (0.53–0.63) | -1% |
+| bat v0.24.0<br>tinymold 185d6ba → 7312d99 | All 2 restores, summed | 44 ms (44–55) | 7 ms (7–8) | -84% |
+| bat v0.24.0<br>tinymold 185d6ba → 7312d99 | `bat` restore (1581 files) | 43.8 ms (43.2–54.3) | 6.6 ms (6.3–7.1) | -85% |
+| bat v0.24.0<br>tinymold 185d6ba → 7312d99 | `build_script_build` restore (0 files) | 0.5 ms (0.5–0.7) | 0.5 ms (0.5–0.5) | +0% |
+| tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | Build wall time | 0.22s (0.21–0.30) | 0.12s (0.10–0.14) | -48% |
+| tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | All 6 restores, summed | 152 ms (149–175) | 30 ms (28–50) | -80% |
+| tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold` restore (211 files) | 36.4 ms (34.9–38.0) | 6.7 ms (6.1–8.2) | -82% |
+| tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_remote` restore (191 files) | 33.1 ms (31.8–33.7) | 5.4 ms (5.1–5.6) | -84% |
+| tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_wrap` restore (169 files) | 28.8 ms (27.9–30.1) | 5.1 ms (4.7–5.6) | -82% |
 
 ### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 

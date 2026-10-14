@@ -862,3 +862,59 @@ fn a_held_lock_is_waited_for_only_until_the_limit() {
         other => panic!("expected a miss that gave up waiting, got {other:?}"),
     }
 }
+
+#[cfg(unix)]
+fn inode(path: &Path) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    fs::metadata(path).unwrap().ino()
+}
+
+#[cfg(unix)]
+#[test]
+fn a_hit_keeps_outputs_already_in_place() {
+    // After early cutoff the hit restores the very files the last compile
+    // left; replacing hundreds of objects would cost more than the hit.
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let rlib = unit.out().join("libdemo-1.rlib");
+    let placed = inode(&rlib);
+    let built = unit.outputs();
+    let before = SystemTime::now() - Duration::from_secs(1);
+
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
+    assert_eq!(inode(&rlib), placed);
+    assert_eq!(unit.outputs(), built);
+    assert!(fs::metadata(&rlib).unwrap().modified().unwrap() > before);
+
+    // And again after a hit, from the record the hit wrote.
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
+    assert_eq!(inode(&rlib), placed);
+}
+
+#[test]
+fn a_hit_replaces_an_output_changed_since_it_was_placed() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let built = unit.outputs();
+    let rlib = unit.out().join("libdemo-1.rlib");
+    let size = fs::metadata(&rlib).unwrap().len();
+    // Same size, new bytes, and an mtime from the past: only the identity
+    // (here the inode and mtime) gives the change away.
+    fs::remove_file(&rlib).unwrap();
+    fs::write(&rlib, vec![b'x'; usize::try_from(size).unwrap()]).unwrap();
+
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
+    assert_eq!(unit.outputs(), built);
+}
+
+#[test]
+fn a_hit_without_a_placement_record_replaces_every_output() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let built = unit.outputs();
+    fs::write(unit.out().join("libdemo-1.rlib"), b"from another branch").unwrap();
+    fs::remove_dir_all(unit.store.join("stat")).unwrap();
+
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
+    assert_eq!(unit.outputs(), built);
+}

@@ -1199,9 +1199,11 @@ def bench_hit(args: argparse.Namespace) -> dict:
     Each project is built once through the wrapper to fill a private store.
     Every run then touches every source file of the checkout and rebuilds, so
     cargo reruns every workspace unit and the wrapper serves each one from the
-    store. Both binaries take turns on the same store and target/, in
-    alternating order, so load drift hits both. TINYMOLD_TRACE times each
-    restore on its own, apart from cargo's overhead.
+    store. Both binaries take turns on the same store, in alternating order,
+    so load drift hits both. Each builds into its own directory under target/:
+    a hit may keep outputs the same binary's last build left in place, and on
+    a shared target/ the other binary's turn would always have replaced them.
+    TINYMOLD_TRACE times each restore on its own, apart from cargo's overhead.
     """
     sides = [(output(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]),
               tinymold_binary())]
@@ -1215,9 +1217,12 @@ def bench_hit(args: argparse.Namespace) -> dict:
         trace = WORK / f"hit-{project['name']}.trace"
         shutil.rmtree(store, ignore_errors=True)
         shutil.rmtree(src / "target", ignore_errors=True)
-        command = cargo(*config, "build", "--locked", *target_args(project))
+        def command(label: str) -> list[str]:
+            target_dir = f'build.target-dir="target/hit-{label}"'
+            return cargo(*config, "--config", target_dir, "build", "--locked",
+                         *target_args(project))
 
-        def build(binary: Path) -> dict:
+        def build(label: str, binary: Path) -> dict:
             now = time.time()
             for path in src.rglob("*.rs"):
                 if "target" not in path.relative_to(src).parts:
@@ -1225,18 +1230,18 @@ def bench_hit(args: argparse.Namespace) -> dict:
             trace.unlink(missing_ok=True)
             env = dict(STOCK_ENV, RUSTC_WRAPPER=str(binary), TINYMOLD_STORE=str(store),
                        TINYMOLD_TRACE=str(trace))
-            wall = timed(command, cwd=src, env=env)
+            wall = timed(command(label), cwd=src, env=env)
             return {"wall": wall, "restores": restore_spans(trace)}
 
         print(f"{project['name']}: filling the store", file=sys.stderr)
-        for _, binary in sides:
-            build(binary)  # the first fills the store; every later build hits
+        for label, binary in sides:
+            build(label, binary)  # the first fills the store; every later build hits
         samples: dict[str, list[dict]] = {label: [] for label, _ in sides}
         for n in range(args.runs):
             for label, binary in sides if n % 2 == 0 else list(reversed(sides)):
-                samples[label].append(build(binary))
-        deps = src / "target" / "debug" / "deps"
+                samples[label].append(build(label, binary))
         for label, taken in samples.items():
+            deps = src / "target" / f"hit-{label}" / "debug" / "deps"
             crates = sorted({crate for sample in taken for crate in sample["restores"]})
             units = [{"crate": crate, "files": unit_files(deps, crate),
                       "restore": summarize([s["restores"].get(crate, 0.0) for s in taken])}

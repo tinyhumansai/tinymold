@@ -36,6 +36,7 @@ mod error;
 mod exec;
 mod flight;
 mod parallel;
+mod placed;
 mod record;
 mod remote;
 mod stat;
