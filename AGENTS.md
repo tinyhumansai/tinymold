@@ -4,92 +4,68 @@ This file is the single source of truth for how humans and coding agents work
 in this repository. `CLAUDE.md` is a symlink to this file, so every agent reads
 the same instructions.
 
-When you generate a new project from this template, keep this file and adapt
-the project-specific parts (crate name, module map, feature flags, commands).
-Delete guidance that no longer applies rather than leaving it to rot.
-
-## Template Checklist
-
-Do this once, in a single commit, before writing feature code:
-
-- [ ] Rename `crates/template` and `crates/template-bus` to the project's crate
-      names, and update `name` in each manifest plus the `template-bus` entry in
-      the root `[workspace.dependencies]`.
-- [ ] Set `description`, `keywords`, and `categories` in each manifest, and
-      `repository` in the root `[workspace.package]`.
-- [ ] Rename the crate references in `README.md`, both `src/lib.rs` files,
-      `crates/template/examples/`, and `crates/template/tests/` (search for
-      `template` and `template_bus`).
-- [ ] Replace the placeholder `greeting` module in both crates with the first
-      real feature area — payload types in the contract crate, behavior in the
-      module crate — keeping the `mod.rs` / `types.rs` / `test.rs` layout.
-- [ ] Confirm `license` and `LICENSE` match the project's intended license.
-- [ ] Update the security contact in `SECURITY.md`.
-- [ ] Rename the TinyBus interface, object path, and member constants in
-      `crates/template-bus/src/names/`, and the matching `provides` / `methods`
-      declarations in `crates/template/src/tinybus_module/`, while keeping
-      `vendor/tinybus` pinned.
-- [ ] Reset `CONTRACT_VERSION` in `crates/template-bus/src/version/` for the new
-      contract.
-- [ ] Replace `ROADMAP.md` with the real plan, or delete it.
-- [ ] Rewrite the "Project Structure" section below to describe this workspace.
+tinymold is a build accelerator for Rust: content-addressed build caching,
+fast linking, a hot cache server, and hashing, with `target/` disk footprint
+as a first-class goal. Read [`README.md`](README.md) for the pitch,
+[`docs/research/README.md`](docs/research/README.md) for why, and
+[`docs/specs/architecture.md`](docs/specs/architecture.md) for the design
+before changing behavior.
 
 ## Project Structure
 
 This is a Rust 2024 cargo workspace rooted at a virtual `Cargo.toml`. Every
 crate lives under `crates/`, one directory per package, each directory named for
-the package it holds. There is no root package: the crate that ships as the
-loadable module is `crates/template`, the same as any other member.
+the package it holds. There is no root package: the `tinymold` binary is
+`crates/tinymold`, the same as any other member.
 
 ```text
 Cargo.toml              # virtual workspace: members, [workspace.package],
                         # [workspace.dependencies], [workspace.lints]
 crates/
-├── template-bus/       # the wire contract: what crosses the bus, nothing else
-│   ├── README.md       # why the contract is its own crate
-│   └── src/
-│       ├── lib.rs      # crate docs + the entire public re-export surface
-│       ├── names/      # interface, object path, one constant per member
-│       ├── version/    # contract version and the host bind rule
-│       └── <family>/   # one directory per payload family
-└── template/           # the module: behavior, adapter, and the cdylib
+├── tinymold-hash/      # BLAKE3-256 `Digest`, file hashing, field hasher
+├── tinymold-cas/       # local content-addressed store + materialization
+└── tinymold/           # the `tinymold` binary and its library half
     ├── src/
-    │   ├── lib.rs      # crate docs + public surface, re-exporting the contract
+    │   ├── lib.rs      # crate docs + the entire public surface
+    │   ├── main.rs     # argument parsing and exit codes only
     │   ├── error/mod.rs      # crate-wide `Error` and `Result<T>`
-    │   ├── tinybus_module/   # TinyBus interface, ABI exports, integration tests
     │   └── <feature>/        # one directory per feature area
     │       ├── mod.rs        # module docs, wiring, smallest useful public API
     │       ├── types.rs      # substantial type definitions
     │       └── test.rs       # module-local unit tests
     ├── tests/          # integration tests against the public API only
     └── examples/       # runnable, compiled-in-CI usage examples
-vendor/tinybus/         # pinned TinyBus host types and module SDK
+bench/                  # benchmark harness, corpus, results, and results page
 docs/
+├── research/           # the research behind the design, with sources
 ├── specs/              # behavior and architecture specifications
-├── plans/              # test-first implementation plans
+├── plans/              # roadmap and test-first implementation plans
 └── adr/                # immutable architecture decision records
 ```
 
-### The two-crate split
+### Crate boundaries
 
-`crates/template-bus` holds every type that crosses the bus and the names of the
-members that carry them. It has no transport, no runtime, and no behavior, and
-CI asserts it stays that way. A host that only makes calls depends on it alone.
+Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ← `tinymold`.
+Planned crates (`tinymold-key`, `tinymold-wrap`, `tinymold-server`,
+`tinymold-remote`, `tinymold-link`, `tinymold-bench`) slot into the same chain
+as described in the architecture spec.
 
-`crates/template` depends on it and re-exports all of it, so
-`template::GreetRequest` and `template_bus::GreetRequest` are the *same* type
-rather than structural twins. That direction is load-bearing: a parallel set of
-payload types for hosts would mean a conversion at every call site that nothing
-checks.
+- `tinymold-hash` answers "what is the name of these bytes". No storage, no
+  cache policy.
+- `tinymold-cas` answers "bytes in, bytes out, by name". No cache keys, no
+  eviction, no network. Objects are immutable once committed.
+- `tinymold` holds the command line and whatever composes the layers.
 
-The rule for deciding where something goes: a payload type describes what a
-frame carries and belongs in the contract; anything that answers a frame, holds
-a connection, or touches an engine belongs in the module crate.
+Put new code in the lowest crate that can hold it without pulling in anything
+that crate deliberately avoids. Each crate's `src/lib.rs` says what it does
+*not* hold; respect that rather than widening a crate for convenience.
 
 Add a crate by creating `crates/<name>/` — `members = ["crates/*"]` picks it up
 by existing. Inherit `version`, `edition`, `rust-version`, `license`, and
 `repository` from `[workspace.package]`, take shared dependencies from
-`[workspace.dependencies]`, and opt into the shared lint set with:
+`[workspace.dependencies]`, add an internal entry there with
+`version = "=<workspace version>"` (crates.io needs it), and opt into the
+shared lint set with:
 
 ```toml
 [lints]
@@ -113,9 +89,9 @@ missing module. Prefer many small modules that each do one thing well over few
 broad ones.
 
 Keep public exports centralized in each crate's `src/lib.rs` so downstream users
-have one predictable surface. Put shared error variants in
-`crates/template/src/error/mod.rs` and return the crate-wide `Result<T>` from
-fallible public APIs.
+have one predictable surface. Put each crate's error variants in its
+`src/error/mod.rs` and return that crate's `Result<T>` from fallible public
+APIs.
 
 ## Build And Test
 
@@ -133,8 +109,10 @@ Supporting commands:
 
 - `cargo fmt --all` — format before committing.
 - `cargo test <filter>` — run a focused subset while iterating.
-- `cargo test -p template-bus` — run one crate's suite.
-- `cargo run -p template --example basic` — run the bundled example.
+- `cargo test -p tinymold-cas` — run one crate's suite.
+- `cargo run -p tinymold --example basic` — run the bundled example.
+- `cargo run -p tinymold -- doctor` — check this machine's linkers and store.
+- `cargo package --workspace --locked` — verify every crate would publish.
 - `cargo doc --no-deps --all-features` — build the rustdoc CI also builds with
   `RUSTDOCFLAGS="-D warnings"`.
 - `cargo test --doc` — run doctests alone when editing documentation examples.
@@ -185,8 +163,10 @@ add one:
 - gate anything optional behind a Cargo feature, documented in `Cargo.toml`;
 - declare it once in the root `[workspace.dependencies]` when more than one
   crate needs it, and take it with `{ workspace = true }`;
-- never add one to `crates/template-bus` that pulls in a transport, an async
-  runtime, an HTTP client, or a native library — CI fails the build if you do;
+- keep `tinymold-hash` and `tinymold-cas` free of async runtimes, network
+  clients, and native libraries; those belong in the crates that need them;
+- check whether a new dependency costs build time worth its keep: tinymold is a
+  build-speed project and its own dependency graph is a fair test of that;
 - leave a comment above the entry explaining *why* the crate is needed and what
   uses it — see the existing entries for the expected tone;
 - prefer well-maintained crates with a compatible license.
@@ -194,32 +174,20 @@ add one:
 Keep `Cargo.lock` committed; this workspace ships a single lockfile so CI and
 releases are reproducible.
 
-### Vendored dependencies
-
-TinyBus is registered as the `vendor/tinybus` git submodule and pinned by its
-gitlink. It supplies the host types and module-side SDK required to build this
-crate's `cdylib`. Initialize it after cloning with:
-
-```sh
-git submodule update --init --recursive
-```
-
-Do not edit vendored code from the parent repository. Make TinyBus changes in
-its own repository, push them there, then update this repository's gitlink in a
-separate commit. Keep the exact path dependencies and minimal features unless a
-new module capability requires more.
-
 ## Testing
 
 - Module-local unit tests live in `crates/<crate>/src/<feature>/test.rs` and may
   touch private items.
 - Integration tests live in `crates/<crate>/tests/` and exercise only the public
   API — they are the regression suite for the crate's contract.
-- Payload types pin their serde representation in a unit test. That
-  representation is the wire form: a host and a module that disagree about a
-  field name fail at runtime with a decode error.
-- Use descriptive, behavioral test names: `rejects_an_empty_name`, not
-  `test_greet_2`.
+- Anything persisted or shared — digests, store layout, cache keys, manifest
+  formats — pins its exact encoding in a unit test, ideally against a known
+  vector (see the BLAKE3 empty-input test). A silent encoding change poisons
+  every cache built before it.
+- Tests that touch the filesystem use `tempfile` directories, never the user's
+  real store, and must pass whether or not the filesystem supports reflinks.
+- Use descriptive, behavioral test names: `rejects_a_tampered_object`, not
+  `test_store_2`.
 - Cover the failure paths, not just the happy path. Every new error variant
   needs a test that produces it.
 - For async behavior, standardize on one runtime (`tokio` as a dev-dependency
@@ -258,6 +226,37 @@ Write documentation for the reader who has never seen the code.
   topic outgrows that, split it into focused files and link them from the
   nearest `README.md`.
 
+## Benchmarks And Performance Claims
+
+tinymold's value is measured in seconds and bytes, so performance claims are
+held to the same bar as correctness claims.
+
+- A change that claims a speed-up or a size reduction includes the
+  `bench/bench.py` numbers before and after, on a named machine, in the pull
+  request. "Should be faster" is not a result.
+- Commit new result JSON from `bench/results/` together with the output of
+  `python3 bench/report.py`, which regenerates the tables in
+  `bench/README.md` and the SVG charts. Never edit those tables by hand.
+- Record what moves the number. Linker results in particular swing with
+  filesystem, output reuse, fork mode, and thread count; the harness writes the
+  machine into every result file, so do not strip it.
+- Quote third-party numbers only with a link to their source, and label them
+  as not reproduced by tinymold.
+- The harness uses only the Python standard library. Keep it that way so it
+  runs on a bare machine.
+
+## Cache Correctness
+
+A cache that is fast and occasionally wrong is worse than no cache.
+
+- Never key on anything that is not an input (mtimes, absolute workspace paths,
+  terminal flags), and never omit anything that is (see
+  [`docs/specs/cache-key.md`](docs/specs/cache-key.md)).
+- Objects in the store are immutable. Never write to a materialized hardlink;
+  anything a tool rewrites in place must be restored by reflink or copy.
+- When in doubt, miss. An uncacheable action that runs is a slowdown; a wrong
+  hit is a miscompile.
+
 ## Git Workflow
 
 - Never commit directly to `main`. Branch first, one branch per logical change.
@@ -291,24 +290,28 @@ explicitly declined with a reason.
 ## Releases
 
 Releases run from `.github/workflows/release.yml` via a manual
-`workflow_dispatch` with a `patch` / `minor` / `major` bump; `current` resumes
-an interrupted release after its version commit and tag exist. The workflow
-re-runs the full validation suite, computes the next version, updates
-the root `[workspace.package]` version and `Cargo.lock`, commits and tags
-`vX.Y.Z`, builds `crates/template` as a TinyBus module for every supported
-platform, pushes, and creates an immutable GitHub release with installable
-native packages.
+`workflow_dispatch` with a `patch` / `minor` / `major` bump. `current` releases
+the version already in `Cargo.toml` when it has no tag yet (this is how 0.0.1
+ships), or resumes an interrupted release whose tag exists. The workflow
+re-runs the full validation suite, bumps the root `[workspace.package]`
+version, the internal `version = "=X.Y.Z"` requirements, and `Cargo.lock`,
+commits and tags `vX.Y.Z`, builds the `tinymold` binary for Linux, macOS, and
+Windows on x86_64 and ARM64, creates an immutable GitHub release with
+`SHA256SUMS`, and publishes every crate to crates.io leaf-first using the
+`CARGO_REGISTRY_TOKEN` repository secret.
 
 Consequently:
 
-- Do not hand-edit the `version` field in the root `[workspace.package]`; the
-  release workflow owns it. Every member inherits it with
-  `version.workspace = true`, so the whole workspace releases as one version.
+- Do not hand-edit the `version` field in the root `[workspace.package]` or the
+  internal dependency requirements; the release workflow owns both. Every
+  member inherits the workspace version, so the whole workspace releases as one
+  version.
 - Follow semantic versioning. Any change to the public surface that is not
   purely additive is a breaking change and needs a major bump (pre-1.0: a minor
   bump).
-- The module must be packageable for every release target — `main` should
-  always be green.
+- crates.io versions are permanent. Never run `cargo publish` by hand; CI's
+  `cargo package --workspace` step is how you check a crate would publish.
+- Every release target must build — `main` should always be green.
 
 ## Agent Working Agreement
 
