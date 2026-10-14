@@ -41,6 +41,7 @@ mod package_tree;
 mod placed;
 mod record;
 mod remote;
+mod runner;
 mod stat;
 mod test_record;
 mod trace;
@@ -59,6 +60,7 @@ use compile::Served;
 pub use error::{Error, Result};
 pub use flight::lock_held;
 pub use remote::{Remote, RemoteError};
+pub use runner::{TestCommand, run_test};
 use trace::Trace;
 
 /// Where the wrapper keeps its cache and reports what it did.
@@ -231,7 +233,7 @@ fn utf8(args: &[OsString]) -> Option<Vec<String>> {
         .collect()
 }
 
-fn log(config: &Config, started: Instant, outcome: &str, crate_name: &str, detail: &str) {
+pub(crate) fn log(config: &Config, started: Instant, outcome: &str, crate_name: &str, detail: &str) {
     let Some(path) = &config.log else {
         return;
     };

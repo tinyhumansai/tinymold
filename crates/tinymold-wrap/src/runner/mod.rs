@@ -79,8 +79,9 @@ struct Prepared {
     key: Digest,
     crate_name: String,
     binary_record: PathBuf,
-    /// The listing the key was computed from, to check after the run.
-    files: Digest,
+    /// The package tree and listing the key was computed from, to check
+    /// after the run.
+    observed: (Digest, Digest),
     declared: Vec<String>,
     dylibs: Vec<String>,
     now_ns: u64,
@@ -148,14 +149,14 @@ fn record_run(
     path: &Path,
     captured: &exec::Captured,
 ) -> Result<std::result::Result<(), &'static str>> {
-    let after = listing(
+    let after = observed(
         &config.store,
         command,
         &prepared.declared,
         &prepared.dylibs,
         prepared.now_ns,
     )?;
-    if after != prepared.files {
+    if after != prepared.observed {
         return Ok(Err("a file under the package changed during the run"));
     }
     let run = TestRun {
@@ -213,8 +214,7 @@ fn prepare(
         Declared::Uncached(reason) => return Ok(Err(reason)),
     };
 
-    let files = listing(store_dir, command, &declared, &built.dylibs, now_ns)?;
-    let package_tree = tree_digest(&package_files(store_dir, command.cwd, &binary, now_ns)?);
+    let (package_tree, files) = observed(store_dir, command, &declared, &built.dylibs, now_ns)?;
     let binary_dir = binary.parent().unwrap_or(command.cwd);
     let cargo_home = var("CARGO_HOME")
         .map(PathBuf::from)
@@ -238,27 +238,26 @@ fn prepare(
         key,
         crate_name: built.crate_name,
         binary_record,
-        files: tree_digest(&[
-            ("package".to_owned(), package_tree),
-            ("declared".to_owned(), files),
-        ]),
+        observed: (package_tree, files),
         declared,
         dylibs: built.dylibs,
         now_ns,
     }))
 }
 
-/// The digest of the declared inputs and of the dynamic libraries the
+/// What a run may read besides its binary: the digest of the package tree,
+/// and that of the declared inputs together with the dynamic libraries the
 /// binary loads, which its own bytes do not cover.
-fn listing(
+fn observed(
     store_dir: &Path,
     command: &TestCommand<'_>,
     declared: &[String],
     dylibs: &[String],
     now_ns: u64,
-) -> Result<Digest> {
-    let mut files = declared_files(store_dir, command.cwd, declared, now_ns)?;
+) -> Result<(Digest, Digest)> {
     let binary = command.cwd.join(command.binary);
+    let package_tree = tree_digest(&package_files(store_dir, command.cwd, &binary, now_ns)?);
+    let mut files = declared_files(store_dir, command.cwd, declared, now_ns)?;
     let dir = binary.parent().unwrap_or(command.cwd);
     for name in dylibs {
         files.push((
@@ -266,7 +265,7 @@ fn listing(
             stat::digest(store_dir, &dir.join(name), now_ns)?,
         ));
     }
-    Ok(tree_digest(&files))
+    Ok((package_tree, tree_digest(&files)))
 }
 
 /// The host a test runs on: OS, architecture, and the OS release, since
