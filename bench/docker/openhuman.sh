@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds OpenHuman's `openhuman-core` binary under three configurations and
+# Builds OpenHuman's `openhuman-core` binary under several configurations and
 # times the build states a developer or CI runner meets. Runs inside the
 # tinymold-bench image; bench/docker_openhuman.py starts it and reads its
 # output.
@@ -8,6 +8,10 @@
 #   ld        plain cargo, the platform's default linker (GNU ld via cc)
 #   mold      plain cargo, linked with mold
 #   tinymold  RUSTC_WRAPPER=tinymold, linked with mold
+#   tinymold-link  plain cargo, linked with tinymold-link (the mold fork in
+#             crates/tinymold-link), through gcc's -B and an `ld` symlink
+#   tinymold-full  RUSTC_WRAPPER=tinymold, linked with tinymold-link: no mold
+#             anywhere. It keeps its own store, apart from tinymold's.
 #   sccache   RUSTC_WRAPPER=sccache (local disk cache), linked with mold
 #   sccache-noinc  the same with CARGO_INCREMENTAL=0, so sccache can cache the
 #             workspace crates it otherwise passes through, at the cost of
@@ -22,9 +26,10 @@
 #   second_path  a copy of the sources at another path, clean target/
 #   snapshot     that copy again, starting from `tinymold snapshot restore`
 #
-# ld and mold have no cache, so their warm and second-path builds are cold
-# builds; they run only `cold`, `noop`, and the edits. The sccache configs run
-# every case but `snapshot`, which is tinymold's.
+# ld, mold and tinymold-link have no cache, so their warm and second-path
+# builds are cold builds; they run only `cold`, `noop`, and the edits. The
+# sccache configs run every case but `snapshot`, which the tinymold configs
+# alone run.
 #
 # Every build appends one JSON object per line to $OUT/results.jsonl and keeps
 # cargo's --timings report as $OUT/timings/<config>-<case>-<run>.html.
@@ -36,7 +41,9 @@ SECOND=${SECOND:-/work/oh-second}
 STORE=${STORE:-/work/store}
 OUT=${OUT:-/out}
 RUNS=${RUNS:-3}
-CONFIGS=${CONFIGS:-ld mold tinymold sccache sccache-noinc}
+CONFIGS=${CONFIGS:-ld mold tinymold sccache sccache-noinc tinymold-link tinymold-full}
+# What gcc's -B points at: a directory whose `ld` is tinymold-link.
+TML_DIR=/usr/local/libexec/tinymold-link
 # ONLY limits a run to some cases (space-separated), appending to the results
 # of an earlier run instead of starting them over. The cases it skips must
 # have left their state behind: `snapshot` needs the store, the saved snapshot
@@ -71,6 +78,10 @@ PERL
 chmod +x "$TRACER"
 
 now() { date +%s.%N; }
+
+# The tinymold configs, which run every case, and the store each one uses.
+is_tinymold() { [[ $1 == tinymold || $1 == tinymold-full ]]; }
+store_of() { if [[ $1 == tinymold ]]; then echo "$STORE"; else echo "$STORE-$1"; fi; }
 since() { awk -v a="$1" -v b="$(now)" 'BEGIN {printf "%.4f", b - a}'; }
 
 # build <config> <case> <run> <dir>
@@ -84,6 +95,9 @@ build() {
         mold) env+=(RUSTFLAGS="-C link-arg=-fuse-ld=mold") ;;
         tinymold) env+=(RUSTFLAGS="-C link-arg=-fuse-ld=mold" RUSTC_WRAPPER=/usr/local/bin/tinymold
                         TINYMOLD_STORE="$STORE" TINYMOLD_LOG="$cachelog") ;;
+        tinymold-link) env+=(RUSTFLAGS="-C link-arg=-B$TML_DIR") ;;
+        tinymold-full) env+=(RUSTFLAGS="-C link-arg=-B$TML_DIR" RUSTC_WRAPPER=/usr/local/bin/tinymold
+                             TINYMOLD_STORE="$(store_of "$config")" TINYMOLD_LOG="$cachelog") ;;
         sccache) env+=(RUSTFLAGS="-C link-arg=-fuse-ld=mold" RUSTC_WRAPPER=/usr/local/bin/sccache)
                  sccache --zero-stats > /dev/null ;;
         sccache-noinc) env+=(RUSTFLAGS="-C link-arg=-fuse-ld=mold" RUSTC_WRAPPER=/usr/local/bin/sccache
@@ -162,7 +176,7 @@ for config in $CONFIGS; do
     fi
     if want cold; then
         rm -rf "$SRC/target/$config"
-        [[ $config == tinymold ]] && rm -rf "$STORE"
+        is_tinymold "$config" && rm -rf "$(store_of "$config")"
         build "$config" cold 1 "$SRC"
     fi
     if want noop; then
@@ -182,7 +196,7 @@ for config in $CONFIGS; do
         done
         restore
     fi
-    if [[ $config != tinymold && $config != sccache* ]]; then
+    if ! is_tinymold "$config" && [[ $config != sccache* ]]; then
         continue
     fi
     if want warm; then
@@ -190,7 +204,7 @@ for config in $CONFIGS; do
         build "$config" settle 1 "$SRC"
         for run in $(seq "$RUNS"); do
             rm -rf "$SRC/target/$config"
-            cache=$STORE; [[ $config == sccache* ]] && cache=$SCCACHE_DIR
+            cache=$(store_of "$config"); [[ $config == sccache* ]] && cache=$SCCACHE_DIR
             EXTRA=",\"store_bytes\":$(store_bytes "$cache")" build "$config" warm "$run" "$SRC"
         done
     fi
@@ -202,14 +216,14 @@ for config in $CONFIGS; do
             build "$config" second_path "$run" "$SECOND"
         done
     fi
-    if want snapshot && [[ $config == tinymold ]]; then
-        tinymold --store "$STORE" snapshot save openhuman --workspace "$SRC" \
+    if want snapshot && is_tinymold "$config"; then
+        tinymold --store "$(store_of "$config")" snapshot save openhuman --workspace "$SRC" \
             --target-dir "$SRC/target/$config" > /dev/null
         for run in $(seq "$RUNS"); do
             rm -rf "$SECOND/target"
             mkdir -p "$SECOND/target"
             start=$(now)
-            tinymold --store "$STORE" snapshot restore openhuman --workspace "$SECOND" \
+            tinymold --store "$(store_of "$config")" snapshot restore openhuman --workspace "$SECOND" \
                 --target-dir "$SECOND/target/$config" > /dev/null
             restore_s=$(since "$start")
             EXTRA=",\"restore\":$restore_s" build "$config" snapshot "$run" "$SECOND"
