@@ -71,7 +71,7 @@ impl Crate {
         let Classified::Cacheable(invocation) = Invocation::parse(text) else {
             panic!("the test compile must be cacheable");
         };
-        serve(&self.store, &rustc(), &args, &invocation)
+        serve(&self.store, None, &rustc(), &args, &invocation)
     }
 
     fn outputs(&self) -> Vec<(String, Vec<u8>)> {
@@ -98,6 +98,7 @@ fn assert_stored(served: &Served) {
         Served::Miss {
             code: 0,
             stored: Ok(_),
+            ..
         } => {}
         other => panic!("expected a stored miss, got {other:?}"),
     }

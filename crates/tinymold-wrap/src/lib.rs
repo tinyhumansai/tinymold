@@ -34,6 +34,7 @@ mod compile;
 mod error;
 mod exec;
 mod record;
+mod remote;
 mod stat;
 
 use std::ffi::OsString;
@@ -47,6 +48,7 @@ use tinymold_key::{Classified, Invocation};
 pub use catalog::{RecordFile, RecordKind, action_references, records};
 use compile::Served;
 pub use error::{Error, Result};
+pub use remote::{Remote, RemoteError};
 
 /// Where the wrapper keeps its cache and reports what it did.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,9 +56,9 @@ pub use error::{Error, Result};
 pub struct Config {
     /// The store directory.
     pub store: PathBuf,
-    /// A file to append one line per invocation to (`hit`, `miss`, `pass` or
-    /// `error`, the crate, milliseconds, and details), for benchmarks and
-    /// debugging.
+    /// A file to append one line per invocation to (`hit`, `remote`, `miss`,
+    /// `pass` or `error`, the crate, milliseconds, and details), for
+    /// benchmarks, `tinymold stats` and debugging.
     pub log: Option<PathBuf>,
 }
 
@@ -86,6 +88,19 @@ pub fn is_rustc(program: &Path) -> bool {
 /// with exit code 1.
 #[must_use]
 pub fn run(config: &Config, program: &Path, args: &[OsString]) -> i32 {
+    run_with_remote(config, None, program, args)
+}
+
+/// [`run`], consulting `remote` on a local miss before compiling.
+///
+/// A remote failure is logged with the miss and never fails the build.
+#[must_use]
+pub fn run_with_remote(
+    config: &Config,
+    remote: Option<&dyn Remote>,
+    program: &Path,
+    args: &[OsString],
+) -> i32 {
     let started = Instant::now();
     let classified = match utf8(args) {
         Some(text) if is_rustc(program) => Invocation::parse(text),
@@ -101,16 +116,28 @@ pub fn run(config: &Config, program: &Path, args: &[OsString]) -> i32 {
         _ => return pass_through(program, args),
     };
     let crate_name = invocation.crate_name.as_str();
-    match compile::serve(&config.store, program, args, &invocation) {
+    match compile::serve(&config.store, remote, program, args, &invocation) {
         Ok(Served::Hit) => {
             log(config, started, "hit", crate_name, "");
             0
         }
-        Ok(Served::Miss { code, stored }) => {
-            let detail = match &stored {
+        Ok(Served::RemoteHit) => {
+            log(config, started, "remote", crate_name, "");
+            0
+        }
+        Ok(Served::Miss {
+            code,
+            stored,
+            remote,
+        }) => {
+            let mut detail = match &stored {
                 Ok(took) => format!("stored in {:.1}ms", took.as_secs_f64() * 1000.0),
                 Err(reason) => format!("not stored: {reason}"),
             };
+            if let Some(failure) = remote {
+                detail.push_str("; remote: ");
+                detail.push_str(&failure);
+            }
             log(config, started, "miss", crate_name, &detail);
             code
         }
