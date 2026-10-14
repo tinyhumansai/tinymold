@@ -454,13 +454,51 @@ fn doctor_describes_the_remote_without_its_credential() {
     assert!(!with_auth.contains("s3cret"));
 }
 
+/// Runs `tinymold remote <args>` with the remote variables `pairs`.
+fn remote(
+    store: &Path,
+    args: &[&str],
+    pairs: &[(&'static str, &'static str)],
+) -> (Result<Outcome>, String) {
+    let cli = Cli::try_parse_from(
+        ["tinymold", "--store", s(store), "remote"]
+            .into_iter()
+            .chain(args.iter().copied()),
+    )
+    .unwrap();
+    let Command::Remote(command) = &cli.command else {
+        panic!("not a remote command");
+    };
+    let mut out = Vec::new();
+    let result = run_remote(&cli, command, vars(pairs), &mut out);
+    (result, String::from_utf8(out).unwrap())
+}
+
 #[test]
 fn remote_commands_need_a_remote() {
-    // The test environment configures no remote.
-    if std::env::var_os("TINYMOLD_REMOTE_URL").is_none() {
-        let (result, _) = exec(&["remote", "check"]);
-        assert!(matches!(result, Err(Error::NoRemote)));
-        let (result, _) = exec(&["remote", "push", "--since", "0"]);
-        assert!(matches!(result, Err(Error::NoRemote)));
+    let dir = tempfile::tempdir().unwrap();
+    for args in [&["check"][..], &["push", "--since", "0"]] {
+        let (result, _) = remote(dir.path(), args, &[]);
+        assert!(matches!(result, Err(Error::NoRemote)), "{result:?}");
     }
+}
+
+#[cfg(feature = "remote")]
+#[test]
+fn remote_push_of_an_empty_store_sends_nothing_and_check_needs_a_server() {
+    let dir = tempfile::tempdir().unwrap();
+    // A port nothing listens on, with a short timeout.
+    let closed = [
+        ("TINYMOLD_REMOTE_URL", "grpc://127.0.0.1:9"),
+        ("TINYMOLD_REMOTE_TIMEOUT", "200ms"),
+    ];
+    let (result, out) = remote(dir.path(), &["push", "--since", "0"], &closed);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("remote: pushed 0 actions"), "{out}");
+
+    let (result, _) = remote(dir.path(), &["check"], &closed);
+    assert!(matches!(result, Err(Error::Remote(_))), "{result:?}");
+
+    let (result, _) = remote(dir.path(), &["check"], &[("TINYMOLD_REMOTE_URL", "nope")]);
+    assert!(matches!(result, Err(Error::Remote(_))), "{result:?}");
 }

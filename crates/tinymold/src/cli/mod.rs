@@ -298,7 +298,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
             line(out, format_args!("{report}"))?;
         }
         Command::Stats(args) => return run_stats(args, out),
-        Command::Remote(command) => return run_remote(cli, command, out),
+        Command::Remote(command) => return run_remote(cli, command, env, out),
     }
     Ok(Outcome::Success)
 }
@@ -355,9 +355,16 @@ fn remote_summary(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option
     Some(summary)
 }
 
+/// Runs a remote command against the server the `TINYMOLD_REMOTE_*`
+/// variables, read through `lookup`, name.
 #[cfg(feature = "remote")]
-fn run_remote(cli: &Cli, command: &RemoteCommand, out: &mut impl Write) -> Result<Outcome> {
-    let config = tinymold_remote::RemoteConfig::from_env(env)?.ok_or(Error::NoRemote)?;
+fn run_remote(
+    cli: &Cli,
+    command: &RemoteCommand,
+    lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
+    out: &mut impl Write,
+) -> Result<Outcome> {
+    let config = tinymold_remote::RemoteConfig::from_env(lookup)?.ok_or(Error::NoRemote)?;
     let remote = tinymold_remote::RemoteCache::new(&config)?;
     match command {
         RemoteCommand::Push { since } => {
@@ -379,7 +386,12 @@ fn run_remote(cli: &Cli, command: &RemoteCommand, out: &mut impl Write) -> Resul
 }
 
 #[cfg(not(feature = "remote"))]
-fn run_remote(_cli: &Cli, _command: &RemoteCommand, _out: &mut impl Write) -> Result<Outcome> {
+fn run_remote(
+    _cli: &Cli,
+    _command: &RemoteCommand,
+    _lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
+    _out: &mut impl Write,
+) -> Result<Outcome> {
     Err(Error::NoRemote)
 }
 
