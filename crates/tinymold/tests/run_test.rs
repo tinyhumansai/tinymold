@@ -66,10 +66,6 @@ fn cargo_test(root: &Path, store: &Path) -> (Output, Vec<String>) {
         .args(["test", "--lib", "--offline"])
         .current_dir(root)
         .env("RUSTC_WRAPPER", tinymold)
-        .env(
-            "CARGO_TARGET_RUNNER",
-            "unused: cargo reads the per-target variable below",
-        )
         .env(runner_variable(), format!("{tinymold} run-test"))
         .env("TINYMOLD_STORE", store)
         .env("TINYMOLD_LOG", &log)
