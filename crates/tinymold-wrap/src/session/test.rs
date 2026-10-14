@@ -60,14 +60,36 @@ fn only_finished_session_directories_count() {
 fn the_units_session_is_the_one_sharing_an_inode_with_its_objects() {
     let sessions = Sessions::new();
     let inodes = sessions.output_inodes();
-    let (crate_dir, name) = find(&sessions.incremental, "demo", &inodes).unwrap();
+    // Written long after the session: only the inode identifies it.
+    let later = u64::MAX;
+    let (crate_dir, name) = find(&sessions.incremental, "demo", &inodes, later).unwrap();
     assert_eq!(crate_dir, sessions.incremental.join("demo-2mhci14civbux"));
     assert_eq!(name, SESSION);
 
-    assert_eq!(find(&sessions.incremental, "other", &inodes), None);
-    assert_eq!(find(&sessions.incremental, "demo", &HashSet::new()), None);
-    assert_eq!(find(&sessions.incremental, "demo", &HashSet::from([(0, 1)])), None);
-    assert_eq!(find(&sessions.out.join("missing"), "demo", &inodes), None);
+    assert_eq!(find(&sessions.incremental, "other", &inodes, later), None);
+    assert_eq!(find(&sessions.incremental, "demo", &HashSet::new(), later), None);
+    assert_eq!(
+        find(&sessions.incremental, "demo", &HashSet::from([(0, 1)]), later),
+        None
+    );
+    assert_eq!(find(&sessions.out.join("missing"), "demo", &inodes, later), None);
+}
+
+#[test]
+fn without_objects_the_only_session_written_since_the_start_is_the_units() {
+    let sessions = Sessions::new();
+    let found = find(&sessions.incremental, "demo", &HashSet::new(), 0);
+    assert_eq!(
+        found,
+        Some((sessions.incremental.join("demo-2mhci14civbux"), SESSION.to_owned()))
+    );
+
+    // A second unit of the crate, compiled at the same time: no telling.
+    let other = sessions
+        .incremental
+        .join("demo-0chpacq29fani/s-hn7o7hfx6d-1aaaaaa-0bbbbbbbbbbb");
+    fs::create_dir_all(&other).unwrap();
+    assert_eq!(find(&sessions.incremental, "demo", &HashSet::new(), 0), None);
 }
 
 #[cfg(unix)]

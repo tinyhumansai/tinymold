@@ -580,8 +580,12 @@ impl Unit<'_> {
             .map(|(_, identity, digest)| ((identity.dev, identity.ino), *digest))
             .collect();
         let inodes = known.keys().copied().collect();
-        let (crate_dir, name) =
-            session::find(&incremental, &self.invocation.crate_name, &inodes)?;
+        let (crate_dir, name) = session::find(
+            &incremental,
+            &self.invocation.crate_name,
+            &inodes,
+            self.now_ns,
+        )?;
         session::store(&self.store, &crate_dir, &name, &known).ok()
     }
 

@@ -12,8 +12,9 @@
 //!   `<incremental>/<crate>-<id>/s-<time>-<random>-<hash>`. rustc hardlinks a
 //!   session's object files into the out-dir as the unit's outputs, so the
 //!   unit's session is the finished one holding a file with the inode of one
-//!   of its output objects. A compile with no object files, such as a check,
-//!   has no session found and none stored.
+//!   of its output objects. Without split debuginfo, rustc keeps no object
+//!   files in the out-dir; the session is then the only one of the crate
+//!   written during the compile, and none when two were.
 //! - **Only at the same path.** rustc discards a session made in another
 //!   working directory, so a session is restored only into the directory it
 //!   was taken from.
@@ -36,17 +37,19 @@ use crate::error::io;
 use crate::record::SessionRecord;
 
 /// The unit's finished session under `incremental`: the crate directory
-/// `<crate>-<id>` and session name whose files include one with an inode in
-/// `inodes`, the output objects of the compile.
+/// `<crate>-<id>` and session name. That is the session holding a file with
+/// an inode in `inodes`, the compile's output objects, or else the only
+/// session of the crate written at or after `since_ns`, the compile's start
+/// on the filesystem clock. With two candidates and no inode to tell them
+/// apart, as when a library and its tests compile at once, there is none.
 pub(crate) fn find(
     incremental: &Path,
     crate_name: &str,
     inodes: &HashSet<(u64, u64)>,
+    since_ns: u64,
 ) -> Option<(PathBuf, String)> {
-    if inodes.is_empty() {
-        return None;
-    }
     let prefix = format!("{crate_name}-");
+    let mut written = Vec::new();
     for crate_dir in fs::read_dir(incremental).ok()?.filter_map(|entry| entry.ok()) {
         if !crate_dir.file_name().to_string_lossy().starts_with(&prefix) {
             continue;
@@ -56,15 +59,21 @@ pub(crate) fn find(
         };
         for session in sessions.filter_map(|entry| entry.ok()) {
             let name = session.file_name().to_string_lossy().into_owned();
-            if !is_finished(&name) || !session.path().is_dir() {
+            let Ok(meta) = session.metadata() else {
+                continue;
+            };
+            if !is_finished(&name) || !meta.is_dir() {
                 continue;
             }
             if holds_any(&session.path(), inodes) {
                 return Some((crate_dir.path(), name));
             }
+            if crate::stat::identity_of(&meta).mtime_ns >= since_ns {
+                written.push((crate_dir.path(), name));
+            }
         }
     }
-    None
+    (written.len() == 1).then(|| written.remove(0))
 }
 
 /// Whether `name` is a finished session directory: `s-<time>-<random>-<hash>`,
@@ -77,7 +86,8 @@ fn is_finished(name: &str) -> bool {
 }
 
 fn holds_any(dir: &Path, inodes: &HashSet<(u64, u64)>) -> bool {
-    fs::read_dir(dir).is_ok_and(|files| {
+    !inodes.is_empty()
+        && fs::read_dir(dir).is_ok_and(|files| {
         files
             .filter_map(|entry| entry.ok())
             .filter_map(|entry| entry.metadata().ok())
