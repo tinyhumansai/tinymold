@@ -327,38 +327,38 @@ def cas_section(result: dict) -> list[str]:
 def hit_section(result: dict) -> list[str]:
     """Cache hits on many-output units: one tinymold revision against another."""
     rows = result["results"]
-    sides = list(dict.fromkeys(r["tinymold"] for r in rows))
     lines = [f"### Cache hits on many-output units ({describe(result)})", "",
              "Every source file touched, then rebuilt through the wrapper, so each "
              "workspace unit is a cache hit. Incremental units with "
              + ", ".join(f"`{value}`" for value in result["config"])
              + " keep one object file per codegen unit, so a hit places hundreds of "
-             "files. Each tinymold revision takes alternate turns on the same store. "
-             "Restore times come from `TINYMOLD_TRACE`; cells are medians (min–max).", "",
-             "| Project | What | " + " | ".join(f"tinymold {side}" for side in sides)
-             + " | change |", "| --- | --- |" + " ---: |" * (len(sides) + 1)]
+             "files. Before is the `--against` revision, after is the checkout's; they "
+             "take alternate turns on the same store. Restore times come from "
+             "`TINYMOLD_TRACE`; cells are medians (min–max).", "",
+             "| Project | What | before | after | change |",
+             "| --- | --- | ---: | ---: | ---: |"]
 
     def cell(stats: dict, scale: float, unit: str, digits: int) -> str:
         return (f"{stats['median_s'] * scale:.{digits}f}{unit} "
                 f"({stats['min_s'] * scale:.{digits}f}–{stats['max_s'] * scale:.{digits}f})")
 
     for project in dict.fromkeys(r["project"] for r in rows):
-        mine = {r["tinymold"]: r for r in rows if r["project"] == project}
-        first = mine[sides[0]]
+        mine = [r for r in rows if r["project"] == project]
+        before, after = mine[0], mine[-1]
+        name = f"{project} {before['rev']}<br>tinymold {before['tinymold']} → {after['tinymold']}"
         measures = [("Build wall time", lambda r: r["wall"], 1, "s", 2),
-                    (f"All {first['hits']:.0f} restores, summed", lambda r: r["restore"],
+                    (f"All {before['hits']:.0f} restores, summed", lambda r: r["restore"],
                      1000, " ms", 0)]
-        for unit in first["units"][:3]:
+        for unit in before["units"][:3]:
             def pick(r: dict, crate: str = unit["crate"]) -> dict:
                 return next(u["restore"] for u in r["units"] if u["crate"] == crate)
             measures.append((f"`{unit['crate']}` restore ({unit['files']} files)", pick,
                              1000, " ms", 1))
         for label, pick, scale, unit, digits in measures:
-            cells = [cell(pick(mine[side]), scale, unit, digits) for side in sides]
-            base, last = pick(mine[sides[0]])["median_s"], pick(mine[sides[-1]])["median_s"]
-            change = f"{last / base - 1:+.0%}" if base else "–"
-            lines.append(f"| {project} {first['rev']} | {label} | " + " | ".join(cells)
-                         + f" | {change} |")
+            old, new = pick(before), pick(after)
+            change = f"{new['median_s'] / old['median_s'] - 1:+.0%}" if old["median_s"] else "–"
+            lines.append(f"| {name} | {label} | {cell(old, scale, unit, digits)} | "
+                         f"{cell(new, scale, unit, digits)} | {change} |")
     return lines + [""]
 
 
