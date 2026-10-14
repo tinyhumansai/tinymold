@@ -104,7 +104,7 @@ class Analysis(unittest.TestCase):
     def test_measures_parallelism_and_the_lower_bound(self):
         s = self.summary
         self.assertAlmostEqual(s["total_work"], 5.4)
-        self.assertAlmostEqual(s["serial_seconds"], 4.1)
+        self.assertAlmostEqual(s["serial_seconds"], 0.1 + 2.0 + 0.5 + 1.0)
         self.assertAlmostEqual(s["critical_path_work"], 0.5 + 2.0 + 0.4 + 1.5)
         self.assertAlmostEqual(s["lower_bound"], 0.1 + 4.4)
         self.assertAlmostEqual(s["build_scripts"]["on_path"], 2.5)
@@ -112,7 +112,7 @@ class Analysis(unittest.TestCase):
     def test_finds_the_low_parallelism_window_and_who_held_it(self):
         window = self.summary["windows"][0]
         self.assertAlmostEqual(window["start"], 0.5)
-        self.assertAlmostEqual(window["length"], 4.1)
+        self.assertAlmostEqual(window["length"], 2.6)  # 0.5 to 3.1, before app starts
         self.assertTrue(window["units"][0].startswith("libc build-script (run)"))
 
     def test_names_the_largest_gaps(self):
