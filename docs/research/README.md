@@ -1,6 +1,6 @@
 # Research: where Rust build time and disk go, and what tinymold does about it
 
-This directory holds the research that shaped tinymold's architecture. The five
+This directory holds the research that shaped tinymold's architecture. The six
 reports are kept as written (dated 2026-10-14) so their sources and confidence
 labels stay intact. This README is the synthesis: the numbers that define the
 problem, the principles every design decision follows, a de-duplicated catalogue
@@ -13,6 +13,7 @@ of ideas grouped by pillar, what tinymold will not do, and what is still open.
 | [`hashing-and-cache-server.md`](hashing-and-cache-server.md) | Hash choice, avoiding hashing, daemons and remote caches, measured `target/` footprint, a draft cache-key schema |
 | [`source-control-and-caching.md`](source-control-and-caching.md) | Scion/OpenScion, Piper/CitC/Bazel, EdenFS/Buck2, REAPI, Nix CA derivations; content addressing at scale |
 | [`fast-tools.md`](fast-tools.md) | Bun, Zig, esbuild, Go's build cache, tsgo; transferable engineering principles |
+| [`compilers-2026.md`](compilers-2026.md) | Second pass: mold 3.x, cargo's shared-cache design, build-dir v2, Swift/Clang LLVM-CAS caching, Bun's Zig fork, Roc's surgical linker; ranking against tinymold's own baselines |
 
 Confidence labels are carried over from the reports: **[measured]** (on the
 author's machine), **[vendor]** (a project's own benchmark), **(unverified)** or
@@ -219,6 +220,35 @@ means idea 2 in section 7 of the linkers report.
 | Feature-set canonicalization report (only 144 of 323 shared crate names matched) | M on cross-project hits | S | 1 | [H5#12](hashing-and-cache-server.md#5-fifteen-design-decisions-for-tinymold) |
 | Last-use tracking and GC of stale toolchains, profiles and incremental sessions | M on disk | M | 3 | [H4.4](hashing-and-cache-server.md#44-garbage) |
 | New agent worktrees start by reflink-cloning a warm `target/` | H for agent sandboxes | S | 3 | [SC5#8](source-control-and-caching.md#5-ideas-for-tinymold-rustcargo-many-worktrees-many-agents) |
+
+### 3.6 Added by the second pass, and re-ranked by the baselines
+
+The committed baselines ([`bench/README.md`](../../bench/README.md)) show where
+the seconds actually go on darwin arm64. The waste is in work that repeats:
+
+- the second-worktree clean build takes 3.8 s (ripgrep) and 13.2 s (bat);
+- building the tests after the binary takes 3.3 s and 4.6 s;
+- touching files without changing their content costs 0.84 s and 0.91 s,
+  which is more than a real one-line edit.
+
+The no-op rebuild is already 70-100 ms. Disk is cheap
+([ADR 0005](../adr/0005-trade-disk-for-time.md)), so the ideas that spend
+bytes to save seconds move up, and the footprint ideas in §3.5 move down.
+The full ranking is in
+[compilers-2026 §10](compilers-2026.md#10-ideas-ranked-for-tinymold).
+
+| Idea | Impact | Diff. | Sources |
+|---|---|---|---|
+| Clone `target/` snapshots (`clonefile`/reflink) into new worktrees and on branch switch, then settle mtimes | H on the second-worktree row | S-M | [C9](compilers-2026.md#9-what-tinymolds-baselines-say), [SC5#8](source-control-and-caching.md#5-ideas-for-tinymold-rustcargo-many-worktrees-many-agents) |
+| Proc-macro and build-script binaries keyed by producing ActionKey, linked with `-Wl,-no_uuid` on macOS | M on hit rate | S | [C4.1](compilers-2026.md#41-the-macro-plugin-cache-key-bug) |
+| Action-cache entries laid out like cargo#5931 (`entries/<pkg>/<key>` → objects); build-dir v2 units restored whole | L now, strategic | S | [C2, C3](compilers-2026.md#2-cargos-shared-build-cache-is-being-designed-now), [ADR 0004](../adr/0004-store-layout-aligned-with-cargo.md) |
+| Cheap ingest: reflink into the store, hash off the critical path, never compress locally | M (sccache's fill costs +27-49%) | S | [C9](compilers-2026.md#9-what-tinymolds-baselines-say) |
+| Per-unit hit/miss remarks; `explain` reads `-Zbuild-analysis` on nightly | Enabler | S | [C3, C4](compilers-2026.md#4-swift-and-clang-compilation-caching-llvm-cas) |
+| Speculative `cargo build --tests` after a successful build | H on the test-build row | S | [C9](compilers-2026.md#9-what-tinymolds-baselines-say) |
+| Wider codegen sharding (`-C codegen-units`, `-Zthreads`) for the edited crate only | M on the edit row | S | [C6](compilers-2026.md#6-bun-and-its-zig-fork) |
+| `hint-mostly-unused` per heavy dependency, respecting `[hints]` | M-H on clean builds | S | [C8](compilers-2026.md#8-toolchain-flags-and-status) |
+| Prelinked dependency image, then a Roc-style append link | H if it works | L | [C7](compilers-2026.md#7-rocs-surgical-linker) |
+| Never select rust-lld on macOS (3x slower than ld-prime for bat) [measured] | M | S | [C1](compilers-2026.md#1-mold-3x) |
 
 ## 4. What tinymold will not do
 
