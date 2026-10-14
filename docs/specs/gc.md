@@ -74,26 +74,26 @@ tinymold gc [--max-age <age>] [--keep-generations <n>] [--max-size <size>]
 It runs these steps in order:
 
 1. **Expire actions** whose last use is older than `--max-age`.
-1. **Keep `--keep-generations` per unit.** A unit is the cargo compile an
+2. **Keep `--keep-generations` per unit.** A unit is the cargo compile an
    action records, named by its dep-info output (`<crate>-<hash>.d`) within
    its crate. Each edit of a crate stores a new action for the same unit,
    and the older ones only serve a return to an earlier state. Of each
    unit's actions, all but the `n` most recently used are evicted. Actions
    naming no dep-info output are left to the other steps.
-2. **Enforce `--max-size`.** Let the store size be the bytes of every object
+3. **Enforce `--max-size`.** Let the store size be the bytes of every object
    a surviving action references. While that exceeds the budget, evict the
    least recently used action. An object's bytes are freed only when no
    surviving action still references it.
-3. **Expire pre-key records** older than `--max-age`, and digest-cache files
+4. **Expire pre-key records** older than `--max-age`, and digest-cache files
    (`stat/`, `rustc/`) older than `--max-age`. These are caches: losing one
    costs a rehash, never a wrong hit.
-4. **Sweep objects** that no surviving action references and that are older
+5. **Sweep objects** that no surviving action references and that are older
    than the grace period (one hour, or `--grace`; lower it only when no build
    is running, such as at the end of a CI job). Then remove staging files in `tmp/` and
    record temporaries that are older than the grace period, and lock files
    in `locks/` older than the grace period that no wrapper holds
    ([`rustc-wrapper.md`](rustc-wrapper.md)).
-5. **Expire snapshots** whose directory is older than `--snapshots-max-age`.
+6. **Expire snapshots** whose directory is older than `--snapshots-max-age`.
 
 It prints counts and bytes removed and kept. `--dry-run` reports the same
 numbers and deletes nothing.
