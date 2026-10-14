@@ -7,7 +7,7 @@
 //! built from.
 //!
 //! [`save`] records the workspace's freshness manifest (see
-//! [`fresh`](crate::fresh)) and clones the target directory into
+//! [`fresh`]) and clones the target directory into
 //! `<store>/snapshots/<name>`. [`restore`] clones a snapshot into a target
 //! directory and then runs a freshness restore, so every workspace file whose
 //! content matches the snapshot gets the mtime its outputs were built from.
