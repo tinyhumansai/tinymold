@@ -1321,7 +1321,7 @@ def main() -> None:
     ab.add_argument("--runs", type=int, default=7)
     ab.add_argument("--project", help="only this corpus project")
     ab.add_argument("--cases", default="comment,private_body,public_signature",
-                    help="comma-separated edit kinds")
+                    help="comma-separated edit kinds, or clean for a full build")
     dedup = sub.add_parser("dedup", help="byte-identical share of two worktrees' target/")
     dedup.add_argument("--project", help="only this corpus project")
     cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
