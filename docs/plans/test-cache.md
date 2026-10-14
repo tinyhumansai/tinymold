@@ -20,33 +20,29 @@ scratch crates:
   `runner` under `[target.'cfg(all())']`; `cargo bench` passes `--bench`.
 - cargo passes `--cap-lints allow` to a registry dependency and not to the
   workspace crate; `-D warnings -W unused -F deprecated` under `--cap-lints
-  allow` left `.rlib` and `.rmeta` byte-identical.
+  allow` left `.rlib` and `.rmeta` byte-identical. (Slice 1 later found
+  that cargo ≥ 1.88 renames the unit anyway.)
 - `cargo llvm-cov` wraps rustc itself, chains to the existing
   `RUSTC_WRAPPER`, and instruments only workspace crate names.
 - A file reached only through `#[cfg(test)] mod test;` is absent from the
   library's dep-info; a comment appended to it left the test binary
   byte-identical.
 
-## Slice 1: lint flags under `--cap-lints allow` leave the key
+## Slice 1: lint flags under `--cap-lints allow` leave the key (dropped)
 
-The cheapest win, independent of everything else.
+Built test first, then dropped before merging. Branch
+`lint-flag-scoping` holds the commits.
 
-- `crates/tinymold-key/src/args/mod.rs`: expose whether the invocation caps
-  lints at `allow`, and classify lint-level flags (`-A/-W/-D/-F` and
-  `--allow/--warn/--deny/--forbid`, both spellings). `--force-warn` is not
-  a lint-level flag for this purpose.
-- `crates/tinymold-key/src/key/mod.rs`: when capped at `allow`, skip lint-level
-  flags while hashing arguments. Bump the schema tag to `tinymold/rustc/v3`,
-  so the golden vectors change in one visible place.
-- Tests first, in `crates/tinymold-key/src/key/test.rs`:
-  - `lint_flags_do_not_change_the_key_of_a_capped_dependency`;
-  - `lint_flags_change_the_key_of_an_uncapped_crate`;
-  - `force_warn_changes_the_key_even_when_capped`;
-  - the updated golden vector.
-- `tinymold-wrap` end-to-end test: a registry-like dependency built with and
-  without `RUSTFLAGS=-D warnings` hits the second time.
-- Docs: [`cache-key.md`](../specs/cache-key.md) "Not in the key" and
-  [`rustc-wrapper.md`](../specs/rustc-wrapper.md) argument rules.
+- Key tests and a wrapper end-to-end test (`a_capped_dependency_hits_across_lint_flags`)
+  passed. The end-to-end test failed with the filter disabled.
+- With real cargo, a registry dependency hit across
+  `RUSTFLAGS="-D warnings"` on cargo 1.84.1. It still missed on cargo
+  1.88, 1.93 and 1.99, because those versions hash `RUSTFLAGS` into
+  `-C extra-filename`, which is in the output bytes
+  ([spec](../specs/test-cache.md#flag-scoping)).
+- Shipping it would have bumped the schema to `tinymold/rustc/v3`,
+  orphaning every entry, for a gain only on cargo older than tinymold's own
+  rust-version.
 
 ## Slice 2: the test key
 
@@ -124,7 +120,7 @@ The cheapest win, independent of everything else.
 
 ## Completion checklist
 
-- [ ] Slice 1: lint flags leave capped keys
+- [x] Slice 1: dropped, measured (cargo ≥ 1.88 re-keys by output name)
 - [ ] Slice 2: test key
 - [ ] Slice 3: records and `run-test`
 - [ ] Slice 4: clippy-driver caching
