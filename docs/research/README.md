@@ -1,8 +1,8 @@
 # Research: where Rust build time and disk go, and what tinymold does about it
 
-This directory holds the research that shaped tinymold's architecture. The seven
-reports are kept as written (dated 2026-10-14) so their sources and confidence
-labels stay intact. This README is the synthesis: the numbers that define the
+This directory holds the research that shaped tinymold's architecture. The
+reports are kept as written (dated 2026-10-14 unless noted) so their sources
+and confidence labels stay intact. This README is the synthesis: the numbers that define the
 problem, the principles every design decision follows, a de-duplicated catalogue
 of ideas grouped by pillar, what tinymold will not do, and what is still open.
 
@@ -15,6 +15,7 @@ of ideas grouped by pillar, what tinymold will not do, and what is still open.
 | [`fast-tools.md`](fast-tools.md) | Bun, Zig, esbuild, Go's build cache, tsgo; transferable engineering principles |
 | [`compilers-2026.md`](compilers-2026.md) | Second pass: mold 3.x, cargo's shared-cache design, build-dir v2, Swift/Clang LLVM-CAS caching, Bun's Zig fork, Roc's surgical linker; ranking against tinymold's own baselines |
 | [`zig.md`](zig.md) | Third pass: Zig's build system: `std.Build.Cache` manifests, lock-based sharing, whole vs incremental cache modes, `--watch`, configure-cache poisoning, `max_rss` scheduling |
+| [`mold-and-bun.md`](mold-and-bun.md) | Fourth pass (2026-10-15): a source read of mold 3.0 and Bun at pinned commits; what mold redoes on every link, which Bun techniques transfer, and the case for a stateful fork of mold ([ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md)) |
 
 Confidence labels are carried over from the reports: **[measured]** (on the
 author's machine), **[vendor]** (a project's own benchmark), **(unverified)** or
@@ -183,7 +184,7 @@ means idea 2 in section 7 of the linkers report.
 | DWARF-free main links: unpacked split debuginfo, `.dwp` only when a debugger attaches | M | S-M | 4 | [L7#8](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty) |
 | ICF and `--gc-sections` only in a size profile, never the dev loop | L (clarity) | S | 4 | [L7#13](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty) |
 | Incremental output patching, contributed to wild's design | H (~10 ms link of one changed CGU) | XL | 6 | [L7#6, #14](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty), [F9#11](fast-tools.md#9-concrete-ideas-for-tinymold) |
-| Linker with warm resident state (parsed rlibs, merged strings) | H | L | later | [L7#5](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty) |
+| Linker with warm resident state (parsed rlibs, merged strings), built as a stateful fork of mold ([mold-and-bun §3](mold-and-bun.md#3-where-a-forked-linker-can-beat-mold)) | H | L | [linker plan](../plans/linker.md) | [L7#5](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty) |
 | Jump-table hot patching (Subsecond-style) | H, with layout-change limits | L | later | [L7#7](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty) |
 
 ### 3.3 Hot cache server
@@ -274,11 +275,13 @@ locks and no daemon; the full ranking is in
 ## 4. What tinymold will not do
 
 - **Write a new linker from scratch.** mold is already near `cp` speed for full
-  links, and wild has incremental linking as its stated goal and a place on
-  the Rust 2026 Fast Builds roadmap. tinymold selects and configures existing
-  linkers, avoids links it can prove redundant, and contributes incremental
-  linking work upstream to wild or mold
-  ([linkers §7](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty), idea 14).
+  links, and a rewrite would have to rediscover years of target-specific
+  correctness. This originally ruled out any linker work beyond configuring
+  existing linkers. [ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md)
+  narrows it: tinymold forks mold and adds state that persists across links
+  (parse caches, a warm daemon, append linking), but still does not write a
+  linker from scratch or race mold on cold links
+  ([mold-and-bun §4](mold-and-bun.md#4-not-worth-chasing)).
 - **Fork rustc.** tinymold works through `RUSTC_WRAPPER`, stable flags, and
   opt-in nightly flags. Anything that needs compiler changes (RDR, shareable
   incremental state, warm `TyCtxt`) is pursued upstream or not at all
