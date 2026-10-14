@@ -1,0 +1,132 @@
+# The remote tier
+
+- **Status:** Accepted
+- **Owner:** Steven Enamakel
+- **Date:** 2026-10-14
+- **Plan:** [`../plans/remote-and-ci.md`](../plans/remote-and-ci.md)
+- **Builds on:** [ADR 0006](../adr/0006-remote-tier-reapi-bazel-remote.md),
+  [ADR 0002](../adr/0002-blake3-for-content-digests.md),
+  [`rustc-wrapper.md`](rustc-wrapper.md)
+
+## Problem
+
+A fresh runner, or a new developer machine, starts with an empty store. It
+then compiles every unit, even though another machine compiled the same
+units from the same inputs an hour ago.
+
+## Goals and non-goals
+
+Goals:
+
+- On a local miss, fetch the unit from a shared REAPI cache before running
+  rustc.
+- Upload a job's new entries in one batch at the end of the job, not on the
+  hot path.
+- Authenticate with a credential stored as a CI secret. Allow read-only
+  clients.
+- Never let a remote failure or a remote lie break or corrupt a build.
+
+Non-goals:
+
+- Remote execution.
+- Shipping a server (see ADR 0006: bazel-remote is the reference).
+- Uploading from the wrapper on every miss.
+
+## Configuration
+
+| Variable | Meaning |
+|---|---|
+| `TINYMOLD_REMOTE_URL` | `grpc://host:port` (plaintext) or `grpcs://host[:port]` (TLS). Unset: no remote tier |
+| `TINYMOLD_REMOTE_AUTH` | `user:password`, sent as HTTP basic auth on every call. Unset: anonymous |
+| `TINYMOLD_REMOTE_INSTANCE` | REAPI instance name; default empty |
+| `TINYMOLD_REMOTE_TIMEOUT` | Per-call timeout, as a `tinymold gc` age (`2s`); default `5s` |
+
+`tinymold doctor` shows whether a remote is configured. It never prints the
+credential.
+
+## Data model
+
+Two kinds of ActionCache entries, both holding ordinary REAPI
+`ActionResult`s:
+
+- **Action.** The AC key is the unit's full key. Its `output_files` are:
+  - every output object, named as in the out-dir;
+  - `.tinymold/action`, the tinymold action record.
+
+  `stdout_digest` and `stderr_digest` name the replayed text. Listing the
+  objects makes servers that check AC dependencies (bazel-remote does) keep,
+  and vouch for, every blob the entry needs.
+- **Input sets.** The AC key is `BLAKE3(field "tinymold/remote/prekey/v1",
+  pre-key)`. Its one output file, `.tinymold/prekey`, is the pre-key record
+  text.
+
+**Digests.**
+- **CAS blobs** use SHA-256, computed by the client when it uploads.
+- **AC keys** are tinymold's 32-byte BLAKE3 digests, sent with
+  `size_bytes = 0`, which servers treat as opaque.
+
+The salt on the pre-key entries keeps the two kinds of entry from ever
+sharing a key.
+
+## Lookup (in the wrapper, on a local miss)
+
+1. Read the remote input sets for the pre-key. If there are none, it is a
+   miss.
+2. Merge them into the local pre-key record. Remote input identities are
+   zeroed, which forces a rehash. Then try each set as the local lookup
+   would.
+3. For the first full key the local store lacks, get the remote action:
+   1. fetch `.tinymold/action` and decode it;
+   2. fetch every object it names that the local store does not hold;
+   3. insert each into the local CAS, which re-derives its BLAKE3 digest;
+   4. check that every digest the record names is now in the store; if any
+      is missing, it is a miss.
+4. Write the local action and restore it, as a local hit would. The log
+   outcome is `remote`.
+
+Calls go through ByteStream `Read` for blobs, so blob size is not limited
+by the gRPC message size. Each call has the configured timeout. **Any
+error, timeout or verification failure is logged and becomes a miss**, and
+rustc runs.
+
+## Push (`tinymold remote push`)
+
+```text
+tinymold remote push [--since <unix-seconds>]
+```
+
+1. Gather local actions, and pre-key records, whose last use is at or after
+   `--since` (default: all).
+2. For each action, compute the SHA-256 of every blob it needs, and ask
+   `FindMissingBlobs` for them in batches.
+3. Upload the missing blobs with ByteStream `Write`, then `UpdateActionResult`
+   for the action. Pre-key entries go last, so a reader that finds an input
+   set can find its action.
+
+The command reports how many entries and bytes it uploaded. It fails, with
+exit 1, on the first rejected write, such as missing write credentials.
+
+`tinymold remote check` calls `GetCapabilities`. It reports the server's
+digest functions and whether the credential can write, and exits 1 when the
+server is unreachable or rejects the credential.
+
+## Trust
+
+- Only trusted CI holds a write credential. Pull requests from forks get no
+  secrets, and read anonymously when the server allows unauthenticated
+  reads, or run without a remote.
+- **A remote can only make a build miss.** Everything it returns is
+  re-hashed and checked against digests in records the client parsed itself.
+  A server that returns a wrong record for a key is trusted as much as the
+  CI that wrote it, which is why writes are restricted.
+
+## Acceptance criteria
+
+- With a populated remote and an empty local store, a clean build of this
+  workspace reaches ≥ 90% `remote` outcomes (CI `remote-e2e` job).
+- An unreachable remote costs at most one timeout per wrapper and the build
+  succeeds.
+- A blob whose content does not match its digest is rejected, and the unit
+  compiles.
+- A wrong credential makes `remote check` and `remote push` exit 1 and
+  leaves builds working.
