@@ -16,7 +16,7 @@ docs/
 └── adr/           # architecture decision records, numbered and immutable
 ```
 
-- **[`research/`](research/README.md)**: the research behind the design, kept
+- **[`research/`](research/README.md)** — the research behind the design, kept
   as dated reports, plus a synthesis with the problem in numbers, the guiding
   principles and a catalogue of ideas by pillar.
 - **[`specs/`](specs/README.md)** — one file per feature, module, or subsystem,
