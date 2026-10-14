@@ -906,6 +906,11 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
                 if mode == "sccache":
                     subprocess.run([sccache, "--stop-server"], env=session.env,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if variants:
+        # Experiments get their own result file, so they never crowd the
+        # scenario table the roadmap's gates are read from.
+        return {"benchmark": "experiments", "pins": pins(), "results": results,
+                "variants": {name: VARIANTS[name] for name in variants}}
     return {"benchmark": "scenarios", "pins": pins(), "results": results}
 
 
