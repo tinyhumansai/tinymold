@@ -12,6 +12,8 @@
 //!   placeholders and back;
 //! - [`DepInfo::parse`] reads which files and env vars a compile actually
 //!   used;
+//! - [`content_digest`] names a static archive by its members, not its
+//!   build stamps;
 //! - [`pre_key`] and [`full_key`] compute the two digests of the two-phase
 //!   lookup described in `docs/specs/rustc-wrapper.md`.
 //!
@@ -36,12 +38,14 @@
 //! that the rules deciding what a key covers can be read, and tested, on
 //! their own.
 
+mod archive;
 mod args;
 mod depinfo;
 mod error;
 mod key;
 mod roots;
 
+pub use archive::content_digest;
 pub use args::{Classified, Extern, Invocation, SearchPath};
 pub use depinfo::DepInfo;
 pub use error::{Error, Result};

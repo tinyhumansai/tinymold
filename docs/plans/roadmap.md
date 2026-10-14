@@ -107,6 +107,14 @@ caching individual units yet.
 
 ## Phase 3: Cache core
 
+**Status.** First slice implemented. See [`rustc-wrapper.md`](rustc-wrapper.md)
+for the results.
+
+- Warm clean builds, branch switches and test builds beat both stock cargo
+  and sccache on every corpus project.
+- Filling the cache costs about 5%.
+- Build-script runs, verify mode and background ingest remain.
+
 **Goal.** Never compile the same unit twice on one machine, wherever it is
 checked out, including the units sccache refuses.
 

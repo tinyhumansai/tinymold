@@ -18,7 +18,9 @@ use crate::args::KeyArg;
 use crate::{Invocation, Roots};
 
 /// The schema tag of every pre-key.
-const SCHEMA: &str = "tinymold/rustc/v1";
+// v2: actions record every file with the unit's prefix, including artifacts
+// incremental rustc reuses with old mtimes, which v1 entries may lack.
+const SCHEMA: &str = "tinymold/rustc/v2";
 
 /// Environment variables rustc reads without recording them in dep-info.
 pub const KEY_ENV: &[&str] = &[
