@@ -102,6 +102,34 @@ def baseline_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def cache_section(result: dict) -> list[str]:
+    rows = result["results"]
+    lines = [f"### Clean builds: no cache, dry run, cached run ({describe(result)})", "",
+             f"Cache: {result['cache']}, private directory and port. Each cell is the median "
+             "clean build; hits and misses count rustc invocations.", "",
+             "| Scenario | " + " | ".join(f"{r['project']} {r['rev']}" for r in rows) + " |",
+             "| --- |" + " ---: |" * len(rows)]
+
+    def row(label: str, cell) -> None:
+        lines.append(f"| {label} | " + " | ".join(cell(r) for r in rows) + " |")
+
+    def hits(stats: dict) -> str:
+        total = stats["hits"] + stats["misses"]
+        return f"{stats['hits']}/{total} hits" if total else "no cacheable calls"
+
+    row("No cache", lambda r: f"{r['no_cache']['median_s']:.1f}s")
+    row("Empty cache (dry run, fills it)", lambda r: f"{r['cold_cache']['median_s']:.1f}s")
+    row("Warm cache (cached run)", lambda r: f"{r['warm_cache']['median_s']:.1f}s")
+    row("Warm cache, second worktree at another path",
+        lambda r: f"{r['second_worktree_warm_cache']['median_s']:.1f}s")
+    row("Cached run hit rate", lambda r: hits(r["warm_stats"]))
+    row("Second worktree hit rate", lambda r: hits(r["second_worktree_stats"]))
+    row("Not cacheable (bins, proc-macros, incremental, …)",
+        lambda r: str(r["warm_stats"]["non_cacheable"]))
+    row("Cache size on disk", lambda r: mib(r["cache_bytes"]))
+    return lines + [""]
+
+
 def cas_section(result: dict) -> list[str]:
     lines = [f"### Restoring a {result['artifact_mb']} MiB artifact ({describe(result)})", "",
              "| Method | Median | min–max |", "| --- | ---: | ---: |"]
@@ -114,13 +142,15 @@ def cas_section(result: dict) -> list[str]:
 
 def main() -> None:
     sections: list[str] = []
-    order = {"baseline": 0, "link": 1, "cas": 2}
+    order = {"baseline": 0, "cache": 1, "link": 2, "cas": 3}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
         result = json.loads(path.read_text())
         if result["benchmark"] == "baseline":
             sections += baseline_section(result)
+        elif result["benchmark"] == "cache":
+            sections += cache_section(result)
         elif result["benchmark"] == "link":
             sections += link_section(path.stem, result)
         elif result["benchmark"] == "cas":
