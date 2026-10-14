@@ -70,11 +70,6 @@ impl Client {
         })
     }
 
-    /// The instance name calls are made against.
-    pub(crate) fn instance(&self) -> &str {
-        &self.instance
-    }
-
     /// What the server supports.
     pub(crate) async fn capabilities(&self) -> Result<ServerCapabilities> {
         let request = GetCapabilitiesRequest {

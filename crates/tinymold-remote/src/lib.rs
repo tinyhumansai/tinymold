@@ -38,6 +38,8 @@
 mod client;
 mod config;
 mod error;
+#[cfg(test)]
+mod fake;
 mod naming;
 mod proto;
 mod remote;

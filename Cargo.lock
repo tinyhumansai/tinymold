@@ -841,6 +841,8 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-prost",
+ "tower",
+ "tower-service",
 ]
 
 [[package]]
