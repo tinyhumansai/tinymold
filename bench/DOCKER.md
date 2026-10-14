@@ -105,16 +105,18 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   cold build (176s against 175s).
 - **A new path misses about a quarter of the graph.** The first build of a
   copy at another path hit 347 of 474 compiles and took 165s. Repeat builds
-  at that path then hit (5.8s). Crates whose build scripts write into
-  `OUT_DIR`, and everything that depends on them, miss. Their outputs embed
-  the absolute path, so the keys are right to differ
-  ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md) keys env values raw
-  for this reason). Remapping path prefixes so those outputs stop depending
-  on the checkout is the change that would make a new worktree warm.
+  at that path then hit (5.8s). The first misses are crates with build
+  scripts (`ref_cast`, `thiserror`, `serde_core`, `rustversion`), and the
+  rest are their dependents. The likely cause, not yet confirmed: these
+  crates read `OUT_DIR` through `env!`/`include!`, the key takes env values
+  raw on purpose ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md)), and
+  outputs that record the path change their dependents' keys too. If so,
+  remapping path prefixes so outputs stop depending on the checkout would
+  make a new worktree warm.
 - **A snapshot does not help a new path yet.** Restoring the first
-  checkout's `target/` (4.5-9.6s, copies on ext4) leaves the six workspace
-  crates to compile against dependencies built at the other path. That first
-  build took 155s.
+  checkout's `target/` (4.5-9.6s, copies on ext4) still left the six
+  workspace crates to recompile, all six missing, and that first build took
+  155s. Presumably they key on the new path for the same reason.
 - **Storing and restoring by copy costs the edit loop.** Without reflinks,
   storing the rebuilt binary costs about 0.7s on every edit, so a leaf edit
   takes 2.1s under tinymold against 1.1s with mold alone. A core edit takes
