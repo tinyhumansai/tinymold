@@ -39,14 +39,17 @@ fn the_wrapper_uses_the_default_store_and_an_optional_log() {
     let env = |name: &str| match name {
         "TINYMOLD_STORE" => Some("/store".into()),
         "TINYMOLD_LOG" => Some("/log".into()),
+        "TINYMOLD_TRACE" => Some("/trace".into()),
         _ => None,
     };
     let config = wrapper_config(env).unwrap();
     assert_eq!(config.store, Path::new("/store"));
     assert_eq!(config.log.as_deref(), Some(Path::new("/log")));
+    assert_eq!(config.trace.as_deref(), Some(Path::new("/trace")));
 
     let no_log = |name: &str| (name == "TINYMOLD_STORE").then(|| "/store".into());
     assert_eq!(wrapper_config(no_log).unwrap().log, None);
+    assert_eq!(wrapper_config(no_log).unwrap().trace, None);
     assert!(wrapper_config(|_| None).is_none());
 }
 

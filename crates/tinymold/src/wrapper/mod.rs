@@ -37,13 +37,16 @@ fn is_program(arg: &OsStr) -> bool {
 }
 
 /// The wrapper configuration from the environment: the default store and,
-/// when `TINYMOLD_LOG` is set, a log file. `None` when no store location can
+/// when `TINYMOLD_LOG` or `TINYMOLD_TRACE` is set, a log or trace file. `None` when no store location can
 /// be derived, in which case the compiler runs uncached.
 #[must_use]
 pub fn wrapper_config(lookup: impl Fn(&str) -> Option<OsString>) -> Option<Config> {
     let store = crate::default_store(&lookup)?;
     let mut config = Config::new(store);
     config.log = lookup("TINYMOLD_LOG")
+        .filter(|value| !value.is_empty())
+        .map(Into::into);
+    config.trace = lookup("TINYMOLD_TRACE")
         .filter(|value| !value.is_empty())
         .map(Into::into);
     Some(config)

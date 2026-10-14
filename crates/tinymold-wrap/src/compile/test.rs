@@ -77,7 +77,14 @@ impl Crate {
         let Classified::Cacheable(invocation) = Invocation::parse(text) else {
             panic!("the test compile must be cacheable");
         };
-        serve(&self.store, remote, &rustc(), &args, &invocation)
+        serve(
+            &self.store,
+            remote,
+            &rustc(),
+            &args,
+            &invocation,
+            &mut Trace::start(),
+        )
     }
 
     fn outputs(&self) -> Vec<(String, Vec<u8>)> {
@@ -171,7 +178,16 @@ fn a_compile_without_dep_info_is_not_stored() {
         panic!("cacheable");
     };
     let args: Vec<OsString> = text.into_iter().map(OsString::from).collect();
-    match serve(&unit.store, None, &rustc(), &args, &invocation).unwrap() {
+    match serve(
+        &unit.store,
+        None,
+        &rustc(),
+        &args,
+        &invocation,
+        &mut Trace::start(),
+    )
+    .unwrap()
+    {
         Served::Miss {
             code: 0, stored, ..
         } => assert_eq!(stored.unwrap_err(), "no dep-info"),
@@ -265,11 +281,29 @@ fn a_restored_binary_is_executable_and_fresh() {
         panic!("cacheable");
     };
     let args: Vec<OsString> = text.into_iter().map(OsString::from).collect();
-    assert_stored(&serve(&unit.store, None, &rustc(), &args, &invocation).unwrap());
+    assert_stored(
+        &serve(
+            &unit.store,
+            None,
+            &rustc(),
+            &args,
+            &invocation,
+            &mut Trace::start(),
+        )
+        .unwrap(),
+    );
     unit.clear_outputs();
     let before = SystemTime::now() - Duration::from_secs(1);
     assert!(matches!(
-        serve(&unit.store, None, &rustc(), &args, &invocation).unwrap(),
+        serve(
+            &unit.store,
+            None,
+            &rustc(),
+            &args,
+            &invocation,
+            &mut Trace::start()
+        )
+        .unwrap(),
         Served::Hit
     ));
     let binary = unit.out().join("demo-1");

@@ -181,6 +181,14 @@ and 4.6 s on bat today.
 
 ## Phase 5: Edit loop
 
+**Status.** First experiments done. See [`edit-loop.md`](edit-loop.md).
+
+- Debug-info levels, `-Zthreads` and Cranelift do not speed up incremental
+  edits: code generation is about a fifth of one.
+- `codegen-units = 64` makes every edit kind 13-21% faster on ripgrep and bat
+  in interleaved A/B runs, and is recommended.
+- Early cutoff, prelinking and hot patching come next.
+
 **Goal.** Cut the one-line edit rebuild: 0.52 s on ripgrep and 0.75 s on bat
 today.
 

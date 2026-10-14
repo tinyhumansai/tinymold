@@ -34,6 +34,7 @@ use crate::record::{
 };
 use crate::remote::{Remote, RemoteError};
 use crate::stat::{self, nanos};
+use crate::trace::Trace;
 use crate::{Error, Result};
 
 /// How a cacheable invocation was served.
@@ -74,6 +75,7 @@ pub(crate) fn serve(
     program: &Path,
     args: &[OsString],
     invocation: &Invocation,
+    trace: &mut Trace,
 ) -> Result<Served> {
     let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
     let cargo_home = std::env::var_os("CARGO_HOME")
@@ -87,9 +89,9 @@ pub(crate) fn serve(
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
     };
-    let pre = unit.pre_key(program)?;
-    if let Some((action, entry)) = unit.lookup(&pre)?
-        && unit.restore(&action).is_ok()
+    let pre = trace.span("pre_key", || unit.pre_key(program))?;
+    if let Some((action, entry)) = trace.span("lookup", || unit.lookup(&pre))?
+        && trace.span("restore", || unit.restore(&action)).is_ok()
     {
         record::touch(&entry);
         record::touch(&unit.prekey_path(&pre));
@@ -97,8 +99,10 @@ pub(crate) fn serve(
     }
     let mut remote_failure = None;
     if let Some(remote) = remote {
-        match unit.remote_lookup(remote, &pre) {
-            Ok(Some((action, entry))) if unit.restore(&action).is_ok() => {
+        match trace.span("remote", || unit.remote_lookup(remote, &pre)) {
+            Ok(Some((action, entry)))
+                if trace.span("restore", || unit.restore(&action)).is_ok() =>
+            {
                 record::touch(&entry);
                 return Ok(Served::RemoteHit);
             }
@@ -108,10 +112,11 @@ pub(crate) fn serve(
     }
 
     let started = SystemTime::now();
-    let captured = exec::run_captured(program, args)?;
+    let captured = trace.span("rustc", || exec::run_captured(program, args))?;
     let stored = if captured.code == 0 {
         let ingesting = std::time::Instant::now();
-        unit.ingest(&pre, started, &captured)
+        trace
+            .span("ingest", || unit.ingest(&pre, started, &captured))
             .map(|()| ingesting.elapsed())
             .map_err(|error| error.to_string())
     } else {
