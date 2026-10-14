@@ -34,7 +34,7 @@ fn items_are_spread_over_more_than_one_thread() {
 fn no_items_need_no_work() {
     let none: Vec<u32> = Vec::new();
     let mapped = map(&none, "nothing", |_| -> Result<u32> { panic!("no items") }).unwrap();
-    assert!(mapped.is_empty());
+    assert_eq!(mapped, Vec::<u32>::new());
 }
 
 #[test]
@@ -61,9 +61,7 @@ fn the_first_failing_item_fails_the_whole_map() {
 fn a_panicking_worker_is_an_error_naming_the_task() {
     let items: Vec<u32> = (0..100).collect();
     let error = map(&items, "restoring outputs", |n| {
-        if *n == 50 {
-            panic!("worker gave up");
-        }
+        assert!(*n != 50, "worker gave up");
         Ok::<_, Error>(*n)
     })
     .unwrap_err();
@@ -88,9 +86,7 @@ fn a_panic_after_another_worker_failed_is_still_an_error() {
                 line: 1,
             });
         }
-        if *n == 99 {
-            panic!("worker gave up");
-        }
+        assert!(*n != 99, "worker gave up");
         Ok(*n)
     })
     .unwrap_err();
