@@ -441,8 +441,8 @@ def edits_section(name: str, result: dict) -> list[str]:
              + " | fresh build | after fresh |",
              "| --- | --- |" + " ---: |" * (len(EDIT_COMMANDS) + 2)]
     footprint = ["", "| Project | Mode | target/ final | target/ per step | incremental final "
-                 "| coverage final | store final | store per step | peak RSS |",
-                 "| --- | --- |" + " ---: |" * 7]
+                 "| coverage final | store final | store per step | store after gc | peak RSS |",
+                 "| --- | --- |" + " ---: |" * 8]
     charts = [""]
     for project in dict.fromkeys(r["project"] for r in rows):
         mine = [r for r in rows if r["project"] == project]
@@ -479,12 +479,17 @@ def edits_section(name: str, result: dict) -> list[str]:
                 f"{mib(int(target_growth))} | {mib(size(last, 'target', 'incremental'))} | "
                 f"{mib(size(last, 'target', 'coverage'))} | "
                 f"{mib(size(last, 'store')) if has_store else '–'} | "
-                f"{mib(int(store_growth)) if has_store else '–'} | {rss:,.0f} MiB |")
+                f"{mib(int(store_growth)) if has_store else '–'} | "
+                f"{mib(size(last, 'store_after_gc')) if 'store_after_gc' in last else '–'} | "
+                f"{rss:,.0f} MiB |")
             series[f"{r['mode']} target/"] = [(s["step"], size(s, "target", "total") / 2**20)
                                               for s in steps]
             if has_store:
                 series[f"{r['mode']} store"] = [(s["step"], size(s, "store") / 2**20)
                                                 for s in steps]
+            if "store_after_gc" in last:
+                series[f"{r['mode']} store after gc"] = [
+                    (s["step"], size(s, "store_after_gc") / 2**20) for s in steps]
         svg = RESULTS / f"{name}-{project}.svg"
         growth_chart(f"{project}: target/ and store size by step (MiB allocated)", series, svg)
         charts += [f"![{project} size by step](results/{svg.name})", ""]
