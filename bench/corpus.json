@@ -1,0 +1,12 @@
+{
+  "projects": [
+    {
+      "name": "ripgrep",
+      "repo": "https://github.com/BurntSushi/ripgrep",
+      "rev": "14.1.1",
+      "package": "ripgrep",
+      "bin": "rg",
+      "edit": "crates/core/main.rs"
+    }
+  ]
+}
