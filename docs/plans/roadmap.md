@@ -1,9 +1,15 @@
 # tinymold roadmap
 
-> **Draft.** This roadmap is a starting point to be refined with the user in
-> the planning step that follows. Phase boundaries, exit criteria and numbers
-> will change. Each phase gets its own spec in [`../specs/`](../specs/README.md)
-> and test-first plan in this directory before implementation starts.
+> **Revised 2026-10-14** against the committed baselines in
+> [`bench/README.md`](../../bench/README.md) and the second research pass
+> ([`compilers-2026.md`](../research/compilers-2026.md)). Work is ordered by the
+> seconds each phase removes from a measured row. Disk is cheap
+> ([ADR 0005](../adr/0005-trade-disk-for-time.md)), so exit criteria gate on
+> wall time, not bytes. Each phase gets its own spec in
+> [`../specs/`](../specs/README.md) and a test-first plan in this directory
+> before implementation starts. Every gate is measured with the existing
+> harness in [`bench/`](../../bench/README.md), and before and after numbers
+> go in the pull request.
 
 - **Architecture:** [`../specs/architecture.md`](../specs/architecture.md)
 - **Cache key:** [`../specs/cache-key.md`](../specs/cache-key.md)
@@ -37,183 +43,190 @@ and 0.0.1 is on crates.io.
 
 **Dependencies.** None.
 
-## Phase 1: Measure
+## Phase 1: Measure (done)
 
-**Goal.** Know where time and bytes go on real projects before optimizing, and
-be able to prove any later speedup.
+**Delivered.**
+
+- `bench/bench.py` has these benchmarks, each with results committed for
+  darwin arm64:
+  - `baseline`, `cache` (sccache), `scenarios`, `dedup`, `link` and `cas`.
+- The corpus is ripgrep, bat, tokio, bevy and tinymold itself.
+- The `scenarios` benchmark pins jobs, filesystem, linker, output reuse and
+  incremental, and records them with every result.
+
+**Open items carried forward.**
+
+- Linux baselines, including mold 3.0 and wild.
+- Check whether the harness's `CARGO_INCREMENTAL=1` turns on incremental for
+  registry dependencies too, which would inflate the clean-build rows
+  ([compilers-2026 §9](../research/compilers-2026.md#9-what-tinymolds-baselines-say)).
+- Add a `tinymold` mode to `scenarios` beside `baseline` and `sccache` once
+  Phase 3 lands.
+
+## Phase 2: Freshness and snapshots
+
+**Goal.** Remove rebuilds caused only by mtimes and by a new path, without
+caching individual units yet.
 
 **Deliverables.**
 
-- `tinymold doctor` diagnosis: run or read `cargo build --timings` (and
-  self-profile data on nightly) and classify a build as link-, frontend-,
-  LLVM-, macro- or build-script-bound. Report `target/` size by artifact kind,
-  flag churn (`RUSTFLAGS` differing between tools), feature-set divergence,
-  and macOS hygiene issues (XProtect, Spotlight).
-- `tinymold-bench`: a harness that pins filesystem, output reuse, linker fork
-  mode and thread count and records them with every result. Scenarios follow
-  rustc-perf: clean, no-op, comment edit, private body edit, signature edit,
-  new worktree; metrics are wall time, link time, bytes in `target/`, and
-  later hit rate.
-- A chosen benchmark corpus (candidates: ripgrep, a Bevy app, a test-heavy
-  workspace, a `-sys`-heavy workspace, tinymold itself) with baseline numbers
-  committed under `docs/`.
-- Design spec for the cache-miss explainer (`tinymold explain`).
+- `tinymold fresh`: a content manifest of `(path → BLAKE3, mtime)` per
+  workspace.
+  - After a checkout, rebase, switch or touch, it restores the recorded mtime
+    of every file whose content is unchanged.
+  - It is backed by a stat cache keyed by
+    `(dev, inode, size, mtime_ns, ctime_ns)` with git's racily-clean rule.
+  - It can run from a `post-checkout` hook.
+- A spike: `clonefile` (APFS) or reflink (Linux) of a warm `target/` into a
+  second worktree, followed by `tinymold fresh`. It records which units cargo
+  still rebuilds, and why.
+- If the spike passes:
+  - `tinymold snapshot save|restore`, keyed by
+    `(commit, toolchain, profile, cargo config digest)`, keeping one snapshot
+    per branch head;
+  - `tinymold worktree-prepare`, which restores the nearest snapshot.
 
 **Exit criteria.**
 
-- Baselines published for every corpus project on Linux and macOS.
-- Benchmark medians repeat within ±5% across 5 runs on the same machine.
-- `doctor` classification agrees with a manual reading of `--timings` on every
-  corpus project.
-- Explainer spec accepted.
+- The touch-all rebuild falls to no-op time: ≤ 0.12 s on ripgrep and bat,
+  down from 0.84 s and 0.91 s.
+- The second-worktree clean build takes ≤ 0.5 s on ripgrep and ≤ 1.5 s on
+  bat, down from 3.8 s and 13.2 s.
+- A branch switch A→B→A rebuilds nothing.
+- A build from a snapshot produces outputs identical to a clean build, apart
+  from differences the residual-path report explains.
 
 **Dependencies.** Phase 0.
 
-## Phase 2: Cache core
+## Phase 3: Cache core
 
-**Goal.** Never compile the same unit twice on one machine, across worktrees,
-checkouts and branches.
-
-**Deliverables.**
-
-- `tinymold-key`: ActionKey and ActionResult per the cache-key spec, two-phase
-  lookup, path normalization to `${WS}`, `${CARGO_HOME}`, `${SYSROOT}`,
-  `${OUT}`.
-- `tinymold-wrap` as `RUSTC_WRAPPER`: injects `--remap-path-prefix`, looks up
-  and materializes hits from the local CAS, runs rustc on misses, ingests
-  outputs atomically, replays diagnostics.
-- Caching of the outputs sccache refuses: `bin`, test, `cdylib` and
-  proc-macro crates, and build-script outputs.
-- Checksum freshness on stable: restore mtimes from a content manifest after
-  checkout, restore or `git switch`.
-- `tinymold explain` and background verification sampling (default 1% of
-  hits).
-- A residual-absolute-path scan that refuses to share contaminated outputs.
-
-**Exit criteria.**
-
-- A second worktree of the same commit gets ≥ 90% unit hits on every corpus
-  project, and its build is ≥ 5x faster than cold.
-- Switching branches A → B → A rebuilds nothing on the return to A.
-- Zero verification mismatches across the benchmark scenarios; any mismatch
-  found is root-caused and either fixed in the key or made uncacheable.
-- Every miss in the benchmark runs is attributed to a named key field by
-  `tinymold explain`.
-- Wrapper overhead on a hit is under 20 ms per unit without a server.
-
-**Dependencies.** Phase 0; Phase 1 harness and explainer spec.
-
-## Phase 3: Hot server
-
-**Goal.** Make lookups nearly free, run identical work once across agents, and
-bound disk use.
+**Goal.** Never compile the same unit twice on one machine, wherever it is
+checked out, including the units sccache refuses.
 
 **Deliverables.**
 
-- `tinymold-server`: Unix-socket daemon carrying keys and paths only;
-  `tinymold-wrap` uses it when present and falls back to one-shot mode.
-- Stat cache with the racily-clean rule; FSEvents/inotify dirty set with a
-  full-walk fallback on overflow.
-- Single-flight dedup of identical concurrent actions across worktrees and
-  agents, with lease expiry.
-- Per-key incremental-dir store swapped in on worktree or branch switch.
-- Tiered storage (hot page-cache hints, warm CAS, cold zstd) with a global
-  budget, per-project quotas, LRU eviction by last materialization, and a
-  floor for each active workspace's latest graph.
-- Persistent server state so restarts are warm; reflink-clone of a warm
-  `target/` for new worktrees.
+- **`tinymold-key`**:
+  - ActionKey and ActionResult per the [cache-key spec](../specs/cache-key.md);
+  - path normalization to `${WS}`, `${CARGO_HOME}`, `${SYSROOT}` and `${OUT}`;
+  - proc-macro and build-script identity keys;
+  - a golden-vector test for the encoding.
+- **`tinymold-wrap`** as `RUSTC_WRAPPER`:
+  - injects `--remap-path-prefix`;
+  - looks up in two phases;
+  - restores by reflink;
+  - replays diagnostics;
+  - prints `TINYMOLD_REMARKS=1` hit/miss lines.
+- Caching for bin, test, cdylib and proc-macro units, and for build-script
+  outputs.
+- Cheap ingest: reflink into the store, hash on a background thread, write
+  the ActionResult last, never compress.
+- An action-cache layout aligned with cargo's proposal
+  ([ADR 0004](../adr/0004-store-layout-aligned-with-cargo.md)), and support
+  for build-dir layout v2.
+- `tinymold explain`, which reads `-Zbuild-analysis` on nightly. A verify
+  mode rebuilds and compares.
 
 **Exit criteria.**
 
-- Warm hit p50 ≤ 2 ms per unit, measured at the wrapper.
-- No-op build overhead is proportional to changed files, not repo size
-  (verified by scaling the corpus).
-- 8 concurrent builds of one commit in 8 worktrees compile each unit once.
-- 4 worktrees of a corpus project use ≤ 1.3x the disk of one, and total store
-  size never exceeds the configured budget.
-- Killing the server mid-build produces a correct build via fallback.
+- Filling an empty cache costs ≤ 10% over an uncached clean build (sccache:
+  +27% and +49%).
+- A warm second worktree builds in ≤ 1.0 s (ripgrep) and ≤ 3.0 s (bat), where
+  sccache takes 1.8 s and 8.9 s.
+- A hit costs < 20 ms per unit, without a server.
+- Verify mode on every benchmark hit finds zero mismatches.
+- Every miss is attributed to a named key field.
 
-**Dependencies.** Phase 2.
+**Dependencies.** Phase 2 (the stat cache).
 
-## Phase 4: Linking
+## Phase 4: Test builds and links
 
-**Goal.** Shorten or remove the links that the cache cannot avoid.
+**Goal.** Shrink `cargo test` builds after `cargo build`: 3.3 s on ripgrep
+and 4.6 s on bat today.
 
 **Deliverables.**
 
-- `tinymold-link` and the wrapper's link mode: link-skip when inputs, args
-  and linker are unchanged.
-- Linker autoselect (wild, mold, lld, ld-prime) plus a debuginfo profile
-  (`line-tables-only`, deps without debuginfo, unpacked split debuginfo, zstd
-  debug sections on Linux if Phase 1 data supports it), applied as a
-  reversible config patch and verified after the build.
-- Link concurrency governor for `cargo test`.
-- Test-binary consolidation (advisor, then opt-in codemod).
-- Dylib dev mode: dependencies as one shared library for dev builds.
-- Prelinked dependency archive stored in the CAS.
+- `linker = tinymold`: link-skip keyed by input digests, arguments and linker
+  identity. Linked binaries and test binaries are cached in the CAS.
+- A speculative, low-priority `cargo build --tests` after each successful
+  `cargo build`.
+- A link concurrency governor for `cargo test`.
+- Linker autoselect:
+  - macOS keeps ld-prime and never uses rust-lld, which measured about 3x
+    slower on bat;
+  - Linux uses mold 3.x or wild when present.
+- An advisor for consolidating test binaries, with an opt-in codemod.
 
 **Exit criteria.**
 
-- A touch-only rebuild performs zero links.
-- On the link-bound corpus project, the edit-run loop is ≥ 30% faster than the
-  rust-lld baseline.
-- `cargo test` peak RSS on the test-heavy corpus project stays under a set
-  bound with no wall-time regression over 5%.
-- Consolidation reduces the integration-test link count from N to 1 on the
-  corpus project that has N test files.
-- Dylib dev mode relinks the top crate in under 1 s on the Bevy corpus
-  project.
+- A warm build of tests after the binary takes ≤ 1.5 s (ripgrep) and ≤ 2.0 s
+  (bat).
+- A rebuild where files were only touched performs zero links.
 
-**Dependencies.** Phase 2 (caching of link outputs); Phase 1 benchmarks.
-Independent of Phase 3, so it can run in parallel with it.
+**Dependencies.** Phase 3.
 
-## Phase 5: Early cutoff and remote
+## Phase 5: Edit loop
 
-**Goal.** Stop edits from cascading through dependents, and share the cache
-beyond one machine.
+**Goal.** Cut the one-line edit rebuild: 0.52 s on ripgrep and 0.75 s on bat
+today.
+
+**Deliverables.** Each item is an experiment with a recorded result. Winners
+become part of a reversible `tinymold doctor --fix` profile.
+
+- A debuginfo profile: `line-tables-only` for deps, `split-debuginfo=unpacked`.
+- Wider codegen sharding for the edited crate only, plus `-Zthreads` on
+  nightly.
+- Cranelift for workspace crates, on nightly where it is available.
+- `hint-mostly-unused` per heavy dependency.
+- Early cutoff on `.rmeta` digests, enabled per crate once its rmeta has been
+  observed to be reproducible.
+- A spike on a prelinked dependency image, followed by a Roc-style append
+  link.
+
+**Exit criteria.**
+
+- The edit rebuild is ≥ 30% faster on the link-bound corpus project.
+- A private-body edit rebuilds only that crate and its link, wherever rmeta
+  is reproducible.
+
+**Dependencies.** Phases 3 and 4.
+
+## Phase 6: Hot server and remote
+
+**Goal.** Share work across concurrent agents and machines. Speed on its own
+matters less here: no-op builds are already 70-100 ms.
 
 **Deliverables.**
 
-- Early cutoff on rmeta digests: dependents keyed by upstream `.rmeta`
-  content, enabled per crate once its rmeta has been observed to be
-  reproducible.
-- `tinymold-remote`: REAPI v2 client with zstd-compressed blobs and
-  `FindMissingBlobs` batching; CI writes, developers read.
-- CI pre-warm: every `main` commit publishes its cache entries for the
-  default profile and targets.
+- `tinymold-server`:
+  - a Unix-socket daemon;
+  - single-flight across worktrees and agents;
+  - a stat cache and an FSEvents/inotify dirty set;
+  - persistent state with snapshot boot.
+- Prewarm: every `main` commit publishes cache entries and a `target/`
+  snapshot.
+- `tinymold-remote`: a REAPI v2 client, with remote writes only from trusted
+  CI.
 
 **Exit criteria.**
 
-- A comment-only or private-body edit in a crate rebuilds that crate and its
-  link only; all dependents hit, on every corpus project where rmeta is
-  reproducible.
-- A fresh clone of `main` on a new machine reaches ≥ 90% hits from the remote
-  tier.
-- Works unmodified against bazel-remote and one other REAPI server.
+- Eight concurrent builds of one commit, in eight worktrees, compile each
+  unit once.
+- A warm hit has p50 ≤ 2 ms.
+- Killing the server mid-build still produces a correct build.
+- A fresh clone of `main` on a new machine reaches ≥ 90% remote hits.
 
-**Dependencies.** Phases 2 and 3; reproducibility data from Phase 2
-verification.
+**Dependencies.** Phase 3.
 
-## Phase 6: Research bets
+## Phase 7: Research bets
 
-**Goal.** Explore the ideas with the highest ceiling and the most risk. Each
-bet starts with a time-boxed spike and a go/no-go decision recorded as an ADR.
+Each bet is a time-boxed spike that ends in an ADR:
 
-**Candidates.**
+- RDR-lite interface hashing;
+- incremental linking contributed upstream to wild;
+- a proc-macro expansion cache;
+- a persistent `rustc_driver` worker;
+- chunked storage of rlib members and DWARF sections.
 
-- **RDR-lite:** a span-insensitive hash of a crate's public interface from
-  `.rmeta`, so body-only edits relink instead of rebuilding dependents.
-- **Incremental linking with wild upstream:** contribute Rust-specific rlib
-  diffing, state files or debuginfo handling to wild's incremental design.
-- **Proc-macro expansion cache:** an allowlist of pure derives, using
-  `-Zcache-proc-macros` on nightly or wrapper-level memoization, with
-  periodic re-expand-and-diff verification.
-- **Persistent `rustc_driver` worker:** a nightly opt-in that reuses
-  process-level warm state across invocations.
-
-**Exit criteria.** Each bet ends with a written result: measured gain on the
-corpus, a soundness assessment, and either a spec for productizing it or an
-ADR recording why not.
-
-**Dependencies.** Phases 2-5 for measurement and infrastructure; upstream
-coordination for the wild work.
+Chunked storage is deferred by
+[ADR 0005](../adr/0005-trade-disk-for-time.md). The dedup probe found 92%
+sharing at member level against 79% at file level.
