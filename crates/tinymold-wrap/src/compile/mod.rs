@@ -260,8 +260,16 @@ impl Unit<'_> {
                 let text = self.expand_object(&output.digest)?;
                 fs::write(&destination, text).map_err(io("write", &destination))?;
             } else {
-                self.store
-                    .materialize(&output.digest, &destination, Strategy::Clone)?;
+                // A reflink or a copy, never a hardlink: a linker may rewrite
+                // its output in place, and that must not be the store's inode.
+                if self
+                    .store
+                    .materialize(&output.digest, &destination, Strategy::Reflink)
+                    .is_err()
+                {
+                    self.store
+                        .materialize(&output.digest, &destination, Strategy::Copy)?;
+                }
             }
             set_mode(&destination, output.executable)?;
             let file = fs::OpenOptions::new()

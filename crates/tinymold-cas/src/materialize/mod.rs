@@ -34,10 +34,6 @@ pub enum Strategy {
     Hardlink,
     /// Byte copy only.
     Copy,
-    /// Reflink, then copy; never a hardlink. For outputs a tool may later
-    /// rewrite in place, such as a linker's output, which must never be the
-    /// store's own inode.
-    Clone,
 }
 
 impl Strategy {
@@ -48,7 +44,6 @@ impl Strategy {
             Self::Reflink => &[Method::Reflink],
             Self::Hardlink => &[Method::Hardlink],
             Self::Copy => &[Method::Copy],
-            Self::Clone => &[Method::Reflink, Method::Copy],
         }
     }
 }
