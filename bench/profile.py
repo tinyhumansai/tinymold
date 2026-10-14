@@ -143,9 +143,10 @@ def rmeta_time(unit: dict) -> float | None:
 def unlock_time(units: dict[int, dict], unit: dict) -> float:
     """When `unit` became ready to run: when its unblocker finished, or emitted
     its `.rmeta`. Without section timings an `.rmeta` time is unknown, so it is
-    taken as the moment the unit started, bounded by the unblocker's span."""
+    taken as the moment the unit started, bounded by the unblocker's span. A
+    unit nothing unblocked was ready when cargo started its first unit."""
     if unit["unblocker"] is None:
-        return 0.0
+        return min(other["start"] for other in units.values())
     other_id, edge = unit["unblocker"]
     other = units[other_id]
     if edge == "full":
@@ -214,20 +215,26 @@ def low_parallelism_windows(intervals, jobs: int, cpu: list, limit: int = 8,
         if low and windows and windows[-1]["end"] == start and windows[-1]["open"]:
             window = windows[-1]
             window["end"] = end
-            window["units"].update(running)
-            window["slot_seconds"] += len(running) * (end - start)
         elif low:
-            windows.append({"start": start, "end": end, "units": set(running), "open": True,
-                            "slot_seconds": len(running) * (end - start)})
+            window = {"start": start, "end": end, "units": {}, "open": True,
+                      "slot_seconds": 0.0}
+            windows.append(window)
         elif windows:
             windows[-1]["open"] = False
+        if low:
+            window["slot_seconds"] += len(running) * (end - start)
+            for unit in running:
+                window["units"][unit] = window["units"].get(unit, 0.0) + end - start
     result = []
     for window in windows:
         length = window["end"] - window["start"]
         if length >= min_len:
             result.append({"start": window["start"], "end": window["end"], "length": length,
                            "avg_running": window["slot_seconds"] / length,
-                           "units": sorted(window["units"]),
+                           # The units that held the window, longest overlap first.
+                           "units": sorted(window["units"], key=window["units"].get,
+                                           reverse=True),
+                           "overlap": window["units"],
                            "cpu": cpu_between(cpu, window["start"], window["end"])})
     result.sort(key=lambda window: window["length"], reverse=True)
     return result[:limit]
@@ -335,7 +342,8 @@ def analyze(data: dict, jobs: int, wall: float | None, links: list[dict],
                                          for n, s in u["sections"].items()}}
                            for u in units.values()),
                           key=lambda u: u["duration"], reverse=True)[:15],
-        "windows": [dict(w, units=[units[i]["label"] for i in w["units"]])
+        "windows": [dict(w, units=[f"{units[i]['label']} ({w['overlap'][i]:.2f}s)"
+                                   for i in w["units"][:5]], overlap=None)
                     for w in low_parallelism_windows(intervals, jobs, cpu)],
         "links": links,
         "link_total": sum(link["duration"] for link in links),
@@ -390,7 +398,7 @@ def opportunities(summary: dict) -> list[str]:
         top = summary["windows"][0]
         found.append((top["length"], f"the longest low-parallelism window ran "
                       f"{top['length']:.2f}s at {top['avg_running']:.1f} units: "
-                      f"{', '.join(top['units'][:4])}."))
+                      f"{', '.join(top['units'][:3])}."))
     wrapper = summary["wrapper"]
     if wrapper and wrapper["overhead_total"] > 0.05:
         found.append((wrapper["overhead_total"], "the tinymold wrapper spent "
