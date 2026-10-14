@@ -26,6 +26,7 @@ crates/
 ├── tinymold-cas/       # local content-addressed store + materialization
 ├── tinymold-key/       # rustc argument parsing, path roots, dep-info, keys
 ├── tinymold-wrap/      # the RUSTC_WRAPPER: lookup, restore, run and store
+├── tinymold-remote/    # the remote tier: a REAPI v2 client (bazel-remote)
 └── tinymold/           # the `tinymold` binary and its library half
     ├── src/
     │   ├── lib.rs      # crate docs + the entire public surface
@@ -37,6 +38,8 @@ crates/
     │       └── test.rs       # module-local unit tests
     ├── tests/          # integration tests against the public API only
     └── examples/       # runnable, compiled-in-CI usage examples
+action.yml, save/      # the GitHub Action (setup and save), scripts in action/
+deploy/                 # how to run the remote cache server (bazel-remote)
 bench/                  # benchmark harness, corpus, results, and results page
 docs/
 ├── research/           # the research behind the design, with sources
@@ -48,10 +51,11 @@ docs/
 ### Crate boundaries
 
 Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ←
-`tinymold-wrap` ← `tinymold`, with `tinymold-key` (pure key computation,
-depending only on `tinymold-hash`) used by `tinymold-wrap`. Planned crates
-(`tinymold-server`, `tinymold-remote`, `tinymold-link`) slot into the same
-chain as described in the architecture spec.
+`tinymold-wrap` ← `tinymold-remote` ← `tinymold`, with `tinymold-key` (pure
+key computation, depending only on `tinymold-hash`) used by `tinymold-wrap`.
+`tinymold-remote` is optional in `tinymold`, behind its default `remote`
+feature. Planned crates (`tinymold-server`, `tinymold-link`) slot into the
+same chain as described in the architecture spec.
 
 - `tinymold-hash` answers "what is the name of these bytes". No storage, no
   cache policy.
@@ -60,7 +64,11 @@ chain as described in the architecture spec.
 - `tinymold-key` answers "which inputs decide this compile's output". Pure
   functions over arguments, paths and digests; no I/O, no processes.
 - `tinymold-wrap` answers "serve this rustc call": hashing files, running
-  rustc, and moving outputs in and out of the store.
+  rustc, and moving outputs in and out of the store. It reaches a remote
+  only through its synchronous `Remote` trait.
+- `tinymold-remote` answers "what does the shared cache hold": REAPI calls,
+  SHA-256 naming, and batch upload. It is the only crate with an async
+  runtime.
 - `tinymold` holds the command line and whatever composes the layers.
 
 Put new code in the lowest crate that can hold it without pulling in anything
