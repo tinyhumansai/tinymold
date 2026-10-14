@@ -69,8 +69,9 @@ pub fn manifest_path(target: &Path) -> PathBuf {
 /// # Errors
 ///
 /// Returns [`Error::Io`] when the workspace or target cannot be read or the
-/// manifest cannot be written, and [`Error::Hash`] when a file cannot be
-/// hashed.
+/// manifest cannot be written, [`Error::Hash`] when a file cannot be
+/// hashed, and [`Error::Wrap`] when the filesystem clock cannot be read
+/// under the target.
 pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
     // Read in the filesystem's clock, not the wall clock: mtimes are compared
     // against it, and the two can disagree by a tick or more.

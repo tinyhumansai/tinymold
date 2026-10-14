@@ -25,7 +25,10 @@ fn a_digest_is_reused_until_the_file_changes() {
         .set_modified(old)
         .unwrap();
 
-    assert_eq!(digest(&store, &file, now(&store)).unwrap(), Digest::of_bytes(b"one"));
+    assert_eq!(
+        digest(&store, &file, now(&store)).unwrap(),
+        Digest::of_bytes(b"one")
+    );
     // A wrong cached digest is returned as-is, which proves the cache is read.
     let poisoned = Digest::of_bytes(b"cached");
     remember(&store, &file, identity(&file).unwrap(), poisoned).unwrap();
@@ -38,7 +41,10 @@ fn a_digest_is_reused_until_the_file_changes() {
 
     // Same size, new content and mtime: the entry no longer applies.
     fs::write(&file, b"two").unwrap();
-    assert_eq!(digest(&store, &file, now(&store)).unwrap(), Digest::of_bytes(b"two"));
+    assert_eq!(
+        digest(&store, &file, now(&store)).unwrap(),
+        Digest::of_bytes(b"two")
+    );
     assert!(digest(&store, &dir.path().join("missing"), now(&store)).is_err());
 }
 
@@ -144,7 +150,10 @@ fn archives_are_digested_without_their_build_stamps() {
     fs::write(&first, archive("1700000000")).unwrap();
     fs::write(&second, archive("1800000000")).unwrap();
     let a = digest_as(&store, &first, Kind::Archive, now(&store)).unwrap();
-    assert_eq!(a, digest_as(&store, &second, Kind::Archive, now(&store)).unwrap());
+    assert_eq!(
+        a,
+        digest_as(&store, &second, Kind::Archive, now(&store)).unwrap()
+    );
     assert_ne!(
         a,
         digest(&store, &first, now(&store)).unwrap(),

@@ -161,7 +161,16 @@ files' mtimes. Binary outputs are restored as stored.
   objects, through a rename, and pre-key records are written the same way.
 - **Digests may come from the stat cache.** An `--extern` file's digest is
   reused from `stat/` when its size, mtime and inode are unchanged and its
-  mtime is earlier than the cache entry (git's racily-clean rule).
+  mtime was written before the cache entry (git's racily-clean rule).
+- **Mtimes are compared in the filesystem's clock and tick.** "Now" is the
+  mtime of a probe file the wrapper writes in `stat/` once per call, not the
+  wall clock, which can run ahead of the coarse clock Linux stamps files
+  with. A file counts as written before that instant only if its mtime plus
+  one tick is not after it, where the tick is inferred from the mtime's
+  trailing decimal zeros: a whole second counts as two (FAT), so a file
+  rewritten within its second on HFS+ or ext3 is not trusted. The same rule
+  decides whether an input changed during the compile, and the probe's
+  reading is the time an input set is recorded as of.
 
 ## Acceptance criteria
 

@@ -26,6 +26,7 @@ use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
 use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
+use crate::clock::{filesystem_now, written_before};
 use crate::error::io;
 use crate::exec::{self, Captured};
 use crate::record::{
@@ -33,7 +34,6 @@ use crate::record::{
     write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
-use crate::clock::{filesystem_now, written_before};
 use crate::stat;
 use crate::trace::Trace;
 use crate::{Error, Result};
@@ -214,7 +214,8 @@ impl Unit<'_> {
                     .into_owned();
                 // Archives a build script rebuilt keep their digest when only
                 // their build stamps changed.
-                let digest = stat::digest_as(self.store_dir, &path, stat::Kind::Archive, self.now_ns)?;
+                let digest =
+                    stat::digest_as(self.store_dir, &path, stat::Kind::Archive, self.now_ns)?;
                 files.push((name, digest));
             }
         }
@@ -380,11 +381,7 @@ impl Unit<'_> {
     }
 
     /// Stores what a successful compile produced.
-    fn ingest(
-        &self,
-        pre: &Digest,
-        captured: &Captured,
-    ) -> std::result::Result<(), Unstorable> {
+    fn ingest(&self, pre: &Digest, captured: &Captured) -> std::result::Result<(), Unstorable> {
         let invocation = self.invocation;
         let stem = format!("{}{}", invocation.crate_name, invocation.extra_filename);
         let dep_info = self.out_dir.join(format!("{stem}.d"));

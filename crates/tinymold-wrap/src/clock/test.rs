@@ -23,7 +23,10 @@ fn a_fine_timestamp_is_written_before_any_later_instant() {
 
 #[test]
 fn a_whole_second_is_written_before_only_once_two_seconds_have_passed() {
-    assert!(!written_before(10 * SECOND_NS, 10 * SECOND_NS + SECOND_NS / 2));
+    assert!(!written_before(
+        10 * SECOND_NS,
+        10 * SECOND_NS + SECOND_NS / 2
+    ));
     assert!(!written_before(10 * SECOND_NS, 12 * SECOND_NS - 1));
     assert!(written_before(10 * SECOND_NS, 12 * SECOND_NS));
 }

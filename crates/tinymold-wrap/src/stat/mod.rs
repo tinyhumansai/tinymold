@@ -114,9 +114,7 @@ pub(crate) fn remember(
     identity: Identity,
     digest: Digest,
 ) -> Result<()> {
-    let settled_ns = identity
-        .mtime_ns
-        .saturating_add(tick_of(identity.mtime_ns));
+    let settled_ns = identity.mtime_ns.saturating_add(tick_of(identity.mtime_ns));
     write_entry(store, path, Kind::Bytes, identity, digest, settled_ns)
 }
 
@@ -130,11 +128,7 @@ fn write_entry(
 ) -> Result<()> {
     let line = format!(
         "{} {} {} {} {} {digest}\n",
-        identity.dev,
-        identity.ino,
-        identity.size,
-        identity.mtime_ns,
-        recorded_ns
+        identity.dev, identity.ino, identity.size, identity.mtime_ns, recorded_ns
     );
     write_atomically(&entry_path(store, path, kind), &line)
 }
