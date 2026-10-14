@@ -1426,7 +1426,7 @@ def pct(level: dict) -> str:
 
 
 def run_in_docker(rest: list[str]) -> None:
-    """Runs `bench.py <rest>` in the Linux bench image (bench/docker), so a
+    """Runs `bench.py <rest>` in the Linux bench image (bench/docker/edits.Dockerfile), so a
     macOS machine can measure mold and wild, which are ELF-only.
 
     The repository is mounted at its own path, together with git's common
@@ -1442,10 +1442,11 @@ def run_in_docker(rest: list[str]) -> None:
     if docker is None:
         raise SystemExit("bench.py docker needs docker on PATH")
     context = BENCH / "docker"
-    tag = "tinymold-bench:" + hashlib.sha256((context / "Dockerfile").read_bytes()).hexdigest()[:12]
+    dockerfile = context / "edits.Dockerfile"
+    tag = "tinymold-bench-edits:" + hashlib.sha256(dockerfile.read_bytes()).hexdigest()[:12]
     if subprocess.run([docker, "image", "inspect", tag], stdout=subprocess.DEVNULL,
                       stderr=subprocess.DEVNULL).returncode != 0:
-        run([docker, "build", "--tag", tag, str(context)])
+        run([docker, "build", "--file", str(dockerfile), "--tag", tag, str(context)])
     common = Path(output(["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute",
                           "--git-common-dir"]))
     mounts = ["--volume", f"{ROOT}:{ROOT}"]

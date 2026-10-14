@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 from html import escape
 from pathlib import Path
 
@@ -353,6 +354,15 @@ def cas_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def openhuman_section(result: dict) -> list[str]:
+    """The OpenHuman Docker benchmark's table; docker_openhuman.py owns its
+    layout so the report and the run print the same thing."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import docker_openhuman
+
+    return docker_openhuman.tables(result).splitlines() + [""]
+
+
 def hit_section(result: dict) -> list[str]:
     """Cache hits on many-output units: one tinymold revision against another."""
     rows = result["results"]
@@ -511,7 +521,8 @@ def main() -> None:
     sections: list[str] = []
     edit_sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "hit": 6, "edits": 7, "dedup": 7, "link": 8, "native": 9, "cas": 10}
+             "hit": 6, "openhuman": 7, "edits": 8, "dedup": 8, "link": 9, "native": 10,
+             "cas": 11}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -536,6 +547,8 @@ def main() -> None:
             sections += ci_section(result)
         elif result["benchmark"] == "hit":
             sections += hit_section(result)
+        elif result["benchmark"] == "openhuman-docker":
+            sections += openhuman_section(result)
         elif result["benchmark"] == "edits":
             edit_sections += edits_section(path.stem, result)
 

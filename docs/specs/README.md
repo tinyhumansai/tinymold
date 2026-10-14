@@ -30,5 +30,6 @@ the contract; production code still belongs under `src/`.
 | [`freshness.md`](freshness.md) | Implemented | `tinymold fresh` and `tinymold snapshot`: undoing mtime-only changes and warm `target/` snapshots for worktrees and branch switches |
 | [`gc.md`](gc.md) | Implemented | Last-use tracking and `tinymold gc`: expiry by age, an LRU size budget, and safe sweeps |
 | [`remote.md`](remote.md) | Implemented | The remote tier: REAPI v2 against bazel-remote, lookups on local miss, batch push |
+| [`test-cache.md`](test-cache.md) | Draft | Affected work: which tests an edit reaches, the test result cache behind `tinymold run-test`, and flag scoping across check, clippy, test and coverage |
 | [`edit-rebuild.md`](edit-rebuild.md) | Accepted | The edit loop: carried-over outputs, cached clippy, bounded store generations, incremental sessions, and the edit-sequence benchmark |
 | [`github-actions.md`](github-actions.md) | Implemented | The setup and save actions: the stateless GitHub-cache backend, the remote backend, coverage |

@@ -152,8 +152,10 @@ the store fit beside each other.
 
 ## Coverage, clippy, and incremental
 
-- **`cargo llvm-cov`.** Instrumented builds carry `-C instrument-coverage`,
-  so they never share entries with plain ones. Coverage mappings embed the
+- **`cargo llvm-cov`.** It instruments only workspace crates, through its
+  own wrapper that chains to tinymold, so dependencies share entries with
+  plain test builds. Instrumented workspace crates carry
+  `-C instrument-coverage` and never share entries with plain ones. Coverage mappings embed the
   absolute path of the workspace, so the pre-key of an instrumented compile
   includes the real current directory. Coverage from a cache hit then
   always points at the right files. On hosted runners the checkout path
