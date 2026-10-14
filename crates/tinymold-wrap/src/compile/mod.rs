@@ -644,7 +644,7 @@ impl Unit<'_> {
         }
         placed
             .digest_of(name, identity)
-            .filter(|digest| self.store.contains(digest))
+            .filter(|digest| self.store.keep(digest))
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's
