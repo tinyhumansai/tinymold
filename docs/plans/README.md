@@ -23,4 +23,5 @@ into the plan.
 
 | Plan | Covers |
 |---|---|
-| [`roadmap.md`](roadmap.md) | Draft phased delivery plan, Phase 0 (foundations) to Phase 6 (research bets). Each phase gets its own spec and plan before implementation |
+| [`roadmap.md`](roadmap.md) | Phased delivery plan, Phase 0 (foundations) to Phase 7 (research bets). Each phase gets its own spec and plan before implementation |
+| [`freshness.md`](freshness.md) | Phase 2: the spike, the implementation order, and the measured results for content freshness and target snapshots |

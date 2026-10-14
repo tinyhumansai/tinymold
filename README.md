@@ -29,9 +29,10 @@ tinymold attacks these four costs: **caching**, **linking**, a **hot cache
 server**, and **hashing**, with **disk footprint** as a first-class goal. The
 reasoning, with sources, is in [`docs/research/`](docs/research/README.md).
 
-> **Status: v0.0.1, the foundation.** The content-addressed store, the hashing
-> layer, and `tinymold doctor` work today. The rustc wrapper, cache server, and
-> linker work are designed but not built yet. See the
+> **Status: the foundation plus content freshness.** The content-addressed
+> store, the hashing layer, `tinymold doctor`, `tinymold fresh` and
+> `tinymold snapshot` work today. The rustc wrapper, cache server, and linker
+> work are designed but not built yet. See the
 > [roadmap](docs/plans/roadmap.md).
 
 ## Install
@@ -50,7 +51,21 @@ tinymold doctor                     # host, toolchain, fast linkers on PATH
 tinymold hash src/main.rs           # BLAKE3 digests, b3sum format
 tinymold cas put target/debug/deps/libfoo-*.rlib
 tinymold cas get <digest> /other/worktree/target/debug/deps/libfoo.rlib
+
+# After a build: remember what the target was built from.
+tinymold fresh record
+# After a checkout, rebase or touch: undo mtime changes that changed nothing.
+tinymold fresh restore
+
+# Keep a warm target/ per commit; start a new worktree from the best match.
+tinymold snapshot save              # in the worktree you built
+tinymold snapshot restore           # in a new worktree, before cargo build
+tinymold snapshot restore --replace # after a branch switch
 ```
+
+`fresh` and `snapshot` are specified in
+[`docs/specs/freshness.md`](docs/specs/freshness.md), including why a restore
+can never make cargo reuse an output built from different content.
 
 The store defaults to `$TINYMOLD_STORE`, then `$XDG_CACHE_HOME/tinymold`, then
 `~/.cache/tinymold`. Keep it on the same filesystem as your checkouts: that is
