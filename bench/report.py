@@ -150,11 +150,12 @@ def scenarios_section(result: dict) -> list[str]:
     lines = [f"### Edit-loop scenarios ({describe(result)})", "",
              "Pinned: " + "; ".join(f"{k.replace('_', ' ')}: {v}" for k, v in pins.items()) + ".",
              "", "Each cell: median wall time, then median link time, then units "
-             "compiled. Under sccache, `hits` counts rustc invocations served from the "
-             "cache across all runs. Under tinymold, the wall time includes `tinymold "
-             "fresh restore` before and `fresh record` after every build, and the "
-             "worktree and branch-switch cases include restoring a `target/` "
-             "snapshot.", ""]
+             "compiled (cargo's count: a unit served from a cache still shows as "
+             "compiled). Under sccache and tinymold, `hits` counts rustc invocations "
+             "served from the cache across all runs. Under tinymold, cargo runs with "
+             "`RUSTC_WRAPPER=tinymold`, the wall time includes `tinymold fresh restore` "
+             "before and `fresh record` after every build, and the worktree and "
+             "branch-switch cases include restoring a `target/` snapshot.", ""]
     for project in dict.fromkeys(r["project"] for r in rows):
         mine = [r for r in rows if r["project"] == project]
         modes = list(dict.fromkeys(r["mode"] for r in mine))
@@ -174,7 +175,7 @@ def scenarios_section(result: dict) -> list[str]:
                 if "cache" in r and (r["cache"]["hits"] + r["cache"]["misses"]):
                     total = r["cache"]["hits"] + r["cache"]["misses"]
                     cell += f" · {r['cache']['hits']}/{total} hits"
-                if case == "clean" and mode == "sccache" and "first_wall_s" in r:
+                if case == "clean" and mode in ("sccache", "tinymold") and "first_wall_s" in r:
                     cell += f" · first (cold) run {r['first_wall_s']:.2f}s"
                 cells.append(cell)
             lines.append(f"| {label} | " + " | ".join(cells) + " |")

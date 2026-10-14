@@ -345,6 +345,14 @@ def sccache_stats(sccache: str, env: dict) -> dict:
             "non_cacheable": stats.get("non_cacheable_compilations", 0)}
 
 
+def tinymold_stats(log: Path) -> dict:
+    """rustc invocations the tinymold wrapper served from its cache (hits) or
+    compiled (misses), from the per-invocation lines of TINYMOLD_LOG."""
+    lines = log.read_text().splitlines() if log.exists() else []
+    return {"hits": sum(line.startswith("hit ") for line in lines),
+            "misses": sum(line.startswith("miss ") for line in lines)}
+
+
 def output_env(cmd: list[str], env: dict) -> str:
     return run(cmd, capture_output=True, text=True, env=env).stdout.strip()
 
@@ -659,7 +667,11 @@ class Session:
             self.env.pop("CARGO_INCREMENTAL")
         if mode == "tinymold":
             self.store = WORK / "tinymold-store" / project["name"]
-            self.env["TINYMOLD_STORE"] = str(self.store)
+            self.cache_log = WORK / f"tinymold-{project['name']}.log"
+            # tinymold caches incremental units too, so CARGO_INCREMENTAL=1
+            # stays as in the baseline.
+            self.env.update(TINYMOLD_STORE=str(self.store), RUSTC_WRAPPER=str(self.tinymold),
+                            TINYMOLD_LOG=str(self.cache_log))
 
     def tm(self, *args: str, cwd: Path | None = None) -> float:
         """Runs one tinymold command and returns its wall time. `fresh restore`
@@ -683,6 +695,8 @@ class Session:
         else:
             command = cargo(*self.config, "build", "--locked", "-v", *args)
         self.log.unlink(missing_ok=True)
+        if self.mode == "tinymold":
+            self.cache_log.unlink(missing_ok=True)
         if self.sccache and self.mode == "sccache":
             run([self.sccache, "--zero-stats"], env=self.env, stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL)
@@ -702,6 +716,8 @@ class Session:
                   **unit_counts(done.stderr)}
         if self.mode == "sccache":
             sample["cache"] = sccache_stats(self.sccache, self.env)
+        if self.mode == "tinymold":
+            sample["cache"] = tinymold_stats(self.cache_log)
         return sample
 
     def clean(self, cwd: Path | None = None) -> None:
@@ -763,8 +779,8 @@ def run_case(session: Session, case: str, runs: int) -> dict:
             extra["target_kinds"] = target_kinds(src / "target")
     if case == "clean":
         extra["target_kinds"] = target_kinds(src / "target")
-        # Under sccache the first clean build fills the cache (the dry run)
-        # and later ones hit it, so the first run is reported on its own.
+        # Under a cache the first clean build fills it (the dry run) and later
+        # ones hit it, so the first run is reported on its own.
         extra["first_wall_s"] = round(samples[0]["wall"], 4)
 
     result = {
@@ -776,7 +792,7 @@ def run_case(session: Session, case: str, runs: int) -> dict:
         "tinymold": summarize([s["tinymold"] for s in samples]),
         **extra,
     }
-    if session.mode == "sccache":
+    if session.mode in ("sccache", "tinymold"):
         result["cache"] = {key: sum(s["cache"][key] for s in samples)
                            for key in ("hits", "misses")}
     return result
