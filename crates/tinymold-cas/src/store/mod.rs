@@ -366,9 +366,12 @@ fn remove_if_present(path: &Path) -> Result<bool> {
         Ok(()) => Ok(true),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
         // Windows refuses to delete a read-only file, and objects are sealed.
-        Err(_) if unseal(path) => fs::remove_file(path)
-            .map(|()| true)
-            .map_err(io_error("remove", path)),
+        Err(_) if unseal(path) => fs::remove_file(path).map(|()| true).map_err(|source| {
+            // Still there, so seal it again: an object must never be left
+            // writable.
+            set_readonly(path, true);
+            io_error("remove", path)(source)
+        }),
         Err(source) => Err(Error::Io {
             action: "remove",
             path: path.to_path_buf(),
@@ -382,12 +385,17 @@ fn unseal(path: &Path) -> bool {
     let Ok(meta) = fs::metadata(path) else {
         return false;
     };
-    let mut permissions = meta.permissions();
-    if !permissions.readonly() {
+    meta.permissions().readonly() && set_readonly(path, false)
+}
+
+/// Sets or clears the read-only flag on `path`, and reports whether it did.
+fn set_readonly(path: &Path, readonly: bool) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
         return false;
-    }
+    };
+    let mut permissions = meta.permissions();
     #[allow(clippy::permissions_set_readonly_false)]
-    permissions.set_readonly(false);
+    permissions.set_readonly(readonly);
     fs::set_permissions(path, permissions).is_ok()
 }
 
