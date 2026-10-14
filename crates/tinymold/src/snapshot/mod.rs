@@ -199,18 +199,13 @@ fn score(
     let mut matched = 0;
     for entry in &manifest.entries {
         let path = workspace.join(&entry.path);
-        let size = fs::metadata(&path).ok().filter(|m| m.is_file()).map(|m| m.len());
+        let size = fs::metadata(&path).ok().filter(fs::Metadata::is_file).map(|m| m.len());
         if size != Some(entry.size) {
             continue;
         }
-        let digest = match digests.get(&entry.path) {
-            Some(digest) => *digest,
-            None => {
-                let digest = Digest::of_file(&path).ok();
-                digests.insert(entry.path.clone(), digest);
-                digest
-            }
-        };
+        let digest = *digests
+            .entry(entry.path.clone())
+            .or_insert_with(|| Digest::of_file(&path).ok());
         if digest == Some(entry.digest) {
             matched += 1;
         }
