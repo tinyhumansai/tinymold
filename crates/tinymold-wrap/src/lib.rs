@@ -33,6 +33,7 @@ mod catalog;
 mod compile;
 mod error;
 mod exec;
+mod placed;
 mod record;
 mod remote;
 mod stat;
