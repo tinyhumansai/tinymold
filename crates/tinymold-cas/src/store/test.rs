@@ -274,3 +274,24 @@ fn remove_reports_an_object_it_cannot_delete() {
             .readonly()
     );
 }
+
+#[test]
+fn storing_bytes_already_present_refreshes_the_objects_time() {
+    use std::time::{Duration, SystemTime};
+
+    let (dir, store) = store();
+    let digest = store.insert_bytes(b"shared").unwrap();
+    let old = SystemTime::now() - Duration::from_secs(7 * 24 * 3600);
+    let path = store.object_path(&digest);
+    fs::File::open(&path).unwrap().set_modified(old).unwrap();
+
+    store.insert_bytes(b"shared").unwrap();
+    let modified = |store: &Store| store.objects().unwrap()[0].modified;
+    assert!(modified(&store) > old + Duration::from_secs(3600));
+
+    fs::File::open(&path).unwrap().set_modified(old).unwrap();
+    let source = dir.path().join("shared.bin");
+    fs::write(&source, b"shared").unwrap();
+    store.insert_file(&source).unwrap();
+    assert!(modified(&store) > old + Duration::from_secs(3600));
+}
