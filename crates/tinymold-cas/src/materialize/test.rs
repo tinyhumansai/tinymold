@@ -139,3 +139,15 @@ fn making_a_missing_file_writable_fails() {
     let dir = tempfile::tempdir().unwrap();
     assert!(make_owner_writable(&dir.path().join("missing")).is_err());
 }
+
+#[test]
+fn clone_never_hardlinks_and_leaves_a_writable_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = source_file(dir.path());
+    let destination = dir.path().join("clone");
+
+    let method = place(&source, &destination, Strategy::Clone).unwrap();
+    assert_ne!(method, Method::Hardlink);
+    fs::write(&destination, b"rewritten").unwrap();
+    assert_eq!(fs::read(&source).unwrap(), b"artifact");
+}
