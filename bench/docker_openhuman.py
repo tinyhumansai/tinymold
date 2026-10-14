@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Benchmark OpenHuman's build in Linux Docker: GNU ld, mold, tinymold, sccache.
 
+The sccache config runs twice: as cargo's dev profile builds by default, and
+with CARGO_INCREMENTAL=0, which sccache needs to cache the workspace crates.
+
 OpenHuman (github.com/tinyhumansai/openhuman) is a large workspace: about a
 thousand packages, a dozen vendored submodules, and one big core library
 under a binary. This builds its `openhuman-core` binary inside the
@@ -43,7 +46,7 @@ VOLUME = "tinymold-openhuman"
 CONTAINER = "tinymold-oh-bench"
 SOURCE = bench.WORK / "openhuman"
 OUT = bench.WORK / "openhuman-docker"
-CONFIGS = ("ld", "mold", "tinymold", "sccache")
+CONFIGS = ("ld", "mold", "tinymold", "sccache", "sccache-noinc")
 CASES = ("cold", "noop", "edit_leaf", "edit_core", "warm", "second_path", "snapshot")
 LABELS = {
     "cold": "Clean build, empty cache",
@@ -174,7 +177,7 @@ def tables(result: dict) -> str:
         row = [cell_text(cells[c].get(case), case) for c in configs]
         lines.append(f"| {LABELS[case]} | " + " | ".join(row) + " |")
     mold, ld = cells.get("mold", {}), cells.get("ld", {})
-    for cached in ("tinymold", "sccache"):
+    for cached in ("tinymold", "sccache", "sccache-noinc"):
         speedups, tm = [], cells.get(cached, {})
         for case in CASES:
             base = mold.get("cold") if case in NEW_PATH + ("warm",) else mold.get(case)
@@ -204,8 +207,8 @@ def critical_paths(jobs: int) -> str:
     """The cold and warm builds' critical paths, from their --timings reports."""
     lines = []
     for name in ("mold-cold-1", "tinymold-cold-1", "sccache-cold-1", "tinymold-warm-1",
-                 "sccache-warm-1", "mold-edit_core-1", "tinymold-edit_core-1",
-                 "sccache-edit_core-1"):
+                 "sccache-warm-1", "sccache-noinc-warm-1", "mold-edit_core-1",
+                 "tinymold-edit_core-1", "sccache-edit_core-1", "sccache-noinc-edit_core-1"):
         html = OUT / "timings" / f"{name}.html"
         if not html.exists():
             continue

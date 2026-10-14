@@ -9,6 +9,9 @@
 #   mold      plain cargo, linked with mold
 #   tinymold  RUSTC_WRAPPER=tinymold, linked with mold
 #   sccache   RUSTC_WRAPPER=sccache (local disk cache), linked with mold
+#   sccache-noinc  the same with CARGO_INCREMENTAL=0, so sccache can cache the
+#             workspace crates it otherwise passes through, at the cost of
+#             rustc's incremental reuse in the edit loop
 #
 # Cases, in order, per configuration:
 #   cold         clean target/, and for tinymold an empty store
@@ -20,8 +23,8 @@
 #   snapshot     that copy again, starting from `tinymold snapshot restore`
 #
 # ld and mold have no cache, so their warm and second-path builds are cold
-# builds; they run only `cold`, `noop`, and the edits. sccache runs every case
-# but `snapshot`, which is tinymold's.
+# builds; they run only `cold`, `noop`, and the edits. The sccache configs run
+# every case but `snapshot`, which is tinymold's.
 #
 # Every build appends one JSON object per line to $OUT/results.jsonl and keeps
 # cargo's --timings report as $OUT/timings/<config>-<case>-<run>.html.
@@ -33,8 +36,7 @@ SECOND=${SECOND:-/work/oh-second}
 STORE=${STORE:-/work/store}
 OUT=${OUT:-/out}
 RUNS=${RUNS:-3}
-CONFIGS=${CONFIGS:-ld mold tinymold sccache}
-SCCACHE=${SCCACHE:-/work/sccache}
+CONFIGS=${CONFIGS:-ld mold tinymold sccache sccache-noinc}
 # ONLY limits a run to some cases (space-separated), appending to the results
 # of an earlier run instead of starting them over. The cases it skips must
 # have left their state behind: `snapshot` needs the store, the saved snapshot
@@ -84,6 +86,9 @@ build() {
                         TINYMOLD_STORE="$STORE" TINYMOLD_LOG="$cachelog") ;;
         sccache) env+=(RUSTFLAGS="-C link-arg=-fuse-ld=mold" RUSTC_WRAPPER=/usr/local/bin/sccache)
                  sccache --zero-stats > /dev/null ;;
+        sccache-noinc) env+=(RUSTFLAGS="-C link-arg=-fuse-ld=mold" RUSTC_WRAPPER=/usr/local/bin/sccache
+                             CARGO_INCREMENTAL=0)
+                       sccache --zero-stats > /dev/null ;;
     esac
     rm -f "$links" "$cachelog"
     rm -rf "$target/cargo-timings"
@@ -109,7 +114,7 @@ build() {
         link_s=$(awk '{s += $2 - $1} END {printf "%.4f", s}' "$links")
     fi
     hits=0; misses=0
-    if [[ $config == sccache ]]; then
+    if [[ $config == sccache* ]]; then
         read -r hits misses < <(sccache --show-stats --stats-format json | python3 -c '
 import json, sys
 stats = json.load(sys.stdin)["stats"]
@@ -143,19 +148,21 @@ trap restore EXIT
 
 store_bytes() { du -sb "$1" 2>/dev/null | cut -f1 || echo 0; }
 
-# One sccache server for the whole run, on a private cache directory. Its
-# cache size is set high enough that nothing is evicted mid-run.
-export SCCACHE_DIR="$SCCACHE" SCCACHE_CACHE_SIZE=100G SCCACHE_IDLE_TIMEOUT=0
+# Each sccache config gets its own server on a private cache directory, so
+# one never hits entries the other stored. The cache size is set high enough
+# that nothing is evicted mid-run.
+export SCCACHE_CACHE_SIZE=100G SCCACHE_IDLE_TIMEOUT=0
 
 for config in $CONFIGS; do
+    if [[ $config == sccache* ]]; then
+        export SCCACHE_DIR="/work/$config"
+        sccache --stop-server > /dev/null 2>&1 || true
+        want cold && rm -rf "$SCCACHE_DIR"
+        sccache --start-server > /dev/null
+    fi
     if want cold; then
         rm -rf "$SRC/target/$config"
         [[ $config == tinymold ]] && rm -rf "$STORE"
-        if [[ $config == sccache ]]; then
-            sccache --stop-server > /dev/null 2>&1 || true
-            rm -rf "$SCCACHE"
-            sccache --start-server > /dev/null
-        fi
         build "$config" cold 1 "$SRC"
     fi
     if want noop; then
@@ -175,7 +182,7 @@ for config in $CONFIGS; do
         done
         restore
     fi
-    if [[ $config != tinymold && $config != sccache ]]; then
+    if [[ $config != tinymold && $config != sccache* ]]; then
         continue
     fi
     if want warm; then
@@ -183,7 +190,7 @@ for config in $CONFIGS; do
         build "$config" settle 1 "$SRC"
         for run in $(seq "$RUNS"); do
             rm -rf "$SRC/target/$config"
-            cache=$STORE; [[ $config == sccache ]] && cache=$SCCACHE
+            cache=$STORE; [[ $config == sccache* ]] && cache=$SCCACHE_DIR
             EXTRA=",\"store_bytes\":$(store_bytes "$cache")" build "$config" warm "$run" "$SRC"
         done
     fi
