@@ -173,7 +173,7 @@ class EditSession:
                  linker_flags: list[str], tinymold: Path | None, sccache: str | None,
                  name: str | None = None):
         self.project, self.src, self.mode, self.linker = project, src, mode, linker
-        name = name or mode
+        self.name = name = name or mode
         self.label = name if linker == "default" else f"{name}+{linker}"
         self.target = src / "target" / f"edits-{self.label}"
         self.log = bench.WORK / f"link-edits-{project['name']}-{self.label}.log"
@@ -290,7 +290,9 @@ def run_step(session: EditSession, commands: list[str], keep: int | None = None)
         row["commands"].update(session.run(name))
     row["free_delta"] = free_before - free_bytes(session.src)
     row.update(session.sizes())
-    if keep is not None and session.mode == "tinymold":
+    # Only the build under test collects: an --against binary may predate
+    # --keep-generations.
+    if keep is not None and session.name == "tinymold":
         row.update(session.collect(keep))
         row["store_after_gc"] = disk_usage(session.store)
     return row
