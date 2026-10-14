@@ -59,11 +59,22 @@ fn alpha_source(one: &str) -> String {
 /// Runs `cargo test --lib` in `root` with tinymold as wrapper and runner,
 /// and returns cargo's output and the runner's lines of the log.
 fn cargo_test(root: &Path, store: &Path) -> (Output, Vec<String>) {
+    cargo_test_with(root, store, &["--lib"])
+}
+
+/// `cargo test` over every target but doctests, as [`cargo_test`] runs it.
+fn cargo_test_all(root: &Path, store: &Path) -> (Output, Vec<String>) {
+    cargo_test_with(root, store, &["--bins", "--tests"])
+}
+
+fn cargo_test_with(root: &Path, store: &Path, targets: &[&str]) -> (Output, Vec<String>) {
     let log = store.with_extension("log");
     let _ = fs::remove_file(&log);
     let tinymold = env!("CARGO_BIN_EXE_tinymold");
     let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-        .args(["test", "--lib", "--offline"])
+        .arg("test")
+        .args(targets)
+        .arg("--offline")
         .current_dir(root)
         .env("RUSTC_WRAPPER", tinymold)
         .env(runner_variable(), format!("{tinymold} run-test"))
@@ -221,4 +232,36 @@ fn run_test_passes_arguments_and_exit_status_through() {
             "args: --exact a b --quiet\n"
         );
     }
+}
+
+#[test]
+fn an_integration_test_reruns_when_the_binary_it_runs_changes() {
+    // The test binary runs `tool` through CARGO_BIN_EXE_tool, so editing
+    // `tool` leaves the test binary's bytes alone; the run must not be
+    // replayed anyway.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("ws");
+    let store = dir.path().join("store");
+    write(
+        &root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"tool\"]\nresolver = \"2\"\n",
+    );
+    write(
+        &root.join("tool/Cargo.toml"),
+        "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    );
+    write(&root.join("tool/src/main.rs"), "fn main() { print!(\"1\"); }\n");
+    write(
+        &root.join("tool/tests/cli.rs"),
+        "#[test]\nfn prints_one() {\n    let out = std::process::Command::new(env!(\"CARGO_BIN_EXE_tool\")).output().unwrap();\n    assert_eq!(out.stdout, b\"1\");\n}\n",
+    );
+    let (first, _) = cargo_test_all(&root, &store);
+    assert!(first.status.success(), "{first:?}");
+    let (second, _) = cargo_test_all(&root, &store);
+    assert!(second.status.success(), "{second:?}");
+
+    // Break the tool: the integration test must run again, and fail.
+    fs::write(root.join("tool/src/main.rs"), "fn main() { print!(\"2\"); }\n").unwrap();
+    let (third, lines) = cargo_test_all(&root, &store);
+    assert!(!third.status.success(), "replayed a stale pass: {lines:?}");
 }
