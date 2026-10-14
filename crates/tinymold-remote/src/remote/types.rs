@@ -11,6 +11,9 @@ pub struct Capabilities {
     pub blake3: bool,
     /// Whether clients may write `ActionCache` entries.
     pub updates_enabled: bool,
+    /// Whether this client's credential (or lack of one) could upload a
+    /// probe blob, which is what `push` needs.
+    pub writable: bool,
 }
 
 impl fmt::Display for Capabilities {
