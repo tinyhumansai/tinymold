@@ -494,6 +494,213 @@
         "hits": 0,
         "misses": 8
       }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.805,
+        "min_s": 0.805,
+        "max_s": 0.805,
+        "samples_s": [
+          0.805
+        ]
+      },
+      "link": {
+        "median_s": 0.1122,
+        "min_s": 0.1122,
+        "max_s": 0.1122,
+        "samples_s": [
+          0.1122
+        ]
+      },
+      "links": 2,
+      "compiled": 9,
+      "fresh": 24,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 4.0175,
+        "min_s": 4.0175,
+        "max_s": 4.0175,
+        "samples_s": [
+          4.0175
+        ]
+      },
+      "link": {
+        "median_s": 0.354,
+        "min_s": 0.354,
+        "max_s": 0.354,
+        "samples_s": [
+          0.354
+        ]
+      },
+      "links": 7,
+      "compiled": 33,
+      "fresh": 0,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 1.1593,
+        "min_s": 1.1593,
+        "max_s": 1.1593,
+        "samples_s": [
+          1.1593
+        ]
+      },
+      "link": {
+        "median_s": 0.1225,
+        "min_s": 0.1225,
+        "max_s": 0.1225,
+        "samples_s": [
+          0.1225
+        ]
+      },
+      "links": 2,
+      "compiled": 8,
+      "fresh": 58,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "tinymold",
+      "case": "touch_all",
+      "wall": {
+        "median_s": 0.1173,
+        "min_s": 0.1173,
+        "max_s": 0.1173,
+        "samples_s": [
+          0.1173
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0542,
+        "min_s": 0.0542,
+        "max_s": 0.0542,
+        "samples_s": [
+          0.0542
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "tinymold",
+      "case": "second_worktree",
+      "wall": {
+        "median_s": 0.2148,
+        "min_s": 0.2148,
+        "max_s": 0.2148,
+        "samples_s": [
+          0.2148
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.1424,
+        "min_s": 0.1424,
+        "max_s": 0.1424,
+        "samples_s": [
+          0.1424
+        ]
+      },
+      "snapshot_save_s": [
+        0.0716
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "tinymold",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 1.3705,
+        "min_s": 1.3705,
+        "max_s": 1.3705,
+        "samples_s": [
+          1.3705
+        ]
+      },
+      "link": {
+        "median_s": 0.0647,
+        "min_s": 0.0647,
+        "max_s": 0.0647,
+        "samples_s": [
+          0.0647
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 62,
+      "tinymold": {
+        "median_s": 0.7057,
+        "min_s": 0.7057,
+        "max_s": 0.7057,
+        "samples_s": [
+          0.7057
+        ]
+      }
     }
   ],
   "machine": {
