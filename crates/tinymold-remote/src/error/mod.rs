@@ -49,6 +49,16 @@ pub enum Error {
         expected: String,
     },
 
+    /// A blob's declared size is negative or over the limit, or the server
+    /// sent more bytes than it declared.
+    #[error("the remote cache declared blob {hash} as {size} bytes, which tinymold will not read")]
+    BlobSize {
+        /// The SHA-256 the client asked for.
+        hash: String,
+        /// The size the digest declared.
+        size: i64,
+    },
+
     /// An entry the server holds is not one tinymold wrote.
     #[error("remote entry {key} is not a tinymold entry: {reason}")]
     Malformed {

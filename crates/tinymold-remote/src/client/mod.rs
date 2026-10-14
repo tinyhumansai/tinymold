@@ -32,6 +32,15 @@ const CHUNK: usize = 1 << 20;
 /// The transfer rate a blob's extra time allowance assumes: 4 MiB/s.
 const SLOWEST_RATE: u64 = 4 << 20;
 
+/// The largest blob the client reads. A digest comes from the server's
+/// `ActionResult`, so its size is checked before anything is allocated or
+/// any time is allowed for it.
+const MAX_BLOB: u64 = 4 << 30;
+
+/// The most the client reserves up front for one blob; a larger one grows as
+/// its chunks arrive.
+const MAX_RESERVE: u64 = 64 << 20;
+
 /// The largest message the client accepts: one chunk with plenty of slack,
 /// or a large `FindMissingBlobs` answer.
 const MAX_MESSAGE: usize = 64 << 20;
@@ -60,7 +69,16 @@ impl Client {
         let authorization = config
             .authorization
             .as_deref()
-            .map(|value| value.parse().map_err(|_| Error::InvalidAuth))
+            .map(|value| {
+                value
+                    .parse::<MetadataValue<tonic::metadata::Ascii>>()
+                    .map(|mut value| {
+                        // Keeps the credential out of `Debug` output.
+                        value.set_sensitive(true);
+                        value
+                    })
+                    .map_err(|_| Error::InvalidAuth)
+            })
             .transpose()?;
         Ok(Self {
             grpc: Grpc::new(endpoint.connect_lazy()).max_decoding_message_size(MAX_MESSAGE),
@@ -146,6 +164,7 @@ impl Client {
     /// Reads the blob `digest`, checking that its content hashes to it.
     pub(crate) async fn read(&self, digest: &Digest) -> Result<Vec<u8>> {
         const CALL: &str = "Read";
+        let declared = declared_size(digest)?;
         let request = ReadRequest {
             resource_name: naming::read_resource(&self.instance, digest),
             read_offset: 0,
@@ -162,8 +181,12 @@ impl Client {
                 .await
                 .map_err(status(CALL))?
                 .into_inner();
-            let mut data = Vec::with_capacity(usize::try_from(digest.size_bytes).unwrap_or(0));
+            let reserve = declared.min(MAX_RESERVE);
+            let mut data = Vec::with_capacity(usize::try_from(reserve).unwrap_or(0));
             while let Some(chunk) = stream.message().await.map_err(status(CALL))? {
+                if (data.len() + chunk.data.len()) as u64 > declared {
+                    return Err(oversize(digest));
+                }
                 data.extend_from_slice(&chunk.data);
             }
             Ok(data)
@@ -263,7 +286,7 @@ impl Client {
 
     /// The timeout plus a second for every [`SLOWEST_RATE`] bytes of blob.
     fn allowance(&self, digest: &Digest) -> Duration {
-        let bytes = u64::try_from(digest.size_bytes).unwrap_or(0);
+        let bytes = declared_size(digest).unwrap_or(0);
         self.timeout + Duration::from_secs(bytes / SLOWEST_RATE)
     }
 
@@ -283,6 +306,21 @@ fn status(call: &'static str) -> impl Fn(tonic::Status) -> Error {
     move |status| Error::Status {
         call,
         status: Box::new(status),
+    }
+}
+
+/// `digest`'s size, if it is one the client will read.
+fn declared_size(digest: &Digest) -> Result<u64> {
+    u64::try_from(digest.size_bytes)
+        .ok()
+        .filter(|&size| size <= MAX_BLOB)
+        .ok_or_else(|| oversize(digest))
+}
+
+fn oversize(digest: &Digest) -> Error {
+    Error::BlobSize {
+        hash: digest.hash.clone(),
+        size: digest.size_bytes,
     }
 }
 
