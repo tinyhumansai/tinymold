@@ -110,13 +110,7 @@ pub fn action_info(path: &Path) -> Result<ActionInfo> {
 /// and [`Error::CorruptRecord`](crate::Error::CorruptRecord) when it does not
 /// parse, or is gone.
 pub fn action_references(path: &Path) -> Result<Vec<Digest>> {
-    let Some(text) = record::read(path)? else {
-        return Err(crate::Error::CorruptRecord {
-            path: path.to_path_buf(),
-            line: 0,
-        });
-    };
-    Ok(Action::decode(&text, path)?.references())
+    Ok(action_info(path)?.references)
 }
 
 /// The entries of `dir`; empty when it does not exist.
