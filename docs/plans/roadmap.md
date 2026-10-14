@@ -25,7 +25,7 @@ documents that steer them.
 - `tinymold-cas`: sharded local store, atomic insert, read-only objects, and
   materialization with a selectable strategy (reflink → hardlink → copy by
   default).
-- `tinymold` CLI: `hash`, `cas put|get|has`, and `doctor` (host, rustc
+- `tinymold` CLI: `hash`, `cas put|get|has|verify`, and `doctor` (host, rustc
   version, fast linkers and sccache on `PATH`).
 - Documentation: research reports and synthesis, architecture and cache-key
   specs, ADRs 0002 and 0003, this roadmap.
