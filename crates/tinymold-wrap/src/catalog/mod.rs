@@ -1,8 +1,8 @@
 //! Listing what the cache keeps, for garbage collection and upload.
 //!
 //! The wrapper's records live beside the store's objects: actions under
-//! `entries/<crate>/`, pre-key records under `prekeys/`, and digest caches
-//! under `stat/` and `rustc/`. [`records`] lists them all with their last
+//! `entries/<crate>/`, pre-key records under `prekeys/`, digest caches
+//! under `stat/` and `rustc/`, and compile locks under `locks/`. [`records`] lists them all with their last
 //! use, and [`action_references`] says which objects an action needs, so a
 //! caller can tell which objects are still referenced.
 
