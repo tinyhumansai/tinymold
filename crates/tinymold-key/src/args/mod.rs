@@ -199,7 +199,10 @@ impl Parser {
                 self.externs.push(Extern { name, path });
                 return Ok(());
             }
-            "--codegen" => return self.codegen(&value),
+            "--codegen" => {
+                self.codegen(&value);
+                return Ok(());
+            }
             _ => {}
         }
         self.text(format!("{name}={value}"));
@@ -209,7 +212,10 @@ impl Parser {
     fn short(&mut self, flag: &str, value: String) -> Result<(), &'static str> {
         match flag {
             "-o" => Err("writes to an explicit output path"),
-            "-C" => self.codegen(&value),
+            "-C" => {
+                self.codegen(&value);
+                Ok(())
+            }
             "-L" => {
                 let (kind, path) = match value.split_once('=') {
                     Some((kind, path)) => (kind.to_owned(), path.to_owned()),
@@ -231,7 +237,7 @@ impl Parser {
         }
     }
 
-    fn codegen(&mut self, value: &str) -> Result<(), &'static str> {
+    fn codegen(&mut self, value: &str) {
         let (key, setting) = match value.split_once('=') {
             Some((key, setting)) => (key, Some(setting)),
             None => (value, None),
@@ -241,14 +247,13 @@ impl Parser {
             // compile is incremental is kept, since it changes output bytes.
             ("incremental", _) => {
                 self.text("-C incremental".to_owned());
-                return Ok(());
+                return;
             }
-            ("extra-filename", Some(extra)) => self.extra_filename = extra.to_owned(),
+            ("extra-filename", Some(extra)) => extra.clone_into(&mut self.extra_filename),
             ("linker", Some(linker)) => self.linker = Some(PathBuf::from(linker)),
             _ => {}
         }
         self.text(format!("-C {value}"));
-        Ok(())
     }
 }
 
