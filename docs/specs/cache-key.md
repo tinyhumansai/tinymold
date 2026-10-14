@@ -69,7 +69,9 @@ PreKeyInputs = {
   cfg_and_features:  sorted --cfg and --check-cfg values,
   externs:           sorted [(crate_name, BLAKE3(upstream .rmeta))],
                      or BLAKE3(upstream .rlib) when this action links,
-  proc_macros:       sorted [(name, BLAKE3(proc-macro dylib))],
+  proc_macros:       sorted [(name, identity)], where identity is the ActionKey
+                     that produced the dylib, or BLAKE3(dylib) when tinymold
+                     did not build it (see "Proc-macro identity" below),
   build_script_out:  Merkle digest of OUT_DIR contents + the cargo: directives
 }
 
@@ -102,6 +104,25 @@ arguments and are therefore covered by `args_normalized`. `RUSTFLAGS` and
 `[lints]` arrive the same way, which matters because cargo excludes
 `RUSTFLAGS` from `-C metadata`: two builds with the same artifact filename can
 differ in flags.
+
+## Proc-macro identity
+
+A proc-macro dylib's bytes are not a stable name for it. On macOS each link
+writes a fresh `LC_UUID` and an ad-hoc code signature. Swift's compilation
+cache keyed macro plugins by their bytes and missed about 3,700 compiles
+between two otherwise identical builds for that reason
+([research §4.1](../research/compilers-2026.md#41-the-macro-plugin-cache-key-bug)).
+tinymold therefore:
+
+- keys a dependent on the **ActionKey of the action that built the
+  proc-macro** (or build-script binary) whenever tinymold built or restored
+  it, and falls back to `BLAKE3(dylib)` only for binaries of unknown origin;
+- before trusting the identity, checks that the dylib on disk is the output
+  that ActionKey's ActionResult records (digest compare via the stat cache),
+  and treats a mismatch as a miss;
+- passes `-C link-arg=-Wl,-no_uuid` when linking proc-macros and build
+  scripts on Apple targets, so the bytes are stable as well. The flag is part
+  of the producing action's arguments and therefore of its key.
 
 ## Two-phase lookup
 
@@ -146,7 +167,7 @@ names and therefore output bytes.
 | 1 | **Absolute paths** in debuginfo, `file!()`, `.rmeta` spans and dep-info | Two worktrees produce different bytes and keys | Normalize paths in the key; inject `--remap-path-prefix` per root; scan outputs for residual absolute paths and refuse to share them; an input outside every root makes the action uncacheable with an explained reason |
 | 2 | **Incremental compilation** (dev default for workspace members) | Outputs depend on prior session state and are not reproducible | Cache them locally with `verified: false`; never share to the remote tier unless verification confirms them; keep incremental dirs in the per-key incremental-dir store so a switch does not start cold |
 | 3 | **Crate types sccache refuses** (`bin`, `dylib`, `cdylib`, `proc-macro`) | Depend on the linker and system libraries | Add linker path, digest and version to the key, and use upstream `.rlib` digests for linking actions |
-| 4 | **Proc macros reading undeclared files, env or time** | A hit can return a stale expansion | Key on the proc-macro dylib digest plus everything dep-info records; verification sampling catches impure macros; a denylist marks known-impure macros uncacheable |
+| 4 | **Proc macros reading undeclared files, env or time** | A hit can return a stale expansion | Key on the proc-macro's identity (its producing ActionKey) plus everything dep-info records; verification sampling catches impure macros; a denylist marks known-impure macros uncacheable |
 | 5 | **Non-hermetic build scripts** (probe `cc`, pkg-config, `PATH`, time) | Outputs vary by host | Key dependents on the *outputs* of the build script (`OUT_DIR` digest and `cargo:` directives) rather than trusting it to be pure; cache the build script run itself only when its `rerun-if-*` declarations are complete |
 | 6 | **`RUSTFLAGS` churn** (rust-analyzer, clippy, test and build with different flags) | Every unit re-keyed, including dependencies | `tinymold doctor` reports conflicting flag sets; the flag stabilizer moves global flags into `target.<triple>.rustflags` and profile overrides and gives rust-analyzer its own target dir |
 | 7 | **Feature unification across invocations** (`-p a` vs `-p b`) | Two differently-featured builds of one dependency | Both variants are cached side by side, so alternation hits; a canonicalization report suggests a workspace-hack or `feature-unification = "workspace"` |
@@ -172,3 +193,6 @@ names and therefore output bytes.
 - Whether stored diagnostics are rendered once per `--error-format` or stored
   as JSON and re-rendered.
 - How many recorded input sets to keep per pre-key before evicting the oldest.
+- Whether `ActionResult` manifests should carry enough of cargo's unit
+  identity to translate to and from cargo's proposed `entries/<pkg>/<unit-hash>`
+  cache ([ADR 0004](../adr/0004-store-layout-aligned-with-cargo.md)).
