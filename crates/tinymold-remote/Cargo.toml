@@ -1,0 +1,29 @@
+[package]
+name = "tinymold-remote"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "tinymold's remote cache tier: a REAPI v2 client that shares unit-cache entries between machines."
+readme = "../../README.md"
+keywords = ["build", "cache", "reapi", "bazel-remote", "cargo"]
+categories = ["development-tools::build-utils"]
+
+[dependencies]
+tinymold-hash = { workspace = true }
+tinymold-cas = { workspace = true }
+tinymold-wrap = { workspace = true }
+prost = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

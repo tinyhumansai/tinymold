@@ -32,6 +32,7 @@ tinymold-hash = { path = "crates/tinymold-hash", version = "=0.0.1" }
 tinymold-cas = { path = "crates/tinymold-cas", version = "=0.0.1" }
 tinymold-key = { path = "crates/tinymold-key", version = "=0.0.1" }
 tinymold-wrap = { path = "crates/tinymold-wrap", version = "=0.0.1" }
+tinymold-remote = { path = "crates/tinymold-remote", version = "=0.0.1" }
 # BLAKE3 is the digest for every persisted or shared cache key and object (see
 # docs/adr/0002-blake3-for-content-digests.md). Default features keep the SIMD
 # backends and runtime CPU detection; `mmap` and `rayon` stay off until the
@@ -45,6 +46,22 @@ reflink-copy = "0.1"
 thiserror = "2"
 # Argument parsing for the `tinymold` command-line interface.
 clap = { version = "4", features = ["derive"] }
+# The remote tier's REAPI client (docs/adr/0006-remote-tier-reapi-bazel-remote.md),
+# used only by `tinymold-remote`. tonic carries gRPC over HTTP/2 with rustls
+# for `grpcs://` servers; its default features (codegen, router, server) stay
+# off, since the client is written by hand. prost encodes the dozen REAPI
+# messages, derived by hand rather than generated, so no protoc is needed.
+tonic = { version = "0.14", default-features = false, features = ["transport", "tls-ring", "tls-webpki-roots"] }
+tonic-prost = { version = "0.14", default-features = false }
+prost = { version = "0.14", default-features = false, features = ["derive", "std"] }
+# The runtime the gRPC client runs on: one current-thread runtime per wrapper
+# process, entered only when a remote is configured.
+tokio = { version = "1", default-features = false, features = ["rt", "time"] }
+# Turns a list of ByteStream write chunks into the request stream tonic sends.
+tokio-stream = { version = "0.1", default-features = false }
+# SHA-256 for blobs on REAPI servers that only accept it, such as bazel-remote
+# (the translation layer of docs/adr/0002-blake3-for-content-digests.md).
+sha2 = { version = "0.11", default-features = false }
 # Isolated, self-cleaning directories for tests that touch the filesystem.
 tempfile = "3"
 
