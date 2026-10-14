@@ -635,16 +635,13 @@ impl Unit<'_> {
     /// rustc carries most objects over this way, and hashing them again
     /// would cost an edit more than compiling the ones that changed.
     fn carried_over(&self, name: &str, meta: &fs::Metadata, placed: &Placed) -> Option<Digest> {
-        let identity = stat::identity_of(meta);
-        // A file rustc rewrote during the compile may keep its size, and on a
-        // coarse clock its mtime; only one written before the compile began
-        // is known to be the recorded file.
-        if !written_before(identity.mtime_ns, self.now_ns) {
-            return None;
-        }
-        placed
-            .digest_of(name, identity)
-            .filter(|digest| self.store.keep(digest))
+        carried_over(
+            &self.store,
+            placed,
+            name,
+            stat::identity_of(meta),
+            self.now_ns,
+        )
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's
