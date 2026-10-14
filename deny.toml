@@ -18,6 +18,9 @@ allow = [
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
+    # The Boost license, permissive and GPL-compatible: xxhash-rust, which the
+    # linker forked from mold uses for its hash tables.
+    "BSL-1.0",
     "CDLA-Permissive-2.0",
     "GPL-3.0-only",
     "ISC",
