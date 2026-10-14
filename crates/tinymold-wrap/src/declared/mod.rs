@@ -82,7 +82,7 @@ pub(crate) fn parse(manifest: &str) -> Declared {
 /// Whether a table header other than [`HEADER`] could hold the same keys.
 fn mentions_table(header: &str) -> bool {
     let name: String = header.chars().filter(|c| !c.is_whitespace()).collect();
-    name.contains("metadata.tinymold") || name == "[package.metadata.tinymold.test]"
+    name.contains("metadata.tinymold")
 }
 
 /// Whether a key line in `table` sets tinymold metadata through a dotted key

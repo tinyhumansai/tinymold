@@ -32,6 +32,7 @@
 mod catalog;
 mod clock;
 mod compile;
+mod declared;
 mod error;
 mod exec;
 mod flight;
