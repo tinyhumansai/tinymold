@@ -8,7 +8,8 @@
 //!    inputs (reusing digests of unchanged files), compute the full key, and
 //!    look for an action under it;
 //! 3. on a hit, place every output by reflink or copy, give it a fresh mtime,
-//!    and replay rustc's output;
+//!    replay rustc's output, and record the hit as the last use of its action
+//!    and pre-key records (`docs/specs/gc.md`);
 //! 4. on a miss, run rustc with its output streamed through, then store the
 //!    outputs, the action, and the input set, if the compile succeeded and no
 //!    input changed while it ran.
@@ -78,9 +79,11 @@ pub(crate) fn serve(
         cwd,
     };
     let pre = unit.pre_key(program)?;
-    if let Some(action) = unit.lookup(&pre)?
+    if let Some((action, entry)) = unit.lookup(&pre)?
         && unit.restore(&action).is_ok()
     {
+        record::touch(&entry);
+        record::touch(&unit.prekey_path(&pre));
         return Ok(Served::Hit);
     }
 
@@ -198,8 +201,9 @@ impl Unit<'_> {
             .join(key.to_hex())
     }
 
-    /// The action of the first recorded input set that still matches.
-    fn lookup(&self, pre: &Digest) -> Result<Option<Action>> {
+    /// The action of the first recorded input set that still matches, and
+    /// the path of its record.
+    fn lookup(&self, pre: &Digest) -> Result<Option<(Action, PathBuf)>> {
         let path = self.prekey_path(pre);
         let Some(text) = record::read(&path)? else {
             return Ok(None);
@@ -210,7 +214,8 @@ impl Unit<'_> {
             };
             let entry = self.action_path(&key);
             if let Some(text) = record::read(&entry)? {
-                return Ok(Some(Action::decode(&text, &entry)?));
+                let action = Action::decode(&text, &entry)?;
+                return Ok(Some((action, entry)));
             }
         }
         Ok(None)

@@ -249,6 +249,15 @@ pub(crate) fn read(path: &Path) -> Result<Option<String>> {
     }
 }
 
+/// Records that the record at `path` was just used, by setting its mtime to
+/// now: the last-use time `tinymold gc` expires by. Best effort, since a
+/// failure only makes the record look older than it is.
+pub(crate) fn touch(path: &Path) {
+    if let Ok(file) = fs::File::open(path) {
+        let _ = file.set_modified(std::time::SystemTime::now());
+    }
+}
+
 /// Writes a record through a temporary file and a rename, so concurrent
 /// readers see the old record or the new one, never half of either.
 pub(crate) fn write_atomically(path: &Path, text: &str) -> Result<()> {
