@@ -2,8 +2,7 @@
 #
 # It carries the toolchain the project pins, the system libraries OpenHuman
 # links against (the same list as OpenHuman's own Dockerfile), mold, sccache,
-# and a
-# tinymold binary built from this checkout. Build it from the repository root:
+# and the tinymold and tinymold-link binaries built from this checkout. Build it from the repository root:
 #
 #   docker build -f bench/docker/Dockerfile -t tinymold-bench .
 #
@@ -13,7 +12,8 @@ ARG RUST_VERSION=1.96.1
 FROM rust:${RUST_VERSION}-bookworm AS tinymold
 WORKDIR /src
 COPY . .
-RUN cargo build --release --locked -p tinymold && cp target/release/tinymold /tinymold
+RUN cargo build --release --locked -p tinymold -p tinymold-link \
+    && cp target/release/tinymold target/release/tinymold-link /
 
 FROM rust:${RUST_VERSION}-bookworm
 ARG MOLD_VERSION=3.0.0
@@ -31,5 +31,11 @@ RUN arch="$(uname -m)" \
     && curl -fsSL "https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VERSION}/sccache-v${SCCACHE_VERSION}-${arch}-unknown-linux-musl.tar.gz" \
        | tar -xz -C /usr/local/bin --strip-components=1 --wildcards '*/sccache' \
     && sccache --version
-COPY --from=tinymold /tinymold /usr/local/bin/tinymold
+COPY --from=tinymold /tinymold /tinymold-link /usr/local/bin/
+# gcc's -fuse-ld= takes only the linkers it knows, so the benchmark points gcc
+# at tinymold-link with -B and a directory whose `ld` is tinymold-link, the way
+# mold installs itself under libexec/mold.
+RUN mkdir -p /usr/local/libexec/tinymold-link \
+    && ln -s /usr/local/bin/tinymold-link /usr/local/libexec/tinymold-link/ld \
+    && tinymold-link --version
 COPY bench/docker/openhuman.sh /opt/bench/openhuman.sh

@@ -46,7 +46,8 @@ VOLUME = "tinymold-openhuman"
 CONTAINER = "tinymold-oh-bench"
 SOURCE = bench.WORK / "openhuman"
 OUT = bench.WORK / "openhuman-docker"
-CONFIGS = ("ld", "mold", "tinymold", "sccache", "sccache-noinc")
+CONFIGS = ("ld", "mold", "tinymold", "sccache", "sccache-noinc", "tinymold-link",
+           "tinymold-full")
 CASES = ("cold", "noop", "edit_leaf", "edit_core", "warm", "second_path", "snapshot")
 LABELS = {
     "cold": "Clean build, empty cache",
@@ -82,7 +83,8 @@ def load_volume() -> None:
                             "-cf", "-", "."], stdout=subprocess.PIPE,
                            env={"COPYFILE_DISABLE": "1", "PATH": "/usr/bin:/bin"})
     subprocess.run(["docker", "run", "--rm", "-i", "-v", f"{VOLUME}:/work", IMAGE, "sh", "-c",
-                    "rm -rf /work/oh /work/oh-second /work/store && mkdir -p /work/oh"
+                    "rm -rf /work/oh /work/oh-second /work/store /work/store-*"
+                    " && mkdir -p /work/oh"
                     " && tar -xf - -C /work/oh"], stdin=tar.stdout, check=True)
     tar.wait()
 
@@ -91,12 +93,14 @@ def docker_info() -> dict:
     info = json.loads(bench.output(["docker", "info", "--format", "{{json .}}"]))
     probe = bench.output(["docker", "run", "--rm", "-v", f"{VOLUME}:/work", IMAGE, "sh", "-c",
                           "rustc -V; mold --version | cut -d' ' -f1,2; ld --version | head -1;"
-                          " df -T /work | tail -1 | awk '{print $2}'; sccache --version"]
+                          " df -T /work | tail -1 | awk '{print $2}'; sccache --version;"
+                          " tinymold-link --version"]
                          ).splitlines()
     return {"docker": info.get("ServerVersion"), "cpus": info.get("NCPU"),
             "memory_bytes": info.get("MemTotal"), "kernel": info.get("KernelVersion"),
             "storage_driver": info.get("Driver"), "rustc": probe[0], "mold": probe[1],
-            "ld": probe[2], "work_filesystem": probe[3], "sccache": probe[4]}
+            "ld": probe[2], "work_filesystem": probe[3], "sccache": probe[4],
+            "tinymold_link": probe[5]}
 
 
 def cmd_run(args: argparse.Namespace) -> None:
