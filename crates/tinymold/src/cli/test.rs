@@ -345,3 +345,38 @@ fn snapshot_commands_need_a_store() {
         assert!(matches!(result, Err(Error::NoStoreLocation)));
     }
 }
+
+#[test]
+fn gc_reports_what_it_removed_from_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    Store::open(&store).unwrap();
+
+    let (result, out) = exec(&[
+        "--store",
+        s(&store),
+        "gc",
+        "--max-age",
+        "14d",
+        "--max-size",
+        "10G",
+        "--snapshots-max-age",
+        "30d",
+        "--dry-run",
+    ]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("gc: would remove 0 actions"), "{out}");
+    assert!(out.contains("gc: kept 0 actions, 0 objects, 0 B"), "{out}");
+}
+
+#[test]
+fn gc_rejects_an_unparsable_age_or_size() {
+    let parse = |args: &[&str]| {
+        Cli::try_parse_from(std::iter::once("tinymold").chain(args.iter().copied()))
+            .map(|_| ())
+            .unwrap_err()
+            .to_string()
+    };
+    assert!(parse(&["gc", "--max-age", "2w"]).contains("invalid duration"));
+    assert!(parse(&["gc", "--max-size", "lots"]).contains("invalid size"));
+}

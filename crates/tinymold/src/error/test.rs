@@ -74,3 +74,25 @@ fn freshness_and_snapshot_errors_say_what_went_wrong() {
         assert_eq!(error.to_string(), message);
     }
 }
+
+#[test]
+fn invalid_limits_say_what_is_accepted() {
+    assert_eq!(
+        Error::InvalidDuration("2w".into()).to_string(),
+        "invalid duration \"2w\": use a whole number and s, m, h or d, such as 14d"
+    );
+    assert_eq!(
+        Error::InvalidSize("lots".into()).to_string(),
+        "invalid size \"lots\": use a whole number of bytes, or K, M, G or T, such as 10G"
+    );
+}
+
+#[test]
+fn wrapper_errors_convert_transparently() {
+    let wrap = tinymold_wrap::Error::CorruptRecord {
+        path: "entry".into(),
+        line: 3,
+    };
+    let expected = wrap.to_string();
+    assert_eq!(Error::from(wrap).to_string(), expected);
+}

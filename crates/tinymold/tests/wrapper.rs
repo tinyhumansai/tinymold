@@ -143,3 +143,35 @@ fn queries_and_other_programs_pass_through() {
         .unwrap();
     assert_eq!(missing.status.code(), Some(1));
 }
+
+/// Runs `tinymold gc` with `args` on `store` and returns its output.
+fn gc(store: &Path, args: &[&str]) -> String {
+    let output = Command::new(env!("CARGO_BIN_EXE_tinymold"))
+        .arg("--store")
+        .arg(store)
+        .arg("gc")
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stdout).unwrap()
+}
+
+#[test]
+fn work_used_since_the_cutoff_still_hits_after_gc_and_expired_work_misses() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    let root = dir.path().join("a");
+    worktree(&root, "pub fn answer() -> u32 { 42 }\n");
+    assert_eq!(outcome(&build(&root, &store, &[])), "miss");
+
+    let kept = gc(&store, &["--max-age", "1h"]);
+    assert!(kept.starts_with("gc: removed 0 actions"), "{kept}");
+    assert_eq!(outcome(&build(&root, &store, &[])), "hit");
+
+    // Everything is older than zero seconds once a second has passed.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let removed = gc(&store, &["--max-age", "0s"]);
+    assert!(removed.starts_with("gc: removed 1 actions"), "{removed}");
+    assert_eq!(outcome(&build(&root, &store, &[])), "miss");
+}
