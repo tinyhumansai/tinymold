@@ -61,24 +61,46 @@ pub(crate) fn still_valid(recorded: Identity, recorded_ns: u64, current: Identit
     current.ino != 0 && recorded == current && current.mtime_ns < recorded_ns
 }
 
-/// The stat-cache entry for `path`.
-fn entry_path(store: &Path, path: &Path) -> PathBuf {
-    let name = Digest::of_bytes(path.to_string_lossy().as_bytes()).to_hex();
+/// How a file's digest is computed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    /// Every byte, as stored objects are named.
+    Bytes,
+    /// Static archives with their members' build stamps zeroed
+    /// ([`tinymold_key::content_digest`]); other files as `Bytes`.
+    Archive,
+}
+
+/// The stat-cache entry for `path` digested as `kind`.
+fn entry_path(store: &Path, path: &Path, kind: Kind) -> PathBuf {
+    let tag = match kind {
+        Kind::Bytes => "",
+        Kind::Archive => "archive:",
+    };
+    let name = Digest::of_bytes(format!("{tag}{}", path.to_string_lossy()).as_bytes()).to_hex();
     store.join("stat").join(&name[..2]).join(&name[2..])
 }
 
 /// The digest of the file at `path`, from the stat cache when its identity is
 /// unchanged, otherwise by hashing it (and remembering the result).
 pub(crate) fn digest(store: &Path, path: &Path) -> Result<Digest> {
+    digest_as(store, path, Kind::Bytes)
+}
+
+/// [`digest`], computed as `kind`.
+pub(crate) fn digest_as(store: &Path, path: &Path, kind: Kind) -> Result<Digest> {
     let current = identity(path)?;
-    let entry = entry_path(store, path);
+    let entry = entry_path(store, path, kind);
     if let Some((recorded, recorded_ns, digest)) = read(&entry)?.as_deref().and_then(parse_entry)
         && still_valid(recorded, recorded_ns, current)
     {
         return Ok(digest);
     }
-    let digest = Digest::of_file(path)?;
-    remember(store, path, current, digest)?;
+    let digest = match kind {
+        Kind::Bytes => Digest::of_file(path)?,
+        Kind::Archive => tinymold_key::content_digest(&fs::read(path).map_err(io("read", path))?),
+    };
+    write_entry(store, path, kind, current, digest)?;
     Ok(digest)
 }
 
@@ -90,6 +112,16 @@ pub(crate) fn remember(
     identity: Identity,
     digest: Digest,
 ) -> Result<()> {
+    write_entry(store, path, Kind::Bytes, identity, digest)
+}
+
+fn write_entry(
+    store: &Path,
+    path: &Path,
+    kind: Kind,
+    identity: Identity,
+    digest: Digest,
+) -> Result<()> {
     let line = format!(
         "{} {} {} {} {} {digest}\n",
         identity.dev,
@@ -98,7 +130,7 @@ pub(crate) fn remember(
         identity.mtime_ns,
         nanos(SystemTime::now())
     );
-    write_atomically(&entry_path(store, path), &line)
+    write_atomically(&entry_path(store, path, kind), &line)
 }
 
 fn parse_entry(text: &str) -> Option<(Identity, u64, Digest)> {

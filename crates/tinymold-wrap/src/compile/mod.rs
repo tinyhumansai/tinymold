@@ -177,7 +177,10 @@ impl Unit<'_> {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .into_owned();
-                files.push((name, stat::digest(self.store_dir, &path)?));
+                // Archives a build script rebuilt keep their digest when only
+                // their build stamps changed.
+                let digest = stat::digest_as(self.store_dir, &path, stat::Kind::Archive)?;
+                files.push((name, digest));
             }
         }
         files.sort();

@@ -106,3 +106,35 @@ fn linker_identity_names_the_file_or_says_it_is_missing() {
     );
     assert_eq!(nanos(UNIX_EPOCH - Duration::from_secs(1)), 0);
 }
+
+#[test]
+fn archives_are_digested_without_their_build_stamps() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    let archive = |mtime: &str| {
+        let mut bytes = b"!<arch>\n".to_vec();
+        let header = format!(
+            "{:<16}{mtime:<12}{:<6}{:<6}{:<8}{:<10}`\n",
+            "a.o/", 0, 0, 644, 2
+        );
+        bytes.extend(header.as_bytes());
+        bytes.extend(b"ok");
+        bytes
+    };
+    let first = dir.path().join("one.a");
+    let second = dir.path().join("two.a");
+    fs::write(&first, archive("1700000000")).unwrap();
+    fs::write(&second, archive("1800000000")).unwrap();
+    let a = digest_as(&store, &first, Kind::Archive).unwrap();
+    assert_eq!(a, digest_as(&store, &second, Kind::Archive).unwrap());
+    assert_ne!(
+        a,
+        digest(&store, &first).unwrap(),
+        "the byte digest is kept apart"
+    );
+    assert_eq!(
+        a,
+        digest_as(&store, &first, Kind::Archive).unwrap(),
+        "cached"
+    );
+}
