@@ -81,6 +81,9 @@ With a remote server:
 | `cache-key` | `''` | Extra text mixed into the GitHub cache key, to separate jobs that build different things |
 | `remote-url`, `remote-auth`, `remote-instance` | `''` | See [`remote.md`](remote.md) |
 
+The setup step also runs `tinymold doctor`, which shows the store and the
+remote without the credential.
+
 **Save** (`save/action.yml`):
 
 | Input | Default | Meaning |
@@ -119,9 +122,11 @@ With a remote server:
 2. Summarize the wrapper log into `$GITHUB_STEP_SUMMARY` with
    `tinymold stats --markdown`: hits, remote hits, misses, pass-throughs,
    errors, and wrapper time.
-3. For `github` and `both`, run `tinymold gc` with `max-age` and
-   `max-size`, then save the store with `actions/cache/save` under the
-   setup step's exact key.
+3. For `github`, `both` and `none`, run `tinymold gc` with `max-age` and
+   `max-size`.
+4. For `github` and `both`, save the store with `actions/cache/save` under
+   the setup step's exact key, but only when the job stored something new.
+   A job that only hit would upload the same store it restored.
 
 ## Why one archive per job, not one GitHub cache entry per object
 
@@ -167,10 +172,12 @@ the store fit beside each other.
 
 ## Acceptance criteria
 
-- **This repository's CI runs the action on itself** (job `tinymold-cache`):
-  1. one job builds and tests with an empty store, and saves it;
-  2. a second job restores the store and builds the workspace in a fresh
-     target directory;
-  3. that second build reaches ≥ 90% hits, checked with `tinymold stats`.
+- **This repository's CI runs the action on itself** (jobs `action-fill`
+  and `action-reuse`):
+  1. `action-fill` builds and tests, and saves the store;
+  2. `action-reuse` restores it on a fresh runner and builds the same
+     commit;
+  3. that second build reaches ≥ 90% hits, checked with
+     `tinymold stats --min-hit-rate 90`.
 - The `remote-e2e` job does the same through a bazel-remote service
   container, with the local store wiped in between.
