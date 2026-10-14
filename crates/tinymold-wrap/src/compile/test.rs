@@ -918,3 +918,93 @@ fn a_hit_without_a_placement_record_replaces_every_output() {
     assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
     assert_eq!(unit.outputs(), built);
 }
+
+#[test]
+fn a_miss_after_an_incremental_edit_stores_carried_over_objects_by_their_bytes() {
+    // The second compile carries most objects over from its session; they
+    // are stored by the digest recorded for them, which must still be the
+    // digest of their bytes, so a hit restores exactly what was built.
+    let unit = Crate::new("pub fn a() -> u32 { 1 }\npub fn b() -> u32 { 2 }\n");
+    let incremental = format!("incremental={}", unit.root.join("incremental").display());
+    let flags = [
+        "-C",
+        incremental.as_str(),
+        "-C",
+        "debuginfo=2",
+        "-C",
+        "split-debuginfo=unpacked",
+    ];
+    assert_stored(&unit.serve(&flags).unwrap());
+    std::thread::sleep(Duration::from_millis(1100));
+    write_settled(
+        unit.root.join("src/lib.rs"),
+        "pub fn a() -> u32 { 1 }\n// edited\npub fn b() -> u32 { 3 }\n",
+    );
+    assert_stored(&unit.serve(&flags).unwrap());
+    let built = unit.outputs();
+
+    unit.clear_outputs();
+    assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit { .. }));
+    assert_eq!(unit.outputs(), built);
+}
+
+/// A store holding `bytes`, a file in `dir` with them, and the file's identity.
+fn placed_file(dir: &Path, bytes: &[u8]) -> (Store, Digest, Identity) {
+    let store = Store::open(dir.join("store")).unwrap();
+    let digest = store.insert_bytes(bytes).unwrap();
+    let path = dir.join("demo.o");
+    write_settled(&path, bytes);
+    (store, digest, stat::identity(&path).unwrap())
+}
+
+#[cfg(unix)]
+#[test]
+fn an_untouched_placed_output_is_carried_over_without_hashing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, digest, identity) = placed_file(dir.path(), b"object");
+    let placed = placed_record(dir.path(), &[("demo.o".to_owned(), identity, digest)]);
+    let now = filesystem_now(dir.path()).unwrap();
+    assert_eq!(
+        carried_over(&store, &placed, "demo.o", identity, now),
+        Some(digest)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn an_output_written_during_the_compile_is_hashed_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, digest, identity) = placed_file(dir.path(), b"object");
+    let placed = placed_record(dir.path(), &[("demo.o".to_owned(), identity, digest)]);
+    // The compile's clock reading is no later than the file's mtime.
+    assert_eq!(
+        carried_over(&store, &placed, "demo.o", identity, identity.mtime_ns),
+        None
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn an_output_whose_identity_changed_or_object_is_gone_is_stored_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (store, digest, identity) = placed_file(dir.path(), b"object");
+    let now = filesystem_now(dir.path()).unwrap();
+    let moved = Identity {
+        ino: identity.ino + 1,
+        ..identity
+    };
+    let placed = placed_record(dir.path(), &[("demo.o".to_owned(), moved, digest)]);
+    assert_eq!(carried_over(&store, &placed, "demo.o", identity, now), None);
+
+    let placed = placed_record(dir.path(), &[("demo.o".to_owned(), identity, digest)]);
+    assert!(store.remove(&digest).unwrap());
+    assert_eq!(carried_over(&store, &placed, "demo.o", identity, now), None);
+    assert_eq!(carried_over(&store, &placed, "other.o", identity, now), None);
+}
+
+/// A placement record holding `files`, saved and loaded back.
+fn placed_record(dir: &Path, files: &[Placement]) -> Placed {
+    let path = dir.join("placed");
+    Placed::save(&path, files).unwrap();
+    Placed::load(&path).unwrap()
+}
