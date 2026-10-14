@@ -15,6 +15,21 @@ fn rustc() -> PathBuf {
     std::env::var_os("RUSTC").map_or_else(|| PathBuf::from("rustc"), PathBuf::from)
 }
 
+/// Writes a source file as an edit saved before the build: its mtime is
+/// pushed back past any filesystem tick, so the compile that reads it may be
+/// stored. One written moments before the compile shares the wrapper's
+/// clock reading on filesystems with coarse timestamps, such as Linux's.
+fn write_settled(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) {
+    let path = path.as_ref();
+    fs::write(path, contents).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(SystemTime::now() - std::time::Duration::from_secs(10))
+        .unwrap();
+}
+
 /// A one-file crate with its own out-dir and store.
 struct Crate {
     _dir: tempfile::TempDir,
@@ -28,7 +43,7 @@ impl Crate {
         let root = dir.path().to_path_buf();
         fs::create_dir_all(root.join("src")).unwrap();
         fs::create_dir_all(root.join("target/debug/deps")).unwrap();
-        fs::write(root.join("src/lib.rs"), source).unwrap();
+        write_settled(root.join("src/lib.rs"), source);
         let store = root.join("store");
         Self {
             _dir: dir,
@@ -136,7 +151,7 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
     assert_stored(&unit.serve(&[]).unwrap());
     let first = unit.outputs();
 
-    fs::write(
+    write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 2 }\n",
     )
@@ -144,7 +159,7 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
     assert_stored(&unit.serve(&[]).unwrap());
     assert_ne!(unit.outputs(), first);
 
-    fs::write(
+    write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 1 }\n",
     )
@@ -357,7 +372,7 @@ fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
     std::thread::sleep(Duration::from_millis(1100));
 
     // A comment-only edit: rustc reuses most of the previous session.
-    fs::write(
+    write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn a() -> u32 { 1 }\n// edited\npub fn b() -> u32 { 2 }\n",
     )
@@ -447,7 +462,7 @@ fn a_miss_leaves_the_last_use_of_other_actions_alone() {
     backdate(&unit.store.join("entries"), long_ago);
     let before = files_under(&unit.store.join("entries"));
 
-    fs::write(
+    write_settled(
         unit.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 7 }\n",
     )
@@ -608,7 +623,7 @@ fn a_remote_without_the_unit_is_a_plain_miss() {
 #[test]
 fn a_remote_input_set_whose_files_differ_here_is_not_used() {
     let (second, remote) = remote_pair();
-    fs::write(
+    write_settled(
         second.root.join("src/lib.rs"),
         "pub fn answer() -> u32 { 7 }\n",
     )
