@@ -476,8 +476,7 @@ impl Unit<'_> {
         // An incremental compile with split debuginfo writes hundreds of
         // object files; storing them one by one would hold cargo up for
         // longer than the compile's own link.
-        let mut outputs =
-            parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
+        let mut outputs = parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(outputs)
     }

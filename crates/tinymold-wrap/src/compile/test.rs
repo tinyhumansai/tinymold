@@ -673,7 +673,11 @@ fn a_hit_with_many_outputs_restores_every_one_fresh_with_its_content_and_mode() 
             output.name
         );
         let meta = fs::metadata(&path).unwrap();
-        assert!(meta.modified().unwrap() > before, "{} is stale", output.name);
+        assert!(
+            meta.modified().unwrap() > before,
+            "{} is stale",
+            output.name
+        );
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
