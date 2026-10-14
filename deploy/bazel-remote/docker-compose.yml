@@ -1,0 +1,25 @@
+# A tinymold remote cache: bazel-remote on a local disk, behind basic auth.
+# See README.md in this directory for credentials, TLS and sizing.
+#
+#   htpasswd -cB htpasswd ci        # or: echo "ci:$(openssl passwd -apr1)" > htpasswd
+#   docker compose up -d
+#   TINYMOLD_REMOTE_URL=grpc://localhost:9092 tinymold remote check
+services:
+  bazel-remote:
+    image: buchgr/bazel-remote-cache:v2.6.2
+    restart: unless-stopped
+    command:
+      - --dir=/data
+      # Least recently used entries are evicted beyond this many GiB.
+      - --max_size=100
+      - --htpasswd_file=/etc/bazel-remote/htpasswd
+      # Let pull requests from forks, which get no secrets, read the cache.
+      - --allow_unauthenticated_reads
+    ports:
+      - "9092:9092"   # gRPC, which tinymold speaks
+    volumes:
+      - cache:/data
+      - ./htpasswd:/etc/bazel-remote/htpasswd:ro
+
+volumes:
+  cache:

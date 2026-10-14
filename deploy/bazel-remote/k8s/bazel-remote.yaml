@@ -1,0 +1,67 @@
+# A tinymold remote cache on Kubernetes: one bazel-remote replica on a
+# persistent volume, behind basic auth. Create the credential first:
+#
+#   htpasswd -cB htpasswd ci
+#   kubectl -n tinymold create secret generic bazel-remote-htpasswd --from-file=htpasswd
+#   kubectl apply -n tinymold -f bazel-remote.yaml
+#
+# Expose it with ingress.yaml (TLS at the ingress) or a LoadBalancer Service.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bazel-remote
+  labels: {app: bazel-remote}
+spec:
+  serviceName: bazel-remote
+  replicas: 1
+  selector:
+    matchLabels: {app: bazel-remote}
+  template:
+    metadata:
+      labels: {app: bazel-remote}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: bazel-remote
+          image: buchgr/bazel-remote-cache:v2.6.2
+          args:
+            - --dir=/data
+            # Keep this below the volume size: bazel-remote evicts the least
+            # recently used entries beyond it.
+            - --max_size=180
+            - --htpasswd_file=/etc/bazel-remote/htpasswd
+            - --allow_unauthenticated_reads
+          ports:
+            - {name: grpc, containerPort: 9092}
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /status, port: http}
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {memory: 4Gi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: htpasswd, mountPath: /etc/bazel-remote, readOnly: true}
+      volumes:
+        - name: htpasswd
+          secret: {secretName: bazel-remote-htpasswd}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: {storage: 200Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazel-remote
+  labels: {app: bazel-remote}
+spec:
+  selector: {app: bazel-remote}
+  ports:
+    - {name: grpc, port: 9092, targetPort: grpc, appProtocol: kubernetes.io/h2c}

@@ -1,0 +1,28 @@
+# TLS for the remote cache at an ingress-nginx controller, so runners connect
+# with grpcs://cache.example.com. gRPC needs HTTP/2 to the backend, which
+# the backend-protocol annotation asks for, and large uploads need the body
+# size limit lifted. Replace the host and the TLS secret with your own.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bazel-remote
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: GRPC
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [cache.example.com]
+      secretName: bazel-remote-tls
+  rules:
+    - host: cache.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bazel-remote
+                port: {name: grpc}
