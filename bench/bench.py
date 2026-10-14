@@ -712,6 +712,7 @@ class Session:
             flags = ", ".join(json.dumps(flag) for flag in settings["rustflags"])
             self.config += ["--config", f"build.rustflags=[{flags}]"]
         self.toolchain = settings.get("toolchain")
+        self.target_dir = target_dir
         if target_dir:
             # A/B runs keep each side's build in its own directory under the
             # checkout's target/, so alternating never rebuilds dependencies.
@@ -782,7 +783,8 @@ class Session:
         return sample
 
     def clean(self, cwd: Path | None = None) -> None:
-        shutil.rmtree((cwd or self.src) / "target", ignore_errors=True)
+        """Removes this session's build: its own target directory in an A/B."""
+        shutil.rmtree((cwd or self.src) / (self.target_dir or "target"), ignore_errors=True)
 
 
 def run_case(session: Session, case: str, runs: int) -> dict:
@@ -1111,11 +1113,17 @@ def bench_ab(args: argparse.Namespace) -> dict:
             print(f"{project['name']} / {case}: {sides[0].label} vs {sides[1].label}",
                   file=sys.stderr)
             edits = Edits(src, project["edits"])
-            for side in sides:
-                side.build()
             samples: dict[str, list[dict]] = {side.label: [] for side in sides}
             for n in range(args.runs):
                 order = sides if n % 2 == 0 else list(reversed(sides))
+                if case == "clean":
+                    for side in order:
+                        side.clean()
+                        samples[side.label].append(side.build())
+                    continue
+                if n == 0:
+                    for side in sides:
+                        side.build()  # edits start from an up-to-date build
                 try:
                     edits.apply(case, n)
                     for side in order:
