@@ -110,6 +110,10 @@ def prepare_blender(project: dict, home: Path) -> None:
     clone(project, src)
     # Precompiled dependencies are git-lfs submodules under lib/<platform>.
     # make_update.py fetches them; --no-blender leaves the pinned tag alone.
+    # The main repository keeps assets (startup.blend, icons) in git-lfs too,
+    # and a clone made without a global `git lfs install` leaves pointers.
+    run(["git", "lfs", "install", "--local"], cwd=src)
+    run(["git", "lfs", "pull"], cwd=src)
     marker = home / ".libs-fetched"
     if not marker.exists():
         run([sys.executable, "build_files/utils/make_update.py", "--no-blender"], cwd=src)
