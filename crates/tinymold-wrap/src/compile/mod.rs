@@ -435,7 +435,7 @@ impl Unit<'_> {
         let mut embedded = vec![false; rooted.len()];
         if !rooted.is_empty() {
             for (name, path) in self.unit_files()? {
-                if name.ends_with(".d") {
+                if Path::new(&name).extension().and_then(|ext| ext.to_str()) == Some("d") {
                     continue;
                 }
                 let bytes = fs::read(&path).map_err(io("read", &path))?;
