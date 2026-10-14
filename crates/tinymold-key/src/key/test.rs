@@ -211,3 +211,65 @@ fn an_instrumented_compile_is_keyed_by_its_workspace_path() {
         key_of(&plain_b, &plain_roots_b, b"dep")
     );
 }
+
+/// Every spelling of a lint-level flag cargo or `RUSTFLAGS` can pass.
+const LINT_FLAGS: &[&str] = &[
+    "-D",
+    "warnings",
+    "-Wunused",
+    "-A",
+    "dead_code",
+    "-Funsafe_code",
+    "--deny=missing_docs",
+    "--warn",
+    "unreachable_pub",
+    "--allow=unused_imports",
+    "--forbid",
+    "unsafe_op_in_unsafe_fn",
+];
+
+fn key_with(extra: &[&str]) -> Digest {
+    let (invocation, roots) = compile("/w/a", extra);
+    key_of(&invocation, &roots, b"rmeta")
+}
+
+#[test]
+fn lint_flags_do_not_change_the_key_of_a_capped_dependency() {
+    let capped = ["--cap-lints", "allow"];
+    let with_lints = [&capped[..], LINT_FLAGS].concat();
+    assert_eq!(key_with(&capped), key_with(&with_lints));
+
+    // Before or after the cap, in either spelling of the cap.
+    let before = [LINT_FLAGS, &["--cap-lints=allow"][..]].concat();
+    assert_eq!(key_with(&["--cap-lints=allow"]), key_with(&before));
+}
+
+#[test]
+fn lint_flags_change_the_key_of_an_uncapped_crate() {
+    assert_ne!(key_with(&[]), key_with(&["-D", "warnings"]));
+    assert_ne!(key_with(&[]), key_with(&["--deny=warnings"]));
+}
+
+#[test]
+fn lint_flags_change_the_key_under_a_cap_other_than_allow() {
+    let capped = ["--cap-lints", "warn"];
+    let with_lints = [&capped[..], &["-D", "warnings"][..]].concat();
+    assert_ne!(key_with(&capped), key_with(&with_lints));
+
+    // A second cap that is not `allow` keeps them in, whichever wins.
+    let both = ["--cap-lints", "allow", "--cap-lints", "warn"];
+    let both_with_lints = [&both[..], &["-D", "warnings"][..]].concat();
+    assert_ne!(key_with(&both), key_with(&both_with_lints));
+}
+
+#[test]
+fn force_warn_changes_the_key_even_when_capped() {
+    let capped = ["--cap-lints", "allow"];
+    let forced = [&capped[..], &["--force-warn", "unused"][..]].concat();
+    assert_ne!(key_with(&capped), key_with(&forced));
+}
+
+#[test]
+fn the_cap_itself_stays_in_the_key() {
+    assert_ne!(key_with(&[]), key_with(&["--cap-lints", "allow"]));
+}
