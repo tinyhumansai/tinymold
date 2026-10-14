@@ -248,7 +248,8 @@ matters less here: no-op builds are already 70-100 ms.
 
 Each bet is a time-boxed spike that ends in an ADR:
 
-- RDR-lite interface hashing;
+- RDR-lite interface hashing (spiked: not on stable rustc, see
+  [ADR 0007](../adr/0007-no-interface-hashing-in-the-wrapper.md));
 - incremental linking contributed upstream to wild;
 - a proc-macro expansion cache;
 - a persistent `rustc_driver` worker;
