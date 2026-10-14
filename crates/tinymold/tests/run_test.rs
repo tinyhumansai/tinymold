@@ -62,11 +62,6 @@ fn cargo_test(root: &Path, store: &Path) -> (Output, Vec<String>) {
     cargo_test_with(root, store, &["--lib"])
 }
 
-/// `cargo test` over every target but doctests, as [`cargo_test`] runs it.
-fn cargo_test_all(root: &Path, store: &Path) -> (Output, Vec<String>) {
-    cargo_test_with(root, store, &["--bins", "--tests"])
-}
-
 fn cargo_test_with(root: &Path, store: &Path, targets: &[&str]) -> (Output, Vec<String>) {
     let log = store.with_extension("log");
     let _ = fs::remove_file(&log);
@@ -236,32 +231,46 @@ fn run_test_passes_arguments_and_exit_status_through() {
 
 #[test]
 fn an_integration_test_reruns_when_the_binary_it_runs_changes() {
-    // The test binary runs `tool` through CARGO_BIN_EXE_tool, so editing
-    // `tool` leaves the test binary's bytes alone; the run must not be
-    // replayed anyway.
+    // The test runs `tool` through CARGO_BIN_EXE_tool, and `tool` prints what
+    // the `digits` package returns. Editing `digits` changes `tool` but
+    // neither the test binary's bytes nor anything under `tool/`, so only
+    // the binary the test runs can tell the run is stale.
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("ws");
     let store = dir.path().join("store");
     write(
         &root.join("Cargo.toml"),
-        "[workspace]\nmembers = [\"tool\"]\nresolver = \"2\"\n",
+        "[workspace]\nmembers = [\"tool\", \"digits\"]\nresolver = \"2\"\n",
     );
     write(
-        &root.join("tool/Cargo.toml"),
-        "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        &root.join("digits/Cargo.toml"),
+        "[package]\nname = \"digits\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
     );
-    write(&root.join("tool/src/main.rs"), "fn main() { print!(\"1\"); }\n");
+    write(&root.join("digits/src/lib.rs"), "pub fn one() -> u32 { 1 }\n");
+    write(
+        &root.join("tool/Cargo.toml"),
+        "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\ndigits = { path = \"../digits\" }\n",
+    );
+    write(
+        &root.join("tool/src/main.rs"),
+        "fn main() { print!(\"{}\", digits::one()); }\n",
+    );
     write(
         &root.join("tool/tests/cli.rs"),
         "#[test]\nfn prints_one() {\n    let out = std::process::Command::new(env!(\"CARGO_BIN_EXE_tool\")).output().unwrap();\n    assert_eq!(out.stdout, b\"1\");\n}\n",
     );
-    let (first, _) = cargo_test_all(&root, &store);
+    let (first, _) = cargo_test_tool(&root, &store);
     assert!(first.status.success(), "{first:?}");
-    let (second, _) = cargo_test_all(&root, &store);
+    let (second, _) = cargo_test_tool(&root, &store);
     assert!(second.status.success(), "{second:?}");
 
-    // Break the tool: the integration test must run again, and fail.
-    fs::write(root.join("tool/src/main.rs"), "fn main() { print!(\"2\"); }\n").unwrap();
-    let (third, lines) = cargo_test_all(&root, &store);
+    // Break `digits`: the integration test must run again, and fail.
+    fs::write(root.join("digits/src/lib.rs"), "pub fn one() -> u32 { 2 }\n").unwrap();
+    let (third, lines) = cargo_test_tool(&root, &store);
     assert!(!third.status.success(), "replayed a stale pass: {lines:?}");
+}
+
+/// `cargo test --test cli -p tool`, as [`cargo_test`] runs it.
+fn cargo_test_tool(root: &Path, store: &Path) -> (Output, Vec<String>) {
+    cargo_test_with(root, store, &["--package", "tool", "--test", "cli"])
 }
