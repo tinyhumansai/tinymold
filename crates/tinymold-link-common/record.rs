@@ -42,6 +42,11 @@ pub unsafe trait FileRecord: Clone + Copy + Default + Send + Sync + 'static {
         }
     }
 
+    #[expect(
+        clippy::chunks_exact_to_as_chunks,
+        reason = "as_chunks_mut needs the chunk size as a const generic, and a const \
+                  generic cannot depend on the generic Self of this trait method"
+    )]
     fn write_all(records: &[Self], buf: &mut [u8]) {
         for (record, slot) in records.iter().zip(buf.chunks_exact_mut(size_of::<Self>())) {
             record.write(slot);
