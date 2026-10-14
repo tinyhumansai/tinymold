@@ -29,6 +29,7 @@ use crate::record::{
     self, Action, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets, write_atomically,
 };
 use crate::stat::{self, nanos};
+use crate::trace::Trace;
 use crate::{Error, Result};
 
 /// How a cacheable invocation was served.
@@ -64,6 +65,7 @@ pub(crate) fn serve(
     program: &Path,
     args: &[OsString],
     invocation: &Invocation,
+    trace: &mut Trace,
 ) -> Result<Served> {
     let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
     let cargo_home = std::env::var_os("CARGO_HOME")
@@ -77,18 +79,19 @@ pub(crate) fn serve(
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
     };
-    let pre = unit.pre_key(program)?;
-    if let Some(action) = unit.lookup(&pre)?
-        && unit.restore(&action).is_ok()
+    let pre = trace.span("pre_key", || unit.pre_key(program))?;
+    if let Some(action) = trace.span("lookup", || unit.lookup(&pre))?
+        && trace.span("restore", || unit.restore(&action)).is_ok()
     {
         return Ok(Served::Hit);
     }
 
     let started = SystemTime::now();
-    let captured = exec::run_captured(program, args)?;
+    let captured = trace.span("rustc", || exec::run_captured(program, args))?;
     let stored = if captured.code == 0 {
         let ingesting = std::time::Instant::now();
-        unit.ingest(&pre, started, &captured)
+        trace
+            .span("ingest", || unit.ingest(&pre, started, &captured))
             .map(|()| ingesting.elapsed())
             .map_err(|error| error.to_string())
     } else {
