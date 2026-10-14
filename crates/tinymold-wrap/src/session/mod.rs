@@ -83,7 +83,7 @@ pub(crate) fn find(
 /// not a lock file and not one still being written (`-working`).
 fn is_finished(name: &str) -> bool {
     name.starts_with("s-")
-        && !Path::new(name).extension().is_some_and(|ext| ext == "lock")
+        && Path::new(name).extension().is_none_or(|ext| ext != "lock")
         && !name.ends_with("-working")
         && name.split('-').count() == 4
 }
