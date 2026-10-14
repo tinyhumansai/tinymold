@@ -10,11 +10,15 @@ where it cannot drift.
 ```text
 docs/
 ├── README.md      # this index
+├── research/      # dated research reports and their synthesis
 ├── specs/         # behavior and architecture specifications
 ├── plans/         # implementation plans derived from approved specs
 └── adr/           # architecture decision records, numbered and immutable
 ```
 
+- **[`research/`](research/README.md)**: the research behind the design, kept
+  as dated reports, plus a synthesis with the problem in numbers, the guiding
+  principles and a catalogue of ideas by pillar.
 - **[`specs/`](specs/README.md)** — one file per feature, module, or subsystem,
   describing its behavior, public surface, invariants, and acceptance criteria.
 - **[`plans/`](plans/README.md)** — implementation-ordered, test-first steps for
@@ -28,10 +32,10 @@ docs/
 Complex modules also carry a module-level `README.md` inside `src/<module>/`
 covering their design, public surface, and important constraints.
 
-The current module-release contract is in
-[`specs/tinybus-module-release.md`](specs/tinybus-module-release.md), with its
-implementation sequence in
-[`plans/tinybus-module-release.md`](plans/tinybus-module-release.md).
+Start with the target architecture in
+[`specs/architecture.md`](specs/architecture.md) and the phased delivery plan
+in [`plans/roadmap.md`](plans/roadmap.md). The research that motivates both is
+summarized in [`research/README.md`](research/README.md).
 
 ## Conventions
 

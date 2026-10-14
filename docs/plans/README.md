@@ -19,4 +19,8 @@ Prefer tasks that can be implemented and reviewed independently. Include short
 code snippets when they remove ambiguity, but do not paste entire future files
 into the plan.
 
-See [`example-retry-policy.md`](example-retry-policy.md) for a test-first sample.
+## Index
+
+| Plan | Covers |
+|---|---|
+| [`roadmap.md`](roadmap.md) | Draft phased delivery plan, Phase 0 (foundations) to Phase 6 (research bets). Each phase gets its own spec and plan before implementation |

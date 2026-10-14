@@ -20,4 +20,9 @@ After the specification is accepted, create a linked implementation plan in
 [`../plans/`](../plans/README.md). Keep code snippets small enough to clarify
 the contract; production code still belongs under `src/`.
 
-See [`example-retry-policy.md`](example-retry-policy.md) for a complete sample.
+## Index
+
+| Spec | Status | Covers |
+|---|---|---|
+| [`architecture.md`](architecture.md) | Draft | Target architecture: components, data flow, two-level cache, storage tiers, correctness, platform notes |
+| [`cache-key.md`](cache-key.md) | Draft | The rustc ActionKey and ActionResult schema, two-phase lookup, and what breaks reuse |
