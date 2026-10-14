@@ -96,7 +96,8 @@ comment or item appended at the end of a file.
   already in the out-dir. Restore now keeps outputs that are still in place
   (`docs/specs/rustc-wrapper.md`).
 - Revisit when rustc offers an interface hash or an RDR mode
-  (rust-lang/rust-project-goals#400, PoC rust-lang/rust#143249). A crate hash
+  ([the "Relink, don't rebuild" goal](https://goals.rust-lang.org/2025h2/relink-dont-rebuild.html),
+  proof of concept [rust-lang/rust#143249](https://github.com/rust-lang/rust/pull/143249)). A crate hash
   that excludes private bodies and spans would make library dependents
   cacheable with no change to the key design: the extern digest would simply
   stop changing.
