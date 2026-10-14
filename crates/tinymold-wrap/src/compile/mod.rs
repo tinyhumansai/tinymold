@@ -372,7 +372,7 @@ impl Unit<'_> {
                     .unwrap_or_else(|payload| std::panic::resume_unwind(payload));
                 now_placed.extend(batch?);
             }
-            Ok(())
+            Ok::<(), Error>(())
         })?;
         Placed::save(&record, &now_placed)?;
         // Like rustc, report errors writing our own output only through the
