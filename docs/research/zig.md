@@ -119,9 +119,8 @@ and
 4. After a hit, or after writing the manifest, downgrade to shared and keep
    it for as long as the outputs are in use.
 
-A macOS quirk is handled too: two processes racing `openat(O_CREAT)` can get
-`ENOENT`, so Zig retries with `O_EXCL` to tell a race from a deleted
-directory (#L937-L966).
+On macOS, two processes racing `openat(O_CREAT)` can get `ENOENT`, so Zig
+retries with `O_EXCL` to tell a race from a deleted directory (#L937-L966).
 
 The effect is single-flight without a daemon: N processes that need the same
 unit block on one lock while the first compiles it, then all hit.
@@ -268,7 +267,7 @@ without declaring it, a script that only cares whether a file exists.
   new one, and 14 s / 62 ms / 62 ms with no linking at all. In
   [the devlog](https://ziglang.org/devlog/2026/) the compiler builds in 36 s
   cold and 228-288 ms per update with the LLVM backend [P, checked].
-- The linker runs on one thread by design.
+- The linker runs on one thread by design [P].
 
 Incremental output patching is already on tinymold's list as a contribution
 to wild ([linkers §7](linkers.md#7-ideas-for-tinymold-ranked-by-expected-impact--difficulty));
@@ -286,8 +285,6 @@ Zig's numbers show the ceiling: once patched in place, linking costs ~3 ms.
   in its indices
   ([InternPool.zig](https://codeberg.org/ziglang/zig/src/commit/ea7667f5a5b44d548c398b2f40ffa239b1a1fb6d/src/InternPool.zig))
   [P]. AstGen runs one task per file, and tasks enqueue imports.
-- The x86_64 backend and threaded codegen are in
-  [fast-tools §3.1-3.2](fast-tools.md#31-skip-llvm-for-debug-builds).
 
 ## 6. Packages and `zig cc`
 
