@@ -1075,3 +1075,59 @@ fn a_rustc_entry_never_serves_clippy_driver_or_back() {
     assert!(matches!(unit.serve_clippy(), Served::Hit { .. }));
     assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
 }
+
+/// The inodes of every object file in the sessions under `incremental`.
+#[cfg(unix)]
+fn session_objects(incremental: &Path) -> HashSet<u64> {
+    use std::os::unix::fs::MetadataExt;
+    files_under(incremental)
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "o"))
+        .map(|path| fs::metadata(path).unwrap().ino())
+        .collect()
+}
+
+#[cfg(unix)]
+#[test]
+fn a_hit_restores_the_incremental_session_and_the_next_edit_reuses_it() {
+    let source = "pub mod a { pub fn a() -> u32 { 1 } }\npub mod b { pub fn b() -> u32 { 2 } }\n";
+    let unit = Crate::new(source);
+    let incremental_dir = unit.root.join("incremental");
+    let incremental = format!("incremental={}", incremental_dir.display());
+    let flags = ["-C", incremental.as_str()];
+    assert_stored(&unit.serve(&flags).unwrap());
+
+    // A fresh target directory: no outputs, no sessions.
+    unit.clear_outputs();
+    fs::remove_dir_all(&incremental_dir).unwrap();
+    assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit { .. }));
+    let restored = session_objects(&incremental_dir);
+    assert!(!restored.is_empty(), "the hit restored no session");
+
+    // rustc continues the restored session: the unchanged module's object
+    // is carried into the new session, not compiled again.
+    std::thread::sleep(Duration::from_millis(1100));
+    write_settled(
+        unit.root.join("src/lib.rs"),
+        source.replace("{ 2 }", "{ 3 }"),
+    );
+    assert_stored(&unit.serve(&flags).unwrap());
+    assert!(
+        !session_objects(&incremental_dir).is_disjoint(&restored),
+        "rustc compiled every module again"
+    );
+}
+
+#[test]
+fn a_hit_leaves_an_existing_incremental_session_alone() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let incremental_dir = unit.root.join("incremental");
+    let incremental = format!("incremental={}", incremental_dir.display());
+    let flags = ["-C", incremental.as_str()];
+    assert_stored(&unit.serve(&flags).unwrap());
+    let before = files_under(&incremental_dir);
+
+    unit.clear_outputs();
+    assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit { .. }));
+    assert_eq!(files_under(&incremental_dir), before);
+}
