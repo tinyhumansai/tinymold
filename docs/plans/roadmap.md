@@ -170,12 +170,16 @@ and 4.6 s on bat today.
     slower on bat;
   - Linux uses mold 3.x or wild when present.
 - An advisor for consolidating test binaries, with an opt-in codemod.
+- Affected work ([spec](../specs/test-cache.md), [plan](test-cache.md)):
+  `tinymold run-test` replays passing test runs keyed by the binary
+  digest, and `clippy-driver` calls are cached.
 
 **Exit criteria.**
 
 - A warm build of tests after the binary takes ≤ 1.5 s (ripgrep) and ≤ 2.0 s
   (bat).
 - A rebuild where files were only touched performs zero links.
+- A second `cargo test` with no edits runs zero test binaries.
 
 **Dependencies.** Phase 3.
 
@@ -253,7 +257,9 @@ Each bet is a time-boxed spike that ends in an ADR:
 - incremental linking contributed upstream to wild;
 - a proc-macro expansion cache;
 - a persistent `rustc_driver` worker;
-- chunked storage of rlib members and DWARF sections.
+- chunked storage of rlib members and DWARF sections;
+- test impact analysis: rerun only the tests in a changed binary that
+  executed changed code ([test-cache plan](test-cache.md), slice 6).
 
 Chunked storage is deferred by
 [ADR 0005](../adr/0005-trade-disk-for-time.md). The dedup probe found 92%
