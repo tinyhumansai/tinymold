@@ -1011,3 +1011,66 @@ fn placed_record(dir: &Path, files: &[Placement]) -> Placed {
     Placed::save(&path, files).unwrap();
     Placed::load(&path).unwrap()
 }
+
+impl Crate {
+    /// Serves this crate's compile through clippy-driver wrapping rustc, as
+    /// `cargo clippy` runs it for a workspace crate.
+    fn serve_clippy(&self) -> Served {
+        let mut args = vec![OsString::from(rustc_in_sysroot())];
+        args.extend(self.args(&[]));
+        let text: Vec<String> = self
+            .args(&[])
+            .iter()
+            .map(|a| a.to_str().unwrap().to_owned())
+            .collect();
+        let Classified::Cacheable(invocation) = Invocation::parse(text) else {
+            panic!("the test compile must be cacheable");
+        };
+        serve(
+            &self.store,
+            None,
+            &crate::driver::test::clippy_driver(),
+            &args,
+            &invocation,
+            LOCK_WAIT,
+            &mut Trace::start(),
+        )
+        .unwrap()
+    }
+}
+
+/// The rustc beside clippy-driver, which clippy-driver is given first.
+fn rustc_in_sysroot() -> PathBuf {
+    let driver = crate::driver::test::clippy_driver();
+    driver.with_file_name(format!("rustc{}", std::env::consts::EXE_SUFFIX))
+}
+
+/// The stderr the only stored action of `unit` replays.
+fn replayed_stderr(unit: &Crate) -> String {
+    let entry = files_under(&unit.store.join("entries")).pop().unwrap();
+    let action = Action::decode(&fs::read_to_string(&entry).unwrap(), &entry).unwrap();
+    let store = Store::open(&unit.store).unwrap();
+    String::from_utf8(store.read(&action.stderr).unwrap()).unwrap()
+}
+
+#[test]
+fn clippy_driver_compiles_are_cached_with_their_lints() {
+    let unit = Crate::new("pub fn f(x: &Vec<u8>) -> usize { x.len() }\n");
+    assert_stored(&unit.serve_clippy());
+    // The lint is part of the compile's output, so a hit must replay it.
+    assert!(replayed_stderr(&unit).contains("clippy::ptr_arg"));
+    let built = unit.outputs();
+
+    unit.clear_outputs();
+    assert!(matches!(unit.serve_clippy(), Served::Hit { .. }));
+    assert_eq!(unit.outputs(), built);
+}
+
+#[test]
+fn a_rustc_entry_never_serves_clippy_driver_or_back() {
+    let unit = Crate::new("pub fn f(x: &Vec<u8>) -> usize { x.len() }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    assert_stored(&unit.serve_clippy());
+    assert!(matches!(unit.serve_clippy(), Served::Hit { .. }));
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
+}

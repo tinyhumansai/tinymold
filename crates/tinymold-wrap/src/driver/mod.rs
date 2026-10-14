@@ -83,4 +83,4 @@ fn find_config(start: &Path) -> Option<PathBuf> {
 }
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
