@@ -112,7 +112,7 @@ fn a_file_rewritten_within_a_coarse_tick_of_the_record_is_hashed_again() {
     let whole_second = from_nanos(now - now % 1_000_000_000);
     set_modified(&main, whole_second).unwrap();
     record(&f.workspace, &f.target).unwrap();
-    fs::write(&main, b"fn main() {;}").unwrap();
+    fs::write(&main, b"fn main(){;}").unwrap();
     set_modified(&main, whole_second).unwrap();
 
     record(&f.workspace, &f.target).unwrap();
@@ -122,7 +122,7 @@ fn a_file_rewritten_within_a_coarse_tick_of_the_record_is_hashed_again() {
         .iter()
         .find(|entry| entry.path == "src/main.rs")
         .unwrap();
-    assert_eq!(entry.digest, Digest::of_bytes(b"fn main() {;}"));
+    assert_eq!(entry.digest, Digest::of_bytes(b"fn main(){;}"));
 }
 
 #[test]
