@@ -113,7 +113,7 @@ def checkout(project: dict) -> Path:
     path = WORK / f"{project['name']}-{project['rev']}"
     if not path.is_dir():
         WORK.mkdir(parents=True, exist_ok=True)
-        run(["git", "clone", "--quiet", "--depth", "1", "--branch", project["rev"],
+        run(["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1", "--branch", project["rev"],
              project["repo"], str(path)])
     return path
 

@@ -25,7 +25,23 @@ without its machine is not a result.
 
 <!-- results:start -->
 
-No results recorded yet.
+### Restoring a 512 MiB artifact (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
+
+| Method | Median | min–max |
+| --- | ---: | ---: |
+| python byte copy (baseline) | 223.4 ms | 213.3–246.8 ms |
+| tinymold cas get --strategy reflink | 3.5 ms | 3.2–6.2 ms |
+| tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.4 ms |
+| tinymold cas get --strategy copy | 288.5 ms | 279.4–291.4 ms |
+
+### Edit-rebuild loop (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
+
+![ripgrep edit-rebuild by linker](results/link-darwin-arm64-ripgrep.svg)
+
+| Project | Linker | Edit → rebuilt binary (median) | min–max | Full build | Binary | target/ |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| ripgrep 14.1.1 | default | 0.84s | 0.82–0.86s | 8.1s | 11 MiB | 112 MiB |
+| ripgrep 14.1.1 | rust-lld | 0.88s | 0.87–0.92s | 7.0s | 11 MiB | 111 MiB |
 
 <!-- results:end -->
 
