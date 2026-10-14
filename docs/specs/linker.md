@@ -61,13 +61,18 @@ linker = "clang"
 rustflags = ["-C", "link-arg=--ld-path=/usr/local/bin/tinymold-link"]
 ```
 
-`tinymold-link --version` prints the tinymold version and the upstream mold
-commit, for example `tinymold-link 0.0.1 (mold c522789)`, and the same string
-goes into `.comment` on ELF so `readelf -p .comment` can verify the choice.
+The version banners keep mold's prefixes, because build tools and mold's own
+tests recognize the linker by them, and name the fork after them:
+`tinymold-link --version` prints `mold 3.0.0 (tinymold-link 0.0.1; compatible
+with GNU ld)`, the same string goes into `.comment` on ELF (so `readelf -p
+.comment` shows which linker ran), and `ld64.tinymold -v` prints `mold-macho
+3.0.0 (tinymold-link 0.0.1)`. The upstream commit is recorded in
+[`crates/tinymold-link/FORK.md`](../../crates/tinymold-link/FORK.md).
 
-mold's own measurement options are kept: `--perf` prints the per-pass wall and
-CPU time tree, and `--stats` prints counters (`parsed_objs` and the cache
-counters below).
+mold's own measurement options are kept: on ELF, `--perf` prints the per-pass
+wall and CPU time tree and `--stats` prints counters (`parsed_objs` and the
+cache counters below); on Mach-O, ld64's `-print_statistics` prints the same
+tree.
 
 ## The parse cache
 
