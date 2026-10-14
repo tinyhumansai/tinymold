@@ -67,9 +67,10 @@ fn a_cache_error_falls_back_to_running_rustc() {
     let config = config(dir.path());
     let missing = format!("dep={}", dir.path().join("libdep.rlib").display());
     let args = compile_args(dir.path(), &["--extern", &missing]);
-    // rustc itself then fails on the missing extern, and that is what cargo
-    // sees; the cache's failure is only logged.
-    assert_ne!(run(&config, &rustc(), &args), 0);
+    // The cache cannot hash the missing artifact, so it steps aside and runs
+    // rustc, which ignores an extern the crate never uses; cargo sees rustc's
+    // success, and the cache's failure is only logged.
+    assert_eq!(run(&config, &rustc(), &args), 0);
     assert!(log_lines(dir.path())[0].starts_with("error demo "));
 }
 
