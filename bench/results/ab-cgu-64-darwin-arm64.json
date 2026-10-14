@@ -696,6 +696,74 @@
           0.4222
         ]
       }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "case": "clean",
+      "wall": {
+        "median_s": 7.8348,
+        "min_s": 7.6189,
+        "max_s": 19.5153,
+        "samples_s": [
+          19.5153,
+          7.8348,
+          7.6827,
+          14.1493,
+          7.8868,
+          7.6189,
+          7.7442
+        ]
+      },
+      "link": {
+        "median_s": 1.5707,
+        "min_s": 1.4312,
+        "max_s": 1.6135,
+        "samples_s": [
+          1.4312,
+          1.4405,
+          1.6135,
+          1.5988,
+          1.5267,
+          1.5756,
+          1.5707
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline+cgu-64",
+      "case": "clean",
+      "wall": {
+        "median_s": 8.0061,
+        "min_s": 7.721,
+        "max_s": 13.4653,
+        "samples_s": [
+          13.4653,
+          7.721,
+          7.8344,
+          8.2086,
+          7.8469,
+          8.0061,
+          8.259
+        ]
+      },
+      "link": {
+        "median_s": 1.5201,
+        "min_s": 1.4491,
+        "max_s": 1.6345,
+        "samples_s": [
+          1.4491,
+          1.5201,
+          1.4683,
+          1.6345,
+          1.5429,
+          1.4905,
+          1.5217
+        ]
+      }
     }
   ],
   "machine": {
@@ -707,6 +775,6 @@
     "python": "3.12.0",
     "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
   },
-  "date": "2026-10-14",
+  "date": "2026-10-15",
   "runs": 7
 }
