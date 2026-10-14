@@ -32,6 +32,11 @@ STORE=${STORE:-/work/store}
 OUT=${OUT:-/out}
 RUNS=${RUNS:-3}
 CONFIGS=${CONFIGS:-ld mold tinymold}
+# ONLY limits a run to some cases (space-separated), appending to the results
+# of an earlier run instead of starting them over. The cases it skips must
+# have left their state behind: `snapshot` needs the store, the saved snapshot
+# and the second checkout.
+ONLY=${ONLY:-}
 JOBS=${JOBS:-$(nproc)}
 PACKAGE=(-p openhuman-cli --bin openhuman-core)
 LEAF=crates/openhuman-cli/src/main.rs
@@ -40,7 +45,8 @@ TRIPLE=$(rustc -vV | sed -n 's/^host: //p')
 TRACER=/opt/bench/link-tracer
 
 mkdir -p "$OUT/timings" "$OUT/logs"
-: > "$OUT/results.jsonl"
+[[ -n $ONLY ]] || : > "$OUT/results.jsonl"
+want() { [[ -z $ONLY || " $ONLY " == *" $1 "* ]]; }
 
 # Times every link and logs it, like bench/profile_build.py's link tracer.
 cat > "$TRACER" <<'PERL'
@@ -126,44 +132,59 @@ trap restore EXIT
 store_bytes() { du -sb "$STORE" 2>/dev/null | cut -f1 || echo 0; }
 
 for config in $CONFIGS; do
-    rm -rf "$SRC/target/$config"
-    [[ $config == tinymold ]] && rm -rf "$STORE"
-    build "$config" cold 1 "$SRC"
-    for run in $(seq "$RUNS"); do build "$config" noop "$run" "$SRC"; done
-    for run in $(seq "$RUNS"); do
-        edit "$SRC" "$LEAF" "$config-leaf-$run-$RANDOM"
-        build "$config" edit_leaf "$run" "$SRC"
-    done
-    restore
-    for run in $(seq "$RUNS"); do
-        edit "$SRC" "$CORE" "$config-core-$run-$RANDOM"
-        build "$config" edit_core "$run" "$SRC"
-    done
-    restore
+    if want cold; then
+        rm -rf "$SRC/target/$config"
+        [[ $config == tinymold ]] && rm -rf "$STORE"
+        build "$config" cold 1 "$SRC"
+    fi
+    if want noop; then
+        for run in $(seq "$RUNS"); do build "$config" noop "$run" "$SRC"; done
+    fi
+    if want edit_leaf; then
+        for run in $(seq "$RUNS"); do
+            edit "$SRC" "$LEAF" "$config-leaf-$run-$RANDOM"
+            build "$config" edit_leaf "$run" "$SRC"
+        done
+        restore
+    fi
+    if want edit_core; then
+        for run in $(seq "$RUNS"); do
+            edit "$SRC" "$CORE" "$config-core-$run-$RANDOM"
+            build "$config" edit_core "$run" "$SRC"
+        done
+        restore
+    fi
     if [[ $config != tinymold ]]; then
         continue
     fi
-    # Back to the committed sources, so the store holds every unit as shipped.
-    build "$config" settle 1 "$SRC"
-    for run in $(seq "$RUNS"); do
-        rm -rf "$SRC/target/$config"
-        EXTRA=",\"store_bytes\":$(store_bytes)" build "$config" warm "$run" "$SRC"
-    done
-    for run in $(seq "$RUNS"); do
-        rm -rf "$SECOND"
-        mkdir -p "$SECOND"
-        (cd "$SRC" && tar --exclude=./target -cf - .) | tar -xf - -C "$SECOND"
-        build "$config" second_path "$run" "$SECOND"
-    done
-    tinymold --store "$STORE" snapshot save openhuman --workspace "$SRC" \
-        --target-dir "$SRC/target/$config" > /dev/null
-    for run in $(seq "$RUNS"); do
-        rm -rf "$SECOND/target"
-        start=$(now)
-        tinymold --store "$STORE" snapshot restore openhuman --workspace "$SECOND" \
-            --target-dir "$SECOND/target/$config" > /dev/null
-        restore_s=$(since "$start")
-        EXTRA=",\"restore\":$restore_s" build "$config" snapshot "$run" "$SECOND"
-    done
+    if want warm; then
+        # Back to the committed sources, so the store holds every unit as shipped.
+        build "$config" settle 1 "$SRC"
+        for run in $(seq "$RUNS"); do
+            rm -rf "$SRC/target/$config"
+            EXTRA=",\"store_bytes\":$(store_bytes)" build "$config" warm "$run" "$SRC"
+        done
+    fi
+    if want second_path; then
+        for run in $(seq "$RUNS"); do
+            rm -rf "$SECOND"
+            mkdir -p "$SECOND"
+            (cd "$SRC" && tar --exclude=./target -cf - .) | tar -xf - -C "$SECOND"
+            build "$config" second_path "$run" "$SECOND"
+        done
+    fi
+    if want snapshot; then
+        tinymold --store "$STORE" snapshot save openhuman --workspace "$SRC" \
+            --target-dir "$SRC/target/$config" > /dev/null
+        for run in $(seq "$RUNS"); do
+            rm -rf "$SECOND/target"
+            mkdir -p "$SECOND/target"
+            start=$(now)
+            tinymold --store "$STORE" snapshot restore openhuman --workspace "$SECOND" \
+                --target-dir "$SECOND/target/$config" > /dev/null
+            restore_s=$(since "$start")
+            EXTRA=",\"restore\":$restore_s" build "$config" snapshot "$run" "$SECOND"
+        done
+    fi
 done
 echo done >&2
