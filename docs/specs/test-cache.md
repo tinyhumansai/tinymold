@@ -168,8 +168,6 @@ v1 scope anyway.
 ```toml
 [package.metadata.tinymold.test]
 inputs = ["../fixtures/**", "../schema.sql"]  # read outside the package root
-env = []                                      # reserved: names to key on when
-                                              # the full env is not keyed
 cache = false                                 # never cache this package's tests
 ```
 
