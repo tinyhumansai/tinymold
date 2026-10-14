@@ -192,28 +192,28 @@ Each variant is layered on the baseline. Cells: median wall time, the change aga
 
 | Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cranelift | baseline+cgu-32 | baseline+cgu-64 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| No-op rebuild | 0.06s · link 0.00s | 0.07s (+8%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.06s (-1%) · link 0.00s | 0.07s (+5%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+7%) · link 0.00s | – | – |
-| Comment edit | 0.66s · link 0.06s | 0.61s (-8%) · link 0.06s | 0.56s (-15%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.45s (-32%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.61s (-8%) · link 0.06s | 0.64s (-3%) · link 0.06s | 0.48s (-28%) · link 0.06s | 0.56s (-16%) · link 0.06s |
-| Private function body edit | 0.73s · link 0.06s | 0.62s (-14%) · link 0.06s | 0.60s (-18%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.88s (+20%) · link 0.05s | 0.64s (-12%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.64s (-12%) · link 0.06s | 0.80s (+10%) · link 0.06s | 0.57s (-22%) · link 0.06s |
-| Public signature edit | 0.96s · link 0.06s | 0.63s (-35%) · link 0.06s | 0.66s (-31%) · link 0.06s | 0.69s (-29%) · link 0.06s | 0.47s (-51%) · link 0.05s | 0.70s (-27%) · link 0.06s | 0.74s (-23%) · link 0.06s | 0.76s (-21%) · link 0.06s | 0.58s (-39%) · link 0.06s | 0.66s (-31%) · link 0.06s |
+| No-op rebuild | 0.06s · link 0.00s | 0.07s · link 0.00s | 0.07s · link 0.00s | 0.06s · link 0.00s | 0.07s · link 0.00s | 0.07s · link 0.00s | 0.07s · link 0.00s | 0.07s · link 0.00s | – | – |
+| Comment edit | 0.66s · link 0.06s | 0.61s · link 0.06s | 0.56s · link 0.06s | 0.62s · link 0.06s | 0.45s · link 0.06s | 0.62s · link 0.06s | 0.61s · link 0.06s | 0.64s · link 0.06s | 0.48s (-28%) · link 0.06s | 0.56s (-16%) · link 0.06s |
+| Private function body edit | 0.73s · link 0.06s | 0.62s · link 0.06s | 0.60s · link 0.06s | 0.65s · link 0.06s | 0.88s · link 0.05s | 0.64s · link 0.06s | 0.65s · link 0.06s | 0.64s · link 0.06s | 0.80s (+10%) · link 0.06s | 0.57s (-22%) · link 0.06s |
+| Public signature edit | 0.96s · link 0.06s | 0.63s · link 0.06s | 0.66s · link 0.06s | 0.69s · link 0.06s | 0.47s · link 0.05s | 0.70s · link 0.06s | 0.74s · link 0.06s | 0.76s · link 0.06s | 0.58s (-39%) · link 0.06s | 0.66s (-31%) · link 0.06s |
 
 #### bat v0.24.0
 
 | Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cgu-32 | baseline+cgu-64 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| No-op rebuild | 0.10s · link 0.00s | 0.10s (+4%) · link 0.00s | 0.10s (+5%) · link 0.00s | 0.11s (+11%) · link 0.00s | 0.09s (-5%) · link 0.00s | 0.10s (+0%) · link 0.00s | 0.11s (+14%) · link 0.00s | – | – |
-| Comment edit | 1.18s · link 0.07s | 1.04s (-11%) · link 0.07s | 1.06s (-10%) · link 0.07s | 1.23s (+4%) · link 0.08s | 0.72s (-39%) · link 0.07s | 0.97s (-18%) · link 0.07s | 1.06s (-10%) · link 0.08s | 1.09s (-8%) · link 0.08s | 1.02s (-13%) · link 0.09s |
-| Private function body edit | 1.28s · link 0.08s | 1.08s (-16%) · link 0.07s | 1.11s (-13%) · link 0.07s | 1.06s (-17%) · link 0.07s | 0.79s (-39%) · link 0.07s | 1.03s (-20%) · link 0.07s | 1.06s (-17%) · link 0.07s | 1.18s (-8%) · link 0.09s | 1.01s (-21%) · link 0.09s |
-| Public signature edit | 1.28s · link 0.08s | 1.09s (-15%) · link 0.07s | 1.14s (-11%) · link 0.07s | 0.98s (-23%) · link 0.07s | 0.81s (-37%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.09s (-15%) · link 0.08s | 1.02s (-20%) · link 0.08s |
+| No-op rebuild | 0.10s · link 0.00s | 0.10s · link 0.00s | 0.10s · link 0.00s | 0.11s · link 0.00s | 0.09s · link 0.00s | 0.10s · link 0.00s | 0.11s · link 0.00s | – | – |
+| Comment edit | 1.18s · link 0.07s | 1.04s · link 0.07s | 1.06s · link 0.07s | 1.23s · link 0.08s | 0.72s · link 0.07s | 0.97s · link 0.07s | 1.06s · link 0.08s | 1.09s (-8%) · link 0.08s | 1.02s (-13%) · link 0.09s |
+| Private function body edit | 1.28s · link 0.08s | 1.08s · link 0.07s | 1.11s · link 0.07s | 1.06s · link 0.07s | 0.79s · link 0.07s | 1.03s · link 0.07s | 1.06s · link 0.07s | 1.18s (-8%) · link 0.09s | 1.01s (-21%) · link 0.09s |
+| Public signature edit | 1.28s · link 0.08s | 1.09s · link 0.07s | 1.14s · link 0.07s | 0.98s · link 0.07s | 0.81s · link 0.07s | 1.16s · link 0.07s | 1.16s · link 0.07s | 1.09s (-15%) · link 0.08s | 1.02s (-20%) · link 0.08s |
 
 #### tinymold c79a959
 
 | Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cranelift | baseline+cgu-32 | baseline+cgu-64 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| No-op rebuild | 0.06s · link 0.00s | 0.06s (+2%) · link 0.00s | 0.06s (+3%) · link 0.00s | 0.07s (+15%) · link 0.00s | 0.06s (-2%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+6%) · link 0.00s | 0.07s (+5%) · link 0.00s | – | – |
-| Comment edit | 0.18s · link 0.05s | 0.17s (-6%) · link 0.04s | 0.17s (-2%) · link 0.04s | 0.20s (+12%) · link 0.04s | 0.16s (-8%) · link 0.04s | 0.18s (+2%) · link 0.04s | 0.20s (+11%) · link 0.04s | 0.19s (+10%) · link 0.04s | 0.18s (+4%) · link 0.05s | 0.18s (+2%) · link 0.04s |
-| Private function body edit | 0.36s · link 0.04s | 0.37s (+2%) · link 0.05s | 0.36s (-1%) · link 0.04s | 0.39s (+8%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.42s (+15%) · link 0.04s | 0.40s (+11%) · link 0.04s | 0.39s (+8%) · link 0.05s | 0.30s (-16%) · link 0.04s |
-| Public signature edit | 0.63s · link 0.05s | 0.61s (-3%) · link 0.04s | 0.65s (+3%) · link 0.04s | 0.66s (+5%) · link 0.04s | 0.44s (-29%) · link 0.04s | 0.72s (+15%) · link 0.04s | 0.80s (+27%) · link 0.04s | 0.81s (+29%) · link 0.04s | 0.50s (-20%) · link 0.05s | 0.55s (-12%) · link 0.05s |
+| No-op rebuild | 0.06s · link 0.00s | 0.06s · link 0.00s | 0.06s · link 0.00s | 0.07s · link 0.00s | 0.06s · link 0.00s | 0.07s · link 0.00s | 0.07s · link 0.00s | 0.07s · link 0.00s | – | – |
+| Comment edit | 0.18s · link 0.05s | 0.17s · link 0.04s | 0.17s · link 0.04s | 0.20s · link 0.04s | 0.16s · link 0.04s | 0.18s · link 0.04s | 0.20s · link 0.04s | 0.19s · link 0.04s | 0.18s (+4%) · link 0.05s | 0.18s (+2%) · link 0.04s |
+| Private function body edit | 0.36s · link 0.04s | 0.37s · link 0.05s | 0.36s · link 0.04s | 0.39s · link 0.04s | 0.40s · link 0.04s | 0.40s · link 0.04s | 0.42s · link 0.04s | 0.40s · link 0.04s | 0.39s (+8%) · link 0.05s | 0.30s (-16%) · link 0.04s |
+| Public signature edit | 0.63s · link 0.05s | 0.61s · link 0.04s | 0.65s · link 0.04s | 0.66s · link 0.04s | 0.44s · link 0.04s | 0.72s · link 0.04s | 0.80s · link 0.04s | 0.81s · link 0.04s | 0.50s (-20%) · link 0.05s | 0.55s (-12%) · link 0.05s |
 
 ### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
