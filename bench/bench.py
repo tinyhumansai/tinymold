@@ -510,7 +510,7 @@ def bench_cas(args: argparse.Namespace) -> dict:
 # Scenarios: every edit-loop case, per project, per mode
 # ---------------------------------------------------------------------------
 
-CASES = ("clean", "noop", "comment", "private_body", "public_signature",
+CASES = ("clean", "noop", "comment", "private_body", "public_signature", "touch_all",
          "second_worktree", "branch_switch", "test_no_run")
 MODES = ("baseline", "sccache", "tinymold")
 
@@ -626,11 +626,25 @@ class Edits:
         self.saved.clear()
 
 
-class Session:
-    """One project built in one mode: the commands, env, and measurements."""
+def tinymold_binary() -> Path:
+    """Builds tinymold in release mode and returns the binary's path."""
+    run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=ROOT, env=STOCK_ENV)
+    return ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
 
-    def __init__(self, project: dict, src: Path, mode: str, sccache: str | None):
+
+class Session:
+    """One project built in one mode: the commands, env, and measurements.
+
+    Mode `tinymold` wraps every build the way a user's tooling would: `tinymold
+    fresh restore` before cargo and `tinymold fresh record` after it, both
+    counted in the wall time. The worktree and branch-switch cases also save
+    and restore `target/` snapshots (see `run_case` and `branch_switch`).
+    """
+
+    def __init__(self, project: dict, src: Path, mode: str, sccache: str | None,
+                 tinymold: Path | None = None):
         self.project, self.src, self.mode = project, src, mode
+        self.tinymold = tinymold
         self.log = WORK / f"link-{project['name']}-{mode}.log"
         timer = link_timer()
         self.config = ["--config", f"target.{host_triple()}.linker=\"{timer}\""]
@@ -642,6 +656,20 @@ class Session:
                             SCCACHE_SERVER_PORT=SCCACHE_PORT, SCCACHE_CACHE_SIZE="50G")
             # sccache refuses to run while CARGO_INCREMENTAL=1 is set.
             self.env.pop("CARGO_INCREMENTAL")
+        if mode == "tinymold":
+            self.store = WORK / "tinymold-store" / project["name"]
+            self.env["TINYMOLD_STORE"] = str(self.store)
+
+    def tm(self, *args: str, cwd: Path | None = None) -> float:
+        """Runs one tinymold command and returns its wall time. `fresh restore`
+        exits 1 when it has no usable manifest, which is not a failure here."""
+        start = time.perf_counter()
+        done = subprocess.run([str(self.tinymold), *args], cwd=cwd or self.src, env=self.env,
+                              capture_output=True, text=True)
+        if done.returncode not in (0, 1):
+            sys.stderr.write(done.stderr)
+            raise SystemExit(f"tinymold {' '.join(args)} failed")
+        return time.perf_counter() - start
 
     def build(self, cwd: Path | None = None, tests: bool = False) -> dict:
         """One timed build with link time, unit counts, and cache stats."""
@@ -657,6 +685,7 @@ class Session:
         if self.sccache and self.mode == "sccache":
             run([self.sccache, "--zero-stats"], env=self.env, stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL)
+        overhead = self.tm("fresh", "restore", cwd=cwd) if self.mode == "tinymold" else 0.0
         start = time.perf_counter()
         done = subprocess.run(command, cwd=cwd or self.src, env=self.env,
                               capture_output=True, text=True)
@@ -664,8 +693,11 @@ class Session:
         if done.returncode != 0:
             sys.stderr.write(done.stderr[-4000:])
             raise SystemExit(f"{self.project['name']}: build failed in mode {self.mode}")
+        if self.mode == "tinymold":
+            overhead += self.tm("fresh", "record", cwd=cwd)
+            wall += overhead
         links = [float(x) for x in self.log.read_text().split()] if self.log.exists() else []
-        sample = {"wall": wall, "link": sum(links), "links": len(links),
+        sample = {"wall": wall, "tinymold": overhead, "link": sum(links), "links": len(links),
                   **unit_counts(done.stderr)}
         if self.mode == "sccache":
             sample["cache"] = sccache_stats(self.sccache, self.env)
@@ -696,13 +728,29 @@ def run_case(session: Session, case: str, runs: int) -> dict:
             finally:
                 edits.restore()
             session.build()  # settle the restore before the next sample
+        elif case == "touch_all":
+            now = time.time()
+            for path in src.rglob("*.rs"):
+                if "target" not in path.relative_to(src).parts:
+                    os.utime(path, (now, now))
+            samples.append(session.build())
         elif case == "second_worktree":
             second = WORK / f"{project['name']}-{project['rev']}-wt2-{session.mode}"
             if second.exists():
                 run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+            if session.mode == "tinymold":
+                # Saved in the first worktree after its build; not part of the
+                # second worktree's wall time, but reported alongside it.
+                extra.setdefault("snapshot_save_s", []).append(
+                    round(session.tm("snapshot", "save"), 4))
             run(["git", "-C", str(src), "worktree", "add", "--quiet", "--detach", str(second)])
             try:
-                samples.append(session.build(cwd=second))
+                restore = (session.tm("snapshot", "restore", cwd=second)
+                           if session.mode == "tinymold" else 0.0)
+                sample = session.build(cwd=second)
+                sample["wall"] += restore
+                sample["tinymold"] += restore
+                samples.append(sample)
             finally:
                 run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
         elif case == "branch_switch":
@@ -724,6 +772,7 @@ def run_case(session: Session, case: str, runs: int) -> dict:
         "links": statistics.median(s["links"] for s in samples),
         "compiled": statistics.median(s["compiled"] for s in samples),
         "fresh": statistics.median(s["fresh"] for s in samples),
+        "tinymold": summarize([s["tinymold"] for s in samples]),
         **extra,
     }
     if session.mode == "sccache":
@@ -748,15 +797,25 @@ def branch_switch(session: Session, edits: Edits, n: int) -> dict:
     run([*git, "commit", "--quiet", "-am", "tinymold bench: branch B"])
     run([*git, "switch", "--quiet", "--detach", base])
     session.build()  # start from a fresh build of A
+    tinymold = session.mode == "tinymold"
     try:
+        # Under tinymold, leaving A saves its target/ as a snapshot and coming
+        # back restores it, which a post-checkout hook would do.
+        save = session.tm("snapshot", "save") if tinymold else 0.0
         run([*git, "switch", "--quiet", branch])
         to_b = session.build()
+        to_b["wall"] += save
+        to_b["tinymold"] += save
         run([*git, "switch", "--quiet", "--detach", base])
+        restore = session.tm("snapshot", "restore", "--replace") if tinymold else 0.0
         back = session.build()
+        back["wall"] += restore
+        back["tinymold"] += restore
     finally:
         run([*git, "switch", "--quiet", "--detach", base])
         run([*git, "branch", "--quiet", "-D", branch])
-    merged = {key: to_b[key] + back[key] for key in ("wall", "link", "links", "compiled", "fresh")}
+    merged = {key: to_b[key] + back[key]
+              for key in ("wall", "tinymold", "link", "links", "compiled", "fresh")}
     if "cache" in back:
         merged["cache"] = {key: to_b["cache"][key] + back["cache"][key]
                            for key in ("hits", "misses")}
@@ -768,9 +827,7 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
     for mode in modes:
         if mode not in MODES:
             raise SystemExit(f"unknown mode {mode!r}; choose from {', '.join(MODES)}")
-    if "tinymold" in modes:
-        raise SystemExit("mode 'tinymold' needs the rustc wrapper from roadmap Phase 2, "
-                         "which does not exist yet")
+    tinymold = tinymold_binary() if "tinymold" in modes else None
     sccache = shutil.which("sccache")
     if "sccache" in modes and sccache is None:
         raise SystemExit("mode 'sccache' needs sccache on PATH (cargo install sccache)")
@@ -782,7 +839,9 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
         run(["cargo", "fetch", "--locked"], cwd=src, env=STOCK_ENV,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for mode in modes:
-            session = Session(project, src, mode, sccache)
+            session = Session(project, src, mode, sccache, tinymold)
+            if mode == "tinymold":
+                shutil.rmtree(session.store, ignore_errors=True)
             if mode == "sccache":
                 subprocess.run([sccache, "--stop-server"], env=session.env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

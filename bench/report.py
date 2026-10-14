@@ -137,6 +137,7 @@ CASE_LABELS = {
     "private_body": "Private function body edit",
     "public_signature": "Public signature edit",
     "second_worktree": "Second worktree, same commit",
+    "touch_all": "Every source file touched, no content change",
     "branch_switch": "Branch switch A→B→A",
     "test_no_run": "cargo test --no-run",
 }
@@ -150,7 +151,10 @@ def scenarios_section(result: dict) -> list[str]:
              "Pinned: " + "; ".join(f"{k.replace('_', ' ')}: {v}" for k, v in pins.items()) + ".",
              "", "Each cell: median wall time, then median link time, then units "
              "compiled. Under sccache, `hits` counts rustc invocations served from the "
-             "cache across all runs.", ""]
+             "cache across all runs. Under tinymold, the wall time includes `tinymold "
+             "fresh restore` before and `fresh record` after every build, and the "
+             "worktree and branch-switch cases include restoring a `target/` "
+             "snapshot.", ""]
     for project in dict.fromkeys(r["project"] for r in rows):
         mine = [r for r in rows if r["project"] == project]
         modes = list(dict.fromkeys(r["mode"] for r in mine))
