@@ -30,9 +30,9 @@ fi
 tinymold stats || true
 
 save=false
-if [[ "${backend}" == github || "${backend}" == both || "${backend}" == none ]]; then
-  tinymold gc --max-age "${INPUT_MAX_AGE}" --max-size "${INPUT_MAX_SIZE}"
-fi
+# Every backend gets gc: a self-hosted runner keeps its store between jobs
+# whichever backend it uses, and this runs after the push.
+tinymold gc --max-age "${INPUT_MAX_AGE}" --max-size "${INPUT_MAX_SIZE}"
 if [[ "${INPUT_SAVE_CACHE}" == true ]] && [[ "${backend}" == github || "${backend}" == both ]]; then
   # A job that stored nothing new would only upload the store it restored.
   if grep -q " stored in " "${TINYMOLD_LOG}" 2>/dev/null; then
