@@ -212,7 +212,7 @@ never shared (§8.4).
 - Status: experimental in 0.14 (14 s → 63 ms on a 500 kLOC codebase, no
   binary emitted) [P, checked]; supported with the LLVM backend in 0.16 but
   "disabled by default" with "known bugs, including some miscompilations"
-  [P, checked]; 0.17 notes call it usable for most x86_64-linux projects [P].
+  [P, checked]; the 0.17 notes say "most projects targeting x86_64-linux" can now use it [P, checked].
 
 The lesson for tinymold: the server reports *what it read* and *which digest
 it produced*, and the build runner derives the watch set from that. tinymold
