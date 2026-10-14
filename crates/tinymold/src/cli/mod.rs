@@ -14,6 +14,7 @@ use tinymold_hash::Digest;
 
 use crate::doctor::Report;
 use crate::fresh::{self, Restore};
+use crate::gc::{self, Age, ByteSize};
 use crate::{Error, Result, default_store, snapshot};
 
 /// The `tinymold` command line.
@@ -53,6 +54,27 @@ pub enum Command {
     /// branch switch starts warm.
     #[command(subcommand)]
     Snapshot(SnapshotCommand),
+    /// Remove cache entries unused for a while or beyond a size budget, and
+    /// objects nothing references any more.
+    Gc(GcArgs),
+}
+
+/// The limits of `tinymold gc`.
+#[derive(Debug, Clone, Args)]
+pub struct GcArgs {
+    /// Remove entries not used for this long, such as `14d` or `36h`.
+    #[arg(long, value_name = "AGE")]
+    pub max_age: Option<Age>,
+    /// Evict the least recently used entries while the store is larger than
+    /// this, such as `10G`.
+    #[arg(long, value_name = "SIZE")]
+    pub max_size: Option<ByteSize>,
+    /// Remove `target/` snapshots saved longer ago than this.
+    #[arg(long, value_name = "AGE")]
+    pub snapshots_max_age: Option<Age>,
+    /// Report what would be removed without removing it.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 /// Freshness commands.
@@ -224,6 +246,18 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         }
         Command::Fresh(command) => return run_fresh(command, out),
         Command::Snapshot(command) => return run_snapshot(cli, command, out),
+        Command::Gc(args) => {
+            let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
+            let policy = gc::Policy {
+                max_age: args.max_age.map(|age| age.0),
+                max_size: args.max_size.map(|size| size.0),
+                snapshots_max_age: args.snapshots_max_age.map(|age| age.0),
+                dry_run: args.dry_run,
+                ..gc::Policy::garbage_only()
+            };
+            let report = gc::collect(&store, &policy)?;
+            line(out, format_args!("{report}"))?;
+        }
     }
     Ok(Outcome::Success)
 }

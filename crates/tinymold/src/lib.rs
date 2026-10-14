@@ -18,6 +18,8 @@
 //!   [`fresh`];
 //! - `tinymold snapshot` — whole `target/` snapshots for new worktrees and
 //!   branch switches, via [`snapshot`];
+//! - `tinymold gc` — remove cache entries unused for a while, or beyond a
+//!   size budget, via [`gc`];
 //! - `RUSTC_WRAPPER=tinymold` — a unit cache keyed by content, via
 //!   [`tinymold_wrap`] (see [`wrapper_call`]).
 //!
@@ -42,13 +44,14 @@ mod cli;
 mod doctor;
 mod error;
 pub mod fresh;
+pub mod gc;
 mod location;
 pub mod snapshot;
 mod tree;
 mod wrapper;
 
 pub use cli::{
-    CasCommand, Cli, Command, FreshCommand, Location, Outcome, SnapshotCommand, StrategyArg, run,
+    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, SnapshotCommand, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
