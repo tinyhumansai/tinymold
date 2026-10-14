@@ -70,7 +70,9 @@ pub fn pre_key(inputs: &PreKeyInputs<'_>) -> Digest {
                 hasher.field(b"t").field(roots.normalize(text).as_bytes());
             }
             KeyArg::Extern(index) => {
-                hasher.field(b"e").field(invocation.externs[*index].name.as_bytes());
+                hasher
+                    .field(b"e")
+                    .field(invocation.externs[*index].name.as_bytes());
                 match inputs.externs.get(*index).copied().flatten() {
                     Some(digest) => hasher.digest(&digest),
                     None => hasher.field(b""),
@@ -79,8 +81,14 @@ pub fn pre_key(inputs: &PreKeyInputs<'_>) -> Digest {
             KeyArg::Search(index) => {
                 let search = &invocation.search_paths[*index];
                 let path = roots.normalize(&search.path.to_string_lossy());
-                hasher.field(b"L").field(search.kind.as_bytes()).field(path.as_bytes());
-                let files = inputs.search_paths.get(*index).map_or(&[][..], Vec::as_slice);
+                hasher
+                    .field(b"L")
+                    .field(search.kind.as_bytes())
+                    .field(path.as_bytes());
+                let files = inputs
+                    .search_paths
+                    .get(*index)
+                    .map_or(&[][..], Vec::as_slice);
                 hasher.field(&(files.len() as u64).to_le_bytes());
                 for (name, digest) in files {
                     hasher.field(name.as_bytes()).digest(digest);

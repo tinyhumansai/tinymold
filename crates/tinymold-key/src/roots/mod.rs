@@ -50,7 +50,9 @@ impl Roots {
     pub fn normalize(&self, text: &str) -> String {
         self.pairs
             .iter()
-            .fold(text.to_owned(), |text, (path, name)| text.replace(path.as_str(), name))
+            .fold(text.to_owned(), |text, (path, name)| {
+                text.replace(path.as_str(), name)
+            })
     }
 
     /// `text` with every placeholder replaced by this worktree's path; the
@@ -60,7 +62,9 @@ impl Roots {
         self.pairs
             .iter()
             .rev()
-            .fold(text.to_owned(), |text, (path, name)| text.replace(name, path))
+            .fold(text.to_owned(), |text, (path, name)| {
+                text.replace(name, path)
+            })
     }
 }
 

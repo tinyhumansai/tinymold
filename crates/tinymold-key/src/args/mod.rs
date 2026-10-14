@@ -13,8 +13,8 @@ mod types;
 
 use std::path::PathBuf;
 
-pub use types::{Classified, Extern, Invocation, SearchPath};
 pub(crate) use types::KeyArg;
+pub use types::{Classified, Extern, Invocation, SearchPath};
 
 /// Long flags that take a value, as `--flag value` or `--flag=value`.
 const LONG_WITH_VALUE: &[&str] = &[
@@ -74,7 +74,10 @@ impl Invocation {
         self.emit.iter().any(|kind| kind == "link")
             && (self.test
                 || self.crate_types.is_empty()
-                || self.crate_types.iter().any(|kind| linked.contains(&kind.as_str())))
+                || self
+                    .crate_types
+                    .iter()
+                    .any(|kind| linked.contains(&kind.as_str())))
     }
 
     /// The name prefixes every output of this invocation starts with:
@@ -122,7 +125,9 @@ impl Parser {
                     None => (arg.clone(), None),
                 };
                 if LONG_WITH_VALUE.contains(&name.as_str()) {
-                    let value = inline.or_else(|| rest.next().cloned()).ok_or("a flag has no value")?;
+                    let value = inline
+                        .or_else(|| rest.next().cloned())
+                        .ok_or("a flag has no value")?;
                     self.long(&name, value)?;
                 } else {
                     if name == "--test" {
@@ -174,9 +179,7 @@ impl Parser {
         match name {
             "--print" => return Err("prints compiler information"),
             "--crate-name" => self.crate_name = Some(value.clone()),
-            "--crate-type" => self
-                .crate_types
-                .extend(value.split(',').map(str::to_owned)),
+            "--crate-type" => self.crate_types.extend(value.split(',').map(str::to_owned)),
             "--emit" => {
                 if value.contains('=') {
                     return Err("emits to an explicit path");

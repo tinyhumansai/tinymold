@@ -21,7 +21,10 @@ fn replaces_the_longest_root_first() {
         roots.normalize("-L native=/work/rg/target/debug/build/x-1/out"),
         "-L native=${PROFILE}/build/x-1/out"
     );
-    assert_eq!(roots.normalize("/work/rg/src/main.rs"), "${CWD}/src/main.rs");
+    assert_eq!(
+        roots.normalize("/work/rg/src/main.rs"),
+        "${CWD}/src/main.rs"
+    );
     assert_eq!(
         roots.normalize("/home/u/.cargo/registry/src/x/lib.rs"),
         "${CARGO_HOME}/registry/src/x/lib.rs"
@@ -32,7 +35,11 @@ fn replaces_the_longest_root_first() {
 #[test]
 fn two_worktrees_normalize_to_the_same_text_and_expand_to_their_own() {
     let a = roots();
-    let b = Roots::new(Path::new("/work/rg-2"), Path::new("target/debug/deps"), None);
+    let b = Roots::new(
+        Path::new("/work/rg-2"),
+        Path::new("target/debug/deps"),
+        None,
+    );
     let text_a = "{\"artifact\":\"/work/rg/target/debug/deps/librg.rmeta\"}";
     let text_b = "{\"artifact\":\"/work/rg-2/target/debug/deps/librg.rmeta\"}";
     assert_eq!(a.normalize(text_a), b.normalize(text_b));

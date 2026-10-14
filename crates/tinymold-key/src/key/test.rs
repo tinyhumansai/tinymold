@@ -22,8 +22,21 @@ fn compile(root: &str, extra: &[&str]) -> (Invocation, Roots) {
     let ext = format!("dep={out}/libdep-1.rmeta");
     let native = format!("native={root}/target/debug/build/dep-2/out");
     let mut args = vec![
-        "--crate-name", "demo", "src/lib.rs", "--crate-type", "lib", "--emit=dep-info,link",
-        "--out-dir", &out, &incremental, "-L", &dependency, "--extern", &ext, "-L", &native,
+        "--crate-name",
+        "demo",
+        "src/lib.rs",
+        "--crate-type",
+        "lib",
+        "--emit=dep-info,link",
+        "--out-dir",
+        &out,
+        &incremental,
+        "-L",
+        &dependency,
+        "--extern",
+        &ext,
+        "-L",
+        &native,
     ];
     args.extend_from_slice(extra);
     let invocation = invocation(&args);
@@ -61,26 +74,36 @@ fn the_pre_key_encoding_is_pinned() {
 }
 
 const PINNED_PRE_KEY: &str = "ceef4d7894b78c9e80396d277dd0d2d51ac7dde86634fbcade94d9da24d0dfb1";
-const PINNED_FULL_KEY: &str = "pending";
+const PINNED_FULL_KEY: &str = "0928ee02526ad8465c56c90f19c168211dee5e0f8467911165ac6c580def0de6";
 
 #[test]
 fn two_worktrees_of_one_compile_share_a_pre_key() {
     let (a, roots_a) = compile("/w/a", &[]);
     let (b, roots_b) = compile("/w/second-worktree", &[]);
-    assert_eq!(key_of(&a, &roots_a, b"rmeta"), key_of(&b, &roots_b, b"rmeta"));
+    assert_eq!(
+        key_of(&a, &roots_a, b"rmeta"),
+        key_of(&b, &roots_b, b"rmeta")
+    );
 }
 
 #[test]
 fn every_input_moves_the_pre_key() {
     let (base, roots) = compile("/w/a", &[]);
     let reference = key_of(&base, &roots, b"rmeta");
-    assert_ne!(key_of(&base, &roots, b"other rmeta"), reference, "extern content");
+    assert_ne!(
+        key_of(&base, &roots, b"other rmeta"),
+        reference,
+        "extern content"
+    );
     let (flagged, roots_f) = compile("/w/a", &["-C", "opt-level=3"]);
     assert_ne!(key_of(&flagged, &roots_f, b"rmeta"), reference, "a flag");
 
     let env = [("SDKROOT".to_owned(), None)];
     let externs = [Some(Digest::of_bytes(b"rmeta"))];
-    let search = [vec![("libnative.a".to_owned(), Digest::of_bytes(b"archive"))]];
+    let search = [vec![(
+        "libnative.a".to_owned(),
+        Digest::of_bytes(b"archive"),
+    )]];
     let defaults = PreKeyInputs {
         invocation: &base,
         roots: &roots,
@@ -93,14 +116,53 @@ fn every_input_moves_the_pre_key() {
     assert_eq!(pre_key(&defaults), reference);
 
     let set = [("SDKROOT".to_owned(), Some("/sdk".to_owned()))];
-    let native = [vec![("libnative.a".to_owned(), Digest::of_bytes(b"changed"))]];
+    let native = [vec![(
+        "libnative.a".to_owned(),
+        Digest::of_bytes(b"changed"),
+    )]];
     let changes = [
-        ("compiler", PreKeyInputs { rustc_version: "rustc 1.100.0", ..defaults.clone() }),
-        ("env", PreKeyInputs { env: &set, ..defaults.clone() }),
-        ("missing extern", PreKeyInputs { externs: &[None], ..defaults.clone() }),
-        ("native lib", PreKeyInputs { search_paths: &native, ..defaults.clone() }),
-        ("no search listing", PreKeyInputs { search_paths: &[], ..defaults.clone() }),
-        ("linker", PreKeyInputs { linker: Some("cc 1"), ..defaults.clone() }),
+        (
+            "compiler",
+            PreKeyInputs {
+                rustc_version: "rustc 1.100.0",
+                ..defaults.clone()
+            },
+        ),
+        (
+            "env",
+            PreKeyInputs {
+                env: &set,
+                ..defaults.clone()
+            },
+        ),
+        (
+            "missing extern",
+            PreKeyInputs {
+                externs: &[None],
+                ..defaults.clone()
+            },
+        ),
+        (
+            "native lib",
+            PreKeyInputs {
+                search_paths: &native,
+                ..defaults.clone()
+            },
+        ),
+        (
+            "no search listing",
+            PreKeyInputs {
+                search_paths: &[],
+                ..defaults.clone()
+            },
+        ),
+        (
+            "linker",
+            PreKeyInputs {
+                linker: Some("cc 1"),
+                ..defaults.clone()
+            },
+        ),
     ];
     for (what, inputs) in changes {
         assert_ne!(pre_key(&inputs), reference, "{what}");
@@ -115,9 +177,16 @@ fn every_input_moves_the_full_key() {
     let reference = full_key(&pre, &inputs, &env);
     assert_ne!(full_key(&Digest::of_bytes(b"x"), &inputs, &env), reference);
     assert_ne!(
-        full_key(&pre, &[("src/lib.rs".to_owned(), Digest::of_bytes(b"b"))], &env),
+        full_key(
+            &pre,
+            &[("src/lib.rs".to_owned(), Digest::of_bytes(b"b"))],
+            &env
+        ),
         reference
     );
-    assert_ne!(full_key(&pre, &inputs, &[("V".to_owned(), None)]), reference);
+    assert_ne!(
+        full_key(&pre, &inputs, &[("V".to_owned(), None)]),
+        reference
+    );
     assert_ne!(full_key(&pre, &[], &env), reference);
 }
