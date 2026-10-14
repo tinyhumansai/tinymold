@@ -1,5 +1,6 @@
-//! The `mold` executable: runs the ELF linker, or the Mach-O linker if
-//! invoked as `ld64.mold`, instantiated for the target the inputs are for.
+//! The `tinymold-link` executable, forked from mold's: runs the ELF
+//! linker, or the Mach-O linker if invoked as `ld64` or `ld64.<anything>`
+//! (such as `ld64.tinymold`), instantiated for the target the inputs are for.
 //! Each target is instantiated in a crate of its own so that the compiler
 //! can build them in parallel, and a feature per target decides which of
 //! them are built in.
@@ -31,44 +32,8 @@ type MachoLinkFn = fn(mold_macho::driver::ParsedArgs);
 const ELF_TARGETS: &[(&str, LinkFn)] = &[
     #[cfg(feature = "x86_64")]
     ("x86_64", mold_elf_x86_64::link),
-    #[cfg(feature = "i386")]
-    ("i386", mold_elf_i386::link),
-    #[cfg(feature = "arm32")]
-    ("arm32", mold_elf_arm32::link),
-    #[cfg(feature = "arm32be")]
-    ("arm32be", mold_elf_arm32be::link),
     #[cfg(feature = "arm64")]
     ("arm64", mold_elf_arm64::link),
-    #[cfg(feature = "arm64be")]
-    ("arm64be", mold_elf_arm64be::link),
-    #[cfg(feature = "riscv64")]
-    ("riscv64", mold_elf_riscv64::link),
-    #[cfg(feature = "riscv64be")]
-    ("riscv64be", mold_elf_riscv64be::link),
-    #[cfg(feature = "riscv32")]
-    ("riscv32", mold_elf_riscv32::link),
-    #[cfg(feature = "riscv32be")]
-    ("riscv32be", mold_elf_riscv32be::link),
-    #[cfg(feature = "ppc64v2")]
-    ("ppc64v2", mold_elf_ppc64v2::link),
-    #[cfg(feature = "ppc32")]
-    ("ppc32", mold_elf_ppc32::link),
-    #[cfg(feature = "ppc64v1")]
-    ("ppc64v1", mold_elf_ppc64v1::link),
-    #[cfg(feature = "s390x")]
-    ("s390x", mold_elf_s390x::link),
-    #[cfg(feature = "sparc64")]
-    ("sparc64", mold_elf_sparc64::link),
-    #[cfg(feature = "m68k")]
-    ("m68k", mold_elf_m68k::link),
-    #[cfg(feature = "sh4")]
-    ("sh4", mold_elf_sh4::link),
-    #[cfg(feature = "sh4be")]
-    ("sh4be", mold_elf_sh4be::link),
-    #[cfg(feature = "loongarch64")]
-    ("loongarch64", mold_elf_loongarch64::link),
-    #[cfg(feature = "loongarch32")]
-    ("loongarch32", mold_elf_loongarch32::link),
 ];
 
 const MACHO_TARGETS: &[(&str, MachoLinkFn)] = &[
@@ -85,7 +50,7 @@ fn link_fn<F: Copy>(targets: &[(&str, F)], target: &str) -> F {
         }
     }
     eprintln!(
-        "mold: unsupported target: {target}; rebuild mold with the appropriate target support"
+        "tinymold-link: unsupported target: {target}; rebuild tinymold-link with the appropriate target support"
     );
     std::process::exit(1);
 }
@@ -106,7 +71,7 @@ fn main() {
     }
 
     let Some(&(initial_target, _)) = ELF_TARGETS.first() else {
-        eprintln!("mold: no targets enabled; rebuild mold with the appropriate target support");
+        eprintln!("tinymold-link: no targets enabled; rebuild tinymold-link with the appropriate target support");
         std::process::exit(1);
     };
     let link = |target: &str, cmdline| link_fn(ELF_TARGETS, target)(cmdline);
