@@ -1,6 +1,6 @@
 # rustc cache key: ActionKey and ActionResult
 
-- **Status:** Draft (to be accepted in the Phase 2 spec)
+- **Status:** Draft (to be accepted in the Phase 3 spec)
 - **Owner:** Steven Enamakel
 - **Date:** 2026-10-14
 - **Implemented by:** `tinymold-key` (planned)
@@ -42,7 +42,7 @@ expansions. Those are separate schemas if and when they are built.
   ([ADR 0002](../adr/0002-blake3-for-content-digests.md)).
 - The canonical encoding is deterministic: fixed field order, sorted maps and
   sets, length-prefixed strings, no floats. Deterministic CBOR (RFC 8949
-  §4.2) is the proposed format; the Phase 2 spec settles it. Whatever the
+  §4.2) is the proposed format; the Phase 3 spec settles it. Whatever the
   format, a golden test pins the encoding of a fixed input to a fixed digest.
 - Every key starts with a schema tag, `tinymold/rustc/v1`. Changing what goes
   into the key, or how, bumps the tag, which invalidates old entries instead
@@ -153,7 +153,7 @@ computed from a complete recorded set.
 | The absolute workspace path, `CARGO_HOME` path, build-dir path | Replaced by `${WS}`, `${CARGO_HOME}`, `${OUT}` |
 | `--out-dir`, `-C incremental=<dir>` | Where outputs go, not what they are |
 | `--remap-path-prefix` flags injected by tinymold | A function of the roots, which are themselves normalized |
-| `--error-format`, `--json`, `--color`, `--diagnostic-width` | Presentation only; diagnostics are stored in a canonical form and re-rendered (Phase 2 spec decides whether stored stderr is per format) |
+| `--error-format`, `--json`, `--color`, `--diagnostic-width` | Presentation only; diagnostics are stored in a canonical form and re-rendered (Phase 3 spec decides whether stored stderr is per format) |
 | Jobserver fds, `CARGO_MAKEFLAGS`, `-Zthreads` thread counts | Scheduling, not output |
 | Terminal and locale variables not listed in dep-info | Not read by the compiler for output |
 
@@ -176,7 +176,7 @@ names and therefore output bytes.
 | 10 | **Toolchain drift** (a new nightly, a different sysroot) | rlibs from another rustc fail SVH checks | `rustc_digest` and `sysroot_digest` are in every key, so drift is a miss, never a bad hit |
 | 11 | **Same filename, different bytes** (41 of 209 rlibs across two worktrees, cause unknown) | Cargo's filename hash is not a content key | tinymold keys on full inputs and stores outputs by their own digest, never by filename ([hashing §4.2](../research/hashing-and-cache-server.md#42-dedup-potential-across-projects-and-worktrees-measured)) |
 
-## Acceptance criteria (for the Phase 2 spec)
+## Acceptance criteria (for the Phase 3 spec)
 
 - A golden test pins the digest of a fixed `KeyInputs` value.
 - Two checkouts of the same commit at different absolute paths produce the

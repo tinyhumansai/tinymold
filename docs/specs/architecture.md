@@ -50,12 +50,12 @@ the `tinymold` binary is a thin CLI over them.
 | `tinymold-hash` | Phase 0 | The BLAKE3-256 `Digest` type; hashing byte slices, readers and files; lowercase hex encoding and parsing. The single digest type for everything persisted or shared ([ADR 0002](../adr/0002-blake3-for-content-digests.md)). |
 | `tinymold-cas` | Phase 0 | Local content-addressed store. Objects live at `objects/<first 2 hex>/<remaining 62 hex>`. Insert writes a temp file in the store, verifies the digest, then renames it into place, so readers never see a partial object; objects are made read-only. Materialization into a destination path uses a selectable strategy, by default the fallback chain reflink → hardlink → copy. |
 | `tinymold` | Phase 0 | The CLI. `tinymold hash <files>` prints digests; `tinymold cas put\|get\|has\|verify` operates the store (default location `TINYMOLD_STORE`, then `XDG_CACHE_HOME/tinymold`, then `HOME/.cache/tinymold`); `tinymold doctor` reports the host, the `rustc` version, the sysroot's `rust-lld`, the store, and which of mold, wild, `ld.lld`, `ld64.lld`, clang and sccache are on `PATH`. |
-| `tinymold-key` | Planned (Phase 2) | The rustc ActionKey and ActionResult schema, argument classification, and path normalization ([cache-key spec](cache-key.md)). Pure functions, no I/O beyond reading inputs. |
-| `tinymold-wrap` | Planned (Phase 2, 4) | The `RUSTC_WRAPPER` and linker shim. Short-lived, native, starts in a few ms. Talks to the server when one is running and runs the same lookup in-process when not. |
-| `tinymold-server` | Planned (Phase 3) | The hot cache daemon: stat cache, FSEvents/inotify dirty set, Unix-socket protocol, single-flight dedup, per-key incremental-dir store, storage tiers and eviction. |
-| `tinymold-remote` | Planned (Phase 5) | REAPI v2 client for the LAN/remote tier, with zstd-compressed transfers and `FindMissingBlobs` batching. |
+| `tinymold-key` | Planned (Phase 3) | The rustc ActionKey and ActionResult schema, argument classification, and path normalization ([cache-key spec](cache-key.md)). Pure functions, no I/O beyond reading inputs. |
+| `tinymold-wrap` | Planned (Phase 3, 4) | The `RUSTC_WRAPPER` and linker shim. Short-lived, native, starts in a few ms. Talks to the server when one is running and runs the same lookup in-process when not. |
+| `tinymold-server` | Planned (Phase 6) | The hot cache daemon: stat cache, FSEvents/inotify dirty set, Unix-socket protocol, single-flight dedup, per-key incremental-dir store, storage tiers and eviction. |
+| `tinymold-remote` | Planned (Phase 6) | REAPI v2 client for the LAN/remote tier, with zstd-compressed transfers and `FindMissingBlobs` batching. |
 | `tinymold-link` | Planned (Phase 4) | Linker autoselect, link-skip, link concurrency governor, test-binary consolidation, dylib dev mode, prelinked dependency archive. |
-| `tinymold-bench` | Planned (Phase 1) | Pinned benchmark harness: filesystem, output reuse, fork mode and thread count are fixed and recorded per run ([linkers §2](../research/linkers.md#2-benchmarks-with-sources)). |
+| `tinymold-bench` | Phase 1 (as the Python harness in `bench/`) | Pinned benchmark harness: filesystem, output reuse, fork mode and thread count are fixed and recorded per run ([linkers §2](../research/linkers.md#2-benchmarks-with-sources)). |
 
 Dependency direction is strictly downward: `hash` ← `cas` ← `key` ← `wrap` /
 `server` / `link` / `remote` ← `tinymold`. Nothing below `wrap` knows about
@@ -160,7 +160,7 @@ Two conditions make this work:
    code, not metadata.
 
 Early cutoff on the *public interface* of a crate (ignoring spans, the RDR
-idea) is a stronger form that needs rmeta decoding; it is a Phase 6 research
+idea) is a stronger form that needs rmeta decoding; it is a Phase 7 research
 bet ([rustc-pipeline §10](../research/rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty), idea 11).
 
 ## Path normalization
@@ -183,7 +183,7 @@ tinymold normalizes in two places:
   the roots. Diagnostics replayed from cache have `${WS}` re-expanded to the
   requesting worktree's path.
 
-Phase 2 adds a check that scans cached outputs for residual absolute paths and
+Phase 3 adds a check that scans cached outputs for residual absolute paths and
 refuses to share an output that contains one.
 
 ## Storage tiers and budget
@@ -337,7 +337,7 @@ A cache that is wrong once gets switched off. tinymold builds trust with:
 - `tinymold doctor` reports the environment (Phase 0) and, from Phase 1,
   classifies a build as link-, frontend-, LLVM-, macro- or build-script-bound
   from `cargo build --timings` and self-profile data.
-- `tinymold explain` (Phase 2) explains misses.
+- `tinymold explain` (Phase 3) explains misses.
 - The server exposes hit rate per tier, bytes per tier, and time saved, the
   health metrics that made Scion's tiers tunable
   ([source-control §2](../research/source-control-and-caching.md#results)).

@@ -231,7 +231,7 @@ optional `features`), and an `edits` entry for each edit kind.
   Phase 1 harness pins those too.
 - **`cas` includes process start-up.** Each `tinymold cas get` sample is a full
   process launch, which is what a build tool would pay per artifact today. The
-  hot cache server in Phase 3 removes that cost.
+  hot cache server in Phase 6 removes that cost.
 - **No cherry-picking.** Every run's samples are stored in the JSON files.
 
 ## Published numbers from elsewhere
