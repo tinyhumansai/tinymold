@@ -50,7 +50,10 @@ pub(crate) fn find(
 ) -> Option<(PathBuf, String)> {
     let prefix = format!("{crate_name}-");
     let mut written = Vec::new();
-    for crate_dir in fs::read_dir(incremental).ok()?.filter_map(|entry| entry.ok()) {
+    for crate_dir in fs::read_dir(incremental)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+    {
         if !crate_dir.file_name().to_string_lossy().starts_with(&prefix) {
             continue;
         }
@@ -88,11 +91,11 @@ fn is_finished(name: &str) -> bool {
 fn holds_any(dir: &Path, inodes: &HashSet<(u64, u64)>) -> bool {
     !inodes.is_empty()
         && fs::read_dir(dir).is_ok_and(|files| {
-        files
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| entry.metadata().ok())
-            .any(|meta| inodes.contains(&dev_ino(&meta)))
-    })
+            files
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.metadata().ok())
+                .any(|meta| inodes.contains(&dev_ino(&meta)))
+        })
 }
 
 #[cfg(unix)]

@@ -592,8 +592,7 @@ impl Unit<'_> {
     /// Restores the incremental session `action` carries, when this unit's
     /// incremental directory has none of its own (see [`session`]).
     fn restore_session(&self, action: &Action) {
-        if let (Some(record), Some(incremental)) = (&action.session, &self.invocation.incremental)
-        {
+        if let (Some(record), Some(incremental)) = (&action.session, &self.invocation.incremental) {
             let _ = session::restore(&self.store, record, &self.cwd.join(incremental));
         }
     }

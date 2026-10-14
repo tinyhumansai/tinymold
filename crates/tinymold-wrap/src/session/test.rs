@@ -30,7 +30,11 @@ impl Sessions {
         .unwrap();
         let out = dir.path().join("deps");
         fs::create_dir_all(&out).unwrap();
-        fs::hard_link(session.join("0pw7qs82.o"), out.join("demo-1.0pw7qs82.rcgu.o")).unwrap();
+        fs::hard_link(
+            session.join("0pw7qs82.o"),
+            out.join("demo-1.0pw7qs82.rcgu.o"),
+        )
+        .unwrap();
         let store = Store::open(dir.path().join("store")).unwrap();
         Self {
             _dir: dir,
@@ -67,12 +71,23 @@ fn the_units_session_is_the_one_sharing_an_inode_with_its_objects() {
     assert_eq!(name, SESSION);
 
     assert_eq!(find(&sessions.incremental, "other", &inodes, later), None);
-    assert_eq!(find(&sessions.incremental, "demo", &HashSet::new(), later), None);
     assert_eq!(
-        find(&sessions.incremental, "demo", &HashSet::from([(0, 1)]), later),
+        find(&sessions.incremental, "demo", &HashSet::new(), later),
         None
     );
-    assert_eq!(find(&sessions.out.join("missing"), "demo", &inodes, later), None);
+    assert_eq!(
+        find(
+            &sessions.incremental,
+            "demo",
+            &HashSet::from([(0, 1)]),
+            later
+        ),
+        None
+    );
+    assert_eq!(
+        find(&sessions.out.join("missing"), "demo", &inodes, later),
+        None
+    );
 }
 
 #[test]
@@ -81,7 +96,10 @@ fn without_objects_the_only_session_written_since_the_start_is_the_units() {
     let found = find(&sessions.incremental, "demo", &HashSet::new(), 0);
     assert_eq!(
         found,
-        Some((sessions.incremental.join("demo-2mhci14civbux"), SESSION.to_owned()))
+        Some((
+            sessions.incremental.join("demo-2mhci14civbux"),
+            SESSION.to_owned()
+        ))
     );
 
     // A second unit of the crate, compiled at the same time: no telling.
@@ -89,7 +107,10 @@ fn without_objects_the_only_session_written_since_the_start_is_the_units() {
         .incremental
         .join("demo-0chpacq29fani/s-hn7o7hfx6d-1aaaaaa-0bbbbbbbbbbb");
     fs::create_dir_all(&other).unwrap();
-    assert_eq!(find(&sessions.incremental, "demo", &HashSet::new(), 0), None);
+    assert_eq!(
+        find(&sessions.incremental, "demo", &HashSet::new(), 0),
+        None
+    );
 }
 
 #[cfg(unix)]
