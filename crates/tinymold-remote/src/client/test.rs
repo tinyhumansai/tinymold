@@ -225,3 +225,24 @@ fn transfers_get_time_in_proportion_to_their_size() {
         DEFAULT_TIMEOUT + Duration::from_secs(10)
     );
 }
+
+#[test]
+fn a_key_sent_without_a_size_is_refused_as_bazel_remote_refuses_it() {
+    let server = Server::start();
+    let runtime = runtime();
+    let client = client(&runtime, &config(&server));
+    let unsized_key = Digest {
+        hash: naming::blob(b"key").hash,
+        size_bytes: 0,
+    };
+    let result = runtime.block_on(client.get_action_result(unsized_key));
+    assert!(
+        matches!(&result, Err(Error::Status { status, .. }) if status.code() == Code::InvalidArgument),
+        "{result:?}"
+    );
+    let sized = naming::action_key(&tinymold_hash::Digest::of_bytes(b"key"));
+    assert_eq!(
+        runtime.block_on(client.get_action_result(sized)).unwrap(),
+        None
+    );
+}
