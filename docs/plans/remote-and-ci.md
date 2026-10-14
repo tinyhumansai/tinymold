@@ -4,7 +4,7 @@
   [`../specs/remote.md`](../specs/remote.md),
   [`../specs/github-actions.md`](../specs/github-actions.md)
 - **Decision:** [ADR 0006](../adr/0006-remote-tier-reapi-bazel-remote.md)
-- **Status:** In progress
+- **Status:** Implemented; bench numbers pending (step 10)
 
 ## Order of implementation
 
@@ -58,7 +58,22 @@ green.
 
 ## Completion checklist
 
-- [ ] Steps 1-6 (local GC, stats, coverage rule)
-- [ ] Steps 7-8 (remote tier)
-- [ ] Step 9 (actions, CI, deployment)
-- [ ] Step 10 (README, bench numbers)
+- [x] Steps 1-6 (local GC, stats, coverage rule)
+- [x] Steps 7-8 (remote tier)
+- [x] Step 9 (actions, CI, deployment)
+- [x] README section
+- [ ] Step 10 bench numbers
+
+## Found by running against bazel-remote
+
+- **AC keys need a size.** bazel-remote refuses `size_bytes = 0` for any
+  hash but the empty blob's ("Invalid zero-length SHA256 hash"), so keys are
+  sent with size 32. The fake test server now enforces the same rule.
+- **`GetCapabilities` does not test a credential.** With
+  `--allow_unauthenticated_reads` it answers anyone, so `remote check` also
+  uploads a probe blob.
+- **Paths still matter across target directories.** A second build into
+  `target/e2e-b` got 83.5% remote hits, against 91.4% into the same
+  `target/e2e-a`. Native objects from build scripts (blake3's C code) embed
+  the out-dir path, so their dependents' keys differ. That is a correct miss.
+  CI runners build at the same path every run.
