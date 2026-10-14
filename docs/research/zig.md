@@ -212,9 +212,8 @@ never shared (§8.4).
   "disabled by default" with "known bugs, including some miscompilations"
   [P, checked]; the 0.17 notes say "most projects targeting x86_64-linux" can now use it [P, checked].
 
-The lesson for tinymold: the server reports *what it read* and *which digest
-it produced*, and the build runner derives the watch set from that. tinymold
-already has the first half in its pre-key records.
+The compiler reports what it read and which digest it produced; the runner
+derives the watch set from that. tinymold's pre-key records hold the same.
 
 ### 3.3 Caching the build script itself (0.17)
 
