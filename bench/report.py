@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import statistics
 from html import escape
 from pathlib import Path
 
@@ -380,10 +381,121 @@ def hit_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+EDIT_COMMANDS = (("build", "build"), ("clippy", "clippy"), ("test_build", "test build"),
+                 ("test_run", "test run"), ("coverage", "coverage"))
+
+
+def edit_steps(steps: list[dict], kinds=("comment", "private_body", "public_signature")):
+    return [s for s in steps if s["edit"] in kinds]
+
+
+def median(values: list[float]) -> float | None:
+    return statistics.median(values) if values else None
+
+
+def seconds(value: float | None) -> str:
+    return "–" if value is None else f"{value:.2f}s"
+
+
+def growth_chart(title: str, series: dict[str, list[tuple[int, float]]], path: Path) -> None:
+    """A light/dark-safe line chart of MiB against step, one line per series."""
+    width, height, left, top, bottom = 640, 260, 60, 30, 30
+    colors = ("#4c78a8", "#f58518", "#54a24b", "#e45756", "#72b7b2", "#b279a2")
+    points = [p for line in series.values() for p in line]
+    xmax = max((x for x, _ in points), default=1) or 1
+    ymax = max((y for _, y in points), default=1.0) or 1.0
+    plot_w, plot_h = width - left - 160, height - top - bottom
+
+    def at(x: float, y: float) -> str:
+        return f"{left + plot_w * x / xmax:.1f},{top + plot_h * (1 - y / ymax):.1f}"
+
+    parts = [f'<text x="0" y="18" font-weight="bold">{escape(title)}</text>',
+             f'<text x="{left - 8}" y="{top + 5}" text-anchor="end">{ymax:,.0f}</text>',
+             f'<text x="{left - 8}" y="{top + plot_h}" text-anchor="end">0 MiB</text>',
+             f'<text x="{left + plot_w}" y="{height - 8}" text-anchor="end">step {xmax}</text>',
+             f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" '
+             'stroke="#888"/>']
+    for i, (label, line) in enumerate(series.items()):
+        color = colors[i % len(colors)]
+        parts.append(f'<polyline fill="none" stroke="{color}" stroke-width="2" points="'
+                     + " ".join(at(x, y) for x, y in line) + '"/>')
+        parts.append(f'<text x="{left + plot_w + 10}" y="{top + 16 * i + 10}" '
+                     f'fill="{color}">{escape(label)}</text>')
+    path.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+                    'font-family="system-ui, sans-serif" font-size="13" fill="#888">'
+                    + "".join(parts) + "</svg>\n")
+
+
+def edits_section(name: str, result: dict) -> list[str]:
+    """The cumulative edit sequence: latency per command, then footprint."""
+    rows = result["results"]
+    lines = [f"### Edit sequence ({describe(result)})", "",
+             f"{len(rows[0]['steps']) - 1 if rows else 0} cumulative steps per project "
+             f"({result['schedule']}), each followed by: {', '.join(result['commands'])}. "
+             "Latency cells are medians over the edit steps; *after fresh* is the first edit "
+             "after the target directory was deleted with the store kept. Sizes are "
+             "allocated blocks with each inode counted once, so reflinked files count in "
+             "full; growth is per step after the warm-up build. Peak RSS is the largest "
+             "single process (rustc, linker or wrapper) of any command.", "",
+             "| Project | Mode | " + " | ".join(label for _, label in EDIT_COMMANDS)
+             + " | fresh build | after fresh |",
+             "| --- | --- |" + " ---: |" * (len(EDIT_COMMANDS) + 2)]
+    footprint = ["", "| Project | Mode | target/ final | target/ per step | incremental final "
+                 "| coverage final | store final | store per step | peak RSS |",
+                 "| --- | --- |" + " ---: |" * 7]
+    for project in dict.fromkeys(r["project"] for r in rows):
+        mine = [r for r in rows if r["project"] == project]
+        series: dict[str, list[tuple[int, float]]] = {}
+        for r in mine:
+            steps, edited = r["steps"], edit_steps(r["steps"])
+            cells = []
+            for key, _ in EDIT_COMMANDS:
+                cells.append(seconds(median([s["commands"][key]["wall_s"] for s in edited
+                                             if key in s["commands"]])))
+            fresh = [i for i, s in enumerate(steps) if s["edit"] == "fresh"]
+            fresh_build = median([steps[i]["commands"]["build"]["wall_s"] for i in fresh
+                                  if "build" in steps[i]["commands"]])
+            after = median([steps[i + 1]["commands"]["build"]["wall_s"] for i in fresh
+                            if i + 1 < len(steps) and "build" in steps[i + 1]["commands"]])
+            label = f"{project} {r['rev']}"
+            lines.append(f"| {label} | {r['mode']} | " + " | ".join(cells)
+                         + f" | {seconds(fresh_build)} | {seconds(after)} |")
+            first, last = steps[0], steps[-1]
+            count = max(1, len(steps) - 1)
+
+            def size(step: dict, *path: str) -> int:
+                value = step
+                for key in path:
+                    value = value.get(key, {})
+                return value.get("allocated", 0) if isinstance(value, dict) else 0
+
+            target_growth = (size(last, "target", "total") - size(first, "target", "total")) / count
+            store_growth = (size(last, "store") - size(first, "store")) / count
+            rss = max(c["rss_mb"] for s in steps for c in s["commands"].values())
+            has_store = "store" in first
+            footprint.append(
+                f"| {label} | {r['mode']} | {mib(size(last, 'target', 'total'))} | "
+                f"{mib(int(target_growth))} | {mib(size(last, 'target', 'incremental'))} | "
+                f"{mib(size(last, 'target', 'coverage'))} | "
+                f"{mib(size(last, 'store')) if has_store else '–'} | "
+                f"{mib(int(store_growth)) if has_store else '–'} | {rss:,.0f} MiB |")
+            series[f"{r['mode']} target/"] = [(s["step"], size(s, "target", "total") / 2**20)
+                                              for s in steps]
+            if has_store:
+                series[f"{r['mode']} store"] = [(s["step"], size(s, "store") / 2**20)
+                                                for s in steps]
+        svg = RESULTS / f"{name}-{project}.svg"
+        growth_chart(f"{project}: target/ and store size by step (MiB allocated)", series, svg)
+        footprint.append("")
+        footprint.append(f"![{project} size by step](results/{svg.name})")
+        footprint.append("")
+    return lines + footprint + [""]
+
+
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "hit": 6, "dedup": 7, "link": 8, "native": 9, "cas": 10}
+             "hit": 6, "edits": 7, "dedup": 7, "link": 8, "native": 9, "cas": 10}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -408,6 +520,8 @@ def main() -> None:
             sections += ci_section(result)
         elif result["benchmark"] == "hit":
             sections += hit_section(result)
+        elif result["benchmark"] == "edits":
+            sections += edits_section(path.stem, result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()
