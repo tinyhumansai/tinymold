@@ -1,0 +1,18 @@
+[package]
+name = "tinymold-key"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cache keys for tinymold: rustc argument classification, path normalization, dep-info parsing, and the ActionKey."
+readme = "../../README.md"
+keywords = ["build", "cache", "rustc", "cache-key", "content-addressed"]
+categories = ["development-tools::build-utils"]
+
+[dependencies]
+tinymold-hash = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
