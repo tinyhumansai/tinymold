@@ -323,7 +323,13 @@ fn a_binary_that_cannot_be_hashed_still_runs_and_fails() {
     assert!(log_lines(&config)[0].starts_with("test-error "));
 }
 
-fn run_via(config: &Config, root: &Path, binary: &Path, via: &Path, env: &[(OsString, OsString)]) -> i32 {
+fn run_via(
+    config: &Config,
+    root: &Path,
+    binary: &Path,
+    via: &Path,
+    env: &[(OsString, OsString)],
+) -> i32 {
     run_test(
         config,
         &TestCommand {
