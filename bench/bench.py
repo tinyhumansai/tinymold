@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tinymold benchmark harness.
 
-Three benchmarks, each writing one JSON result file under bench/results/:
+Six benchmarks, each writing one JSON result file under bench/results/:
 
   baseline
          Plain cargo, default linker, no tinymold: the numbers every later
@@ -30,7 +30,21 @@ into its own checkout's target/ directory.
          is sccache, the reference tinymold has to beat, run on a private port
          and directory so it never touches a developer's own sccache server.
 
+  scenarios
+         The full edit-loop matrix: per corpus project and per mode
+         (baseline, sccache, later tinymold), the cases clean, no-op, comment
+         edit, private-body edit, public-signature edit, second worktree,
+         branch switch A->B->A, and cargo test --no-run. Records wall time,
+         link time (via a timing linker wrapper), units compiled versus fresh,
+         target/ bytes by kind, and cache hits.
+
+  dedup  Builds two worktrees of each project and reports how much of the
+         second's target/ is byte-identical to the first's, at file level,
+         rlib-member level, and DWARF-section level.
+
 Usage:
+  python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
+  python3 bench/bench.py dedup [--project NAME]
   python3 bench/bench.py cache [--runs N] [--project NAME]
   python3 bench/bench.py baseline [--runs N] [--project NAME]
   python3 bench/bench.py link [--runs N] [--project NAME]
@@ -492,10 +506,449 @@ def bench_cas(args: argparse.Namespace) -> dict:
     return {"benchmark": "cas", "artifact_mb": args.size_mb, "results": results}
 
 
+# ---------------------------------------------------------------------------
+# Scenarios: every edit-loop case, per project, per mode
+# ---------------------------------------------------------------------------
+
+CASES = ("clean", "noop", "comment", "private_body", "public_signature",
+         "second_worktree", "branch_switch", "test_no_run")
+MODES = ("baseline", "sccache", "tinymold")
+
+# A linker wrapper that times the real linker and appends the duration to a
+# log. Perl because it starts in a few milliseconds on every Unix and its
+# Time::HiRes is core; a Python wrapper would add ~30 ms to every link.
+LINK_TIMER = """#!/usr/bin/env perl
+use strict;
+use Time::HiRes qw(time);
+my $real = $ENV{TINYMOLD_BENCH_REAL_LINKER} || 'cc';
+my $start = time;
+my $status = system($real, @ARGV);
+my $elapsed = time - $start;
+if (my $log = $ENV{TINYMOLD_BENCH_LINK_LOG}) {
+    open(my $fh, '>>', $log) or die "cannot append to $log: $!";
+    printf $fh "%.6f\\n", $elapsed;
+    close($fh);
+}
+exit($status == -1 ? 127 : $status >> 8);
+"""
+
+
+def link_timer() -> Path:
+    path = WORK / "link-timer"
+    WORK.mkdir(parents=True, exist_ok=True)
+    if not path.exists() or path.read_text() != LINK_TIMER:
+        path.write_text(LINK_TIMER)
+        path.chmod(0o755)
+    return path
+
+
+def fs_type(path: Path) -> str:
+    """The filesystem type holding `path`, e.g. apfs, ext4, btrfs, tmpfs."""
+    path.mkdir(parents=True, exist_ok=True)
+    if platform.system() == "Linux":
+        return output(["stat", "-f", "-c", "%T", str(path)])
+    best, kind = "", "unknown"
+    for line in output(["/sbin/mount"]).splitlines():
+        # "/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled)"
+        if " on " not in line or " (" not in line:
+            continue
+        mount_point = line.split(" on ", 1)[1].rsplit(" (", 1)[0]
+        resolved = str(path.resolve())
+        if (resolved == mount_point or resolved.startswith(mount_point.rstrip("/") + "/")) \
+                and len(mount_point) > len(best):
+            best, kind = mount_point, line.rsplit(" (", 1)[1].split(",")[0]
+    return kind
+
+
+def target_kinds(target: Path) -> dict[str, int]:
+    """Bytes in target/ by artifact kind.
+
+    `objects` are loose `.o` files: on macOS, where rustc's default is
+    split-debuginfo=unpacked, they are where the debuginfo lives.
+    """
+    kinds = dict.fromkeys(("rlib", "rmeta", "debuginfo", "objects", "incremental",
+                           "executables", "other"), 0)
+    for root, dirs, files in os.walk(target):
+        parts = Path(root).relative_to(target).parts
+        for name in files:
+            path = Path(root) / name
+            try:
+                info = path.lstat()
+            except OSError:
+                continue
+            suffix = path.suffix
+            if "incremental" in parts:
+                kind = "incremental"
+            elif any(p.endswith(".dSYM") for p in parts) or suffix in (".dwo", ".dwp", ".pdb"):
+                kind = "debuginfo"
+            elif suffix in (".rlib", ".rmeta", ".o"):
+                kind = {"rlib": "rlib", "rmeta": "rmeta", "o": "objects"}[suffix[1:]]
+            elif suffix in ("", ".exe", ".dylib", ".so", ".dll") and info.st_mode & 0o111:
+                kind = "executables"
+            else:
+                kind = "other"
+            kinds[kind] += info.st_size
+    return kinds
+
+
+def unit_counts(stderr: str) -> dict[str, int]:
+    """Units cargo compiled versus found fresh, from `cargo build -v` output."""
+    lines = [line.strip() for line in stderr.splitlines()]
+    return {"compiled": sum(line.startswith("Compiling ") for line in lines),
+            "fresh": sum(line.startswith("Fresh ") for line in lines)}
+
+
+class Edits:
+    """Applies one edit kind to a checkout and always restores it afterwards."""
+
+    def __init__(self, src: Path, spec: dict):
+        self.src, self.spec, self.saved = src, spec, {}
+
+    def apply(self, kind: str, n: int) -> None:
+        edit = self.spec[kind]
+        path = self.src / edit["file"]
+        text = self.saved.setdefault(path, path.read_text())
+        if kind == "comment":
+            text = f"{text}\n// tinymold-bench comment edit {n}\n"
+        elif kind == "private_body":
+            anchor = edit["anchor"]
+            if anchor not in text:
+                raise SystemExit(f"anchor not found in {edit['file']}: {anchor!r}")
+            text = text.replace(anchor, f"{anchor}\n    std::hint::black_box({n});", 1)
+        elif kind == "public_signature":
+            text = (f"{text}\n/// tinymold benchmark probe; changes the public API.\n"
+                    f"#[doc(hidden)]\npub fn __tinymold_bench_probe_{n}() {{}}\n")
+        path.write_text(text)
+
+    def restore(self) -> None:
+        for path, text in self.saved.items():
+            path.write_text(text)
+        self.saved.clear()
+
+
+class Session:
+    """One project built in one mode: the commands, env, and measurements."""
+
+    def __init__(self, project: dict, src: Path, mode: str, sccache: str | None):
+        self.project, self.src, self.mode = project, src, mode
+        self.log = WORK / f"link-{project['name']}-{mode}.log"
+        timer = link_timer()
+        self.config = ["--config", f"target.{host_triple()}.linker=\"{timer}\""]
+        self.env = dict(STOCK_ENV, TINYMOLD_BENCH_LINK_LOG=str(self.log))
+        self.sccache = sccache
+        if mode == "sccache":
+            self.env.update(RUSTC_WRAPPER=sccache,
+                            SCCACHE_DIR=str(WORK / "sccache" / project["name"]),
+                            SCCACHE_SERVER_PORT=SCCACHE_PORT, SCCACHE_CACHE_SIZE="50G")
+            # sccache refuses to run while CARGO_INCREMENTAL=1 is set.
+            self.env.pop("CARGO_INCREMENTAL")
+
+    def build(self, cwd: Path | None = None, tests: bool = False) -> dict:
+        """One timed build with link time, unit counts, and cache stats."""
+        args = target_args(self.project)
+        if tests:
+            command = cargo(*self.config, "test", "--no-run", "--locked", "-v",
+                            "--package", self.project["package"],
+                            *(["--features", self.project["features"]]
+                              if "features" in self.project else []))
+        else:
+            command = cargo(*self.config, "build", "--locked", "-v", *args)
+        self.log.unlink(missing_ok=True)
+        if self.sccache and self.mode == "sccache":
+            run([self.sccache, "--zero-stats"], env=self.env, stdout=subprocess.DEVNULL)
+        start = time.perf_counter()
+        done = subprocess.run(command, cwd=cwd or self.src, env=self.env,
+                              capture_output=True, text=True)
+        wall = time.perf_counter() - start
+        if done.returncode != 0:
+            sys.stderr.write(done.stderr[-4000:])
+            raise SystemExit(f"{self.project['name']}: build failed in mode {self.mode}")
+        links = [float(x) for x in self.log.read_text().split()] if self.log.exists() else []
+        sample = {"wall": wall, "link": sum(links), "links": len(links),
+                  **unit_counts(done.stderr)}
+        if self.mode == "sccache":
+            sample["cache"] = sccache_stats(self.sccache, self.env)
+        return sample
+
+    def clean(self, cwd: Path | None = None) -> None:
+        shutil.rmtree((cwd or self.src) / "target", ignore_errors=True)
+
+
+def run_case(session: Session, case: str, runs: int) -> dict:
+    """Runs one case `runs` times and returns its aggregated measurements."""
+    src, project = session.src, session.project
+    edits = Edits(src, project["edits"])
+    samples: list[dict] = []
+    extra: dict = {}
+    if case != "clean":
+        session.build()  # every other case starts from an up-to-date build
+    for n in range(runs):
+        if case == "clean":
+            session.clean()
+            samples.append(session.build())
+        elif case == "noop":
+            samples.append(session.build())
+        elif case in ("comment", "private_body", "public_signature"):
+            try:
+                edits.apply(case, n)
+                samples.append(session.build())
+            finally:
+                edits.restore()
+            session.build()  # settle the restore before the next sample
+        elif case == "second_worktree":
+            second = WORK / f"{project['name']}-{project['rev']}-wt2-{session.mode}"
+            if second.exists():
+                run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+            run(["git", "-C", str(src), "worktree", "add", "--quiet", "--detach", str(second)])
+            try:
+                samples.append(session.build(cwd=second))
+            finally:
+                run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+        elif case == "branch_switch":
+            samples.append(branch_switch(session, edits, n))
+        elif case == "test_no_run":
+            session.clean()
+            session.build()
+            samples.append(session.build(tests=True))
+            extra["target_kinds"] = target_kinds(src / "target")
+    if case == "clean":
+        extra["target_kinds"] = target_kinds(src / "target")
+
+    result = {
+        "wall": summarize([s["wall"] for s in samples]),
+        "link": summarize([s["link"] for s in samples]),
+        "links": statistics.median(s["links"] for s in samples),
+        "compiled": statistics.median(s["compiled"] for s in samples),
+        "fresh": statistics.median(s["fresh"] for s in samples),
+        **extra,
+    }
+    if session.mode == "sccache":
+        result["cache"] = {key: sum(s["cache"][key] for s in samples)
+                           for key in ("hits", "misses")}
+    return result
+
+
+def branch_switch(session: Session, edits: Edits, n: int) -> dict:
+    """A→B→A: switch to a branch with a public API change, build, switch back,
+    build. Git rewrites the changed files on each switch, so this measures what
+    cargo's mtime-based freshness costs after a round trip that ends exactly
+    where it started."""
+    src = session.src
+    git = ["git", "-C", str(src), "-c", "user.name=tinymold-bench",
+           "-c", "user.email=bench@tinymold.invalid"]
+    base = output(["git", "-C", str(src), "rev-parse", "HEAD"])
+    branch = f"tinymold-bench-b-{n}"
+    edits.apply("public_signature", n)
+    edits.saved.clear()  # the edit is committed on B, not restored by hand
+    run([*git, "switch", "--quiet", "-c", branch])
+    run([*git, "commit", "--quiet", "-am", "tinymold bench: branch B"])
+    run([*git, "switch", "--quiet", "--detach", base])
+    session.build()  # start from a fresh build of A
+    try:
+        run([*git, "switch", "--quiet", branch])
+        to_b = session.build()
+        run([*git, "switch", "--quiet", "--detach", base])
+        back = session.build()
+    finally:
+        run([*git, "switch", "--quiet", "--detach", base])
+        run([*git, "branch", "--quiet", "-D", branch])
+    merged = {key: to_b[key] + back[key] for key in ("wall", "link", "links", "compiled", "fresh")}
+    if "cache" in back:
+        merged["cache"] = {key: to_b["cache"][key] + back["cache"][key]
+                           for key in ("hits", "misses")}
+    return merged
+
+
+def bench_scenarios(args: argparse.Namespace) -> dict:
+    modes = args.modes.split(",")
+    for mode in modes:
+        if mode not in MODES:
+            raise SystemExit(f"unknown mode {mode!r}; choose from {', '.join(MODES)}")
+    if "tinymold" in modes:
+        raise SystemExit("mode 'tinymold' needs the rustc wrapper from roadmap Phase 2, "
+                         "which does not exist yet")
+    sccache = shutil.which("sccache")
+    if "sccache" in modes and sccache is None:
+        raise SystemExit("mode 'sccache' needs sccache on PATH (cargo install sccache)")
+    cases = args.cases.split(",") if args.cases else list(CASES)
+
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        run(["cargo", "fetch", "--locked"], cwd=src, env=STOCK_ENV,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for mode in modes:
+            session = Session(project, src, mode, sccache)
+            if mode == "sccache":
+                subprocess.run([sccache, "--stop-server"], env=session.env,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                shutil.rmtree(WORK / "sccache" / project["name"], ignore_errors=True)
+                run([sccache, "--start-server"], env=session.env, stdout=subprocess.DEVNULL)
+            try:
+                for case in cases:
+                    print(f"{project['name']} / {mode} / {case}", file=sys.stderr)
+                    outcome = run_case(session, case, args.runs)
+                    results.append({"project": project["name"], "rev": project["rev"],
+                                    "role": project.get("role", ""), "mode": mode,
+                                    "case": case, **outcome})
+                    print(f"  wall {outcome['wall']['median_s']}s, "
+                          f"link {outcome['link']['median_s']}s, "
+                          f"compiled {outcome['compiled']}", file=sys.stderr)
+            finally:
+                if mode == "sccache":
+                    subprocess.run([sccache, "--stop-server"], env=session.env,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return {"benchmark": "scenarios", "pins": pins(), "results": results}
+
+
+def pins() -> dict:
+    """What the scenario numbers depend on, pinned where cargo allows it."""
+    return {
+        "cargo_build_jobs": os.cpu_count(),
+        "target_filesystem": fs_type(WORK),
+        "linker": "cc, rustc's default, behind a timing wrapper",
+        "linker_threads": "linker default; the platform cc linker takes no thread flag",
+        "output_reuse": "rustc default: each link writes a fresh output",
+        "incremental": "on for baseline; off under sccache, which refuses it",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Dedup probe: how much of two worktrees' target/ is byte-identical
+# ---------------------------------------------------------------------------
+
+def ar_members(data: bytes):
+    """Yields (name, bytes) for each member of an ar archive, such as an rlib."""
+    if not data.startswith(b"!<arch>\n"):
+        return
+    offset, long_names = 8, b""
+    while offset + 60 <= len(data):
+        header = data[offset:offset + 60]
+        name = header[:16].decode("utf-8", "replace").strip()
+        size = int(header[48:58].decode().strip() or 0)
+        body = data[offset + 60:offset + 60 + size]
+        offset += 60 + size + (size & 1)
+        if name.startswith("#1/"):  # BSD: the name precedes the body
+            length = int(name[3:])
+            name, body = body[:length].rstrip(b"\0").decode("utf-8", "replace"), body[length:]
+        elif name == "//":  # GNU long-name table
+            long_names = body
+            continue
+        elif name.startswith("/") and name[1:].isdigit():
+            start = int(name[1:])
+            name = long_names[start:long_names.index(b"/\n", start)].decode("utf-8", "replace")
+        if name in ("/", "/SYM64/", "__.SYMDEF", "__.SYMDEF SORTED"):
+            continue
+        yield name.rstrip("/"), body
+
+
+def dwarf_sections(data: bytes):
+    """Yields (name, bytes) for each DWARF section in an ELF or Mach-O object."""
+    import struct
+
+    if data[:4] == b"\x7fELF" and data[4] == 2:  # ELF64, little-endian
+        shoff, = struct.unpack_from("<Q", data, 0x28)
+        shentsize, shnum, shstrndx = struct.unpack_from("<HHH", data, 0x3A)
+        headers = [struct.unpack_from("<IIQQQQIIQQ", data, shoff + i * shentsize)
+                   for i in range(shnum)]
+        names_at = headers[shstrndx][4]
+        for name_off, kind, _flags, _addr, off, size, *_ in headers:
+            end = data.index(b"\0", names_at + name_off)
+            name = data[names_at + name_off:end].decode()
+            if name.startswith(".debug_") and kind != 8:  # 8 = SHT_NOBITS
+                yield name, data[off:off + size]
+    elif data[:4] == b"\xcf\xfa\xed\xfe":  # Mach-O 64, little-endian
+        ncmds, = struct.unpack_from("<I", data, 16)
+        offset = 32
+        for _ in range(ncmds):
+            cmd, cmdsize = struct.unpack_from("<II", data, offset)
+            if cmd == 0x19:  # LC_SEGMENT_64
+                nsects, = struct.unpack_from("<I", data, offset + 64)
+                for i in range(nsects):
+                    sect = offset + 72 + i * 80
+                    name = data[sect:sect + 16].rstrip(b"\0").decode()
+                    segment = data[sect + 16:sect + 32].rstrip(b"\0").decode()
+                    size, = struct.unpack_from("<Q", data, sect + 40)
+                    off, = struct.unpack_from("<I", data, sect + 48)
+                    if segment == "__DWARF" and off:
+                        yield name, data[off:off + size]
+            offset += cmdsize
+
+
+def inventory(target: Path) -> dict[str, dict[str, int]]:
+    """Content digests and sizes at three granularities for one target/."""
+    files: dict[str, int] = {}
+    members: dict[str, int] = {}
+    dwarf: dict[str, int] = {}
+
+    def objects(name: str, data: bytes) -> None:
+        if name.endswith(".o"):
+            for _, section in dwarf_sections(data):
+                if section:
+                    dwarf[hashlib.sha256(section).hexdigest()] = len(section)
+
+    for root, _dirs, names in os.walk(target):
+        if "incremental" in Path(root).parts:
+            continue
+        for name in names:
+            path = Path(root) / name
+            if path.is_symlink() or not path.is_file():
+                continue
+            data = path.read_bytes()
+            files[hashlib.sha256(data).hexdigest()] = len(data)
+            if name.endswith(".rlib"):
+                for member, body in ar_members(data):
+                    members[hashlib.sha256(body).hexdigest()] = len(body)
+                    objects(member, body)
+            else:
+                objects(name, data)
+    return {"files": files, "rlib_members": members, "dwarf_sections": dwarf}
+
+
+def bench_dedup(args: argparse.Namespace) -> dict:
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        session = Session(project, src, "baseline", None)
+        print(f"{project['name']}: building two worktrees", file=sys.stderr)
+        session.build()
+        second = WORK / f"{project['name']}-{project['rev']}-dedup"
+        if second.exists():
+            run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+        run(["git", "-C", str(src), "worktree", "add", "--quiet", "--detach", str(second)])
+        try:
+            session.build(cwd=second)
+            first, other = inventory(src / "target"), inventory(second / "target")
+        finally:
+            run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+        row = {"project": project["name"], "rev": project["rev"]}
+        for level in ("files", "rlib_members", "dwarf_sections"):
+            total = sum(other[level].values())
+            shared = sum(size for digest, size in other[level].items() if digest in first[level])
+            row[level] = {"bytes": total, "identical_bytes": shared,
+                          "unique_items": len(other[level])}
+        results.append(row)
+        print(f"  identical: files {pct(row['files'])}, rlib members "
+              f"{pct(row['rlib_members'])}, DWARF {pct(row['dwarf_sections'])}", file=sys.stderr)
+    return {"benchmark": "dedup", "results": results}
+
+
+def pct(level: dict) -> str:
+    return f"{100 * level['identical_bytes'] / max(1, level['bytes']):.0f}%"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="benchmark", required=True)
+    scenarios = sub.add_parser("scenarios", help="every edit-loop case, per project and mode")
+    scenarios.add_argument("--runs", type=int, default=3)
+    scenarios.add_argument("--project", help="only this corpus project")
+    scenarios.add_argument("--modes", default="baseline,sccache",
+                           help=f"comma-separated, from: {', '.join(MODES)}")
+    scenarios.add_argument("--cases", help=f"comma-separated subset of: {', '.join(CASES)}")
+    dedup = sub.add_parser("dedup", help="byte-identical share of two worktrees' target/")
+    dedup.add_argument("--project", help="only this corpus project")
     cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
     cache.add_argument("--runs", type=int, default=3)
     cache.add_argument("--project", help="only this corpus project")
@@ -510,11 +963,11 @@ def main() -> None:
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
+    benchmarks = {"scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
-    result["runs"] = args.runs
+    result["runs"] = getattr(args, "runs", 1)
 
     RESULTS.mkdir(exist_ok=True)
     name = f"{result['benchmark']}-{result['machine']['os']}-{result['machine']['arch']}.json"
