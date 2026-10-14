@@ -40,6 +40,7 @@ mod placed;
 mod record;
 mod remote;
 mod stat;
+mod test_record;
 mod trace;
 
 use std::ffi::OsString;
