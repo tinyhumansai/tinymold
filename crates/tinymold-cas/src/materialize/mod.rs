@@ -77,6 +77,13 @@ pub(crate) fn place(source: &Path, destination: &Path, strategy: Strategy) -> Re
     place_with(source, destination, strategy.methods())
 }
 
+/// Places a private, writable copy of `source` at `destination`: a clone where
+/// the filesystem supports one, a byte copy otherwise, and never a hardlink,
+/// which would share the source's inode with whatever later writes to it.
+pub(crate) fn place_private_copy(source: &Path, destination: &Path) -> Result<Method> {
+    place_with(source, destination, &[Method::Reflink, Method::Copy])
+}
+
 /// Tries each method in `methods` in turn; the error reported on total
 /// failure is the last method's, since that is the most portable one tried.
 fn place_with(source: &Path, destination: &Path, methods: &[Method]) -> Result<Method> {

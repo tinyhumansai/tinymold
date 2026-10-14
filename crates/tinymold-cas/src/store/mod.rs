@@ -25,6 +25,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tinymold_hash::Digest;
 
 use crate::materialize::{self, Method, Strategy};
+
 use crate::{Error, Result};
 
 /// A local content-addressed store rooted at one directory.
@@ -114,15 +115,8 @@ impl Store {
         }
 
         let staging = self.staging_path();
-        let staged = materialize::place(source, &staging, Strategy::Auto).and_then(|method| {
-            if method == Method::Hardlink {
-                // `Auto` reached a hardlink because cloning failed; replace
-                // the link with a private copy before trusting its bytes.
-                remove(&staging)?;
-                materialize::place(source, &staging, Strategy::Copy)?;
-            }
-            Ok(Digest::of_file(&staging)?)
-        });
+        let staged = materialize::place_private_copy(source, &staging)
+            .and_then(|_| Ok(Digest::of_file(&staging)?));
 
         match staged {
             Ok(digest) => {

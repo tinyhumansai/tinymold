@@ -1,0 +1,5 @@
+[package]
+name="tinymold"
+version.workspace=true
+edition.workspace=true
+[dependencies]

@@ -109,3 +109,15 @@ fn methods_render_lowercase() {
         .collect();
     assert_eq!(names, ["reflink", "hardlink", "copy"]);
 }
+
+#[test]
+fn a_private_copy_never_shares_the_source_inode() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = source_file(dir.path());
+    let destination = dir.path().join("private");
+
+    let method = place_private_copy(&source, &destination).unwrap();
+    assert_ne!(method, Method::Hardlink);
+    fs::write(&destination, b"rewritten").unwrap();
+    assert_eq!(fs::read(&source).unwrap(), b"artifact");
+}
