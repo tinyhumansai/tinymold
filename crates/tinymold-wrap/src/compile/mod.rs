@@ -476,54 +476,36 @@ impl Unit<'_> {
         // An incremental compile with split debuginfo writes hundreds of
         // object files; storing them one by one would hold cargo up for
         // longer than the compile's own link.
-        let workers = std::thread::available_parallelism().map_or(4, |n| n.get().min(8));
-        let chunk = found.len().div_ceil(workers);
-        let mut outputs = Vec::with_capacity(found.len());
-        std::thread::scope(|scope| {
-            let handles: Vec<_> = found
-                .chunks(chunk)
-                .map(|batch| scope.spawn(move || self.store_outputs(batch)))
-                .collect();
-            for handle in handles {
-                match handle.join() {
-                    Ok(batch) => outputs.extend(batch?),
-                    Err(_) => return Err(Unstorable::Reason("a storing thread panicked")),
-                }
-            }
-            Ok(())
-        })?;
+        let mut outputs =
+            parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(outputs)
     }
 
-    /// Stores one batch of output files.
-    fn store_outputs(
+    /// Stores one output file.
+    fn store_output(
         &self,
-        batch: &[(String, PathBuf, fs::Metadata)],
-    ) -> std::result::Result<Vec<Output>, Unstorable> {
-        let mut outputs = Vec::with_capacity(batch.len());
-        for (name, path, meta) in batch {
-            let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
-            let text = extension == Some("d");
-            let digest = if text {
-                let content = fs::read(path).map_err(io("read", path))?;
-                self.store_text(&content)?
-            } else {
-                let digest = self.store.insert_file(path)?;
-                if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
-                    // A dependent hashes this file next; it need not read it.
-                    let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
-                }
-                digest
-            };
-            outputs.push(Output {
-                name: name.clone(),
-                digest,
-                executable: is_executable(meta),
-                text,
-            });
-        }
-        Ok(outputs)
+        (name, path, meta): &(String, PathBuf, fs::Metadata),
+    ) -> std::result::Result<Output, Unstorable> {
+        let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
+        let text = extension == Some("d");
+        let digest = if text {
+            let content = fs::read(path).map_err(io("read", path))?;
+            self.store_text(&content)?
+        } else {
+            let digest = self.store.insert_file(path)?;
+            if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
+                // A dependent hashes this file next; it need not read it.
+                let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
+            }
+            digest
+        };
+        Ok(Output {
+            name: name.clone(),
+            digest,
+            executable: is_executable(meta),
+            text,
+        })
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's
