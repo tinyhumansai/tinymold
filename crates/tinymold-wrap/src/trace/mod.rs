@@ -2,7 +2,7 @@
 //!
 //! With [`Config::trace`](crate::Config::trace) set, the wrapper appends one
 //! line per step to that file once the invocation is done. Each line is a
-//! Chrome trace "complete" event (`"ph":"X"`), so `bench/profile.py` can merge
+//! Chrome trace "complete" event (`"ph":"X"`), so `bench/profile_build.py` can merge
 //! the lines of every wrapper process with cargo's own unit timeline into one
 //! trace that Perfetto or `chrome://tracing` opens:
 //!

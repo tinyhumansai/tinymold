@@ -1,5 +1,5 @@
 //! Unit tests for the wrapper's trace lines: their exact encoding, which
-//! `bench/profile.py` parses, and how steps are timed.
+//! `bench/profile_build.py` parses, and how steps are timed.
 
 #![allow(clippy::unwrap_used)]
 

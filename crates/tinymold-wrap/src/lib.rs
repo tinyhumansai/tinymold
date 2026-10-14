@@ -59,7 +59,7 @@ pub struct Config {
     pub log: Option<PathBuf>,
     /// A file to append one Chrome trace event per wrapper step to (hashing,
     /// lookup, restore, rustc, storing), for profiling where a build's time
-    /// goes. See `bench/profile.py`.
+    /// goes. See `bench/profile_build.py`.
     pub trace: Option<PathBuf>,
 }
 

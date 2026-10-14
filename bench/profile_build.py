@@ -29,9 +29,9 @@ Output goes to bench/.work/profiles/<project>-<mode>-<case>/: `report.md`
 (https://ui.perfetto.dev) or chrome://tracing opens.
 
 Usage:
-  python3 bench/profile.py [--project NAME] [--case CASE] [--mode baseline|tinymold]
+  python3 bench/profile_build.py [--project NAME] [--case CASE] [--mode baseline|tinymold]
                            [--warm] [--nightly] [--self-profile]
-  python3 bench/profile.py --from-html target/cargo-timings/cargo-timing.html
+  python3 bench/profile_build.py --from-html target/cargo-timings/cargo-timing.html
 
 Only the Python standard library is used.
 """
