@@ -110,8 +110,15 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
     let mut actions = Vec::new();
     for record in tinymold_wrap::records(store)? {
         match &record.kind {
-            RecordKind::Action { .. } => {
-                match tinymold_wrap::action_references(&record.path) {
+            RecordKind::Action { .. } | RecordKind::TestRun { .. } => {
+                // A recorded test run is kept, and evicted, like an action:
+                // it needs the objects holding its output.
+                let references = if matches!(record.kind, RecordKind::TestRun { .. }) {
+                    tinymold_wrap::test_run_references(&record.path)
+                } else {
+                    tinymold_wrap::action_references(&record.path)
+                };
+                match references {
                     Ok(references) if !policy.older_than(record.last_used, policy.max_age) => {
                         actions.push(Action { record, references });
                     }
@@ -122,7 +129,7 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
                     }
                 }
             }
-            RecordKind::PreKey { .. } | RecordKind::Cache => {
+            RecordKind::PreKey { .. } | RecordKind::TestBinary { .. } | RecordKind::Cache => {
                 if policy.older_than(record.last_used, policy.max_age) {
                     remove_file(&record.path, policy)?;
                     if matches!(record.kind, RecordKind::PreKey { .. }) {
