@@ -29,7 +29,6 @@ covered_files="$(jq --arg workspace_root "$workspace_root" --arg source_root "$s
     .data[].files[]
     | select(.filename | startswith($source_root))
   | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
-    | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
     | select(.summary.lines.count > 0)
   ]
   | length
@@ -78,7 +77,6 @@ failures="$(jq -r \
     .data[].files[]
     | select(.filename | startswith($source_root))
   | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
-    | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
     | select(.summary.lines.count > 0)
     | select(.summary.lines.percent < $minimum)
     | "\(.filename | ltrimstr($workspace_root)): \(.summary.lines.percent)%"
