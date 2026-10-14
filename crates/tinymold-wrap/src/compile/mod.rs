@@ -28,6 +28,7 @@ use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, 
 
 use crate::error::io;
 use crate::exec::{self, Captured};
+use crate::parallel;
 use crate::record::{
     self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
@@ -339,41 +340,53 @@ impl Unit<'_> {
                 Err(error) => return Err(io("replace", &path)(error)),
             }
         }
-        for output in &action.outputs {
-            let destination = self.out_dir.join(&output.name);
-            if output.text {
-                let text = self.expand_object(&output.digest)?;
-                fs::write(&destination, text).map_err(io("write", &destination))?;
-            } else {
-                // A reflink or a copy, never a hardlink: a linker may rewrite
-                // its output in place, and that must not be the store's inode.
-                if self
-                    .store
-                    .materialize(&output.digest, &destination, Strategy::Reflink)
-                    .is_err()
-                {
-                    self.store
-                        .materialize(&output.digest, &destination, Strategy::Copy)?;
-                }
+        if action.outputs.len() < PARALLEL_RESTORE_MIN {
+            for output in &action.outputs {
+                self.place(output)?;
             }
-            set_mode(&destination, output.executable)?;
-            let file = fs::OpenOptions::new()
-                .write(true)
-                .open(&destination)
-                .map_err(io("open", &destination))?;
-            file.set_modified(SystemTime::now())
-                .map_err(io("set the mtime of", &destination))?;
-            if !output.text
-                && let Ok(identity) = stat::identity(&destination)
-            {
-                // Dependents hash this file next; they need not read it.
-                let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
-            }
+        } else {
+            parallel::map(&action.outputs, "restoring outputs", |output| {
+                self.place(output)
+            })?;
         }
         // Like rustc, report errors writing our own output only through the
         // exit status of whoever reads it.
         let _ = io::stdout().lock().write_all(stdout.as_bytes());
         let _ = io::stderr().lock().write_all(stderr.as_bytes());
+        Ok(())
+    }
+
+    /// Places one output of a hit in the out-dir, freshly modified.
+    fn place(&self, output: &Output) -> Result<()> {
+        let destination = self.out_dir.join(&output.name);
+        if output.text {
+            let text = self.expand_object(&output.digest)?;
+            fs::write(&destination, text).map_err(io("write", &destination))?;
+        } else {
+            // A reflink or a copy, never a hardlink: a linker may rewrite
+            // its output in place, and that must not be the store's inode.
+            if self
+                .store
+                .materialize(&output.digest, &destination, Strategy::Reflink)
+                .is_err()
+            {
+                self.store
+                    .materialize(&output.digest, &destination, Strategy::Copy)?;
+            }
+        }
+        set_mode(&destination, output.executable)?;
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .open(&destination)
+            .map_err(io("open", &destination))?;
+        file.set_modified(SystemTime::now())
+            .map_err(io("set the mtime of", &destination))?;
+        if !output.text
+            && let Ok(identity) = stat::identity(&destination)
+        {
+            // Dependents hash this file next; they need not read it.
+            let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
+        }
         Ok(())
     }
 
