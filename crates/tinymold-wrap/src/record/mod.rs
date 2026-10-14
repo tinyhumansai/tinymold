@@ -157,13 +157,19 @@ fn parse_output(line: &str) -> Option<Output> {
     let digest = Digest::from_str(parts.next()?).ok()?;
     let executable = flag(parts.next()?)?;
     let text = flag(parts.next()?)?;
-    let name = parts.next().filter(|name| !name.is_empty())?.to_owned();
+    let name = parts.next().filter(|name| is_file_name(name))?.to_owned();
     Some(Output {
         name,
         digest,
         executable,
         text,
     })
+}
+
+/// Whether `name` is one plain file name, which restoring it joins to the
+/// output directory: a record from a remote must not name a path outside it.
+fn is_file_name(name: &str) -> bool {
+    !name.is_empty() && name != "." && name != ".." && !name.contains(['/', '\\'])
 }
 
 fn flag(text: &str) -> Option<bool> {
