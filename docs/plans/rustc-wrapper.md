@@ -14,8 +14,13 @@
    - `DepInfo::parse`;
    - `pre_key` and `full_key`, pinned against golden vectors;
    - `content_digest` (static archives without their build stamps).
-2. **`crates/tinymold-cas`:** `Strategy::Clone`, which tries reflink then
-   copy and never hardlinks, for outputs a linker may rewrite.
+2. **Restoring outputs** uses the existing `Strategy::Reflink`, then
+   `Strategy::Copy`, and never a hardlink, since a linker may rewrite its
+   output in place.
+   - A `Strategy::Clone` variant in `tinymold-cas` was tried and reverted.
+   - Package verification resolves `tinymold-cas = "=0.0.1"` from crates.io,
+     which does not have it.
+   - API additions to published crates should land with a release bump.
 3. **`crates/tinymold-wrap`:**
    - record formats (actions and pre-key input sets);
    - the stat cache, with git's racily-clean rule;
