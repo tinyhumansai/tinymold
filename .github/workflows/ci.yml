@@ -130,8 +130,74 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # The linker forked from mold declares mold's own rust-version, newer than
+      # tinymold's, and is checked by the msrv-link job below.
       - name: Build with the declared MSRV
-        run: cargo build --all-targets --all-features
+        run: >-
+          cargo build --all-targets --all-features --workspace
+          --exclude tinymold-link --exclude tinymold-link-common
+          --exclude tinymold-link-elf --exclude tinymold-link-elf-x86_64
+          --exclude tinymold-link-elf-arm64 --exclude tinymold-link-macho
+          --exclude tinymold-link-macho-arm64 --exclude tinymold-link-macho-x86_64
+          --exclude tinymold-link-tests
+
+  msrv-link:
+    name: Minimum supported Rust version (tinymold-link)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read rust-version from Cargo.toml
+        id: msrv
+        run: |
+          set -euo pipefail
+          msrv="$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '.packages[] | select(.name == "tinymold-link") | .rust_version')"
+          if [[ -z "$msrv" || "$msrv" == "null" ]]; then
+            echo "tinymold-link has no rust-version" >&2
+            exit 1
+          fi
+          echo "version=$msrv" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build the linker with its declared MSRV
+        run: cargo build --all-targets --all-features -p tinymold-link
+
+  # mold's shell suite, run against the forked linker: the forked crates'
+  # regression suite (crates/tinymold-link/FORK.md). The scripts drive the
+  # host's real compilers and binutils, so only the host's own format runs:
+  # ELF on Linux, Mach-O on macOS.
+  link-shell-tests:
+    name: Linker shell tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install the ELF test dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc g++ clang gdb
+
+      - name: Run the shell suite for the host
+        env:
+          TINYMOLD_LINK_SHELL_TESTS: "1"
+        run: cargo test --locked -p tinymold-link --test integration -- --native
 
   # The GitHub Action in this repository (action.yml, save/action.yml), run on
   # this repository with its stateless backend: the store travels in GitHub's
