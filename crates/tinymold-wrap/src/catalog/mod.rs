@@ -68,6 +68,9 @@ pub fn records(store: &Path) -> Result<Vec<RecordFile>> {
     for dir in ["stat", "rustc"] {
         caches(&store.join(dir), &mut found)?;
     }
+    for entry in entries(&store.join("locks"))? {
+        push(&mut found, &entry, RecordKind::Lock);
+    }
     Ok(found)
 }
 
