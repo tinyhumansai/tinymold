@@ -11,7 +11,7 @@ ignore = []
 
 [licenses]
 # Licenses accepted for this crate and its dependencies. Keep GPL-3.0-only for
-# the template crate itself; the remaining entries cover compatible dependency
+# tinymold's own crates; the remaining entries cover compatible dependency
 # licenses commonly encountered by Rust projects.
 allow = [
     "Apache-2.0",
