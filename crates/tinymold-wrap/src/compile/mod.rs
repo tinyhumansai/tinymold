@@ -244,13 +244,18 @@ impl Unit<'_> {
         // before any output is touched.
         let stdout = self.expand_object(&action.stdout)?;
         let stderr = self.expand_object(&action.stderr)?;
-        for output in &action.outputs {
-            let destination = self.out_dir.join(&output.name);
-            match fs::remove_file(&destination) {
+        // Clear every file of this unit first: a stale `.rmeta` from another
+        // branch left beside a restored `.rlib` would have dependents compiled
+        // against one version and linked against another.
+        for (_, path) in self.unit_files()? {
+            match fs::remove_file(&path) {
                 Ok(()) => {}
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                Err(error) => return Err(io("replace", &destination)(error)),
+                Err(error) => return Err(io("replace", &path)(error)),
             }
+        }
+        for output in &action.outputs {
+            let destination = self.out_dir.join(&output.name);
             if output.text {
                 let text = self.expand_object(&output.digest)?;
                 fs::write(&destination, text).map_err(io("write", &destination))?;
@@ -320,7 +325,7 @@ impl Unit<'_> {
             .collect();
         let key = full_key(pre, &key_inputs, &info.env);
 
-        let outputs = self.ingest_outputs(started_ns)?;
+        let outputs = self.ingest_outputs()?;
         let action = Action {
             stdout: self.store_text(&captured.stdout)?,
             stderr: self.store_text(&captured.stderr)?,
@@ -338,32 +343,25 @@ impl Unit<'_> {
     }
 
     /// Stores every output this compile wrote and describes them.
-    fn ingest_outputs(&self, started_ns: u64) -> std::result::Result<Vec<Output>, Unstorable> {
-        // Whole seconds: on filesystems with coarse timestamps a file written
-        // just after the start can carry a time just before it.
-        let threshold = started_ns - started_ns % 1_000_000_000;
-        let prefixes = self.invocation.output_prefixes();
+    fn ingest_outputs(&self) -> std::result::Result<Vec<Output>, Unstorable> {
+        // Every file with this unit's prefix, whatever its mtime: incremental
+        // rustc hardlinks artifacts it reuses (objects, sometimes the .rmeta)
+        // back into the out-dir with their old mtimes, and they are as much
+        // this compile's outputs as the files it wrote. Files left from an
+        // earlier compile of the same unit only add bytes, never wrong ones,
+        // since rustc rewrites every output it emits.
         let mut found = Vec::new();
-        let entries = fs::read_dir(&self.out_dir).map_err(io("read", &self.out_dir))?;
-        for entry in entries {
-            let entry = entry.map_err(io("read", &self.out_dir))?;
-            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
-                continue;
-            };
-            if !prefixes
-                .iter()
-                .any(|prefix| name.starts_with(prefix.as_str()))
-            {
-                continue;
-            }
-            let path = entry.path();
+        for (name, path) in self.unit_files()? {
             let meta = fs::symlink_metadata(&path).map_err(io("read", &path))?;
             if !meta.is_file() {
                 return Err(Unstorable::Reason("an output is not a regular file"));
             }
-            if meta.modified().map_or(0, nanos) >= threshold {
-                found.push((name, path, meta));
-            } // otherwise left over from an earlier compile of this unit
+            found.push((name, path, meta));
+        }
+        for required in self.required_outputs() {
+            if !found.iter().any(|(name, _, _)| *name == required) {
+                return Err(Unstorable::Reason("an expected output is missing"));
+            }
         }
         if found.is_empty() {
             return Err(Unstorable::Reason("no outputs found"));
@@ -420,6 +418,50 @@ impl Unit<'_> {
             });
         }
         Ok(outputs)
+    }
+
+    /// Every entry of the out-dir whose name starts with one of this unit's
+    /// output prefixes.
+    fn unit_files(&self) -> Result<Vec<(String, PathBuf)>> {
+        let prefixes = self.invocation.output_prefixes();
+        let entries = match fs::read_dir(&self.out_dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(io("read", &self.out_dir)(error)),
+        };
+        let mut files = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(io("read", &self.out_dir))?;
+            if let Some(name) = entry.file_name().to_str()
+                && prefixes.iter().any(|prefix| name.starts_with(prefix.as_str()))
+            {
+                files.push((name.to_owned(), entry.path()));
+            }
+        }
+        Ok(files)
+    }
+
+    /// Outputs a successful compile must have written, by `--emit` kind: the
+    /// dep-info, the `.rmeta`, and the `.rlib` of a library.
+    fn required_outputs(&self) -> Vec<String> {
+        let invocation = self.invocation;
+        let [lib_stem, stem] = invocation.output_prefixes();
+        let emits = |kind: &str| invocation.emit.iter().any(|emit| emit == kind);
+        let mut required = Vec::new();
+        if emits("dep-info") {
+            required.push(format!("{stem}.d"));
+        }
+        if emits("metadata") {
+            required.push(format!("{lib_stem}.rmeta"));
+        }
+        let library = invocation
+            .crate_types
+            .iter()
+            .any(|kind| kind == "lib" || kind == "rlib");
+        if emits("link") && library {
+            required.push(format!("{lib_stem}.rlib"));
+        }
+        required
     }
 
     /// Stores `bytes` as text with this unit's roots replaced by placeholders.
