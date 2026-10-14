@@ -13,8 +13,8 @@ pub struct ObjectInfo {
     pub digest: Digest,
     /// Its size in bytes.
     pub size: u64,
-    /// When it was committed to the store: objects are immutable, so this is
-    /// their mtime.
+    /// When it was last stored: committed, or stored again while already
+    /// present. Objects are immutable, so this is their mtime.
     pub modified: SystemTime,
 }
 
