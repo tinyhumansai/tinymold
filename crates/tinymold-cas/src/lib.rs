@@ -13,6 +13,9 @@
 //! data I/O at all, which is what makes a cache hit cheaper than a rebuild
 //! even for multi-hundred-megabyte artifacts.
 //!
+//! [`Store::objects`] and [`Store::remove`] list and delete objects, for
+//! garbage collection that lives in the layers above.
+//!
 //! # Example
 //!
 //! ```
@@ -33,8 +36,8 @@
 //! # What this crate does not hold
 //!
 //! No cache keys, no eviction, and no network. Which digest answers which
-//! build step is the action cache's job, deciding what to delete is the hot
-//! server's, and remote tiers live in their own crate. Keeping this layer to
+//! build step is the action cache's job, deciding what to delete is
+//! `tinymold gc`'s, and remote tiers live in their own crate. Keeping this layer to
 //! "bytes in, bytes out, by name" is what lets every other layer trust it.
 
 mod error;
@@ -43,5 +46,5 @@ mod store;
 
 pub use error::{Error, Result};
 pub use materialize::{Method, Strategy};
-pub use store::Store;
+pub use store::{ObjectInfo, StagingFile, Store};
 pub use tinymold_hash::Digest;

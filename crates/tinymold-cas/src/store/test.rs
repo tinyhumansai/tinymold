@@ -175,3 +175,73 @@ fn opening_fails_when_the_root_is_a_file() {
         })
     ));
 }
+
+#[test]
+fn objects_lists_every_object_with_its_size() {
+    let (_dir, store) = store();
+    let small = store.insert_bytes(b"a").unwrap();
+    let large = store.insert_bytes(b"bigger").unwrap();
+
+    let mut listed: Vec<_> = store
+        .objects()
+        .unwrap()
+        .into_iter()
+        .map(|object| (object.digest, object.size))
+        .collect();
+    listed.sort();
+    let mut expected = vec![(small, 1), (large, 6)];
+    expected.sort();
+    assert_eq!(listed, expected);
+}
+
+#[test]
+fn objects_skips_files_that_are_not_objects() {
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"a").unwrap();
+    let shard = store.object_path(&digest).parent().unwrap().to_path_buf();
+    fs::write(shard.join("not-a-digest"), b"x").unwrap();
+    fs::write(store.root().join("objects").join("stray"), b"x").unwrap();
+
+    let listed = store.objects().unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].digest, digest);
+}
+
+#[test]
+fn objects_of_an_empty_store_is_empty() {
+    let (_dir, store) = store();
+    assert!(store.objects().unwrap().is_empty());
+}
+
+#[test]
+fn remove_deletes_a_sealed_object_and_reports_whether_it_was_there() {
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"a").unwrap();
+
+    assert!(store.remove(&digest).unwrap());
+    assert!(!store.contains(&digest));
+    assert!(!store.remove(&digest).unwrap());
+}
+
+#[test]
+fn staging_files_lists_leftovers_and_remove_staging_deletes_them() {
+    let (_dir, store) = store();
+    let leftover = store.root().join("tmp").join("123-0.tmp");
+    fs::write(&leftover, b"half").unwrap();
+
+    let staged = store.staging_files().unwrap();
+    assert_eq!(staged.len(), 1);
+    assert_eq!(staged[0].path, leftover);
+    assert_eq!(staged[0].size, 4);
+
+    store.remove_staging(&staged[0]).unwrap();
+    assert!(store.staging_files().unwrap().is_empty());
+}
+
+#[test]
+fn listing_a_store_whose_objects_directory_is_a_file_fails() {
+    let (_dir, store) = store();
+    fs::remove_dir_all(store.root().join("objects")).unwrap();
+    fs::write(store.root().join("objects"), b"x").unwrap();
+    assert!(matches!(store.objects(), Err(Error::Io { .. })));
+}
