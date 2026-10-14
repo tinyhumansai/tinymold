@@ -179,5 +179,5 @@ the store fit beside each other.
      commit;
   3. that second build reaches ≥ 90% hits, checked with
      `tinymold stats --min-hit-rate 90`.
-- The `remote-e2e` job does the same through a bazel-remote service
+- The `remote-e2e` job does the same through a bazel-remote
   container, with the local store wiped in between.
