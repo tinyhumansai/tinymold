@@ -18,10 +18,11 @@ impl fmt::Display for Capabilities {
         let yes = |flag: bool| if flag { "yes" } else { "no" };
         write!(
             f,
-            "sha256 {}, blake3 {}, action cache updates {}",
+            "sha256 {}, blake3 {}, action cache updates {}, writable {}",
             yes(self.sha256),
             yes(self.blake3),
-            yes(self.updates_enabled)
+            yes(self.updates_enabled),
+            yes(self.writable)
         )
     }
 }

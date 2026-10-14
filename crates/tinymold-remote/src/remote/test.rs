@@ -169,12 +169,26 @@ fn check_reports_capabilities() {
             sha256: true,
             blake3: false,
             updates_enabled: true,
+            writable: true,
         }
     );
     assert_eq!(
         capabilities.to_string(),
-        "sha256 yes, blake3 no, action cache updates yes"
+        "sha256 yes, blake3 no, action cache updates yes, writable yes"
     );
+}
+
+#[test]
+fn check_tells_a_refused_credential_from_an_anonymous_read_only_client() {
+    let server = Server::start();
+    server.with(|state| state.read_only = true);
+    let anonymous = remote(&server).check().unwrap();
+    assert!(!anonymous.writable);
+
+    let mut config = RemoteConfig::new(&server.url()).unwrap();
+    config.authorization = Some("Basic d3Jvbmc=".to_owned());
+    let refused = RemoteCache::new(&config).unwrap().check();
+    assert!(matches!(refused, Err(Error::Status { call: "Write", .. })), "{refused:?}");
 }
 
 /// Puts `result` under the action key of `key` on `server`, with every

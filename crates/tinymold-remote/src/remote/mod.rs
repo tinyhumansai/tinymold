@@ -47,6 +47,8 @@ const FIND_BATCH: usize = 1000;
 pub struct RemoteCache {
     runtime: tokio::runtime::Runtime,
     client: Client,
+    /// Whether a credential is configured.
+    authenticated: bool,
 }
 
 /// Where the bytes of a blob to upload come from.
@@ -74,19 +76,39 @@ impl RemoteCache {
             let _entered = runtime.enter();
             Client::new(config)?
         };
-        Ok(Self { runtime, client })
+        Ok(Self {
+            runtime,
+            client,
+            authenticated: config.authorization.is_some(),
+        })
     }
 
-    /// Asks the server what it supports. A wrong credential or an unreachable
-    /// server fails here, which makes this the `tinymold remote check` call.
+    /// Asks the server what it supports, then uploads a small probe blob to
+    /// learn whether `push` would be allowed. This is `tinymold remote check`.
+    ///
+    /// A server that allows unauthenticated reads answers the first call
+    /// whatever the credential, so only the probe tells a wrong credential
+    /// apart.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Status`] or [`Error::Timeout`] when the call fails.
+    /// Returns [`Error::Status`] or [`Error::Timeout`] when the server cannot
+    /// be reached, and when a configured credential is refused for the probe.
+    /// Without a credential, a refused probe only reports the cache read-only.
     pub fn check(&self) -> Result<Capabilities> {
         let capabilities = self.runtime.block_on(self.client.capabilities())?;
         let cache = capabilities.cache_capabilities.unwrap_or_default();
+        let probe = b"tinymold remote check\n";
+        let writable = match self
+            .runtime
+            .block_on(self.client.write(&naming::blob(probe), probe.to_vec()))
+        {
+            Ok(()) => true,
+            Err(error) if self.authenticated => return Err(error),
+            Err(_) => false,
+        };
         Ok(Capabilities {
+            writable,
             sha256: cache.digest_functions.contains(&proto::DIGEST_SHA256),
             blake3: cache.digest_functions.contains(&proto::DIGEST_BLAKE3),
             updates_enabled: cache
