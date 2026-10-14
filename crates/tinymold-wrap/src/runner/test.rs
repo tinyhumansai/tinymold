@@ -432,6 +432,8 @@ fn a_changed_dynamic_library_beside_the_binary_runs_again() {
     let record = TestBinary {
         crate_name: "demo".into(),
         dylibs: vec!["libplugin-1.dylib".into()],
+        exes: Vec::new(),
+        out_dirs: Vec::new(),
     };
     fs::write(TestBinary::path(&config.store, &digest), record.encode()).unwrap();
     let dylib = binary.with_file_name("libplugin-1.dylib");

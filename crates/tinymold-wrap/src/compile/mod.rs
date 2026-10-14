@@ -42,7 +42,7 @@ use crate::record::{
 };
 use crate::remote::{Remote, RemoteError};
 use crate::stat;
-use crate::test_record::TestBinary;
+use crate::test_record::{TestBinary, is_build_path};
 use crate::trace::Trace;
 use crate::{Error, Result};
 
@@ -494,10 +494,13 @@ impl Unit<'_> {
 
     /// Records that this unit's executable is a test binary the runner may
     /// cache (`docs/specs/test-cache.md`), and remembers its digest so the
-    /// runner need not read it. Only for `--test` units that link `std`
-    /// statically and whose dynamic-library externs, which the binary loads
-    /// at run time, sit beside it. Best effort: without a record, the
-    /// binary's runs are not cached.
+    /// runner need not read it. The record names what the binary can run or
+    /// read from the build besides its own bytes: the dynamic-library
+    /// externs beside it, the package binaries cargo passed as
+    /// `CARGO_BIN_EXE_<name>`, and the build script's `OUT_DIR`. Only for
+    /// `--test` units that link `std` statically and where each of those is
+    /// inside the build. Best effort: without a record, the binary's runs
+    /// are not cached.
     fn note_test_binary(&self, outputs: &[Output]) {
         let invocation = self.invocation;
         if !invocation.test || !invocation.links() || invocation.prefers_dynamic() {
@@ -529,9 +532,30 @@ impl Unit<'_> {
                 _ => return,
             }
         }
+        let mut exes = Vec::new();
+        let mut out_dirs = Vec::new();
+        for (name, value) in std::env::vars_os() {
+            let name = name.to_string_lossy();
+            let list = if name.starts_with("CARGO_BIN_EXE_") {
+                &mut exes
+            } else if name == "OUT_DIR" {
+                &mut out_dirs
+            } else {
+                continue;
+            };
+            let path = self.roots.normalize(&value.to_string_lossy());
+            if !is_build_path(&path) {
+                // Something the runner could not find again from the binary.
+                return;
+            }
+            list.push(path);
+        }
+        exes.sort();
         let record = TestBinary {
             crate_name: invocation.crate_name.clone(),
             dylibs,
+            exes,
+            out_dirs,
         };
         let path = self.out_dir.join(&binary.name);
         if let Ok(identity) = stat::identity(&path) {
