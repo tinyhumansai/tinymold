@@ -109,3 +109,65 @@ fn only_programs_named_rustc_are_cached() {
     assert!(is_rustc(Path::new("rustc.exe")));
     assert!(!is_rustc(Path::new("clippy-driver")));
 }
+
+fn trace_steps(dir: &Path) -> Vec<(String, String)> {
+    fs::read_to_string(dir.join("trace"))
+        .unwrap_or_default()
+        .lines()
+        .map(|line| {
+            let field = |key: &str| {
+                let start = line.find(&format!(r#""{key}":""#)).unwrap() + key.len() + 4;
+                line[start..start + line[start..].find('"').unwrap()].to_owned()
+            };
+            (field("name"), field("outcome"))
+        })
+        .collect()
+}
+
+#[test]
+fn a_trace_records_each_step_of_a_miss_and_a_hit() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = config(dir.path());
+    config.trace = Some(dir.path().join("trace"));
+    let args = compile_args(dir.path(), &[]);
+    assert_eq!(run(&config, &rustc(), &args), 0);
+    assert_eq!(run(&config, &rustc(), &args), 0);
+    let steps = trace_steps(dir.path());
+    let miss: Vec<_> = steps
+        .iter()
+        .filter(|(_, outcome)| outcome == "miss")
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert_eq!(
+        miss,
+        [
+            "invocation",
+            "classify",
+            "pre_key",
+            "lookup",
+            "rustc",
+            "ingest"
+        ]
+    );
+    let hit: Vec<_> = steps
+        .iter()
+        .filter(|(_, outcome)| outcome == "hit")
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert_eq!(
+        hit,
+        ["invocation", "classify", "pre_key", "lookup", "restore"]
+    );
+}
+
+#[test]
+fn a_trace_records_a_pass_through() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = config(dir.path());
+    config.trace = Some(dir.path().join("trace"));
+    assert_eq!(run(&config, &rustc(), &["-V".into()]), 0);
+    let steps = trace_steps(dir.path());
+    let names: Vec<_> = steps.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, ["invocation", "classify", "pass_through"]);
+    assert!(steps.iter().all(|(_, outcome)| outcome == "pass"));
+}

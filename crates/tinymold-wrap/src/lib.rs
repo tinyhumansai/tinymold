@@ -44,8 +44,8 @@ use std::time::Instant;
 use tinymold_key::{Classified, Invocation};
 
 use compile::Served;
-use trace::Trace;
 pub use error::{Error, Result};
+use trace::Trace;
 
 /// Where the wrapper keeps its cache and reports what it did.
 #[derive(Debug, Clone, PartialEq, Eq)]
