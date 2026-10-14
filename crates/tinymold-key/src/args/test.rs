@@ -64,7 +64,7 @@ fn parses_a_real_cargo_library_compile() {
             path: Some("/w/rg/target/debug/deps/libmemchr-09be5ca3650725ce.rmeta".into())
         }]
     );
-    assert!(invocation.search_paths.is_empty());
+    assert_eq!(invocation.search_paths, []);
     assert!(!invocation.links());
     assert_eq!(
         invocation.output_prefixes(),

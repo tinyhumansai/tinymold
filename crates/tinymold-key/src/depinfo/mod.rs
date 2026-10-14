@@ -50,10 +50,10 @@ impl DepInfo {
                     return Err(Error::MalformedDepInfo { line: index + 1 });
                 }
                 info.env.push((name.to_owned(), value));
-            } else if !line.starts_with('#') {
-                if let Some(path) = line.strip_suffix(':').filter(|path| !path.is_empty()) {
-                    info.inputs.push(path.replace("\\ ", " "));
-                }
+            } else if !line.starts_with('#')
+                && let Some(path) = line.strip_suffix(':').filter(|path| !path.is_empty())
+            {
+                info.inputs.push(path.replace("\\ ", " "));
             }
         }
         Ok(info)
