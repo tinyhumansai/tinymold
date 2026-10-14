@@ -451,3 +451,80 @@ fn usage_of_a_missing_store_is_zero_and_creates_nothing() {
     assert_eq!(usage(&missing).unwrap(), StoreUsage::default());
     assert!(!missing.exists());
 }
+
+impl Fixture {
+    /// Writes a test-run record replaying `stdout` and `stderr`, last used
+    /// `age` ago.
+    fn test_run(&self, name: &str, stdout: Digest, stderr: Digest, age: Duration) -> PathBuf {
+        let path = self
+            .root
+            .join("tests/run")
+            .join(Digest::of_bytes(name.as_bytes()).to_hex());
+        let text = format!("tinymold-test-run 1\nstdout {stdout}\nstderr {stderr}\n");
+        write(&path, &text, self.now - age);
+        path
+    }
+}
+
+#[test]
+fn a_test_run_keeps_its_output_until_it_expires() {
+    let fixture = Fixture::new();
+    let kept_out = fixture.object(b"test result: ok", 3 * DAY);
+    let kept_err = fixture.object(b"", 3 * DAY);
+    let gone_out = fixture.object(b"test result: ok. 2 passed", 3 * DAY);
+    let kept = fixture.test_run("kept", kept_out, kept_err, Duration::from_secs(60));
+    let gone = fixture.test_run("gone", gone_out, kept_err, 2 * DAY);
+
+    let report = collect(
+        &fixture.root,
+        &Policy {
+            max_age: Some(DAY),
+            ..fixture.policy()
+        },
+    )
+    .unwrap();
+
+    assert!(kept.exists());
+    assert!(!gone.exists());
+    assert!(fixture.store.contains(&kept_out));
+    assert!(fixture.store.contains(&kept_err));
+    assert!(!fixture.store.contains(&gone_out));
+    assert_eq!(report.actions_removed, 1);
+    assert_eq!(report.actions_kept, 1);
+}
+
+#[test]
+fn test_binary_records_expire_like_pre_keys() {
+    let fixture = Fixture::new();
+    let binary = |name: &str, age| {
+        let path = fixture
+            .root
+            .join("tests/bin")
+            .join(Digest::of_bytes(name.as_bytes()).to_hex());
+        write(&path, "tinymold-test-binary 1\ncrate demo\n", fixture.now - age);
+        path
+    };
+    let old = binary("old", 2 * DAY);
+    let new = binary("new", Duration::from_secs(60));
+    collect(
+        &fixture.root,
+        &Policy {
+            max_age: Some(DAY),
+            ..fixture.policy()
+        },
+    )
+    .unwrap();
+    assert!(!old.exists());
+    assert!(new.exists());
+
+    // Without an age limit, nothing in use is garbage.
+    let fixture = Fixture::new();
+    let recent = fixture.test_run(
+        "recent",
+        fixture.object(b"out", 3 * DAY),
+        fixture.object(b"err", 3 * DAY),
+        2 * DAY,
+    );
+    collect(&fixture.root, &fixture.policy()).unwrap();
+    assert!(recent.exists());
+}
