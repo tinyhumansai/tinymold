@@ -401,3 +401,11 @@ fn usage_counts_objects_and_bytes() {
     assert_eq!(usage.bytes.0, 5);
     assert_eq!(usage.to_string(), "2 objects, 5 B");
 }
+
+#[test]
+fn usage_of_a_missing_store_is_zero_and_creates_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("none");
+    assert_eq!(usage(&missing).unwrap(), StoreUsage::default());
+    assert!(!missing.exists());
+}

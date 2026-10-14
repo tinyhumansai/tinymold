@@ -262,13 +262,17 @@ fn collect_snapshots(store: &Path, policy: &Policy) -> Result<u64> {
     Ok(removed)
 }
 
-/// How many objects the store at `store` holds, and their bytes.
+/// How many objects the store at `store` holds, and their bytes; nothing
+/// when there is no store there yet, which this does not create.
 ///
 /// # Errors
 ///
-/// Returns [`Error::Cas`] when the store cannot be opened or listed.
+/// Returns [`Error::Cas`] when the store cannot be listed.
 pub fn usage(store: &Path) -> Result<StoreUsage> {
     let mut usage = StoreUsage::default();
+    if !store.join("objects").is_dir() {
+        return Ok(usage);
+    }
     for object in Store::open(store)?.objects()? {
         usage.objects += 1;
         usage.bytes.0 += object.size;

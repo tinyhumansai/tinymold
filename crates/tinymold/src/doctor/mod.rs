@@ -1,7 +1,7 @@
 //! `tinymold doctor`: what this machine has for fast Rust builds.
 //!
 //! The doctor reports facts, not advice: the host, the Rust toolchain, the
-//! store location, and which fast linkers and caches are installed. Linking
+//! store location and size, and which fast linkers and caches are installed. Linking
 //! is roughly half of an incremental debug rebuild (see
 //! `docs/research/linkers.md`), so knowing whether mold, wild, or lld is
 //! available is the first thing any speed-up depends on. Diagnosing a
@@ -11,6 +11,8 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use crate::gc::{self, StoreUsage};
 
 /// One external tool the doctor looks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,6 +40,8 @@ pub struct Report {
     pub rust_lld: Option<PathBuf>,
     /// The store directory tinymold would use.
     pub store: Option<PathBuf>,
+    /// How much the store holds, when it could be read.
+    pub store_usage: Option<StoreUsage>,
     /// The fast linkers and caches searched for on `PATH`.
     pub tools: Vec<Tool>,
 }
@@ -83,6 +87,7 @@ impl Report {
             arch: std::env::consts::ARCH,
             rustc: version.and_then(|text| text.lines().next().map(str::to_owned)),
             rust_lld,
+            store_usage: store.as_deref().and_then(|store| gc::usage(store).ok()),
             store,
             tools,
         }
@@ -103,7 +108,10 @@ impl fmt::Display for Report {
             self.rustc.as_deref().unwrap_or("not found")
         )?;
         writeln!(f, "rust-lld  {}", found(self.rust_lld.as_ref()))?;
-        writeln!(f, "store     {}", found(self.store.as_ref()))?;
+        match &self.store_usage {
+            Some(usage) => writeln!(f, "store     {} ({usage})", found(self.store.as_ref()))?,
+            None => writeln!(f, "store     {}", found(self.store.as_ref()))?,
+        }
         writeln!(f)?;
         writeln!(f, "linkers and caches on PATH")?;
         for tool in &self.tools {

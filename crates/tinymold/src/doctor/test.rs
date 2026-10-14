@@ -80,3 +80,14 @@ fn extracts_fields_from_verbose_version_output() {
     assert_eq!(field(text, "host: "), Some("aarch64-apple-darwin"));
     assert_eq!(field(text, "commit-hash: "), None);
 }
+
+#[test]
+fn reports_the_size_of_an_existing_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = tinymold_cas::Store::open(dir.path()).unwrap();
+    store.insert_bytes(b"abc").unwrap();
+    let report = Report::gather(None, Path::new("rustc"), Some(dir.path().to_path_buf()));
+
+    assert_eq!(report.store_usage.unwrap().objects, 1);
+    assert!(report.to_string().contains("(1 objects, 3 B)"));
+}
