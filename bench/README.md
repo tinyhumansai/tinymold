@@ -46,6 +46,19 @@ store alone, so together they are the baseline every later phase has to beat:
 - **`cas`**: the cost of a cache hit. Restore one large artifact into a fresh
   path: a plain byte copy against `tinymold cas get` by reflink, hardlink, and
   copy. A hit only beats a rebuild if restoring doesn't copy bytes.
+- **`ci`**: a fresh CI runner at the same path, running
+  `cargo test --no-run`. It compares four setups:
+  - a cold build;
+  - `target/` restored from an archive with every source touched, as a
+    `target/` cache such as Swatinem/rust-cache does;
+  - tinymold's store restored from an archive (the GitHub Action's default
+    backend);
+  - tinymold fed only by a local bazel-remote container (the remote backend).
+
+  Downloading an archive from GitHub is not timed, so its size is listed
+  instead. On bat the tinymold modes trail the `target/` cache. Cargo re-runs
+  every build script in an empty `target/`, and bat's compile C code, which
+  `RUSTC_WRAPPER` never sees.
 
 ## Results
 
