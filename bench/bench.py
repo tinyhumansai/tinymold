@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
 """tinymold benchmark harness.
 
-Two benchmarks, each writing one JSON result file under bench/results/:
+Three benchmarks, each writing one JSON result file under bench/results/:
+
+  baseline
+         Plain cargo, default linker, no tinymold: the numbers every later
+         phase has to beat. Per corpus project: a clean build, a no-op
+         rebuild, a one-line edit, an mtime-only change to every source file
+         (what a branch switch or cache restore does), building the tests, and
+         a full build in a second worktree at a different path. It also
+         measures target/ size and how many bytes the two worktrees' artifacts
+         share, which is what a shared content-addressed store would dedupe.
 
   link   Build each corpus project once per available linker, then time the
          edit loop: append a comment to one source file and rebuild. That
@@ -16,6 +25,7 @@ builds lives under bench/.work/ (git-ignored), and each corpus project builds
 into its own checkout's target/ directory.
 
 Usage:
+  python3 bench/bench.py baseline [--runs N] [--project NAME]
   python3 bench/bench.py link [--runs N] [--project NAME]
   python3 bench/bench.py cas [--runs N] [--size-mb N]
   python3 bench/report.py      # render results into bench/README.md
@@ -25,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import platform
@@ -119,9 +130,7 @@ def checkout(project: dict) -> Path:
 
 
 def bench_link(args: argparse.Namespace) -> dict:
-    corpus = json.loads((BENCH / "corpus.json").read_text())["projects"]
-    if args.project:
-        corpus = [p for p in corpus if p["name"] == args.project]
+    corpus = load_corpus(args.project)
     available = linkers()
     print(f"linkers: {', '.join(available)}", file=sys.stderr)
 
@@ -135,7 +144,7 @@ def bench_link(args: argparse.Namespace) -> dict:
             # linkers never invalidate each other's artifacts.
             target = src / "target" / f"bench-{linker}"
             env = dict(os.environ, RUSTFLAGS=" ".join(flags))
-            build = ["cargo", "build", "--quiet", "--package", project["package"],
+            build = ["cargo", "build", "--quiet", "--locked", "--package", project["package"],
                      "--bin", project["bin"], "--target-dir", str(target)]
             print(f"{project['name']} / {linker}: full build", file=sys.stderr)
             shutil.rmtree(target, ignore_errors=True)
@@ -161,6 +170,95 @@ def bench_link(args: argparse.Namespace) -> dict:
             print(f"  edit-rebuild median {results[-1]['edit_rebuild']['median_s']}s",
                   file=sys.stderr)
     return {"benchmark": "link", "results": results}
+
+
+def bench_baseline(args: argparse.Namespace) -> dict:
+    corpus = load_corpus(args.project)
+    results = []
+    for project in corpus:
+        src = checkout(project)
+        build = ["cargo", "build", "--quiet", "--locked", "--package", project["package"],
+                 "--bin", project["bin"]]
+        edit = src / project["edit"]
+        pristine = edit.read_text()
+        name = project["name"]
+        row: dict = {"project": name, "rev": project["rev"]}
+
+        print(f"{name}: clean build", file=sys.stderr)
+        shutil.rmtree(src / "target", ignore_errors=True)
+        row["clean_build_s"] = round(timed(build, cwd=src), 3)
+        row["noop_rebuild"] = summarize([timed(build, cwd=src) for _ in range(args.runs)])
+
+        print(f"{name}: edit loop", file=sys.stderr)
+        samples = []
+        try:
+            for i in range(args.runs):
+                edit.write_text(f"{pristine}\n// tinymold-bench baseline edit {i}\n")
+                samples.append(timed(build, cwd=src))
+        finally:
+            edit.write_text(pristine)
+        # Restoring the file is itself an edit; settle it before the next step.
+        timed(build, cwd=src)
+        row["edit_rebuild"] = summarize(samples)
+
+        print(f"{name}: mtime-only change to every source file", file=sys.stderr)
+        sources = [p for p in src.rglob("*.rs") if "target" not in p.relative_to(src).parts]
+        samples = []
+        for _ in range(args.runs):
+            now = time.time()
+            for path in sources:
+                os.utime(path, (now, now))
+            samples.append(timed(build, cwd=src))
+        row["touch_all_rebuild"] = summarize(samples)
+
+        print(f"{name}: build tests", file=sys.stderr)
+        tests = ["cargo", "build", "--quiet", "--locked", "--tests", "--package", project["package"]]
+        row["build_tests_s"] = round(timed(tests, cwd=src), 3)
+        row["target_bytes"] = tree_size(src / "target")
+
+        print(f"{name}: second worktree at another path", file=sys.stderr)
+        second = WORK / f"{name}-{project['rev']}-worktree2"
+        shutil.rmtree(second, ignore_errors=True)
+        run(["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--local",
+             str(src), str(second)])
+        row["second_worktree_build_s"] = round(timed(build, cwd=second), 3)
+        shared, total = shared_artifact_bytes(src / "target" / "debug" / "deps",
+                                              second / "target" / "debug" / "deps")
+        row["second_worktree_deps_bytes"] = total
+        row["second_worktree_identical_deps_bytes"] = shared
+        shutil.rmtree(second, ignore_errors=True)
+
+        results.append(row)
+        print(f"  clean {row['clean_build_s']}s, edit {row['edit_rebuild']['median_s']}s, "
+              f"touch-all {row['touch_all_rebuild']['median_s']}s, "
+              f"2nd worktree {row['second_worktree_build_s']}s", file=sys.stderr)
+    return {"benchmark": "baseline", "results": results}
+
+
+def shared_artifact_bytes(first: Path, second: Path) -> tuple[int, int]:
+    """Bytes of `second`'s artifacts that are byte-identical to one in `first`.
+
+    Matching is by content, not file name: two worktrees at different paths
+    produce some artifacts with the same name but different bytes, and that
+    gap is exactly what tinymold's path normalization has to close.
+    """
+    def digests(directory: Path) -> dict[str, int]:
+        found: dict[str, int] = {}
+        for path in directory.iterdir() if directory.is_dir() else []:
+            if path.is_file():
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                found[digest] = path.stat().st_size
+        return found
+
+    have = digests(first)
+    theirs = digests(second)
+    shared = sum(size for digest, size in theirs.items() if digest in have)
+    return shared, sum(theirs.values())
+
+
+def load_corpus(only: str | None) -> list[dict]:
+    corpus = json.loads((BENCH / "corpus.json").read_text())["projects"]
+    return [p for p in corpus if only is None or p["name"] == only]
 
 
 def tree_size(path: Path) -> int:
@@ -223,6 +321,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="benchmark", required=True)
+    baseline = sub.add_parser("baseline", help="plain cargo, the numbers to beat")
+    baseline.add_argument("--runs", type=int, default=5)
+    baseline.add_argument("--project", help="only this corpus project")
     link = sub.add_parser("link", help="edit-rebuild loop per linker")
     link.add_argument("--runs", type=int, default=5)
     link.add_argument("--project", help="only this corpus project")
@@ -231,7 +332,8 @@ def main() -> None:
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    result = bench_link(args) if args.benchmark == "link" else bench_cas(args)
+    benchmarks = {"baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
+    result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
     result["runs"] = args.runs
