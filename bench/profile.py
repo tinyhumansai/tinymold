@@ -113,7 +113,7 @@ def units_of(raw: list[dict]) -> dict[int, dict]:
     Cargo lists under `unblocked_units` (and `unblocked_rmeta_units`) only the
     units this one was the *last* dependency of, so every unit has at most one
     unblocker: the dependency it was waiting on when it became ready.
-    """
+
     Units cargo found fresh are listed with no duration; they did no work in
     this build and are left out.
     """
