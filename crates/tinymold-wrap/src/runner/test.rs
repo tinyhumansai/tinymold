@@ -322,3 +322,173 @@ fn a_binary_that_cannot_be_hashed_still_runs_and_fails() {
     assert_eq!(run(&config, &root, &missing, &[], &env(&[])), 1);
     assert!(log_lines(&config)[0].starts_with("test-error "));
 }
+
+fn run_via(config: &Config, root: &Path, binary: &Path, via: &Path, env: &[(OsString, OsString)]) -> i32 {
+    run_test(
+        config,
+        &TestCommand {
+            via: Some(via),
+            binary,
+            args: &[],
+            cwd: root,
+            env,
+        },
+    )
+}
+
+#[cfg(unix)]
+fn script(path: &Path, text: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::write(path, text).unwrap();
+    fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn a_via_program_runs_the_binary_and_joins_the_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), COUNTS_RUNS);
+    let binary = build(&root, &config);
+    let marker = dir.path().join("marker");
+    let env = env(&[("MARKER", marker.to_str().unwrap())]);
+    let via = dir.path().join("via");
+    script(&via, "#!/bin/sh\nexec \"$@\"\n");
+    assert_eq!(run_via(&config, &root, &binary, &via, &env), 0);
+    assert_eq!(run_via(&config, &root, &binary, &via, &env), 0);
+    assert_eq!(runs(&marker), 1);
+    // Another runner is another run.
+    script(&via, "#!/bin/sh\n# a different emulator\nexec \"$@\"\n");
+    assert_eq!(run_via(&config, &root, &binary, &via, &env), 0);
+    assert_eq!(runs(&marker), 2);
+}
+
+#[test]
+fn a_via_program_that_cannot_start_fails_the_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), "");
+    let binary = build(&root, &config);
+    let missing = dir.path().join("no-such-emulator");
+    assert_eq!(run_via(&config, &root, &binary, &missing, &env(&[])), 1);
+    assert_eq!(
+        run_test_uncached(&TestCommand {
+            via: Some(&missing),
+            binary: &binary,
+            args: &[],
+            cwd: &root,
+            env: &env(&[]),
+        }),
+        1
+    );
+}
+
+#[test]
+fn run_test_uncached_runs_the_binary_as_asked() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), COUNTS_RUNS);
+    let binary = build(&root, &config);
+    let marker = dir.path().join("marker");
+    let env = env(&[("MARKER", marker.to_str().unwrap())]);
+    for _ in 0..2 {
+        let code = run_test_uncached(&TestCommand {
+            via: None,
+            binary: &binary,
+            args: &[],
+            cwd: &root,
+            env: &env,
+        });
+        assert_eq!(code, 0);
+    }
+    assert_eq!(runs(&marker), 2);
+}
+
+#[test]
+fn a_corrupt_run_record_runs_the_test_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), COUNTS_RUNS);
+    let binary = build(&root, &config);
+    let marker = dir.path().join("marker");
+    let env = env(&[("MARKER", marker.to_str().unwrap())]);
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    for entry in fs::read_dir(config.store.join("tests/run")).unwrap() {
+        fs::write(entry.unwrap().path(), "garbage").unwrap();
+    }
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(runs(&marker), 2);
+}
+
+#[test]
+fn a_changed_dynamic_library_beside_the_binary_runs_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), COUNTS_RUNS);
+    let binary = build(&root, &config);
+    // As the wrapper records a binary linked against a dylib crate.
+    let digest = Digest::of_file(&binary).unwrap();
+    let record = TestBinary {
+        crate_name: "demo".into(),
+        dylibs: vec!["libplugin-1.dylib".into()],
+    };
+    fs::write(TestBinary::path(&config.store, &digest), record.encode()).unwrap();
+    let dylib = binary.with_file_name("libplugin-1.dylib");
+    fs::write(&dylib, "v1").unwrap();
+    let marker = dir.path().join("marker");
+    let env = env(&[("MARKER", marker.to_str().unwrap())]);
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(runs(&marker), 1);
+    fs::write(&dylib, "version two").unwrap();
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(runs(&marker), 2);
+}
+
+#[test]
+fn a_package_without_a_manifest_passes_through() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), "");
+    let binary = build(&root, &config);
+    fs::remove_file(root.join("Cargo.toml")).unwrap();
+    assert_eq!(run(&config, &root, &binary, &[], &env(&[])), 0);
+    assert_eq!(
+        log_lines(&config),
+        ["test-pass no Cargo.toml in the working directory"]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn arguments_and_env_vars_that_are_not_utf8_pass_through() {
+    use std::os::unix::ffi::OsStringExt;
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), "");
+    let binary = build(&root, &config);
+    let odd = OsString::from_vec(vec![b'-', b'-', 0xff]);
+    let args = [OsString::from("--quiet"), odd.clone()];
+    let code = run_test(
+        &config,
+        &TestCommand {
+            via: None,
+            binary: &binary,
+            args: &args[..1],
+            cwd: &root,
+            env: &[(OsString::from("ODD"), odd)],
+        },
+    );
+    assert_eq!(code, 0);
+    let filtered: Vec<OsString> = args.to_vec();
+    let _ = run_test(
+        &config,
+        &TestCommand {
+            via: None,
+            binary: &binary,
+            args: &filtered,
+            cwd: &root,
+            env: &env(&[]),
+        },
+    );
+    assert_eq!(
+        log_lines(&config),
+        [
+            "test-pass an environment variable is not UTF-8",
+            "test-pass an argument is not UTF-8"
+        ]
+    );
+}
