@@ -47,6 +47,7 @@ into its own checkout's target/ directory.
 
 Usage:
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
+                                   [--variants V,..]
   python3 bench/bench.py dedup [--project NAME]
   python3 bench/bench.py cache [--runs N] [--project NAME]
   python3 bench/bench.py baseline [--runs N] [--project NAME]
@@ -524,6 +525,25 @@ CASES = ("clean", "noop", "comment", "private_body", "public_signature", "touch_
          "second_worktree", "branch_switch", "test_no_run")
 MODES = ("baseline", "sccache", "tinymold")
 
+# Edit-loop experiments (roadmap Phase 5): settings layered on the baseline,
+# each reported as its own column, `baseline+<name>`. A variant may set cargo
+# `--config` values, rustflags for every crate, and a toolchain; nightly-only
+# variants are compared with the `nightly` variant, not with stable.
+VARIANTS = {
+    "deps-nodebug": {"config": ['profile.dev.package."*".debug=false']},
+    "line-tables": {"config": ['profile.dev.debug="line-tables-only"',
+                               'profile.dev.package."*".debug=false']},
+    "nodebug": {"config": ["profile.dev.debug=false",
+                           'profile.dev.package."*".debug=false']},
+    "cgu-16": {"config": ["profile.dev.codegen-units=16"]},
+    "cgu-32": {"config": ["profile.dev.codegen-units=32"]},
+    "cgu-64": {"config": ["profile.dev.codegen-units=64"]},
+    "cgu-128": {"config": ["profile.dev.codegen-units=128"]},
+    "nightly": {"toolchain": "nightly"},
+    "threads-8": {"toolchain": "nightly", "rustflags": ["-Zthreads=8"]},
+    "cranelift": {"toolchain": "nightly", "rustflags": ["-Zcodegen-backend=cranelift"]},
+}
+
 # A linker wrapper that times the real linker and appends the duration to a
 # log. Perl because it starts in a few milliseconds on every Unix and its
 # Time::HiRes is core; a Python wrapper would add ~30 ms to every link.
@@ -652,12 +672,25 @@ class Session:
     """
 
     def __init__(self, project: dict, src: Path, mode: str, sccache: str | None,
-                 tinymold: Path | None = None):
+                 tinymold: Path | None = None, variant: str | None = None,
+                 target_dir: str | None = None):
         self.project, self.src, self.mode = project, src, mode
         self.tinymold = tinymold
-        self.log = WORK / f"link-{project['name']}-{mode}.log"
+        self.label = mode if variant is None else f"{mode}+{variant}"
+        self.log = WORK / f"link-{project['name']}-{self.label}.log"
         timer = link_timer()
         self.config = ["--config", f"target.{host_triple()}.linker=\"{timer}\""]
+        settings = VARIANTS[variant] if variant else {}
+        for value in settings.get("config", []):
+            self.config += ["--config", value]
+        if settings.get("rustflags"):
+            flags = ", ".join(json.dumps(flag) for flag in settings["rustflags"])
+            self.config += ["--config", f"build.rustflags=[{flags}]"]
+        self.toolchain = settings.get("toolchain")
+        if target_dir:
+            # A/B runs keep each side's build in its own directory under the
+            # checkout's target/, so alternating never rebuilds dependencies.
+            self.config += ["--config", f'build.target-dir="{target_dir}"']
         self.env = dict(STOCK_ENV, TINYMOLD_BENCH_LINK_LOG=str(self.log))
         self.sccache = sccache
         if mode == "sccache":
@@ -695,6 +728,8 @@ class Session:
                               if "features" in self.project else []))
         else:
             command = cargo(*self.config, "build", "--locked", "-v", *args)
+        if self.toolchain:
+            command.insert(1, f"+{self.toolchain}")
         self.log.unlink(missing_ok=True)
         if self.mode == "tinymold":
             self.cache_log.unlink(missing_ok=True)
@@ -845,14 +880,19 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
     if "sccache" in modes and sccache is None:
         raise SystemExit("mode 'sccache' needs sccache on PATH (cargo install sccache)")
     cases = args.cases.split(",") if args.cases else list(CASES)
+    variants = args.variants.split(",") if args.variants else []
+    for variant in variants:
+        if variant not in VARIANTS:
+            raise SystemExit(f"unknown variant {variant!r}; choose from {', '.join(VARIANTS)}")
+    sessions = [(mode, None) for mode in modes] + [("baseline", v) for v in variants]
 
     results = []
     for project in load_corpus(args.project, needs=("edits",)):
         src = checkout(project)
         run(["cargo", "fetch", "--locked"], cwd=src, env=STOCK_ENV,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for mode in modes:
-            session = Session(project, src, mode, sccache, tinymold)
+        for mode, variant in sessions:
+            session = Session(project, src, mode, sccache, tinymold, variant)
             if mode == "tinymold":
                 shutil.rmtree(session.store, ignore_errors=True)
             if mode == "sccache":
@@ -862,10 +902,10 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
                 run([sccache, "--start-server"], env=session.env, stdout=subprocess.DEVNULL)
             try:
                 for case in cases:
-                    print(f"{project['name']} / {mode} / {case}", file=sys.stderr)
+                    print(f"{project['name']} / {session.label} / {case}", file=sys.stderr)
                     outcome = run_case(session, case, args.runs)
                     results.append({"project": project["name"], "rev": project["rev"],
-                                    "role": project.get("role", ""), "mode": mode,
+                                    "role": project.get("role", ""), "mode": session.label,
                                     "case": case, **outcome})
                     print(f"  wall {outcome['wall']['median_s']}s, "
                           f"link {outcome['link']['median_s']}s, "
@@ -874,7 +914,57 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
                 if mode == "sccache":
                     subprocess.run([sccache, "--stop-server"], env=session.env,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if variants:
+        # Experiments get their own result file, so they never crowd the
+        # scenario table the roadmap's gates are read from.
+        return {"benchmark": "experiments", "pins": pins(), "results": results,
+                "variants": {name: VARIANTS[name] for name in variants}}
     return {"benchmark": "scenarios", "pins": pins(), "results": results}
+
+
+def bench_ab(args: argparse.Namespace) -> dict:
+    """Interleaved A/B of the edit loop: the baseline against one variant.
+
+    Sequential runs (all baseline samples, then all variant samples) are
+    biased by load drift on a shared machine. Here each edit is built by both
+    sides back to back, in alternating order, each side in its own target
+    directory, so drift hits both equally.
+    """
+    if args.variant not in VARIANTS:
+        raise SystemExit(f"unknown variant {args.variant!r}; choose from {', '.join(VARIANTS)}")
+    cases = args.cases.split(",")
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        sides = [Session(project, src, "baseline", None, target_dir="target/ab-baseline"),
+                 Session(project, src, "baseline", None, variant=args.variant,
+                         target_dir=f"target/ab-{args.variant}")]
+        for case in cases:
+            print(f"{project['name']} / {case}: baseline vs {args.variant}", file=sys.stderr)
+            edits = Edits(src, project["edits"])
+            for side in sides:
+                side.build()
+            samples: dict[str, list[dict]] = {side.label: [] for side in sides}
+            for n in range(args.runs):
+                order = sides if n % 2 == 0 else list(reversed(sides))
+                try:
+                    edits.apply(case, n)
+                    for side in order:
+                        samples[side.label].append(side.build())
+                finally:
+                    edits.restore()
+                for side in sides:
+                    side.build()  # settle the restore before the next sample
+            for label, taken in samples.items():
+                results.append({"project": project["name"], "rev": project["rev"],
+                                "mode": label, "case": case,
+                                "wall": summarize([s["wall"] for s in taken]),
+                                "link": summarize([s["link"] for s in taken])})
+            base, other = (statistics.median(s["wall"] for s in samples[side.label])
+                           for side in sides)
+            print(f"  {base:.3f}s vs {other:.3f}s ({other / base - 1:+.0%})", file=sys.stderr)
+    return {"benchmark": "ab", "variant": args.variant,
+            "settings": VARIANTS[args.variant], "pins": pins(), "results": results}
 
 
 def pins() -> dict:
@@ -1023,6 +1113,14 @@ def main() -> None:
     scenarios.add_argument("--modes", default="baseline,sccache",
                            help=f"comma-separated, from: {', '.join(MODES)}")
     scenarios.add_argument("--cases", help=f"comma-separated subset of: {', '.join(CASES)}")
+    scenarios.add_argument("--variants", help="edit-loop experiments on top of the baseline, "
+                           f"comma-separated, from: {', '.join(VARIANTS)}")
+    ab = sub.add_parser("ab", help="interleaved edit-loop A/B: baseline against one variant")
+    ab.add_argument("--variant", required=True, help=f"one of: {', '.join(VARIANTS)}")
+    ab.add_argument("--runs", type=int, default=7)
+    ab.add_argument("--project", help="only this corpus project")
+    ab.add_argument("--cases", default="comment,private_body,public_signature",
+                    help="comma-separated edit kinds")
     dedup = sub.add_parser("dedup", help="byte-identical share of two worktrees' target/")
     dedup.add_argument("--project", help="only this corpus project")
     cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
@@ -1039,14 +1137,17 @@ def main() -> None:
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
     result["runs"] = getattr(args, "runs", 1)
 
     RESULTS.mkdir(exist_ok=True)
-    name = f"{result['benchmark']}-{result['machine']['os']}-{result['machine']['arch']}.json"
+    stem = result["benchmark"]
+    if stem == "ab":
+        stem = f"ab-{result['variant']}"  # one file per variant tried
+    name = f"{stem}-{result['machine']['os']}-{result['machine']['arch']}.json"
     path = RESULTS / name
     if getattr(args, "project", None) and path.exists():
         # A run limited to one project replaces exactly the rows it measured,

@@ -1,0 +1,438 @@
+{
+  "benchmark": "ab",
+  "variant": "cgu-128",
+  "settings": {
+    "config": [
+      "profile.dev.codegen-units=128"
+    ]
+  },
+  "pins": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "linker": "cc, rustc's default, behind a timing wrapper",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6389,
+        "min_s": 0.6295,
+        "max_s": 1.0518,
+        "samples_s": [
+          1.0518,
+          0.714,
+          0.6352,
+          0.6295,
+          0.6389,
+          0.6922,
+          0.6386
+        ]
+      },
+      "link": {
+        "median_s": 0.0709,
+        "min_s": 0.0644,
+        "max_s": 0.139,
+        "samples_s": [
+          0.139,
+          0.0949,
+          0.0692,
+          0.0709,
+          0.0644,
+          0.0752,
+          0.0684
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline+cgu-128",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.5293,
+        "min_s": 0.475,
+        "max_s": 0.5414,
+        "samples_s": [
+          0.5413,
+          0.4972,
+          0.475,
+          0.5153,
+          0.5414,
+          0.5293,
+          0.5311
+        ]
+      },
+      "link": {
+        "median_s": 0.066,
+        "min_s": 0.0632,
+        "max_s": 0.0775,
+        "samples_s": [
+          0.0696,
+          0.0666,
+          0.0632,
+          0.0652,
+          0.0775,
+          0.0653,
+          0.066
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6745,
+        "min_s": 0.6508,
+        "max_s": 1.0916,
+        "samples_s": [
+          0.6624,
+          0.6508,
+          0.6625,
+          1.0916,
+          0.7163,
+          0.7034,
+          0.6745
+        ]
+      },
+      "link": {
+        "median_s": 0.0694,
+        "min_s": 0.0634,
+        "max_s": 0.3323,
+        "samples_s": [
+          0.0675,
+          0.0634,
+          0.0694,
+          0.3323,
+          0.0725,
+          0.0769,
+          0.0641
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline+cgu-128",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6255,
+        "min_s": 0.5608,
+        "max_s": 3.7131,
+        "samples_s": [
+          0.5608,
+          0.5678,
+          0.7113,
+          3.7131,
+          0.7479,
+          0.6255,
+          0.569
+        ]
+      },
+      "link": {
+        "median_s": 0.0686,
+        "min_s": 0.0629,
+        "max_s": 0.0876,
+        "samples_s": [
+          0.0652,
+          0.0638,
+          0.0858,
+          0.0867,
+          0.0686,
+          0.0876,
+          0.0629
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.8692,
+        "min_s": 0.8079,
+        "max_s": 4.5492,
+        "samples_s": [
+          0.8462,
+          0.8079,
+          0.8153,
+          0.8692,
+          4.5492,
+          2.6123,
+          2.005
+        ]
+      },
+      "link": {
+        "median_s": 0.0763,
+        "min_s": 0.0648,
+        "max_s": 0.1925,
+        "samples_s": [
+          0.0648,
+          0.0698,
+          0.0675,
+          0.0763,
+          0.1056,
+          0.1925,
+          0.1817
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline+cgu-128",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.0583,
+        "min_s": 0.5739,
+        "max_s": 3.93,
+        "samples_s": [
+          0.599,
+          0.5739,
+          0.6343,
+          1.0583,
+          1.1861,
+          3.93,
+          1.7104
+        ]
+      },
+      "link": {
+        "median_s": 0.1674,
+        "min_s": 0.0639,
+        "max_s": 0.3016,
+        "samples_s": [
+          0.0652,
+          0.0639,
+          0.0699,
+          0.2648,
+          0.1674,
+          0.3016,
+          0.1994
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 1.0146,
+        "min_s": 0.9336,
+        "max_s": 1.0905,
+        "samples_s": [
+          1.0905,
+          0.9701,
+          0.9336,
+          1.0563,
+          0.981,
+          1.0612,
+          1.0146
+        ]
+      },
+      "link": {
+        "median_s": 0.0718,
+        "min_s": 0.0701,
+        "max_s": 0.0806,
+        "samples_s": [
+          0.0786,
+          0.0708,
+          0.0701,
+          0.0806,
+          0.0713,
+          0.0718,
+          0.0777
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline+cgu-128",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.7669,
+        "min_s": 0.7231,
+        "max_s": 0.8511,
+        "samples_s": [
+          0.8511,
+          0.7892,
+          0.7669,
+          0.7231,
+          0.7634,
+          0.746,
+          0.8017
+        ]
+      },
+      "link": {
+        "median_s": 0.0835,
+        "min_s": 0.079,
+        "max_s": 0.1006,
+        "samples_s": [
+          0.1006,
+          0.0856,
+          0.0835,
+          0.079,
+          0.0791,
+          0.085,
+          0.0833
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.0131,
+        "min_s": 0.9535,
+        "max_s": 1.0998,
+        "samples_s": [
+          0.9535,
+          0.9898,
+          1.0131,
+          1.0175,
+          0.9882,
+          1.0998,
+          1.0224
+        ]
+      },
+      "link": {
+        "median_s": 0.0726,
+        "min_s": 0.071,
+        "max_s": 0.0755,
+        "samples_s": [
+          0.0711,
+          0.072,
+          0.0726,
+          0.071,
+          0.0733,
+          0.0755,
+          0.0743
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline+cgu-128",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.8017,
+        "min_s": 0.7801,
+        "max_s": 0.8328,
+        "samples_s": [
+          0.7806,
+          0.7889,
+          0.7801,
+          0.8323,
+          0.8017,
+          0.8328,
+          0.8166
+        ]
+      },
+      "link": {
+        "median_s": 0.0834,
+        "min_s": 0.0806,
+        "max_s": 0.0843,
+        "samples_s": [
+          0.0831,
+          0.0838,
+          0.0834,
+          0.0843,
+          0.0816,
+          0.0838,
+          0.0806
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.0572,
+        "min_s": 1.0196,
+        "max_s": 1.1259,
+        "samples_s": [
+          1.0779,
+          1.0572,
+          1.0661,
+          1.052,
+          1.0415,
+          1.1259,
+          1.0196
+        ]
+      },
+      "link": {
+        "median_s": 0.0739,
+        "min_s": 0.0711,
+        "max_s": 0.0817,
+        "samples_s": [
+          0.0744,
+          0.0739,
+          0.073,
+          0.0744,
+          0.0721,
+          0.0817,
+          0.0711
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline+cgu-128",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.8503,
+        "min_s": 0.8247,
+        "max_s": 0.8771,
+        "samples_s": [
+          0.851,
+          0.8568,
+          0.8455,
+          0.8771,
+          0.8503,
+          0.8476,
+          0.8247
+        ]
+      },
+      "link": {
+        "median_s": 0.0817,
+        "min_s": 0.0788,
+        "max_s": 0.0998,
+        "samples_s": [
+          0.0788,
+          0.0858,
+          0.0801,
+          0.0998,
+          0.0846,
+          0.0817,
+          0.0796
+        ]
+      }
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 7
+}

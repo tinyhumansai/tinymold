@@ -198,7 +198,9 @@ Rust analogue. It is research-grade on ELF and hard on Mach-O.
   waiting on a new test suite
   ([goal](https://goals.rust-lang.org/2026/parallel-front-end.html)) [P].
 - **Cranelift.** Still the nightly `rustc-codegen-cranelift-preview`
-  component. Whether it ships for aarch64-apple-darwin is unverified [P].
+  component [P]. It does ship for aarch64-apple-darwin [measured]. Applied to
+  every crate it gave no edit-loop gain, and it broke bat's build through an
+  `autocfg` probe ([edit-loop plan](../plans/edit-loop.md)).
 - **Zig.**
   - 0.15, still on LLVM, cut Ghostty's clean build from 41 s to 32 s and its
     incremental build from 19 s to 16 s
