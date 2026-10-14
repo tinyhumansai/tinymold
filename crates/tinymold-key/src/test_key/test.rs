@@ -26,6 +26,9 @@ fn env(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
         .collect()
 }
 
+/// A named edit to a [`Case`].
+type Change = (&'static str, fn(&mut Case));
+
 struct Case {
     binary: Digest,
     via: Option<String>,
@@ -84,12 +87,14 @@ const PINNED_TREE: &str = "90d63e2c71ca5b3245c813e4fb067ccff7bfec19ac0c5ec614361
 #[test]
 fn every_keyed_field_moves_the_key() {
     let reference = Case::new().key();
-    let changes: Vec<(&str, fn(&mut Case))> = vec![
+    let changes: Vec<Change> = vec![
         ("binary", |case| case.binary = Digest::of_bytes(b"other")),
         ("via", |case| {
             case.via = Some("qemu-aarch64 0123".to_owned())
         }),
-        ("args", |case| case.args.push("--exact".to_owned())),
+        ("args", |case| {
+            case.args.push("--exact".to_owned());
+        }),
         ("arg order", |case| case.args.reverse()),
         ("host", |case| case.host = "linux x86_64 6.8.0".to_owned()),
         ("package tree", |case| {
@@ -116,7 +121,7 @@ fn every_keyed_field_moves_the_key() {
 #[test]
 fn color_and_ignored_env_vars_leave_the_key_alone() {
     let reference = Case::new().key();
-    let changes: Vec<(&str, fn(&mut Case))> = vec![
+    let changes: Vec<Change> = vec![
         ("--color=", |case| {
             case.args.insert(0, "--color=always".to_owned())
         }),
