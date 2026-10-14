@@ -1,0 +1,315 @@
+{
+  "benchmark": "hit",
+  "config": [
+    "profile.dev.split-debuginfo=\"unpacked\""
+  ],
+  "pins": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "linker": "cc, rustc's default, behind a timing wrapper",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "tinymold": "b99e8c9",
+      "wall": {
+        "median_s": 0.3058,
+        "min_s": 0.3058,
+        "max_s": 0.3058,
+        "samples_s": [
+          0.3058
+        ]
+      },
+      "restore": {
+        "median_s": 0.3821,
+        "min_s": 0.3821,
+        "max_s": 0.3821,
+        "samples_s": [
+          0.3821
+        ]
+      },
+      "hits": 10,
+      "units": [
+        {
+          "crate": "rg",
+          "files": 258,
+          "restore": {
+            "median_s": 0.0755,
+            "min_s": 0.0755,
+            "max_s": 0.0755,
+            "samples_s": [
+              0.0755
+            ]
+          }
+        },
+        {
+          "crate": "ignore",
+          "files": 212,
+          "restore": {
+            "median_s": 0.0775,
+            "min_s": 0.0775,
+            "max_s": 0.0775,
+            "samples_s": [
+              0.0775
+            ]
+          }
+        },
+        {
+          "crate": "globset",
+          "files": 132,
+          "restore": {
+            "median_s": 0.0657,
+            "min_s": 0.0657,
+            "max_s": 0.0657,
+            "samples_s": [
+              0.0657
+            ]
+          }
+        },
+        {
+          "crate": "grep_cli",
+          "files": 111,
+          "restore": {
+            "median_s": 0.0488,
+            "min_s": 0.0488,
+            "max_s": 0.0488,
+            "samples_s": [
+              0.0488
+            ]
+          }
+        },
+        {
+          "crate": "grep_regex",
+          "files": 83,
+          "restore": {
+            "median_s": 0.0463,
+            "min_s": 0.0463,
+            "max_s": 0.0463,
+            "samples_s": [
+              0.0463
+            ]
+          }
+        },
+        {
+          "crate": "grep_printer",
+          "files": 80,
+          "restore": {
+            "median_s": 0.0375,
+            "min_s": 0.0375,
+            "max_s": 0.0375,
+            "samples_s": [
+              0.0375
+            ]
+          }
+        },
+        {
+          "crate": "grep_searcher",
+          "files": 45,
+          "restore": {
+            "median_s": 0.0249,
+            "min_s": 0.0249,
+            "max_s": 0.0249,
+            "samples_s": [
+              0.0249
+            ]
+          }
+        },
+        {
+          "crate": "grep_matcher",
+          "files": 9,
+          "restore": {
+            "median_s": 0.0034,
+            "min_s": 0.0034,
+            "max_s": 0.0034,
+            "samples_s": [
+              0.0034
+            ]
+          }
+        },
+        {
+          "crate": "grep",
+          "files": 4,
+          "restore": {
+            "median_s": 0.0019,
+            "min_s": 0.0019,
+            "max_s": 0.0019,
+            "samples_s": [
+              0.0019
+            ]
+          }
+        },
+        {
+          "crate": "build_script_build",
+          "files": 0,
+          "restore": {
+            "median_s": 0.0006,
+            "min_s": 0.0006,
+            "max_s": 0.0006,
+            "samples_s": [
+              0.0006
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "tinymold": "f67b755",
+      "wall": {
+        "median_s": 0.287,
+        "min_s": 0.287,
+        "max_s": 0.287,
+        "samples_s": [
+          0.287
+        ]
+      },
+      "restore": {
+        "median_s": 0.3417,
+        "min_s": 0.3417,
+        "max_s": 0.3417,
+        "samples_s": [
+          0.3417
+        ]
+      },
+      "hits": 10,
+      "units": [
+        {
+          "crate": "rg",
+          "files": 258,
+          "restore": {
+            "median_s": 0.0631,
+            "min_s": 0.0631,
+            "max_s": 0.0631,
+            "samples_s": [
+              0.0631
+            ]
+          }
+        },
+        {
+          "crate": "ignore",
+          "files": 212,
+          "restore": {
+            "median_s": 0.0727,
+            "min_s": 0.0727,
+            "max_s": 0.0727,
+            "samples_s": [
+              0.0727
+            ]
+          }
+        },
+        {
+          "crate": "globset",
+          "files": 132,
+          "restore": {
+            "median_s": 0.0495,
+            "min_s": 0.0495,
+            "max_s": 0.0495,
+            "samples_s": [
+              0.0495
+            ]
+          }
+        },
+        {
+          "crate": "grep_cli",
+          "files": 111,
+          "restore": {
+            "median_s": 0.0409,
+            "min_s": 0.0409,
+            "max_s": 0.0409,
+            "samples_s": [
+              0.0409
+            ]
+          }
+        },
+        {
+          "crate": "grep_regex",
+          "files": 83,
+          "restore": {
+            "median_s": 0.0464,
+            "min_s": 0.0464,
+            "max_s": 0.0464,
+            "samples_s": [
+              0.0464
+            ]
+          }
+        },
+        {
+          "crate": "grep_printer",
+          "files": 80,
+          "restore": {
+            "median_s": 0.0246,
+            "min_s": 0.0246,
+            "max_s": 0.0246,
+            "samples_s": [
+              0.0246
+            ]
+          }
+        },
+        {
+          "crate": "grep_searcher",
+          "files": 45,
+          "restore": {
+            "median_s": 0.0329,
+            "min_s": 0.0329,
+            "max_s": 0.0329,
+            "samples_s": [
+              0.0329
+            ]
+          }
+        },
+        {
+          "crate": "grep_matcher",
+          "files": 9,
+          "restore": {
+            "median_s": 0.0038,
+            "min_s": 0.0038,
+            "max_s": 0.0038,
+            "samples_s": [
+              0.0038
+            ]
+          }
+        },
+        {
+          "crate": "grep",
+          "files": 4,
+          "restore": {
+            "median_s": 0.0073,
+            "min_s": 0.0073,
+            "max_s": 0.0073,
+            "samples_s": [
+              0.0073
+            ]
+          }
+        },
+        {
+          "crate": "build_script_build",
+          "files": 0,
+          "restore": {
+            "median_s": 0.0006,
+            "min_s": 0.0006,
+            "max_s": 0.0006,
+            "samples_s": [
+              0.0006
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 1
+}
