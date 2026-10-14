@@ -71,7 +71,7 @@ pub fn filesystem_now(dir: &Path) -> Result<u64> {
 /// whole second, since FAT keeps only even ones.
 pub(crate) fn tick_of(mtime_ns: u64) -> u64 {
     let mut tick = 1;
-    while tick < SECOND_NS && mtime_ns % (tick * 10) == 0 {
+    while tick < SECOND_NS && mtime_ns.is_multiple_of(tick * 10) {
         tick *= 10;
     }
     if tick == SECOND_NS {
@@ -87,6 +87,7 @@ pub(crate) fn tick_of(mtime_ns: u64) -> u64 {
 /// When it did, any later write gives the file a different mtime. When it
 /// may not have, a later write within the same tick could leave the mtime
 /// unchanged, so the file must be treated as possibly changed.
+#[must_use]
 pub fn written_before(mtime_ns: u64, instant_ns: u64) -> bool {
     mtime_ns.saturating_add(tick_of(mtime_ns)) <= instant_ns
 }
