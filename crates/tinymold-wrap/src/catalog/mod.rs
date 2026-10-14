@@ -115,7 +115,11 @@ fn caches(dir: &Path, found: &mut Vec<RecordFile>) -> Result<()> {
 fn temporary(entry: &fs::DirEntry) -> Option<RecordKind> {
     let name = entry.file_name();
     let name = name.to_str()?;
-    (name.starts_with('.') && name.ends_with(".tmp")).then_some(RecordKind::Temporary)
+    let staging = name.starts_with('.')
+        && Path::new(name)
+            .extension()
+            .is_some_and(|extension| extension == "tmp");
+    staging.then_some(RecordKind::Temporary)
 }
 
 fn push(found: &mut Vec<RecordFile>, entry: &fs::DirEntry, kind: RecordKind) {

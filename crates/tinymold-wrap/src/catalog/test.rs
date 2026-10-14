@@ -60,7 +60,7 @@ fn records_lists_actions_pre_keys_caches_and_temporaries() {
 #[test]
 fn records_of_an_empty_store_is_empty() {
     let dir = tempfile::tempdir().unwrap();
-    assert!(records(dir.path()).unwrap().is_empty());
+    assert_eq!(records(dir.path()).unwrap(), Vec::new());
 }
 
 #[test]

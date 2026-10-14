@@ -210,7 +210,7 @@ fn objects_skips_files_that_are_not_objects() {
 #[test]
 fn objects_of_an_empty_store_is_empty() {
     let (_dir, store) = store();
-    assert!(store.objects().unwrap().is_empty());
+    assert_eq!(store.objects().unwrap(), Vec::new());
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn staging_files_lists_leftovers_and_remove_staging_deletes_them() {
     assert_eq!(staged[0].size, 4);
 
     store.remove_staging(&staged[0]).unwrap();
-    assert!(store.staging_files().unwrap().is_empty());
+    assert_eq!(store.staging_files().unwrap(), Vec::new());
 }
 
 #[test]
