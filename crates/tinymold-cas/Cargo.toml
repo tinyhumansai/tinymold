@@ -1,0 +1,22 @@
+[package]
+name = "tinymold-cas"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "tinymold's local content-addressed store: immutable build artifacts named by BLAKE3 digest, restored by reflink or hardlink."
+readme = "../../README.md"
+keywords = ["build", "cache", "cas", "reflink", "content-addressed"]
+categories = ["development-tools::build-utils", "filesystem"]
+
+[dependencies]
+tinymold-hash = { workspace = true }
+reflink-copy = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
