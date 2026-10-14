@@ -9,7 +9,6 @@ description = "Content digests for tinymold: the BLAKE3-256 identity of every ca
 readme = "../../README.md"
 keywords = ["build", "cache", "hash", "blake3", "content-addressed"]
 categories = ["development-tools::build-utils"]
-publish = false
 
 [dependencies]
 blake3 = { workspace = true }

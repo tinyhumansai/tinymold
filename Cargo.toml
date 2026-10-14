@@ -14,19 +14,20 @@ exclude = ["worktrees"]
 # true`, so the version the release workflow bumps is written in exactly one
 # place and every crate moves together.
 [workspace.package]
-version = "0.2.1"
+version = "0.0.1"
 edition = "2024"
 rust-version = "1.88"
 license = "GPL-3.0-only"
 repository = "https://github.com/tinyhumansai/tinymold"
 
 [workspace.dependencies]
-# Internal crates. No `version` requirement on purpose: the workspace version
-# moves on every release, and a pinned requirement here would stop resolving the
-# moment it did. Nothing in this workspace is published, so the path is the
-# whole address.
-tinymold-hash = { path = "crates/tinymold-hash" }
-tinymold-cas = { path = "crates/tinymold-cas" }
+# Internal crates. Every crate is published to crates.io, and a published
+# manifest needs a version requirement on each path dependency, so these carry
+# the workspace version exactly. The release workflow rewrites these
+# requirements together with `[workspace.package] version`, so they never
+# drift apart.
+tinymold-hash = { path = "crates/tinymold-hash", version = "=0.0.1" }
+tinymold-cas = { path = "crates/tinymold-cas", version = "=0.0.1" }
 # BLAKE3 is the digest for every persisted or shared cache key and object (see
 # docs/adr/0002-blake3-for-content-digests.md). Default features keep the SIMD
 # backends and runtime CPU detection; `mmap` and `rayon` stay off until the
