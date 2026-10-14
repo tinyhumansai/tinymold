@@ -665,7 +665,11 @@ class Edits:
 
 
 def tinymold_binary() -> Path:
-    """Builds tinymold in release mode and returns the binary's path."""
+    """Builds tinymold in release mode and returns the binary's path, or the
+    binary named by `TINYMOLD_BENCH_BIN`, to measure another build of it (say,
+    the base branch's, for a before-and-after comparison)."""
+    if os.environ.get("TINYMOLD_BENCH_BIN"):
+        return Path(os.environ["TINYMOLD_BENCH_BIN"]).resolve()
     run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=ROOT, env=STOCK_ENV)
     return ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
 
