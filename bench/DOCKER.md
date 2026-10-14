@@ -5,13 +5,22 @@ seconds, so the scenario matrix runs in minutes. OpenHuman
 ([tinyhumansai/openhuman](https://github.com/tinyhumansai/openhuman)) is the
 other end: about a thousand packages, a dozen vendored submodules, and one
 large core library under a binary. This benchmark builds its `openhuman-core`
-binary on Linux, in Docker, and compares three ways to build it:
+binary on Linux, in Docker, and compares five ways to build it:
 
 | Config | Wrapper | Linker |
 | --- | --- | --- |
 | `ld` | none | GNU ld (rustc's default `cc` on aarch64 Linux) |
 | `mold` | none | mold, via `-C link-arg=-fuse-ld=mold` |
 | `tinymold` | `RUSTC_WRAPPER=tinymold` | mold |
+| `sccache` | `RUSTC_WRAPPER=sccache`, local disk cache | mold |
+| `sccache-noinc` | the same, with `CARGO_INCREMENTAL=0` | mold |
+
+sccache does not cache a compile that uses incremental compilation, which
+cargo's dev profile turns on for workspace crates. So `sccache` caches only
+the dependencies, while `sccache-noinc` turns incremental off so that
+sccache can cache the workspace crates too, giving up rustc's incremental
+reuse in the edit loop. Each sccache config has its own cache directory and
+server.
 
 Each config builds into its own `--target-dir`, so they never invalidate
 each other.
@@ -28,16 +37,16 @@ config:
   hot edit loop at the top of the graph.
 - **edit_core**: a comment appended to the core library's `lib.rs`, which
   recompiles the core and everything above it.
-- **warm** (tinymold only): clean `target/` with the store from the builds
+- **warm** (cached configs): clean `target/` with the store from the builds
   above. This is a CI runner with a restored cache, or `cargo clean`.
-- **second_path** (tinymold only): a copy of the sources at another path,
+- **second_path** (cached configs): a copy of the sources at another path,
   clean `target/`. This is a second worktree or another agent's checkout.
 - **snapshot** (tinymold only): the same copy, started from
   `tinymold snapshot restore` of the first checkout's `target/`.
 
 `ld` and `mold` have no cache, so their warm and second-checkout builds are
-their cold build; the report compares tinymold's cached cases against the
-cold mold build.
+their cold build; the report compares the cached configs' warm cases against
+the cold mold build.
 
 Every build runs with `--timings`, so `bench/profile_build.py` can read the
 critical path of any of them from `bench/.work/openhuman-docker/timings/`:
@@ -52,7 +61,7 @@ Requirements: Docker, `git` with access to the OpenHuman repository, and
 Python 3.9 or newer.
 
 ```sh
-python3 bench/docker_openhuman.py run --runs 3   # an hour or so for all three configs
+python3 bench/docker_openhuman.py run --runs 3   # about two hours for all five configs
 python3 bench/docker_openhuman.py report         # rewrite the result file and print tables
 ```
 
@@ -117,6 +126,20 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   checkout's `target/` (4.5-9.6s, copies on ext4) still left the six
   workspace crates to recompile, all six missing, and that first build took
   155s. Presumably they key on the new path for the same reason.
+- **sccache with incremental on never caches the slow crate.** It hit all
+  378 compiles it caches, yet a warm clean build took 185s, slower than a
+  cold mold build. The 136s core crate is incremental, so sccache passes it
+  through every time. Its cold build also cost 25s more than mold's (200s),
+  and its cache is 233 MB.
+- **Turning incremental off trades the edit loop for the warm build.** With
+  `CARGO_INCREMENTAL=0`, sccache's warm build takes 13.4s (all 430 hits),
+  against tinymold's 4.5s. sccache still runs all 65 links, because it
+  caches no linked output, plus every build script. But a core edit then
+  takes 139s instead of 16.4s, because the core recompiles from scratch.
+  tinymold keeps both: 4.5s warm and 19.1s per core edit.
+- **Neither cache makes a new path warm.** sccache's first build at a new
+  path took 193s (incremental on) and 187s (incremental off, 121 of 430
+  missing), against tinymold's 165s. All three are close to a cold build.
 - **Storing and restoring by copy costs the edit loop.** Without reflinks,
   storing the rebuilt binary costs about 0.7s on every edit, so a leaf edit
   takes 2.1s under tinymold against 1.1s with mold alone. A core edit takes
