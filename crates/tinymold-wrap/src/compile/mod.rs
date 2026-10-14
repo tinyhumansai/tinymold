@@ -433,7 +433,9 @@ impl Unit<'_> {
         for entry in entries {
             let entry = entry.map_err(io("read", &self.out_dir))?;
             if let Some(name) = entry.file_name().to_str()
-                && prefixes.iter().any(|prefix| name.starts_with(prefix.as_str()))
+                && prefixes
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix.as_str()))
             {
                 files.push((name.to_owned(), entry.path()));
             }

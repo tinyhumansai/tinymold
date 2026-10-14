@@ -305,9 +305,16 @@ fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
 fn a_hit_removes_stale_outputs_of_the_same_unit() {
     let unit = Crate::new("pub fn f() {}\n");
     assert_stored(&unit.serve(&[]).unwrap());
-    fs::write(unit.out().join("demo-1.stale.rcgu.o"), b"from another branch").unwrap();
+    fs::write(
+        unit.out().join("demo-1.stale.rcgu.o"),
+        b"from another branch",
+    )
+    .unwrap();
     fs::write(unit.out().join("libdemo-1.rmeta"), b"from another branch").unwrap();
     assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
     assert!(!unit.out().join("demo-1.stale.rcgu.o").exists());
-    assert_ne!(fs::read(unit.out().join("libdemo-1.rmeta")).unwrap(), b"from another branch");
+    assert_ne!(
+        fs::read(unit.out().join("libdemo-1.rmeta")).unwrap(),
+        b"from another branch"
+    );
 }
