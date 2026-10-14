@@ -4,7 +4,6 @@
 //! writer, so every command is tested by passing a `Vec<u8>` instead of
 //! spawning the binary.
 
-use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -180,7 +179,7 @@ fn run_cas(command: &CasCommand, store: &Store, out: &mut impl Write) -> Result<
 fn store_dir(cli: &Cli) -> Option<PathBuf> {
     cli.store
         .clone()
-        .or_else(|| default_store(|name| std::env::var_os(name).map(OsString::from)))
+        .or_else(|| default_store(std::env::var_os))
 }
 
 fn open_store(cli: &Cli) -> Result<Store> {

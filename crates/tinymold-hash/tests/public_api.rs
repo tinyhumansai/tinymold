@@ -9,7 +9,7 @@ use tinymold_hash::{Digest, Error, Hasher};
 
 #[test]
 fn digests_are_usable_as_map_keys_and_sort_stably() {
-    let mut digests = vec![Digest::of_bytes(b"b"), Digest::of_bytes(b"a")];
+    let mut digests = [Digest::of_bytes(b"b"), Digest::of_bytes(b"a")];
     digests.sort();
     let set: std::collections::BTreeSet<_> = digests.iter().copied().collect();
 
