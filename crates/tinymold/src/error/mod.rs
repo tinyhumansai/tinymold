@@ -36,6 +36,10 @@ pub enum Error {
     #[error("no store location: pass --store or set TINYMOLD_STORE")]
     NoStoreLocation,
 
+    /// `tinymold stats` was given no log and `TINYMOLD_LOG` is not set.
+    #[error("no wrapper log: pass --log or set TINYMOLD_LOG")]
+    NoLogLocation,
+
     /// Writing command output failed, for example because stdout was closed.
     #[error("failed to write output")]
     Output(#[source] std::io::Error),

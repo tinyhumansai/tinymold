@@ -15,6 +15,7 @@ use tinymold_hash::Digest;
 use crate::doctor::Report;
 use crate::fresh::{self, Restore};
 use crate::gc::{self, Age, ByteSize};
+use crate::stats::Stats;
 use crate::{Error, Result, default_store, snapshot};
 
 /// The `tinymold` command line.
@@ -57,6 +58,23 @@ pub enum Command {
     /// Remove cache entries unused for a while or beyond a size budget, and
     /// objects nothing references any more.
     Gc(GcArgs),
+    /// Summarize the wrapper log: hits, misses, and time spent.
+    Stats(StatsArgs),
+}
+
+/// What `tinymold stats` reads and how it reports.
+#[derive(Debug, Clone, Args)]
+pub struct StatsArgs {
+    /// The wrapper log. Defaults to `TINYMOLD_LOG`; a log that does not
+    /// exist yet counts as empty.
+    #[arg(long, value_name = "FILE")]
+    pub log: Option<PathBuf>,
+    /// Print a Markdown table, for a CI job summary.
+    #[arg(long)]
+    pub markdown: bool,
+    /// Exit 1 when fewer than this percentage of cacheable compiles hit.
+    #[arg(long, value_name = "PERCENT")]
+    pub min_hit_rate: Option<f64>,
 }
 
 /// The limits of `tinymold gc`.
@@ -258,8 +276,42 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
             let report = gc::collect(&store, &policy)?;
             line(out, format_args!("{report}"))?;
         }
+        Command::Stats(args) => return run_stats(args, out),
     }
     Ok(Outcome::Success)
+}
+
+fn run_stats(args: &StatsArgs, out: &mut impl Write) -> Result<Outcome> {
+    let log = args
+        .log
+        .clone()
+        .or_else(|| env("TINYMOLD_LOG").filter(|v| !v.is_empty()).map(PathBuf::from))
+        .ok_or(Error::NoLogLocation)?;
+    let text = match std::fs::read_to_string(&log) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(source) => {
+            return Err(Error::Io {
+                action: "read",
+                path: log,
+                source,
+            });
+        }
+    };
+    let stats = Stats::parse(&text);
+    if args.markdown {
+        write!(out, "{}", stats.markdown()).map_err(Error::Output)?;
+    } else {
+        line(out, format_args!("{stats}"))?;
+    }
+    let enough = args
+        .min_hit_rate
+        .is_none_or(|min| stats.hit_rate().is_some_and(|rate| rate >= min));
+    Ok(if enough {
+        Outcome::Success
+    } else {
+        Outcome::Absent
+    })
 }
 
 fn env(name: &str) -> Option<std::ffi::OsString> {

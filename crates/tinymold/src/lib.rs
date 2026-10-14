@@ -20,6 +20,8 @@
 //!   branch switches, via [`snapshot`];
 //! - `tinymold gc` — remove cache entries unused for a while, or beyond a
 //!   size budget, via [`gc`];
+//! - `tinymold stats` — hit rates and times from the wrapper's log, via
+//!   [`stats`];
 //! - `RUSTC_WRAPPER=tinymold` — a unit cache keyed by content, via
 //!   [`tinymold_wrap`] (see [`wrapper_call`]).
 //!
@@ -47,11 +49,12 @@ pub mod fresh;
 pub mod gc;
 mod location;
 pub mod snapshot;
+pub mod stats;
 mod tree;
 mod wrapper;
 
 pub use cli::{
-    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, SnapshotCommand, StrategyArg, run,
+    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, StatsArgs, Outcome, SnapshotCommand, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};

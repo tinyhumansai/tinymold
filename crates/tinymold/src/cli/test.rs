@@ -380,3 +380,39 @@ fn gc_rejects_an_unparsable_age_or_size() {
     assert!(parse(&["gc", "--max-age", "2w"]).contains("invalid duration"));
     assert!(parse(&["gc", "--max-size", "lots"]).contains("invalid size"));
 }
+
+#[test]
+fn stats_summarizes_a_log_and_checks_the_hit_rate() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = dir.path().join("log");
+    fs::write(&log, "hit a 1.0ms \nmiss b 900.0ms stored in 1.0ms\n").unwrap();
+
+    let (result, out) = exec(&["stats", "--log", s(&log)]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("50.0% hit rate"), "{out}");
+
+    let (result, out) = exec(&["stats", "--log", s(&log), "--markdown", "--min-hit-rate", "50"]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("### tinymold"), "{out}");
+
+    let (result, _) = exec(&["stats", "--log", s(&log), "--min-hit-rate", "90"]);
+    assert_eq!(result.unwrap(), Outcome::Absent);
+}
+
+#[test]
+fn stats_of_a_log_not_written_yet_has_no_hit_rate() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = dir.path().join("none");
+    let (result, out) = exec(&["stats", "--log", s(&log)]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("no cacheable compiles"), "{out}");
+    let (result, _) = exec(&["stats", "--log", s(&log), "--min-hit-rate", "1"]);
+    assert_eq!(result.unwrap(), Outcome::Absent);
+}
+
+#[test]
+fn stats_fails_on_a_log_it_cannot_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let (result, _) = exec(&["stats", "--log", s(dir.path())]);
+    assert!(matches!(result, Err(Error::Io { action: "read", .. })));
+}

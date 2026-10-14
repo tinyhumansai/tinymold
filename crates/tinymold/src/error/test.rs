@@ -96,3 +96,11 @@ fn wrapper_errors_convert_transparently() {
     let expected = wrap.to_string();
     assert_eq!(Error::from(wrap).to_string(), expected);
 }
+
+#[test]
+fn a_missing_log_location_says_how_to_give_one() {
+    assert_eq!(
+        Error::NoLogLocation.to_string(),
+        "no wrapper log: pass --log or set TINYMOLD_LOG"
+    );
+}

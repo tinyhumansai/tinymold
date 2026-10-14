@@ -13,7 +13,7 @@
 //! invocations. CI prints the [`Stats::markdown`] table into its job summary,
 //! and can fail a job whose hit rate is too low.
 
-use std::fmt;
+use std::fmt::{self, Write as _};
 
 /// One compiled unit, for the list of slowest misses.
 #[derive(Debug, Clone, PartialEq)]
@@ -124,8 +124,7 @@ impl Stats {
     /// A Markdown summary: a table of outcomes and the slowest misses.
     #[must_use]
     pub fn markdown(&self) -> String {
-        let mut text = String::from("### tinymold\n\n");
-        text.push_str(&format!("{}\n\n", self.headline()));
+        let mut text = format!("### tinymold\n\n{}\n\n", self.headline());
         text.push_str("| Outcome | Count | Wrapper time |\n|---|---:|---:|\n");
         let rows = [
             ("Local hits", self.hits, None),
@@ -137,7 +136,7 @@ impl Stats {
         ];
         for (name, count, millis) in rows {
             let time = millis.map_or_else(String::new, seconds);
-            text.push_str(&format!("| {name} | {count} | {time} |\n"));
+            let _ = writeln!(text, "| {name} | {count} | {time} |");
         }
         if !self.slowest.is_empty() {
             text.push_str("\nSlowest misses: ");
