@@ -175,9 +175,8 @@ and 4.6 s on bat today.
   [plan](linker.md)): phases L0 (import), L1 (measure) and L2 (per-input
   parse cache) run alongside this phase.
 - Affected work ([spec](../specs/test-cache.md), [plan](test-cache.md)):
-  lint flags leave the key of capped dependencies, `tinymold run-test`
-  replays passing test runs keyed by the binary digest, and `clippy-driver`
-  calls are cached.
+  `tinymold run-test` replays passing test runs keyed by the binary
+  digest, and `clippy-driver` calls are cached.
 
 **Exit criteria.**
 

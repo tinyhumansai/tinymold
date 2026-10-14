@@ -296,6 +296,28 @@ Every source file touched, then rebuilt through the wrapper, so each workspace u
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_remote` restore (191 files) | 33.1 ms (31.8–33.7) | 5.4 ms (5.1–5.6) | -84% |
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_wrap` restore (169 files) | 28.8 ms (27.9–30.1) | 5.1 ms (4.7–5.6) | -82% |
 
+### OpenHuman `openhuman-core` in Docker (linux aarch64, 12 CPUs, 16 GiB, rustc 1.96.1 (31fca3adb 2026-06-26), 2026-10-15)
+
+OpenHuman 9a0a654, dev profile, `-j 12`, sources and store on ext4 in a Docker volume (mold 3.0.0, GNU ld (GNU Binutils for Debian) 2.40, sccache 0.18.0; host: darwin arm64, 18 CPUs). Each cell: median wall time of 3 runs (one for a cold build), link time, units compiled, and cache hits (summed over runs). `ld` and `mold` have no cache, so their warm and second-checkout builds would be their cold build. A second checkout's repeat runs reuse what its first run stored at that path, so the first run is shown when it differs.
+
+| Case | ld | mold | tinymold | sccache | sccache-noinc |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Clean build, empty cache | 167.2s · link 22.06s · 421 compiled | 175.2s · link 3.16s · 421 compiled | 176.0s · link 4.06s · 421 compiled · 0/474 hits | 200.3s · link 8.59s · 421 compiled · 0/378 hits | 195.9s · link 6.52s · 421 compiled · 0/430 hits |
+| No-op rebuild | 0.2s · link 0.00s · 0 compiled | 0.3s · link 0.00s · 0 compiled | 0.2s · link 0.00s · 0 compiled | 0.3s · link 0.00s · 0 compiled | 0.3s · link 0.00s · 0 compiled |
+| Edit the binary's main.rs | 15.4s · link 14.73s · 1 compiled | 1.1s · link 0.61s · 1 compiled | 2.1s · link 0.63s · 1 compiled · 0/3 hits | 1.6s · link 0.96s · 1 compiled | 1.1s · link 0.59s · 1 compiled |
+| Edit the core library's lib.rs | 32.9s · link 16.49s · 5 compiled | 16.4s · link 0.67s · 5 compiled | 19.1s · link 0.00s · 5 compiled · 12/15 hits | 19.5s · link 1.34s · 5 compiled | 138.9s · link 0.68s · 5 compiled · 6/12 hits |
+| Clean target/, warm cache | - | - | 4.5s · link 0.00s · 421 compiled · 1410/1422 hits | 185.5s · link 3.18s · 421 compiled · 1134/1134 hits | 13.4s · link 2.68s · 421 compiled · 1290/1290 hits |
+| Second checkout at another path | - | - | 5.8s · link 0.00s · 421 compiled · 1287/1422 hits · **first run 165.1s** | 213.3s · link 4.46s · 421 compiled · 1065/1134 hits | 13.3s · link 3.11s · 421 compiled · 1169/1290 hits · **first run 187.4s** |
+| Second checkout from a target/ snapshot | - | - | 4.3s · link 0.00s · 6 compiled · 12/18 hits · restore 6.4s · **first run 155.3s** | - | - |
+
+tinymold+mold against plain mold, by median wall time plus any snapshot restore; cached cases compare against the cold mold build: clean build, empty cache: 1.0x; no-op rebuild: 1.1x; edit the binary's main.rs: 0.5x; edit the core library's lib.rs: 0.9x; clean target/, warm cache: 38.8x; second checkout at another path: 30.2x (first run at a new path 1.1x); second checkout from a target/ snapshot: 16.3x (first run at a new path 1.1x).
+
+sccache+mold against plain mold, by median wall time plus any snapshot restore; cached cases compare against the cold mold build: clean build, empty cache: 0.9x; no-op rebuild: 1.0x; edit the binary's main.rs: 0.7x; edit the core library's lib.rs: 0.8x; clean target/, warm cache: 0.9x; second checkout at another path: 0.8x.
+
+sccache-noinc+mold against plain mold, by median wall time plus any snapshot restore; cached cases compare against the cold mold build: clean build, empty cache: 0.9x; no-op rebuild: 0.9x; edit the binary's main.rs: 1.0x; edit the core library's lib.rs: 0.1x; clean target/, warm cache: 13.1x; second checkout at another path: 13.2x (first run at a new path 0.9x).
+
+Link time, GNU ld over mold: clean build, empty cache: 7.0x; edit the binary's main.rs: 24.3x; edit the core library's lib.rs: 24.8x.
+
 ### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 
 Share of the second worktree's `target/` bytes that are byte-identical to something in the first's, at three granularities. Incremental state is excluded.
@@ -352,7 +374,9 @@ python3 bench/report.py                       # refresh the tables and charts
 
 To see where one build's time goes rather than how long it takes (critical
 path, idle job slots, build scripts, links, wrapper steps), use
-`bench/profile_build.py`; see [`PROFILING.md`](PROFILING.md).
+`bench/profile_build.py`; see [`PROFILING.md`](PROFILING.md). For a large
+real project, [`DOCKER.md`](DOCKER.md) builds OpenHuman on Linux in Docker with
+GNU ld, mold, tinymold, and sccache, cold, warm, and in the edit loop.
 Use `ab` for any claim about a setting. `scenarios --variants` runs each side
 to completion before the next, so load drift on a shared machine biases it;
 `ab` builds every edit with both sides back to back, in alternating order.
