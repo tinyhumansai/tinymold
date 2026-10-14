@@ -37,6 +37,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tinymold_hash::{Digest, Hasher};
+use tinymold_wrap::{filesystem_now, written_before};
 
 use crate::tree::{io_error, set_modified};
 use crate::{Error, Result};
@@ -71,7 +72,9 @@ pub fn manifest_path(target: &Path) -> PathBuf {
 /// manifest cannot be written, and [`Error::Hash`] when a file cannot be
 /// hashed.
 pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
-    let recorded_ns = nanos(SystemTime::now());
+    // Read in the filesystem's clock, not the wall clock: mtimes are compared
+    // against it, and the two can disagree by a tick or more.
+    let recorded_ns = filesystem_now(&target.join(STATE_DIR))?;
     // The previous manifest is only a digest cache: an unreadable or
     // outdated one is ignored, not an error.
     let previous: HashMap<String, Entry> = load(target)
@@ -83,9 +86,9 @@ pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
                 .entries
                 .into_iter()
                 // Git's racily-clean rule: a file modified at or after the
-                // previous record may have changed within one timestamp tick
-                // of being hashed, so it is hashed again.
-                .filter(|entry| entry.mtime_ns < cutoff)
+                // previous record, or within a timestamp tick before it, may
+                // have changed unseen, so it is hashed again.
+                .filter(|entry| written_before(entry.mtime_ns, cutoff))
                 .map(|entry| (entry.path.clone(), entry))
                 .collect()
         })
