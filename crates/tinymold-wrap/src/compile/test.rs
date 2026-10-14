@@ -64,7 +64,10 @@ impl Crate {
 
     fn serve(&self, extra: &[&str]) -> Result<Served> {
         let args = self.args(extra);
-        let text: Vec<String> = args.iter().map(|a| a.to_str().unwrap().to_owned()).collect();
+        let text: Vec<String> = args
+            .iter()
+            .map(|a| a.to_str().unwrap().to_owned())
+            .collect();
         let Classified::Cacheable(invocation) = Invocation::parse(text) else {
             panic!("the test compile must be cacheable");
         };
@@ -119,11 +122,19 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
     assert_stored(&unit.serve(&[]).unwrap());
     let first = unit.outputs();
 
-    fs::write(unit.root.join("src/lib.rs"), "pub fn answer() -> u32 { 2 }\n").unwrap();
+    fs::write(
+        unit.root.join("src/lib.rs"),
+        "pub fn answer() -> u32 { 2 }\n",
+    )
+    .unwrap();
     assert_stored(&unit.serve(&[]).unwrap());
     assert_ne!(unit.outputs(), first);
 
-    fs::write(unit.root.join("src/lib.rs"), "pub fn answer() -> u32 { 1 }\n").unwrap();
+    fs::write(
+        unit.root.join("src/lib.rs"),
+        "pub fn answer() -> u32 { 1 }\n",
+    )
+    .unwrap();
     assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
     assert_eq!(unit.outputs(), first);
 }
@@ -144,7 +155,10 @@ fn a_failed_compile_is_not_stored() {
 fn a_compile_without_dep_info_is_not_stored() {
     let unit = Crate::new("pub fn f() {}\n");
     let args = unit.args(&[]);
-    let mut text: Vec<String> = args.iter().map(|a| a.to_str().unwrap().to_owned()).collect();
+    let mut text: Vec<String> = args
+        .iter()
+        .map(|a| a.to_str().unwrap().to_owned())
+        .collect();
     text[5] = "--emit=metadata,link".to_owned();
     let Classified::Cacheable(invocation) = Invocation::parse(text.clone()) else {
         panic!("cacheable");
@@ -228,7 +242,10 @@ fn a_restored_binary_is_executable_and_fresh() {
 
     let unit = Crate::new("fn main() { println!(\"hi\"); }\n");
     let args = unit.args(&[]);
-    let mut text: Vec<String> = args.iter().map(|a| a.to_str().unwrap().to_owned()).collect();
+    let mut text: Vec<String> = args
+        .iter()
+        .map(|a| a.to_str().unwrap().to_owned())
+        .collect();
     text[4] = "bin".to_owned();
     text[5] = "--emit=dep-info,link".to_owned();
     let Classified::Cacheable(invocation) = Invocation::parse(text.clone()) else {

@@ -63,14 +63,23 @@ fn a_second_worktree_hits_and_an_env_dep_change_misses() {
 
     let a = build(&dir.path().join("a"), &store, &[("TM_VALUE", "1")]);
     assert_eq!(outcome(&a), "miss", "{a}");
-    let b = build(&dir.path().join("second-worktree"), &store, &[("TM_VALUE", "1")]);
+    let b = build(
+        &dir.path().join("second-worktree"),
+        &store,
+        &[("TM_VALUE", "1")],
+    );
     assert_eq!(outcome(&b), "hit", "{b}");
-    let changed = build(&dir.path().join("second-worktree"), &store, &[("TM_VALUE", "2")]);
+    let changed = build(
+        &dir.path().join("second-worktree"),
+        &store,
+        &[("TM_VALUE", "2")],
+    );
     assert_eq!(outcome(&changed), "miss", "{changed}");
 
     // The dep-info cargo reads names the second worktree's own files.
     let dep_info = fs::read_to_string(
-        dir.path().join("second-worktree/target/debug/deps/demo-1.d"),
+        dir.path()
+            .join("second-worktree/target/debug/deps/demo-1.d"),
     )
     .unwrap();
     assert!(dep_info.contains("second-worktree"), "{dep_info}");
@@ -107,7 +116,11 @@ fn queries_and_other_programs_pass_through() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(String::from_utf8(output.stdout).unwrap().starts_with("rustc "));
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .starts_with("rustc ")
+    );
     assert!(fs::read_to_string(&log).unwrap().starts_with("pass - "));
 
     // Without any store location the compiler still runs, uncached.

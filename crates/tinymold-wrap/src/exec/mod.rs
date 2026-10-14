@@ -49,7 +49,9 @@ pub(crate) fn run_captured(program: &Path, args: &[OsString]) -> Result<Captured
     let stderr = child.stderr.take().map(|pipe| tee(pipe, io::stderr));
     let status = child.wait().map_err(spawn_error(program))?;
     let collect = |handle: Option<thread::JoinHandle<Vec<u8>>>| {
-        handle.and_then(|handle| handle.join().ok()).unwrap_or_default()
+        handle
+            .and_then(|handle| handle.join().ok())
+            .unwrap_or_default()
     };
     Ok(Captured {
         code: status.code().unwrap_or(1),

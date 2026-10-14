@@ -133,7 +133,9 @@ fn pass_through(program: &Path, args: &[OsString]) -> i32 {
 }
 
 fn utf8(args: &[OsString]) -> Option<Vec<String>> {
-    args.iter().map(|arg| arg.to_str().map(str::to_owned)).collect()
+    args.iter()
+        .map(|arg| arg.to_str().map(str::to_owned))
+        .collect()
 }
 
 fn log(config: &Config, started: Instant, outcome: &str, crate_name: &str, detail: &str) {

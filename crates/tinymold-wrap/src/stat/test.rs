@@ -13,13 +13,22 @@ fn a_digest_is_reused_until_the_file_changes() {
     let file = dir.path().join("libdep.rlib");
     fs::write(&file, b"one").unwrap();
     let old = SystemTime::now() - Duration::from_secs(60);
-    fs::File::options().write(true).open(&file).unwrap().set_modified(old).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&file)
+        .unwrap()
+        .set_modified(old)
+        .unwrap();
 
     assert_eq!(digest(&store, &file).unwrap(), Digest::of_bytes(b"one"));
     // A wrong cached digest is returned as-is, which proves the cache is read.
     let poisoned = Digest::of_bytes(b"cached");
     remember(&store, &file, identity(&file).unwrap(), poisoned).unwrap();
-    let expected = if cfg!(unix) { poisoned } else { Digest::of_bytes(b"one") };
+    let expected = if cfg!(unix) {
+        poisoned
+    } else {
+        Digest::of_bytes(b"one")
+    };
     assert_eq!(digest(&store, &file).unwrap(), expected);
 
     // Same size, new content and mtime: the entry no longer applies.
@@ -63,7 +72,10 @@ fn rustc_version_runs_once_per_compiler_identity() {
     let program = dir.path().join("rustc");
     fs::write(
         &program,
-        format!("#!/bin/sh\necho run >> {}\necho 'rustc 9.9.9'\n", counter.display()),
+        format!(
+            "#!/bin/sh\necho run >> {}\necho 'rustc 9.9.9'\n",
+            counter.display()
+        ),
     )
     .unwrap();
     fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
@@ -84,7 +96,10 @@ fn linker_identity_names_the_file_or_says_it_is_missing() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("ld"), b"linker").unwrap();
     let found = linker_identity(Path::new("./ld"), dir.path());
-    assert!(found.ends_with(&format!(" 6 {}", identity(&dir.path().join("ld")).unwrap().mtime_ns)));
+    assert!(found.ends_with(&format!(
+        " 6 {}",
+        identity(&dir.path().join("ld")).unwrap().mtime_ns
+    )));
     assert_eq!(
         linker_identity(Path::new("no-such-linker-anywhere"), dir.path()),
         "missing no-such-linker-anywhere"

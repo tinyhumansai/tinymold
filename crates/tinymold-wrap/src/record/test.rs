@@ -65,9 +65,18 @@ fn corrupt_records_name_the_bad_line() {
         (String::new(), 1),
         ("tinymold-action 1\nstdout nothex\n".to_owned(), 2),
         (format!("tinymold-action 1\nstdout {d}\n"), 3),
-        (format!("tinymold-action 1\nstdout {d}\nstderr {d}\noutput {d} 2 0 x\n"), 4),
-        (format!("tinymold-action 1\nstdout {d}\nstderr {d}\noutput {d} 0 0 \n"), 4),
-        (format!("tinymold-action 1\nstdout {d}\nstderr {d}\nnonsense\n"), 4),
+        (
+            format!("tinymold-action 1\nstdout {d}\nstderr {d}\noutput {d} 2 0 x\n"),
+            4,
+        ),
+        (
+            format!("tinymold-action 1\nstdout {d}\nstderr {d}\noutput {d} 0 0 \n"),
+            4,
+        ),
+        (
+            format!("tinymold-action 1\nstdout {d}\nstderr {d}\nnonsense\n"),
+            4,
+        ),
     ];
     for (text, line) in action_cases {
         let error = Action::decode(&text, Path::new("a")).unwrap_err();
@@ -80,7 +89,10 @@ fn corrupt_records_name_the_bad_line() {
         (String::new(), 1),
         ("tinymold-prekey 1\ninput 1 2 3 4 x y\n".to_owned(), 2),
         ("tinymold-prekey 1\nset x\n".to_owned(), 2),
-        ("tinymold-prekey 1\nset 1\ninput 1 2 3 4 nothex p\n".to_owned(), 3),
+        (
+            "tinymold-prekey 1\nset 1\ninput 1 2 3 4 nothex p\n".to_owned(),
+            3,
+        ),
         ("tinymold-prekey 1\nset 1\nenv \n".to_owned(), 3),
         ("tinymold-prekey 1\nset 1\nother\n".to_owned(), 3),
     ];
@@ -100,10 +112,19 @@ fn records_are_written_whole_and_read_back() {
     assert_eq!(read(&path).unwrap(), None);
     write_atomically(&path, "text").unwrap();
     assert_eq!(read(&path).unwrap().as_deref(), Some("text"));
-    assert!(matches!(read(dir.path()), Err(Error::Io { action: "read", .. })));
+    assert!(matches!(
+        read(dir.path()),
+        Err(Error::Io { action: "read", .. })
+    ));
 
     let blocker = dir.path().join("file");
     std::fs::write(&blocker, b"").unwrap();
     let error = write_atomically(&blocker.join("record"), "x").unwrap_err();
-    assert!(matches!(error, Error::Io { action: "create", .. }));
+    assert!(matches!(
+        error,
+        Error::Io {
+            action: "create",
+            ..
+        }
+    ));
 }

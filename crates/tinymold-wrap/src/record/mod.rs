@@ -211,7 +211,8 @@ pub(crate) fn decode_sets(text: &str, path: &Path) -> Result<Vec<InputSet>> {
         }
         let set = sets.last_mut().ok_or_else(|| corrupt(index + 1))?;
         if let Some(input) = line.strip_prefix("input ") {
-            set.inputs.push(parse_input(input).ok_or_else(|| corrupt(index + 1))?);
+            set.inputs
+                .push(parse_input(input).ok_or_else(|| corrupt(index + 1))?);
         } else if let Some(name) = line.strip_prefix("env ").filter(|name| !name.is_empty()) {
             set.env.push(name.to_owned());
         } else {
@@ -255,7 +256,9 @@ pub(crate) fn write_atomically(path: &Path, text: &str) -> Result<()> {
     fs::create_dir_all(dir).map_err(io("create", dir))?;
     let temp = dir.join(format!(
         ".{}.{}.tmp",
-        path.file_name().and_then(|name| name.to_str()).unwrap_or("record"),
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("record"),
         std::process::id()
     ));
     fs::write(&temp, text).map_err(io("write", &temp))?;

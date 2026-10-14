@@ -58,7 +58,10 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Builds the error-mapping closure for an I/O failure on `path`.
-pub(crate) fn io(action: &'static str, path: &std::path::Path) -> impl FnOnce(std::io::Error) -> Error {
+pub(crate) fn io(
+    action: &'static str,
+    path: &std::path::Path,
+) -> impl FnOnce(std::io::Error) -> Error {
     let path = path.to_path_buf();
     move |source| Error::Io {
         action,

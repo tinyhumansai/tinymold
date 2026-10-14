@@ -50,8 +50,9 @@ fn device_and_inode(_meta: &fs::Metadata) -> (u64, u64) {
 
 /// Nanoseconds since the Unix epoch; 0 before it, saturating far after it.
 pub(crate) fn nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH)
-        .map_or(0, |since| u64::try_from(since.as_nanos()).unwrap_or(u64::MAX))
+    time.duration_since(UNIX_EPOCH).map_or(0, |since| {
+        u64::try_from(since.as_nanos()).unwrap_or(u64::MAX)
+    })
 }
 
 /// Whether a digest recorded for `recorded` at `recorded_ns` still describes a
@@ -83,7 +84,12 @@ pub(crate) fn digest(store: &Path, path: &Path) -> Result<Digest> {
 
 /// Records that the file at `path`, with identity `identity`, has `digest`.
 /// Used after hashing, and after restoring an output whose digest is known.
-pub(crate) fn remember(store: &Path, path: &Path, identity: Identity, digest: Digest) -> Result<()> {
+pub(crate) fn remember(
+    store: &Path,
+    path: &Path,
+    identity: Identity,
+    digest: Digest,
+) -> Result<()> {
     let line = format!(
         "{} {} {} {} {} {digest}\n",
         identity.dev,
@@ -114,10 +120,9 @@ fn parse_entry(text: &str) -> Option<(Identity, u64, Digest)> {
 pub(crate) fn rustc_version(store: &Path, program: &Path) -> Result<String> {
     let resolved = resolve(program).unwrap_or_else(|| program.to_path_buf());
     let identity = identity(&resolved)?;
-    let key = Digest::of_bytes(
-        format!("{} {}", resolved.display(), identity_text(identity)).as_bytes(),
-    )
-    .to_hex();
+    let key =
+        Digest::of_bytes(format!("{} {}", resolved.display(), identity_text(identity)).as_bytes())
+            .to_hex();
     let entry = store.join("rustc").join(key);
     if let Some(version) = read(&entry)? {
         return Ok(version);

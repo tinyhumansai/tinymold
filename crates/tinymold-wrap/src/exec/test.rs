@@ -24,6 +24,12 @@ fn a_pass_through_returns_the_exit_code() {
 #[test]
 fn a_missing_program_is_a_spawn_error() {
     let missing = Path::new("/no/such/program");
-    assert!(matches!(pass_through(missing, &[]), Err(Error::Spawn { .. })));
-    assert!(matches!(run_captured(missing, &[]), Err(Error::Spawn { .. })));
+    assert!(matches!(
+        pass_through(missing, &[]),
+        Err(Error::Spawn { .. })
+    ));
+    assert!(matches!(
+        run_captured(missing, &[]),
+        Err(Error::Spawn { .. })
+    ));
 }

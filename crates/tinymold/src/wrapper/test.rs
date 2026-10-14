@@ -26,7 +26,9 @@ fn compilers_and_paths_are_wrapper_calls() {
 
 #[test]
 fn subcommands_and_flags_are_not() {
-    for first in ["hash", "cas", "doctor", "fresh", "snapshot", "--store", "-V", "help"] {
+    for first in [
+        "hash", "cas", "doctor", "fresh", "snapshot", "--store", "-V", "help",
+    ] {
         assert!(wrapper_call(&os(&[first, "x"])).is_none(), "{first}");
     }
     assert!(wrapper_call(&[]).is_none());

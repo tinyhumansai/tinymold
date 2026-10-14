@@ -172,7 +172,11 @@ impl Unit<'_> {
         for entry in entries {
             let path = entry.map_err(io("read", dir))?.path();
             if path.is_file() {
-                let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                let name = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
                 files.push((name, stat::digest(self.store_dir, &path)?));
             }
         }
@@ -343,7 +347,10 @@ impl Unit<'_> {
             let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
                 continue;
             };
-            if !prefixes.iter().any(|prefix| name.starts_with(prefix.as_str())) {
+            if !prefixes
+                .iter()
+                .any(|prefix| name.starts_with(prefix.as_str()))
+            {
                 continue;
             }
             let path = entry.path();
@@ -414,8 +421,11 @@ impl Unit<'_> {
 
     /// Stores `bytes` as text with this unit's roots replaced by placeholders.
     fn store_text(&self, bytes: &[u8]) -> std::result::Result<Digest, Unstorable> {
-        let text = std::str::from_utf8(bytes).map_err(|_| Unstorable::Reason("output is not UTF-8"))?;
-        Ok(self.store.insert_bytes(self.roots.normalize(text).as_bytes())?)
+        let text =
+            std::str::from_utf8(bytes).map_err(|_| Unstorable::Reason("output is not UTF-8"))?;
+        Ok(self
+            .store
+            .insert_bytes(self.roots.normalize(text).as_bytes())?)
     }
 
     /// Adds `set` as the newest input set of `pre`, replacing an older set
@@ -428,7 +438,11 @@ impl Unit<'_> {
         let same_shape = |other: &InputSet| {
             other.env == set.env
                 && other.inputs.len() == set.inputs.len()
-                && other.inputs.iter().zip(&set.inputs).all(|(a, b)| a.path == b.path)
+                && other
+                    .inputs
+                    .iter()
+                    .zip(&set.inputs)
+                    .all(|(a, b)| a.path == b.path)
         };
         sets.retain(|other| !same_shape(other));
         sets.insert(0, set);
