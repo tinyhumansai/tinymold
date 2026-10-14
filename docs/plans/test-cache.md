@@ -162,6 +162,6 @@ config file clippy's own lookup finds, or `none`, which covers a
 - [ ] Slice 1: lint flags leave capped keys
 - [x] Slice 2: test key
 - [x] Slice 3: records and `run-test`
-- [x] Slice 4: clippy-driver caching (on the `clippy-cache` branch)
+- [ ] Slice 4: clippy-driver caching (built on the `clippy-cache` branch, not merged)
 - [ ] Slice 5: pipeline and retest benchmarks
 - [ ] Slice 6: impact-analysis ADR
