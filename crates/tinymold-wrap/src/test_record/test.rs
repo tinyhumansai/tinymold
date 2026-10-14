@@ -9,8 +9,11 @@ fn the_test_binary_encoding_is_pinned() {
     let binary = TestBinary {
         crate_name: "demo".into(),
         dylibs: vec!["libplugin-1.dylib".into()],
+        exes: vec!["${PROFILE}/tool".into()],
+        out_dirs: vec!["${PROFILE}/build/demo-1/out".into()],
     };
-    let expected = "tinymold-test-binary 1\ncrate demo\ndylib libplugin-1.dylib\n";
+    let expected = "tinymold-test-binary 1\ncrate demo\ndylib libplugin-1.dylib\n\
+                    exe ${PROFILE}/tool\noutdir ${PROFILE}/build/demo-1/out\n";
     assert_eq!(binary.encode(), expected);
     assert_eq!(
         TestBinary::decode(expected, Path::new("b")).unwrap(),
@@ -66,6 +69,33 @@ fn a_dylib_outside_the_binary_directory_is_corrupt() {
         let text = format!("tinymold-test-binary 1\ncrate demo\ndylib {name}\n");
         assert!(TestBinary::decode(&text, Path::new("b")).is_err(), "{name}");
     }
+}
+
+#[test]
+fn an_exe_or_out_dir_outside_the_build_is_corrupt() {
+    // The runner expands these against the binary's own target directory;
+    // anything else could name a file outside it.
+    for line in [
+        "exe /usr/bin/tool",
+        "exe ${CWD}/tool",
+        "exe ${PROFILE}/../../etc/passwd",
+        "outdir ${PROFILE}",
+        "outdir out",
+    ] {
+        let text = format!("tinymold-test-binary 1\ncrate demo\n{line}\n");
+        assert!(TestBinary::decode(&text, Path::new("b")).is_err(), "{line}");
+    }
+    let fine = "tinymold-test-binary 1\ncrate demo\nexe ${OUT}/helper\n";
+    assert!(TestBinary::decode(fine, Path::new("b")).is_ok());
+}
+
+#[test]
+fn only_paths_inside_the_build_can_be_recorded() {
+    assert!(is_build_path("${PROFILE}/tool"));
+    assert!(is_build_path("${OUT}/x"));
+    assert!(!is_build_path("${PROFILE}/"));
+    assert!(!is_build_path("${PROFILE}/a/../b"));
+    assert!(!is_build_path("/abs/tool"));
 }
 
 #[test]

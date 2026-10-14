@@ -1,10 +1,13 @@
 //! The two records the test result cache keeps.
 //!
 //! A **test-binary record** (`tests/bin/<binary digest>`) says that the
-//! wrapper built this executable from a `--test` compile: its crate, and the
-//! dynamic libraries in its directory it was linked against, whose bytes are
-//! not in its own. The runner caches only binaries with one, which keeps
-//! `cargo run` targets and binaries tinymold never saw out.
+//! wrapper built this executable from a `--test` compile, and names what the
+//! binary can run or read from the build besides its own bytes: the dynamic
+//! libraries in its directory it was linked against, the package binaries
+//! cargo told it about (`CARGO_BIN_EXE_<name>`), and its build script's
+//! `OUT_DIR`. The runner keys a run on all of them, and caches only
+//! binaries with a record, which keeps `cargo run` targets and binaries
+//! tinymold never saw out.
 //!
 //! A **test-run record** (`tests/run/<test key>`) says that a run with that
 //! key passed, and names its stdout and stderr in the store, to replay. Only
@@ -32,6 +35,11 @@ pub(crate) struct TestBinary {
     /// File names, in the binary's directory, of the dynamic libraries its
     /// compile linked against.
     pub(crate) dylibs: Vec<String>,
+    /// Package binaries the test can run, as `${PROFILE}/…` or `${OUT}/…`
+    /// paths.
+    pub(crate) exes: Vec<String>,
+    /// Build-script output directories the test can read, likewise.
+    pub(crate) out_dirs: Vec<String>,
 }
 
 /// A recorded passing run.
@@ -54,6 +62,12 @@ impl TestBinary {
         for dylib in &self.dylibs {
             let _ = writeln!(text, "dylib {dylib}");
         }
+        for exe in &self.exes {
+            let _ = writeln!(text, "exe {exe}");
+        }
+        for dir in &self.out_dirs {
+            let _ = writeln!(text, "outdir {dir}");
+        }
         text
     }
 
@@ -69,16 +83,25 @@ impl TestBinary {
             .filter(|name| !name.is_empty())
             .ok_or_else(|| corrupt(2))?
             .to_owned();
-        let dylibs = lines
-            .enumerate()
-            .map(|(index, line)| {
-                line.strip_prefix("dylib ")
-                    .filter(|name| is_file_name(name))
-                    .map(str::to_owned)
-                    .ok_or_else(|| corrupt(index + 3))
-            })
-            .collect::<Result<_>>()?;
-        Ok(Self { crate_name, dylibs })
+        let mut binary = Self {
+            crate_name,
+            dylibs: Vec::new(),
+            exes: Vec::new(),
+            out_dirs: Vec::new(),
+        };
+        for (index, line) in lines.enumerate() {
+            let (list, value) = if let Some(name) = line.strip_prefix("dylib ") {
+                (&mut binary.dylibs, Some(name).filter(|name| is_file_name(name)))
+            } else if let Some(path) = line.strip_prefix("exe ") {
+                (&mut binary.exes, Some(path).filter(|path| is_build_path(path)))
+            } else if let Some(path) = line.strip_prefix("outdir ") {
+                (&mut binary.out_dirs, Some(path).filter(|path| is_build_path(path)))
+            } else {
+                return Err(corrupt(index + 3));
+            };
+            list.push(value.ok_or_else(|| corrupt(index + 3))?.to_owned());
+        }
+        Ok(binary)
     }
 }
 
@@ -127,6 +150,19 @@ fn corrupt(path: &Path) -> impl Fn(usize) -> Error + '_ {
         path: path.to_path_buf(),
         line,
     }
+}
+
+/// Whether `path` names something inside the build: a path under
+/// `${PROFILE}` or `${OUT}`, without `..`, which the runner expands against
+/// the test binary's own target directory.
+pub(crate) fn is_build_path(path: &str) -> bool {
+    let Some(rest) = path
+        .strip_prefix("${PROFILE}/")
+        .or_else(|| path.strip_prefix("${OUT}/"))
+    else {
+        return false;
+    };
+    !rest.is_empty() && rest.split(['/', '\\']).all(|part| !part.is_empty() && part != "..")
 }
 
 /// Whether `name` is one plain file name: a record must not name a file
