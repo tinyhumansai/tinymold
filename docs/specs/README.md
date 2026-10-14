@@ -31,4 +31,5 @@ the contract; production code still belongs under `src/`.
 | [`gc.md`](gc.md) | Implemented | Last-use tracking and `tinymold gc`: expiry by age, an LRU size budget, and safe sweeps |
 | [`remote.md`](remote.md) | Implemented | The remote tier: REAPI v2 against bazel-remote, lookups on local miss, batch push |
 | [`test-cache.md`](test-cache.md) | Draft | Affected work: which tests an edit reaches, the test result cache behind `tinymold run-test`, and flag scoping across check, clippy, test and coverage |
+| [`linker.md`](linker.md) | Draft | `tinymold-link`, a stateful fork of mold: invocation, the per-input parse cache, its entry format and invariants |
 | [`github-actions.md`](github-actions.md) | Implemented | The setup and save actions: the stateless GitHub-cache backend, the remote backend, coverage |

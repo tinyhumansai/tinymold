@@ -28,4 +28,5 @@ into the plan.
 | [`rustc-wrapper.md`](rustc-wrapper.md) | Phase 3: the unit cache behind `RUSTC_WRAPPER=tinymold`, its order of implementation, and measured results |
 | [`freshness.md`](freshness.md) | Phase 2: the spike, the implementation order, and the measured results for content freshness and target snapshots |
 | [`test-cache.md`](test-cache.md) | Phase 4: lint-flag scoping, the test key, `tinymold run-test`, clippy-driver caching, and the pipeline benchmark |
+| [`linker.md`](linker.md) | `tinymold-link`: importing the mold fork, measuring Rust links, the per-input parse cache, then a warm daemon and append linking (L0-L6) |
 | [`remote-and-ci.md`](remote-and-ci.md) | Last-use GC, `tinymold stats`, the REAPI remote tier, and the GitHub Action |

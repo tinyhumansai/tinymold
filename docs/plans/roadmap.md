@@ -170,6 +170,10 @@ and 4.6 s on bat today.
     slower on bat;
   - Linux uses mold 3.x or wild when present.
 - An advisor for consolidating test binaries, with an opt-in codemod.
+- `tinymold-link`, the fork of mold
+  ([ADR 0009](../adr/0009-fork-mold-into-a-stateful-linker.md),
+  [plan](linker.md)): phases L0 (import), L1 (measure) and L2 (per-input
+  parse cache) run alongside this phase.
 - Affected work ([spec](../specs/test-cache.md), [plan](test-cache.md)):
   lint flags leave the key of capped dependencies, `tinymold run-test`
   replays passing test runs keyed by the binary digest, and `clippy-driver`
@@ -208,8 +212,8 @@ become part of a reversible `tinymold doctor --fix` profile.
 - `hint-mostly-unused` per heavy dependency.
 - Early cutoff on `.rmeta` digests, enabled per crate once its rmeta has been
   observed to be reproducible.
-- A spike on a prelinked dependency image, followed by a Roc-style append
-  link.
+- A prelinked dependency image with append linking, built in
+  `tinymold-link` as [phase L5](linker.md#l5-prelinked-dependencies-and-append-linking).
 
 **Exit criteria.**
 
@@ -255,7 +259,10 @@ Each bet is a time-boxed spike that ends in an ADR:
 
 - RDR-lite interface hashing (spiked: not on stable rustc, see
   [ADR 0007](../adr/0007-no-interface-hashing-in-the-wrapper.md));
-- incremental linking contributed upstream to wild;
+- stateful linking in `tinymold-link` beyond the parse cache: merge
+  fragments, a warm daemon, append linking and incremental output
+  ([plan](linker.md), phases L3-L6), with general changes offered upstream
+  to mold;
 - a proc-macro expansion cache;
 - a persistent `rustc_driver` worker;
 - chunked storage of rlib members and DWARF sections;
