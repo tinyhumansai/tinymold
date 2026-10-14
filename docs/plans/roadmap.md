@@ -65,6 +65,13 @@ and 0.0.1 is on crates.io.
 
 ## Phase 2: Freshness and snapshots
 
+**Status.** Implemented: see [`freshness.md`](freshness.md) for the results.
+
+- Touch-all and second-worktree gates: met on ripgrep and tinymold.
+- bat: one rebuild is unavoidable, because its binary depends on `.git`.
+- Branch switching: compiles nothing on the return, but does not gain wall
+  time yet.
+
 **Goal.** Remove rebuilds caused only by mtimes and by a new path, without
 caching individual units yet.
 
