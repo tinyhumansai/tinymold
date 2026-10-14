@@ -25,7 +25,10 @@ fn errors_say_what_failed_and_keep_their_cause() {
     let key = Error::from(tinymold_key::Error::MalformedDepInfo { line: 1 });
     assert_eq!(key.to_string(), "malformed dep-info at line 1");
     let hash = Error::from(tinymold_hash::Error::InvalidHex { text: "x".into() });
-    assert!(!hash.to_string().is_empty());
+    assert_eq!(
+        hash.to_string(),
+        tinymold_hash::Error::InvalidHex { text: "x".into() }.to_string()
+    );
     let cas = Error::from(tinymold_cas::Error::DestinationExists("d".into()));
     assert_eq!(cas.to_string(), "destination d already exists");
 }
