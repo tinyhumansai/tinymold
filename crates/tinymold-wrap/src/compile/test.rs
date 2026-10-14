@@ -599,7 +599,7 @@ fn a_remote_input_set_whose_files_differ_here_is_not_used() {
 
 /// The parsed invocation of `unit`'s plain library compile.
 fn invocation_of(unit: &Crate) -> Invocation {
-    let text = unit
+    let text: Vec<String> = unit
         .args(&[])
         .iter()
         .map(|a| a.to_str().unwrap().to_owned())
