@@ -43,6 +43,14 @@ pub struct Stats {
     pub hit_millis: f64,
     /// Total wrapper time on misses, compile included, in milliseconds.
     pub miss_millis: f64,
+    /// Test runs replayed by `tinymold run-test`.
+    pub test_hits: u64,
+    /// Test runs `tinymold run-test` ran.
+    pub test_misses: u64,
+    /// Test runs run unchanged because they are not cacheable.
+    pub test_passes: u64,
+    /// Test cache failures, after which the test ran unchanged.
+    pub test_errors: u64,
     /// Lines that are not wrapper log lines.
     pub unparsed: u64,
     /// The slowest misses, slowest first; at most [`Stats::SLOWEST`].
@@ -96,6 +104,10 @@ impl Stats {
                 }
                 "pass" => stats.passes += 1,
                 "error" => stats.errors += 1,
+                "test-hit" => stats.test_hits += 1,
+                "test-miss" => stats.test_misses += 1,
+                "test-pass" => stats.test_passes += 1,
+                "test-error" => stats.test_errors += 1,
                 _ => stats.unparsed += 1,
             }
         }
@@ -138,6 +150,15 @@ impl Stats {
             ("Not cacheable", self.passes, None),
             ("Cache errors", self.errors, None),
         ];
+        let tests = [
+            ("Test runs replayed", self.test_hits, None),
+            ("Test runs run", self.test_misses, None),
+            ("Test runs not cacheable", self.test_passes, None),
+            ("Test cache errors", self.test_errors, None),
+        ];
+        let rows = rows
+            .into_iter()
+            .chain(tests.into_iter().filter(|_| self.ran_tests()));
         for (name, count, millis) in rows {
             let time = millis.map_or_else(String::new, seconds);
             let _ = writeln!(text, "| {name} | {count} | {time} |");
@@ -153,6 +174,11 @@ impl Stats {
             text.push('\n');
         }
         text
+    }
+
+    /// Whether the log has any test runs.
+    fn ran_tests(&self) -> bool {
+        self.test_hits + self.test_misses + self.test_passes + self.test_errors > 0
     }
 
     fn headline(&self) -> String {
@@ -185,7 +211,15 @@ impl fmt::Display for Stats {
             "time on hits {}, on misses {}",
             seconds(self.hit_millis),
             seconds(self.miss_millis)
-        )
+        )?;
+        if self.ran_tests() {
+            write!(
+                f,
+                "\ntests replayed {}, run {}, not cacheable {}, errors {}",
+                self.test_hits, self.test_misses, self.test_passes, self.test_errors
+            )?;
+        }
+        Ok(())
     }
 }
 
