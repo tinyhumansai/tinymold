@@ -52,6 +52,39 @@ WORK = BENCH / ".work"
 RESULTS = BENCH / "results"
 
 
+def stock_cargo() -> tuple[dict, list[str]]:
+    """Environment and `--config` flags that pin cargo to its stock behavior.
+
+    Cargo reads `config.toml` from CARGO_HOME and from every ancestor
+    directory, so a developer's tuning (a rustc wrapper such as sccache,
+    reduced debuginfo, `jobs`, incremental off) silently leaks into every
+    corpus build. A baseline has to be stock cargo, so the settings people
+    commonly change are forced back to their defaults here, and the forcing is
+    recorded with the result. `--config` outranks every config file, and an
+    empty RUSTC_WRAPPER disables any configured wrapper.
+    """
+    env = dict(os.environ, RUSTC_WRAPPER="", CARGO_INCREMENTAL="1")
+    env.pop("RUSTFLAGS", None)
+    env.pop("CARGO_TARGET_DIR", None)
+    flags = [
+        f"build.jobs={os.cpu_count()}",
+        "profile.dev.debug=true",
+        'profile.dev.package."*".debug=true',
+        "profile.test.debug=true",
+        'profile.test.package."*".debug=true',
+    ]
+    config = [arg for flag in flags for arg in ("--config", flag)]
+    return env, config
+
+
+STOCK_ENV, STOCK_CONFIG = stock_cargo()
+
+
+def cargo(*args: str) -> list[str]:
+    """A `cargo` command line pinned to stock settings (see stock_cargo)."""
+    return ["cargo", *STOCK_CONFIG, *args]
+
+
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, check=True, **kwargs)
 
@@ -89,6 +122,8 @@ def machine() -> dict:
         "cpus": os.cpu_count(),
         "rustc": output(["rustc", "-V"]),
         "python": platform.python_version(),
+        "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, "
+                          f"jobs={os.cpu_count()}, no RUSTFLAGS beyond the linker's",
     }
 
 
@@ -143,9 +178,9 @@ def bench_link(args: argparse.Namespace) -> dict:
             # One target dir per linker inside the project's own target/, so
             # linkers never invalidate each other's artifacts.
             target = src / "target" / f"bench-{linker}"
-            env = dict(os.environ, RUSTFLAGS=" ".join(flags))
-            build = ["cargo", "build", "--quiet", "--locked", "--package", project["package"],
-                     "--bin", project["bin"], "--target-dir", str(target)]
+            env = dict(STOCK_ENV, RUSTFLAGS=" ".join(flags))
+            build = cargo("build", "--quiet", "--locked", "--package", project["package"],
+                          "--bin", project["bin"], "--target-dir", str(target))
             print(f"{project['name']} / {linker}: full build", file=sys.stderr)
             shutil.rmtree(target, ignore_errors=True)
             full = timed(build, cwd=src, env=env)
@@ -177,8 +212,9 @@ def bench_baseline(args: argparse.Namespace) -> dict:
     results = []
     for project in corpus:
         src = checkout(project)
-        build = ["cargo", "build", "--quiet", "--locked", "--package", project["package"],
-                 "--bin", project["bin"]]
+        build = cargo("build", "--quiet", "--locked", "--package", project["package"],
+                      "--bin", project["bin"])
+        env = STOCK_ENV
         edit = src / project["edit"]
         pristine = edit.read_text()
         name = project["name"]
@@ -186,19 +222,19 @@ def bench_baseline(args: argparse.Namespace) -> dict:
 
         print(f"{name}: clean build", file=sys.stderr)
         shutil.rmtree(src / "target", ignore_errors=True)
-        row["clean_build_s"] = round(timed(build, cwd=src), 3)
-        row["noop_rebuild"] = summarize([timed(build, cwd=src) for _ in range(args.runs)])
+        row["clean_build_s"] = round(timed(build, cwd=src, env=env), 3)
+        row["noop_rebuild"] = summarize([timed(build, cwd=src, env=env) for _ in range(args.runs)])
 
         print(f"{name}: edit loop", file=sys.stderr)
         samples = []
         try:
             for i in range(args.runs):
                 edit.write_text(f"{pristine}\n// tinymold-bench baseline edit {i}\n")
-                samples.append(timed(build, cwd=src))
+                samples.append(timed(build, cwd=src, env=env))
         finally:
             edit.write_text(pristine)
         # Restoring the file is itself an edit; settle it before the next step.
-        timed(build, cwd=src)
+        timed(build, cwd=src, env=env)
         row["edit_rebuild"] = summarize(samples)
 
         print(f"{name}: mtime-only change to every source file", file=sys.stderr)
@@ -208,25 +244,27 @@ def bench_baseline(args: argparse.Namespace) -> dict:
             now = time.time()
             for path in sources:
                 os.utime(path, (now, now))
-            samples.append(timed(build, cwd=src))
+            samples.append(timed(build, cwd=src, env=env))
         row["touch_all_rebuild"] = summarize(samples)
 
         print(f"{name}: build tests", file=sys.stderr)
-        tests = ["cargo", "build", "--quiet", "--locked", "--tests", "--package", project["package"]]
-        row["build_tests_s"] = round(timed(tests, cwd=src), 3)
+        tests = cargo("build", "--quiet", "--locked", "--tests", "--package", project["package"])
+        row["build_tests_s"] = round(timed(tests, cwd=src, env=env), 3)
         row["target_bytes"] = tree_size(src / "target")
 
         print(f"{name}: second worktree at another path", file=sys.stderr)
+        # A real `git worktree`: same commit, different absolute path, empty
+        # target/. Everything it builds, the first worktree already built.
         second = WORK / f"{name}-{project['rev']}-worktree2"
-        shutil.rmtree(second, ignore_errors=True)
-        run(["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--local",
-             str(src), str(second)])
-        row["second_worktree_build_s"] = round(timed(build, cwd=second), 3)
+        run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)],
+            stderr=subprocess.DEVNULL) if second.exists() else None
+        run(["git", "-C", str(src), "worktree", "add", "--quiet", "--detach", str(second)])
+        row["second_worktree_build_s"] = round(timed(build, cwd=second, env=env), 3)
         shared, total = shared_artifact_bytes(src / "target" / "debug" / "deps",
                                               second / "target" / "debug" / "deps")
         row["second_worktree_deps_bytes"] = total
         row["second_worktree_identical_deps_bytes"] = shared
-        shutil.rmtree(second, ignore_errors=True)
+        run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
 
         results.append(row)
         print(f"  clean {row['clean_build_s']}s, edit {row['edit_rebuild']['median_s']}s, "
@@ -273,7 +311,7 @@ def tree_size(path: Path) -> int:
 
 
 def bench_cas(args: argparse.Namespace) -> dict:
-    run(["cargo", "build", "--quiet", "--release", "--package", "tinymold"], cwd=ROOT)
+    run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=ROOT, env=STOCK_ENV)
     tinymold = ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
 
     work = WORK / "cas"
