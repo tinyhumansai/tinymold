@@ -217,7 +217,11 @@ class EditSession:
             target = bench.target_args(self.project)[2:]  # past "--package <name>"
             return [("build", ["cargo", "build", *base, *target], False)]
         if name == "clippy":
-            return [("clippy", ["cargo", "clippy", *base, "--all-targets"], False)]
+            # Lints are capped at warnings: a corpus release that a newer
+            # clippy denies is a lint result, not a failed measurement, and a
+            # denied crate would stop cargo before the rest are linted.
+            return [("clippy", ["cargo", "clippy", *base, "--all-targets", "--",
+                                "--cap-lints=warn"], False)]
         if name == "test":
             # Corpus test suites are run, not judged: a shallow clone without
             # submodules or fixtures fails some tests, which is not a result.
