@@ -175,7 +175,7 @@ average 9-12 from other work).
 - **Interleaved on one link, tinymold-link is as fast as mold.** Replaying
   the captured `openhuman-core` link line (a 956 MB debug binary) in the
   benchmark image, alternating mold 3.0.0's release binary and tinymold-link,
-  30 runs each: mold median 0.750s (min 0.610s), tinymold-link median 0.748s
+  30 runs each ([`docker/link-ab.sh`](docker/link-ab.sh)): mold median 0.750s (min 0.610s), tinymold-link median 0.748s
   (min 0.597s). The outputs differ only in the 16-byte version string in
   `.comment`. That is the expected result: tinymold-link is mold's code, and
   the per-input cache that is meant to make it faster is not built yet
