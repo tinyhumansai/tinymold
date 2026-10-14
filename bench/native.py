@@ -297,7 +297,7 @@ def linker_version(path: str) -> str:
     for flag in ("-v", "--version"):
         proc = subprocess.run([path, flag], capture_output=True, text=True)
         text = (proc.stdout + proc.stderr).strip()
-        if text:
+        if text and "error" not in text.splitlines()[0]:
             return text.splitlines()[0][:200]
     return "unknown"
 

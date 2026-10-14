@@ -85,7 +85,7 @@
       "warmup_runs": 1,
       "linker": "lld",
       "linker_path": "/Users/enamakel/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld/ld64.lld",
-      "linker_version": "rust-lld: error: must specify -arch",
+      "linker_version": "LLD 23.1.1 (https://github.com/rust-lang/llvm-project.git 1b9c0d5ff9bbe7634aead059efe6b11a7eeba145)",
       "link": {
         "median_s": 2.8859,
         "min_s": 2.7602,
