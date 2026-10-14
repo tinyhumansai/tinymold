@@ -275,3 +275,30 @@ fn coverage_instrumentation_is_recognized_in_every_spelling() {
     ]));
     assert!(!with(&[]));
 }
+
+#[test]
+fn dynamic_linking_of_std_is_recognized_in_every_spelling() {
+    let base = [
+        "--crate-name",
+        "demo",
+        "src/lib.rs",
+        "--emit=link",
+        "--out-dir",
+        "target",
+    ];
+    let with = |extra: &[&str]| {
+        let mut args = base.to_vec();
+        args.extend_from_slice(extra);
+        match Invocation::parse(args) {
+            Classified::Cacheable(invocation) => invocation.prefers_dynamic(),
+            Classified::PassThrough(reason) => panic!("{reason}"),
+        }
+    };
+    assert!(!with(&[]));
+    assert!(with(&["-C", "prefer-dynamic"]));
+    assert!(with(&["-Cprefer-dynamic=yes"]));
+    assert!(with(&["--codegen", "prefer-dynamic=on"]));
+    assert!(!with(&["-C", "prefer-dynamic=no"]));
+    assert!(!with(&["-C", "prefer-dynamic", "-C", "prefer-dynamic=off"]));
+    assert!(!with(&["-C", "prefer-dynamic-not-really"]));
+}
