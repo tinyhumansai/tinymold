@@ -301,7 +301,7 @@ override per call:
   are reserved for `.rlib`, `.rmeta` and similar inputs that rustc and cargo
   replace by unlink-and-create or rename.
 - **Cross-device.** Reflink and hardlink both fail across filesystems; the
-  chain falls through to copy, and `tinymold doctor` warns when the store and
+  chain falls through to copy; from Phase 1, `tinymold doctor` warns when the store and
   the target dirs are on different devices.
 
 ## Correctness strategy
