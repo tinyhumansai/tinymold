@@ -99,6 +99,85 @@
         ]
       },
       "output_bytes": 424188528
+    },
+    {
+      "project": "blender",
+      "rev": "v5.2.2 (d13f752e3b9c)",
+      "build_type": "Debug",
+      "link_dir": "/Users/enamakel/work/tinymold/worktrees/research-scaffold/bench/.work/native/blender/build",
+      "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+      "inputs": {
+        "files": 271,
+        "bytes": 5766642310,
+        "objects": 4,
+        "archives": 242
+      },
+      "output_reuse": "deleted before every run",
+      "filesystem": "apfs",
+      "threads": "linker default (18 CPUs)",
+      "warmup_runs": 1,
+      "linker": "ld-prime",
+      "linker_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+      "linker_version": "@(#)PROGRAM:ld PROJECT:ld-1267",
+      "link": {
+        "median_s": 3.3636,
+        "min_s": 3.3325,
+        "max_s": 3.9362,
+        "samples_s": [
+          3.3325,
+          3.3432,
+          3.3636,
+          3.621,
+          3.9362
+        ]
+      },
+      "output_bytes": 509355080
+    },
+    {
+      "project": "blender",
+      "rev": "v5.2.2 (d13f752e3b9c)",
+      "build_type": "Debug",
+      "link_dir": "/Users/enamakel/work/tinymold/worktrees/research-scaffold/bench/.work/native/blender/build",
+      "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+      "inputs": {
+        "files": 271,
+        "bytes": 5766642310,
+        "objects": 4,
+        "archives": 242
+      },
+      "output_reuse": "deleted before every run",
+      "filesystem": "apfs",
+      "threads": "linker default (18 CPUs)",
+      "warmup_runs": 1,
+      "linker": "ld-classic",
+      "linker_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld-classic",
+      "linker_version": "@(#)PROGRAM:ld-classic  PROJECT:ld64-957.1",
+      "link": null,
+      "output_bytes": null,
+      "error": "exit 1: ld: unknown option: -no_warn_reduced_section_align\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)"
+    },
+    {
+      "project": "blender",
+      "rev": "v5.2.2 (d13f752e3b9c)",
+      "build_type": "Debug",
+      "link_dir": "/Users/enamakel/work/tinymold/worktrees/research-scaffold/bench/.work/native/blender/build",
+      "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+      "inputs": {
+        "files": 271,
+        "bytes": 5766642310,
+        "objects": 4,
+        "archives": 242
+      },
+      "output_reuse": "deleted before every run",
+      "filesystem": "apfs",
+      "threads": "linker default (18 CPUs)",
+      "warmup_runs": 1,
+      "linker": "lld",
+      "linker_path": "/Users/enamakel/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld/ld64.lld",
+      "linker_version": "LLD 23.1.1 (https://github.com/rust-lang/llvm-project.git 1b9c0d5ff9bbe7634aead059efe6b11a7eeba145)",
+      "link": null,
+      "output_bytes": null,
+      "error": "exit 1: rust-lld: error: unknown argument '-no_warn_reduced_section_align'\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)"
     }
   ],
   "machine": {

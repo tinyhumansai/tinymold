@@ -257,7 +257,33 @@ def firefox_link_command(home: Path) -> tuple[str, Path]:
     return lines[-1], build
 
 
+def drop_linker_args(tokens: list[str], drop: list[str]) -> list[str]:
+    """Remove linker-only arguments passed as `-Xlinker X` or `-Wl,X`.
+
+    Used for flags only one linker understands that do not change the output
+    (warning suppressions), so every linker can run the same command.
+    """
+    kept: list[str] = []
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token == "-Xlinker" and i + 1 < len(tokens) and tokens[i + 1] in drop:
+            i += 2
+            continue
+        if token.startswith("-Wl,") and token[4:] in drop:
+            i += 1
+            continue
+        kept.append(token)
+        i += 1
+    return kept
+
+
 def link_command(project: dict) -> tuple[list[str], Path]:
+    tokens, cwd = extracted_link_command(project)
+    return drop_linker_args(tokens, project.get("drop_linker_args", [])), cwd
+
+
+def extracted_link_command(project: dict) -> tuple[list[str], Path]:
     home = NATIVE / project["name"]
     if not (home / ".built").exists():
         raise SystemExit(f"{project['name']} is not prepared: "
@@ -443,6 +469,7 @@ def bench_project(project: dict, linkers: dict[str, str], runs: int) -> list[dic
         "filesystem": filesystem(cwd),
         "threads": f"linker default ({os.cpu_count()} CPUs)",
         "warmup_runs": 1,
+        "dropped_linker_args": project.get("drop_linker_args", []),
     }
     log(f"{project['name']}: {inputs['files']} inputs, {inputs['bytes'] / 2**30:.2f} GiB, "
         f"output {out.relative_to(cwd) if out.is_relative_to(cwd) else out}")

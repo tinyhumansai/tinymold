@@ -29,7 +29,8 @@
         "-DCMAKE_C_COMPILER=clang",
         "-DCMAKE_CXX_COMPILER=clang++"
       ],
-      "target": "blender"
+      "target": "blender",
+      "drop_linker_args": ["-no_warn_reduced_section_align", "-no_warn_duplicate_libraries"]
     },
     {
       "name": "firefox",
