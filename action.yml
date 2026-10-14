@@ -65,7 +65,7 @@ runs:
         ACTION_REPOSITORY: tinyhumansai/tinymold
       run: |
         set -euo pipefail
-        "${GITHUB_ACTION_PATH}/.github/actions/scripts/setup.sh"
+        "${GITHUB_ACTION_PATH}/action/setup.sh"
 
     - id: restore
       if: inputs.backend == 'github' || inputs.backend == 'both'
