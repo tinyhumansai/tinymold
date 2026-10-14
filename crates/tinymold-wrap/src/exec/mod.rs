@@ -63,7 +63,7 @@ pub(crate) fn run_captured(program: &Path, args: &[OsString]) -> Result<Captured
 fn tee<R, W>(mut source: R, sink: fn() -> W) -> thread::JoinHandle<Vec<u8>>
 where
     R: Read + Send + 'static,
-    W: Write,
+    W: Write + 'static,
 {
     thread::spawn(move || {
         let mut kept = Vec::new();
