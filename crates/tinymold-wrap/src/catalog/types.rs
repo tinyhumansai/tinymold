@@ -27,6 +27,10 @@ pub enum RecordKind {
     Cache,
     /// A record being written, or left behind by a writer that died.
     Temporary,
+    /// A lock file, `locks/<key>`, that a miss holds while it compiles so
+    /// that other builds wait for it ([`lock_held`](crate::lock_held) says
+    /// whether one is held). Losing one that is not held costs nothing.
+    Lock,
 }
 
 /// One file the cache keeps beside the store's objects.

@@ -162,6 +162,35 @@ so they are stored with the out-dir, profile, current-directory and
 Otherwise cargo would read the first worktree's paths and check the wrong
 files' mtimes. Binary outputs are restored as stored.
 
+**Concurrent builds of one unit compile it once.** Eight agents building one
+commit in eight worktrees ask for the same unit at about the same time, and
+each would miss and run rustc. After a local miss, and before the remote tier
+or rustc, the wrapper takes an exclusive lock (`flock`, or `LockFileEx` on
+Windows) on `locks/<key>` in the store. The key is the full key the newest
+recorded input set gives for today's files, the compile this one most likely
+is, or the pre-key when no input set is recorded yet. Locking on that full key
+rather than the pre-key keeps compiles with different sources, such as
+worktrees with different edits, from waiting on each other.
+
+- **Free:** the wrapper holds the lock until the compile is stored, so others
+  wait for it.
+- **Held:** it waits, polling, then looks the unit up again. A hit is
+  restored. A miss (the other compile failed, could not be stored, or was a
+  different compile) runs rustc while holding the lock.
+- **Bounded:** a wrapper waits at most ten minutes, then compiles without the
+  lock. A holder that dies releases its lock with its process.
+- **Never required:** a lock that cannot be opened or taken, such as on a
+  filesystem without locking, is skipped. Locking only saves work; a hit
+  never depends on it, and the log records how long a wrapper waited.
+
+This is Zig's build-cache locking
+([`docs/research/zig.md`](../research/zig.md)) without its shared lock for
+hits: a hit takes no lock, and GC already protects an ingest in progress
+([`gc.md`](gc.md)). A waiting wrapper keeps the cargo job slot it was started
+with, and its dependents start only when the whole unit has been stored,
+not at the earlier `.rmeta`, so waiting trades some pipelining for not
+running the same compile twice.
+
 **What is never cached:**
 
 - failed compiles;
