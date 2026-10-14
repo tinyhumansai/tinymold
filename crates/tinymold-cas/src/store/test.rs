@@ -266,4 +266,11 @@ fn remove_reports_an_object_it_cannot_delete() {
         })
     ));
     assert!(store.contains(&digest));
+    // The failed attempt must not leave the object writable.
+    assert!(
+        fs::metadata(store.object_path(&digest))
+            .unwrap()
+            .permissions()
+            .readonly()
+    );
 }
