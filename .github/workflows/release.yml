@@ -129,9 +129,11 @@ jobs:
               echo "Tag ${tag} does not contain version ${current_version}" >&2
               exit 1
             fi
-          elif [[ "${{ inputs.bump }}" == "current" ]]; then
-            echo "Tag ${tag} does not exist; choose a semantic version bump" >&2
-            exit 1
+            tag_exists=true
+          else
+            # `current` without a tag releases the version already in
+            # Cargo.toml as-is: this is how the first release (0.0.1) ships.
+            tag_exists=false
           fi
 
           {
@@ -139,6 +141,7 @@ jobs:
             echo "current_version=${current_version}"
             echo "next_version=${next_version}"
             echo "tag=${tag}"
+            echo "tag_exists=${tag_exists:-false}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Update crate version
@@ -167,17 +170,20 @@ jobs:
           fi
 
       - name: Commit version bump and tag
-        if: ${{ inputs.bump != 'current' }}
+        if: ${{ steps.version.outputs.tag_exists != 'true' }}
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          BUMP: ${{ inputs.bump }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock
-          git commit -m "Release ${RELEASE_TAG}"
+          if [[ "$BUMP" != "current" ]]; then
+            git add Cargo.toml Cargo.lock
+            git commit -m "Release ${RELEASE_TAG}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
           git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
           git push origin "${RELEASE_TAG}"
 
   binaries:
