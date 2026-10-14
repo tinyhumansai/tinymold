@@ -90,7 +90,7 @@ fn every_keyed_field_moves_the_key() {
     let changes: Vec<Change> = vec![
         ("binary", |case| case.binary = Digest::of_bytes(b"other")),
         ("via", |case| {
-            case.via = Some("qemu-aarch64 0123".to_owned())
+            case.via = Some("qemu-aarch64 0123".to_owned());
         }),
         ("args", |case| {
             case.args.push("--exact".to_owned());
@@ -123,17 +123,17 @@ fn color_and_ignored_env_vars_leave_the_key_alone() {
     let reference = Case::new().key();
     let changes: Vec<Change> = vec![
         ("--color=", |case| {
-            case.args.insert(0, "--color=always".to_owned())
+            case.args.insert(0, "--color=always".to_owned());
         }),
         ("--color value", |case| {
             case.args.extend(strings(&["--color", "never"]));
         }),
         ("env order", |case| case.env.reverse()),
         ("TERM", |case| {
-            case.env.push(("TERM".to_owned(), "xterm".to_owned()))
+            case.env.push(("TERM".to_owned(), "xterm".to_owned()));
         }),
         ("PWD", |case| {
-            case.env.push(("PWD".to_owned(), "/w/b".to_owned()))
+            case.env.push(("PWD".to_owned(), "/w/b".to_owned()));
         }),
         ("SSH_ prefix", |case| {
             case.env
