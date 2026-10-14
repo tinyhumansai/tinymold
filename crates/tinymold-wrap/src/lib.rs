@@ -33,6 +33,7 @@ mod catalog;
 mod compile;
 mod error;
 mod exec;
+mod flight;
 mod record;
 mod remote;
 mod stat;
@@ -42,13 +43,14 @@ use std::ffi::OsString;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use tinymold_key::{Classified, Invocation};
 
 pub use catalog::{RecordFile, RecordKind, action_references, records};
 use compile::Served;
 pub use error::{Error, Result};
+pub use flight::lock_held;
 pub use remote::{Remote, RemoteError};
 use trace::Trace;
 
@@ -145,19 +147,29 @@ fn serve(
         }
     };
     let crate_name = invocation.crate_name.clone();
-    match compile::serve(&config.store, remote, program, args, &invocation, trace) {
-        Ok(Served::Hit) => {
-            log(config, started, "hit", &crate_name, "");
+    let served = compile::serve(
+        &config.store,
+        remote,
+        program,
+        args,
+        &invocation,
+        compile::LOCK_WAIT,
+        trace,
+    );
+    match served {
+        Ok(Served::Hit { waited }) => {
+            log(config, started, "hit", &crate_name, &waited_for(waited));
             ("hit", crate_name, 0)
         }
-        Ok(Served::RemoteHit) => {
-            log(config, started, "remote", &crate_name, "");
+        Ok(Served::RemoteHit { waited }) => {
+            log(config, started, "remote", &crate_name, &waited_for(waited));
             ("remote", crate_name, 0)
         }
         Ok(Served::Miss {
             code,
             stored,
             remote,
+            waited,
         }) => {
             let mut detail = match &stored {
                 Ok(took) => format!("stored in {:.1}ms", took.as_secs_f64() * 1000.0),
@@ -166,6 +178,10 @@ fn serve(
             if let Some(failure) = remote {
                 detail.push_str("; remote: ");
                 detail.push_str(&failure);
+            }
+            if waited.is_some() {
+                detail.push_str("; ");
+                detail.push_str(&waited_for(waited));
             }
             log(config, started, "miss", &crate_name, &detail);
             ("miss", crate_name, code)
@@ -176,6 +192,16 @@ fn serve(
             ("error", crate_name, code)
         }
     }
+}
+
+/// The log detail for a wait on another build compiling the same unit.
+fn waited_for(waited: Option<Duration>) -> String {
+    waited.map_or_else(String::new, |waited| {
+        format!(
+            "waited {:.1}ms for the same compile",
+            waited.as_secs_f64() * 1000.0
+        )
+    })
 }
 
 /// Runs the compiler unchanged and returns its exit code, or 1 when it cannot
