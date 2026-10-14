@@ -26,3 +26,4 @@ into the plan.
 | [`roadmap.md`](roadmap.md) | Phased delivery plan, Phase 0 (foundations) to Phase 7 (research bets). Each phase gets its own spec and plan before implementation |
 | [`rustc-wrapper.md`](rustc-wrapper.md) | Phase 3: the unit cache behind `RUSTC_WRAPPER=tinymold`, its order of implementation, and measured results |
 | [`freshness.md`](freshness.md) | Phase 2: the spike, the implementation order, and the measured results for content freshness and target snapshots |
+| [`remote-and-ci.md`](remote-and-ci.md) | Last-use GC, `tinymold stats`, the REAPI remote tier, and the GitHub Action |
