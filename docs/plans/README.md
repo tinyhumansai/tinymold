@@ -27,4 +27,5 @@ into the plan.
 | [`edit-loop.md`](edit-loop.md) | Phase 5: where an edit's time goes, the edit-loop experiments, and the `codegen-units = 64` recommendation |
 | [`rustc-wrapper.md`](rustc-wrapper.md) | Phase 3: the unit cache behind `RUSTC_WRAPPER=tinymold`, its order of implementation, and measured results |
 | [`freshness.md`](freshness.md) | Phase 2: the spike, the implementation order, and the measured results for content freshness and target snapshots |
+| [`edit-rebuild.md`](edit-rebuild.md) | The edit-sequence benchmark and the four changes it led to, with measured results |
 | [`remote-and-ci.md`](remote-and-ci.md) | Last-use GC, `tinymold stats`, the REAPI remote tier, and the GitHub Action |

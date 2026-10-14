@@ -1,6 +1,6 @@
 # 8. Restore incremental sessions only at the path that made them
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-15
 
 ## Context
@@ -59,8 +59,11 @@ to accept a session made in another working directory.
 - The first edit after `cargo clean`, a deleted target directory, or a CI
   runner at a fixed path with incremental on is about as fast as an edit in a
   directory that was never emptied.
-- Each incremental action grows by its session's unique files. The edit
-  benchmark has to show that cost next to the latency gained before this is
-  accepted.
+- Each incremental action grows by its session's unique files. Measured with
+  `bench.py edits` ([`edit-rebuild.md`](../plans/edit-rebuild.md)): the first
+  edit after a fresh target went from 1.22 s to 0.79 s on the tinymold
+  repository and from 1.94 s to 0.86 s on ripgrep, and the store after a
+  clean build grew by 140 MiB on the tinymold repository and 260 MiB on
+  ripgrep.
 - New worktrees still start with cold sessions. They get their units from
   the store, so only their first edit of each crate is slower.

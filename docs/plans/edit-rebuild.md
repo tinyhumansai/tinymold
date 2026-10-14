@@ -72,10 +72,13 @@ What the numbers say:
   adds a new generation of every unit it touches. The remaining growth is
   those configurations plus the stored sessions; age-based collection
   (`--max-age`) retires configurations nobody builds any more.
-- **Edits cost what they cost under cargo** (build, clippy, test build), and
-  coverage and test builds are faster, because unchanged instrumented and
-  test units hit.
-- **Peak RSS is unchanged**: 331–416 MiB in every mode, set by rustc.
+- **Edit builds and clippy cost about what they cost under cargo** (ripgrep
+  0.91 s both, bat 0.99 s against 1.12 s, the tinymold repository 0.64 s
+  against 0.60 s). Coverage is faster, because unchanged instrumented units
+  hit. Test builds are faster on bat (0.50 s against 0.82 s) but still
+  slower on the tinymold repository (0.66 s against 0.52 s). There every edit
+  relinks test executables that the miss then hashes and stores in full.
+- **Peak RSS is unchanged**: 331–425 MiB in every mode, set by rustc.
 
 ### Open: bat's first edit after a fresh target
 
