@@ -37,14 +37,17 @@ make LLVM faster cannot move the edit loop much, and they did not.
 
 Variants were run with `bench/bench.py scenarios --variants …`, results in
 [`bench/README.md`](../../bench/README.md), "Edit-loop experiments". These
-runs are sequential, so they are only indicative.
+runs are sequential on a shared machine, so load drift moves them by tens
+of percent in either direction: they found no setting worth an A/B run
+except `codegen-units`, but they do not show that the others have no effect.
+Only the interleaved `ab` runs below support a conclusion.
 
 | Variant | Result on the edit loop |
 |---|---|
-| `deps-nodebug`, `line-tables`, `nodebug` (debug-info levels) | No gain on any project; within noise or slower |
+| `deps-nodebug`, `line-tables`, `nodebug` (debug-info levels) | Inconclusive: no consistent gain across projects and edit kinds; not A/B tested |
 | `nightly` (1.98.0-nightly, 2026-06-29) | Slightly slower than stable 1.99 |
-| `threads-8` (`-Zthreads=8`, the parallel front end) | No gain; the front end is a small share of an edit |
-| `cranelift` (`-Zcodegen-backend=cranelift` for every crate) | No gain on edits. It **breaks bat's build**: indexmap's `autocfg` probe fails under Cranelift, indexmap loses `std`, and `plist` no longer compiles. If tried again, it should apply to workspace crates only |
+| `threads-8` (`-Zthreads=8`, the parallel front end) | Inconclusive against `nightly`: no consistent gain; not A/B tested. The front end is a small share of an edit |
+| `cranelift` (`-Zcodegen-backend=cranelift` for every crate) | Inconclusive on edits; not A/B tested. It **breaks bat's build**: indexmap's `autocfg` probe fails under Cranelift, indexmap loses `std`, and `plist` no longer compiles. If tried again, it should apply to workspace crates only |
 | `codegen-units` 16, 32, 64, 128 (default 256 with incremental) | Fewer units cut the session bookkeeping, but make each regenerated unit bigger; see below |
 
 The Cranelift component does ship for aarch64-apple-darwin (installed with
@@ -69,8 +72,11 @@ The 128-unit run ended at load 11.5, so its +22% may be partly noise.
 - **64 is the only value with no meaningful regression.** 32 slows a
   private-body edit on ripgrep, where the regenerated unit gets too big, and
   128 slowed a public-signature edit.
-- **Clean builds are neutral with 64.** ripgrep took 3.21 s against 3.40 s,
-  bat was within noise, and incremental caches were 2-6% smaller.
+- **Clean builds are about neutral with 64.** In an interleaved clean A/B
+  (`bench.py ab --variant cgu-64 --cases clean`, 7 runs each), ripgrep took
+  3.72 s against 3.97 s (−6%) and bat 8.01 s against 7.83 s (+2%), at load
+  averages up to 12. Smaller incremental caches (2-6%) were seen but not
+  recorded in a result file.
 
 **Recommendation:** add this to the workspace's `Cargo.toml` for the dev loop:
 

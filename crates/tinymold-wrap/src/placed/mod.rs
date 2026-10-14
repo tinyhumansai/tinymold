@@ -10,28 +10,28 @@
 //! So after every hit and every stored miss, the wrapper writes one record
 //! per unit and out-dir naming each output's identity and digest. A later
 //! hit keeps a file in place when the action wants the same digest under
-//! that name and the file's identity still matches the record, under the
-//! racily-clean rule of [`crate::stat`]. Anything else is replaced.
+//! that name and the file's identity still matches the record. Like
+//! [`stat::remember`](crate::stat::remember), that trusts identity alone:
+//! these are files whose writer, rustc or the wrapper, has finished, and
+//! which nothing rewrites without going through the wrapper again. A file
+//! replaced since gets a new inode or mtime. Anything else is replaced.
 //!
 //! Records live under `stat/`, beside the digest caches, so `tinymold gc`
 //! treats them as caches. Their format:
 //!
 //! ```text
 //! tinymold-placed 1
-//! recorded <ns>
 //! <dev> <ino> <size> <mtime_ns> <digest> <name>
 //! ```
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 
 use tinymold_hash::Digest;
 
 use crate::Result;
 use crate::record::{Identity, read, write_atomically};
-use crate::stat::{nanos, still_valid};
 
 /// The first line of every record.
 const HEADER: &str = "tinymold-placed 1";
@@ -43,7 +43,6 @@ pub(crate) type Placement = (String, Identity, Digest);
 /// The outputs one unit last left in one out-dir.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct Placed {
-    recorded_ns: u64,
     files: HashMap<String, (Identity, Digest)>,
 }
 
@@ -73,13 +72,16 @@ impl Placed {
     /// Whether the file `name`, whose identity is now `current`, is still the
     /// one recorded and holds `digest`.
     pub(crate) fn holds(&self, name: &str, current: Identity, digest: Digest) -> bool {
-        self.files.get(name).is_some_and(|(recorded, held)| {
-            *held == digest && still_valid(*recorded, self.recorded_ns, current)
-        })
+        // Without inode numbers, size and mtime alone can coincide between
+        // two different files.
+        current.ino != 0
+            && self
+                .files
+                .get(name)
+                .is_some_and(|(recorded, held)| *held == digest && *recorded == current)
     }
 
-    /// Records that the out-dir now holds `files`, each as `(name, identity,
-    /// digest)`, as of now.
+    /// Records that the out-dir now holds `files`.
     ///
     /// # Errors
     ///
@@ -87,7 +89,6 @@ impl Placed {
     /// written.
     pub(crate) fn save(path: &Path, files: &[Placement]) -> Result<()> {
         let placed = Self {
-            recorded_ns: nanos(SystemTime::now()),
             files: files
                 .iter()
                 .map(|(name, identity, digest)| (name.clone(), (*identity, *digest)))
@@ -99,7 +100,7 @@ impl Placed {
     fn encode(&self) -> String {
         let mut names: Vec<&String> = self.files.keys().collect();
         names.sort();
-        let mut text = format!("{HEADER}\nrecorded {}\n", self.recorded_ns);
+        let mut text = format!("{HEADER}\n");
         for name in names {
             let (identity, digest) = &self.files[name];
             let _ = writeln!(
@@ -116,7 +117,6 @@ impl Placed {
         if lines.next()? != HEADER {
             return None;
         }
-        let recorded_ns = lines.next()?.strip_prefix("recorded ")?.parse().ok()?;
         let mut files = HashMap::new();
         for line in lines {
             let mut parts = line.splitn(6, ' ');
@@ -131,7 +131,7 @@ impl Placed {
             let name = parts.next().filter(|name| !name.is_empty())?;
             files.insert(name.to_owned(), (identity, digest));
         }
-        Some(Self { recorded_ns, files })
+        Some(Self { files })
     }
 }
 

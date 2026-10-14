@@ -1,0 +1,106 @@
+"""Tests for bench.py's result bookkeeping and report.py's comparisons.
+
+Run with: python3 -m unittest discover -s bench -p 'test_*.py'
+"""
+
+import sys
+import unittest
+from pathlib import Path
+from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bench  # noqa: E402
+import report  # noqa: E402
+
+
+def row(project, mode, case, wall=1.0):
+    timing = {"median_s": wall, "min_s": wall, "max_s": wall}
+    return {"project": project, "rev": "v1", "mode": mode, "case": case,
+            "wall": timing, "link": timing}
+
+
+MACHINE = {"os": "darwin", "arch": "arm64", "cpus": 8, "rustc": "rustc 1.99.0"}
+
+
+class MergePrevious(unittest.TestCase):
+    def test_an_experiments_run_keeps_other_variants_rows_and_settings(self):
+        previous = {"benchmark": "experiments",
+                    "variants": {"cgu-64": bench.VARIANTS["cgu-64"]},
+                    "results": [row("rg", "baseline", "comment"),
+                                row("rg", "baseline+cgu-64", "comment")]}
+        result = {"benchmark": "experiments",
+                  "variants": {"cgu-128": bench.VARIANTS["cgu-128"]},
+                  "results": [row("rg", "baseline", "comment", 2.0),
+                              row("rg", "baseline+cgu-128", "comment")]}
+        merged = bench.merge_previous(result, previous, limited=False)
+        self.assertEqual(sorted(r["mode"] for r in merged["results"]),
+                         ["baseline", "baseline+cgu-128", "baseline+cgu-64"])
+        baseline = [r for r in merged["results"] if r["mode"] == "baseline"]
+        self.assertEqual(baseline[0]["wall"]["median_s"], 2.0)
+        self.assertEqual(set(merged["variants"]), {"cgu-64", "cgu-128"})
+
+    def test_other_benchmarks_merge_only_when_limited_to_a_project(self):
+        previous = {"benchmark": "scenarios", "results": [row("bat", "baseline", "comment")]}
+        fresh = {"benchmark": "scenarios", "results": [row("rg", "baseline", "comment")]}
+        self.assertEqual(len(bench.merge_previous(dict(fresh), previous, limited=False)
+                             ["results"]), 1)
+        self.assertEqual(len(bench.merge_previous(dict(fresh), previous, limited=True)
+                             ["results"]), 2)
+
+    def test_recorded_toolchains_are_kept_across_runs(self):
+        previous = {"benchmark": "experiments", "variants": {},
+                    "toolchains": {"nightly": "rustc 1.100.0-nightly"}, "results": []}
+        result = {"benchmark": "experiments", "variants": {}, "results": []}
+        merged = bench.merge_previous(result, previous, limited=False)
+        self.assertEqual(merged["toolchains"], {"nightly": "rustc 1.100.0-nightly"})
+
+
+class NightlyReference(unittest.TestCase):
+    def test_a_nightly_only_variant_is_compared_with_nightly(self):
+        self.assertEqual(bench.reference_variant("threads-8"), "nightly")
+        self.assertEqual(bench.reference_variant("cranelift"), "nightly")
+
+    def test_stable_variants_and_nightly_itself_are_compared_with_stable(self):
+        self.assertIsNone(bench.reference_variant("cgu-64"))
+        self.assertIsNone(bench.reference_variant("nightly"))
+
+    def test_the_nightly_compiler_is_recorded_when_a_variant_uses_it(self):
+        with mock.patch.object(bench, "output", return_value="rustc 1.100.0-nightly") as run:
+            self.assertEqual(bench.toolchains(["cgu-64", "threads-8"]),
+                             {"nightly": "rustc 1.100.0-nightly"})
+            run.assert_called_once_with(["rustc", "+nightly", "-V"])
+        with mock.patch.object(bench, "output") as run:
+            self.assertEqual(bench.toolchains(["cgu-64"]), {})
+            run.assert_not_called()
+
+
+class Report(unittest.TestCase):
+    def result(self, **extra):
+        return {"machine": MACHINE, "runs": 3, "date": "2026-10-14", **extra}
+
+    def test_a_variant_whose_settings_are_unknown_gets_no_change(self):
+        result = self.result(variants={}, results=[row("rg", "baseline", "comment", 1.0),
+                                                   row("rg", "baseline+threads-8", "comment", 0.5)])
+        text = "\n".join(report.experiments_section(result))
+        self.assertNotIn("-50%", text)
+
+    def test_the_experiments_heading_names_the_nightly_compiler(self):
+        result = self.result(variants={"nightly": bench.VARIANTS["nightly"]},
+                             toolchains={"nightly": "rustc 1.100.0-nightly"},
+                             results=[row("rg", "baseline", "comment")])
+        self.assertIn("rustc 1.100.0-nightly", "\n".join(report.experiments_section(result)))
+
+    def test_an_ab_against_nightly_compares_with_the_nightly_side(self):
+        result = self.result(variant="threads-8", settings=bench.VARIANTS["threads-8"],
+                             reference="nightly",
+                             toolchains={"nightly": "rustc 1.100.0-nightly"},
+                             results=[row("rg", "baseline+nightly", "comment", 1.0),
+                                      row("rg", "baseline+threads-8", "comment", 0.5)])
+        text = "\n".join(report.ab_section(result))
+        self.assertIn("-50%", text)
+        self.assertIn("baseline+nightly", text)
+        self.assertIn("rustc 1.100.0-nightly", text)
+
+
+if __name__ == "__main__":
+    unittest.main()
