@@ -1,0 +1,4295 @@
+{
+  "benchmark": "experiments",
+  "pins": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "linker": "cc, rustc's default, behind a timing wrapper",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.064,
+        "min_s": 0.0607,
+        "max_s": 0.0647,
+        "samples_s": [
+          0.0625,
+          0.0647,
+          0.064,
+          0.0641,
+          0.0607
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.5784,
+        "min_s": 0.5468,
+        "max_s": 0.5814,
+        "samples_s": [
+          0.5483,
+          0.5795,
+          0.5468,
+          0.5814,
+          0.5784
+        ]
+      },
+      "link": {
+        "median_s": 0.0684,
+        "min_s": 0.0634,
+        "max_s": 0.0762,
+        "samples_s": [
+          0.0634,
+          0.0762,
+          0.0672,
+          0.0684,
+          0.0716
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6078,
+        "min_s": 0.5869,
+        "max_s": 0.6388,
+        "samples_s": [
+          0.6388,
+          0.6001,
+          0.5869,
+          0.6078,
+          0.6306
+        ]
+      },
+      "link": {
+        "median_s": 0.063,
+        "min_s": 0.0595,
+        "max_s": 0.0693,
+        "samples_s": [
+          0.0693,
+          0.0595,
+          0.063,
+          0.0608,
+          0.0651
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6214,
+        "min_s": 0.5935,
+        "max_s": 0.7981,
+        "samples_s": [
+          0.7981,
+          0.5935,
+          0.6151,
+          0.6214,
+          0.6467
+        ]
+      },
+      "link": {
+        "median_s": 0.0635,
+        "min_s": 0.0626,
+        "max_s": 0.0654,
+        "samples_s": [
+          0.0628,
+          0.0654,
+          0.0626,
+          0.0652,
+          0.0635
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+deps-nodebug",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0693,
+        "min_s": 0.0639,
+        "max_s": 0.0758,
+        "samples_s": [
+          0.065,
+          0.0639,
+          0.0758,
+          0.0721,
+          0.0693
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+deps-nodebug",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6119,
+        "min_s": 0.5138,
+        "max_s": 0.6799,
+        "samples_s": [
+          0.5138,
+          0.5985,
+          0.6686,
+          0.6119,
+          0.6799
+        ]
+      },
+      "link": {
+        "median_s": 0.0601,
+        "min_s": 0.0582,
+        "max_s": 0.0684,
+        "samples_s": [
+          0.059,
+          0.0646,
+          0.0582,
+          0.0601,
+          0.0684
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+deps-nodebug",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6234,
+        "min_s": 0.6137,
+        "max_s": 0.7361,
+        "samples_s": [
+          0.7361,
+          0.6178,
+          0.6286,
+          0.6234,
+          0.6137
+        ]
+      },
+      "link": {
+        "median_s": 0.0629,
+        "min_s": 0.06,
+        "max_s": 0.0657,
+        "samples_s": [
+          0.0657,
+          0.06,
+          0.0627,
+          0.0647,
+          0.0629
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+deps-nodebug",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6286,
+        "min_s": 0.6123,
+        "max_s": 0.6554,
+        "samples_s": [
+          0.6123,
+          0.6286,
+          0.6554,
+          0.6524,
+          0.6249
+        ]
+      },
+      "link": {
+        "median_s": 0.0631,
+        "min_s": 0.0614,
+        "max_s": 0.0642,
+        "samples_s": [
+          0.0631,
+          0.0642,
+          0.0614,
+          0.0642,
+          0.062
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+line-tables",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0661,
+        "min_s": 0.0623,
+        "max_s": 0.0711,
+        "samples_s": [
+          0.0661,
+          0.0711,
+          0.0667,
+          0.0623,
+          0.0624
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+line-tables",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.5638,
+        "min_s": 0.5581,
+        "max_s": 0.5805,
+        "samples_s": [
+          0.5581,
+          0.5805,
+          0.5642,
+          0.5626,
+          0.5638
+        ]
+      },
+      "link": {
+        "median_s": 0.0625,
+        "min_s": 0.0581,
+        "max_s": 0.064,
+        "samples_s": [
+          0.064,
+          0.063,
+          0.0625,
+          0.0581,
+          0.0591
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+line-tables",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.5978,
+        "min_s": 0.5938,
+        "max_s": 0.6001,
+        "samples_s": [
+          0.5996,
+          0.5938,
+          0.6001,
+          0.5978,
+          0.5968
+        ]
+      },
+      "link": {
+        "median_s": 0.0608,
+        "min_s": 0.0582,
+        "max_s": 0.0638,
+        "samples_s": [
+          0.0638,
+          0.0584,
+          0.0608,
+          0.0636,
+          0.0582
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+line-tables",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6585,
+        "min_s": 0.6113,
+        "max_s": 0.6672,
+        "samples_s": [
+          0.6113,
+          0.6672,
+          0.6333,
+          0.6634,
+          0.6585
+        ]
+      },
+      "link": {
+        "median_s": 0.0617,
+        "min_s": 0.0601,
+        "max_s": 0.0637,
+        "samples_s": [
+          0.0637,
+          0.0628,
+          0.0617,
+          0.0617,
+          0.0601
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nodebug",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0634,
+        "min_s": 0.0632,
+        "max_s": 0.0659,
+        "samples_s": [
+          0.0638,
+          0.0634,
+          0.0633,
+          0.0659,
+          0.0632
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nodebug",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6247,
+        "min_s": 0.5882,
+        "max_s": 0.64,
+        "samples_s": [
+          0.5882,
+          0.6147,
+          0.6297,
+          0.6247,
+          0.64
+        ]
+      },
+      "link": {
+        "median_s": 0.0611,
+        "min_s": 0.0577,
+        "max_s": 0.0644,
+        "samples_s": [
+          0.0577,
+          0.0611,
+          0.0644,
+          0.063,
+          0.0597
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nodebug",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.653,
+        "min_s": 0.6327,
+        "max_s": 0.6621,
+        "samples_s": [
+          0.6327,
+          0.6399,
+          0.6552,
+          0.6621,
+          0.653
+        ]
+      },
+      "link": {
+        "median_s": 0.0608,
+        "min_s": 0.0582,
+        "max_s": 0.0652,
+        "samples_s": [
+          0.0611,
+          0.0582,
+          0.0594,
+          0.0608,
+          0.0652
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nodebug",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6851,
+        "min_s": 0.6739,
+        "max_s": 0.6865,
+        "samples_s": [
+          0.6817,
+          0.6865,
+          0.6861,
+          0.6739,
+          0.6851
+        ]
+      },
+      "link": {
+        "median_s": 0.0607,
+        "min_s": 0.0566,
+        "max_s": 0.066,
+        "samples_s": [
+          0.066,
+          0.0626,
+          0.0592,
+          0.0566,
+          0.0607
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-16",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.067,
+        "min_s": 0.0641,
+        "max_s": 0.0723,
+        "samples_s": [
+          0.067,
+          0.0641,
+          0.0723,
+          0.0679,
+          0.0663
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-16",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.4518,
+        "min_s": 0.4145,
+        "max_s": 0.4567,
+        "samples_s": [
+          0.4524,
+          0.4567,
+          0.4518,
+          0.4402,
+          0.4145
+        ]
+      },
+      "link": {
+        "median_s": 0.0586,
+        "min_s": 0.0572,
+        "max_s": 0.0595,
+        "samples_s": [
+          0.059,
+          0.0586,
+          0.0595,
+          0.0573,
+          0.0572
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-16",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.8754,
+        "min_s": 0.8323,
+        "max_s": 0.9979,
+        "samples_s": [
+          0.8754,
+          0.8323,
+          0.8663,
+          0.9979,
+          0.8785
+        ]
+      },
+      "link": {
+        "median_s": 0.0544,
+        "min_s": 0.0526,
+        "max_s": 0.0606,
+        "samples_s": [
+          0.0544,
+          0.0562,
+          0.054,
+          0.0606,
+          0.0526
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-16",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.4704,
+        "min_s": 0.4562,
+        "max_s": 0.5095,
+        "samples_s": [
+          0.5095,
+          0.4562,
+          0.463,
+          0.4704,
+          0.4827
+        ]
+      },
+      "link": {
+        "median_s": 0.0542,
+        "min_s": 0.0513,
+        "max_s": 0.0569,
+        "samples_s": [
+          0.0538,
+          0.0513,
+          0.0569,
+          0.0564,
+          0.0542
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nightly",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0661,
+        "min_s": 0.0649,
+        "max_s": 0.0675,
+        "samples_s": [
+          0.0667,
+          0.0649,
+          0.0661,
+          0.0675,
+          0.0651
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nightly",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.621,
+        "min_s": 0.5716,
+        "max_s": 0.6332,
+        "samples_s": [
+          0.621,
+          0.6289,
+          0.5719,
+          0.5716,
+          0.6332
+        ]
+      },
+      "link": {
+        "median_s": 0.0601,
+        "min_s": 0.0571,
+        "max_s": 0.0641,
+        "samples_s": [
+          0.0618,
+          0.0571,
+          0.0601,
+          0.0598,
+          0.0641
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nightly",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6442,
+        "min_s": 0.6232,
+        "max_s": 0.7005,
+        "samples_s": [
+          0.7005,
+          0.6442,
+          0.6936,
+          0.6242,
+          0.6232
+        ]
+      },
+      "link": {
+        "median_s": 0.0608,
+        "min_s": 0.0584,
+        "max_s": 0.0662,
+        "samples_s": [
+          0.0597,
+          0.0662,
+          0.0608,
+          0.0584,
+          0.0634
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+nightly",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6992,
+        "min_s": 0.6818,
+        "max_s": 0.734,
+        "samples_s": [
+          0.6818,
+          0.693,
+          0.6992,
+          0.7061,
+          0.734
+        ]
+      },
+      "link": {
+        "median_s": 0.0619,
+        "min_s": 0.0592,
+        "max_s": 0.0657,
+        "samples_s": [
+          0.0592,
+          0.0619,
+          0.0613,
+          0.0657,
+          0.0653
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+threads-8",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.066,
+        "min_s": 0.0645,
+        "max_s": 0.0695,
+        "samples_s": [
+          0.0695,
+          0.066,
+          0.0645,
+          0.0666,
+          0.0654
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+threads-8",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6094,
+        "min_s": 0.5902,
+        "max_s": 0.6869,
+        "samples_s": [
+          0.6869,
+          0.6068,
+          0.6094,
+          0.5902,
+          0.6343
+        ]
+      },
+      "link": {
+        "median_s": 0.0624,
+        "min_s": 0.0605,
+        "max_s": 0.0651,
+        "samples_s": [
+          0.0615,
+          0.063,
+          0.0624,
+          0.0651,
+          0.0605
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+threads-8",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.654,
+        "min_s": 0.6373,
+        "max_s": 0.6793,
+        "samples_s": [
+          0.6793,
+          0.654,
+          0.6474,
+          0.6373,
+          0.6563
+        ]
+      },
+      "link": {
+        "median_s": 0.0632,
+        "min_s": 0.0599,
+        "max_s": 0.0683,
+        "samples_s": [
+          0.0632,
+          0.061,
+          0.0599,
+          0.0644,
+          0.0683
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+threads-8",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.7438,
+        "min_s": 0.7319,
+        "max_s": 0.7669,
+        "samples_s": [
+          0.7319,
+          0.748,
+          0.7434,
+          0.7438,
+          0.7669
+        ]
+      },
+      "link": {
+        "median_s": 0.0639,
+        "min_s": 0.0621,
+        "max_s": 0.0643,
+        "samples_s": [
+          0.0643,
+          0.0621,
+          0.0639,
+          0.0625,
+          0.0639
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cranelift",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0682,
+        "min_s": 0.0671,
+        "max_s": 0.0708,
+        "samples_s": [
+          0.0708,
+          0.0671,
+          0.0682,
+          0.0678,
+          0.0689
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 33,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cranelift",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.642,
+        "min_s": 0.5713,
+        "max_s": 0.6833,
+        "samples_s": [
+          0.6586,
+          0.642,
+          0.6833,
+          0.5713,
+          0.5994
+        ]
+      },
+      "link": {
+        "median_s": 0.0629,
+        "min_s": 0.0606,
+        "max_s": 0.0663,
+        "samples_s": [
+          0.0623,
+          0.0663,
+          0.0606,
+          0.0629,
+          0.0635
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cranelift",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.6422,
+        "min_s": 0.6076,
+        "max_s": 0.6784,
+        "samples_s": [
+          0.6522,
+          0.6145,
+          0.6076,
+          0.6784,
+          0.6422
+        ]
+      },
+      "link": {
+        "median_s": 0.0642,
+        "min_s": 0.0629,
+        "max_s": 0.0647,
+        "samples_s": [
+          0.0635,
+          0.0629,
+          0.0642,
+          0.0642,
+          0.0647
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cranelift",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.76,
+        "min_s": 0.7548,
+        "max_s": 0.773,
+        "samples_s": [
+          0.76,
+          0.7562,
+          0.7548,
+          0.773,
+          0.7705
+        ]
+      },
+      "link": {
+        "median_s": 0.0616,
+        "min_s": 0.0609,
+        "max_s": 0.0659,
+        "samples_s": [
+          0.0609,
+          0.0616,
+          0.0659,
+          0.065,
+          0.0615
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0992,
+        "min_s": 0.0953,
+        "max_s": 0.1163,
+        "samples_s": [
+          0.1163,
+          0.1072,
+          0.0975,
+          0.0992,
+          0.0953
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.9832,
+        "min_s": 0.9592,
+        "max_s": 1.0177,
+        "samples_s": [
+          0.9978,
+          1.0177,
+          0.9636,
+          0.9592,
+          0.9832
+        ]
+      },
+      "link": {
+        "median_s": 0.0714,
+        "min_s": 0.0687,
+        "max_s": 0.0753,
+        "samples_s": [
+          0.0706,
+          0.0753,
+          0.074,
+          0.0687,
+          0.0714
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.0627,
+        "min_s": 0.999,
+        "max_s": 3.5642,
+        "samples_s": [
+          3.5642,
+          0.999,
+          1.0627,
+          1.0263,
+          1.0659
+        ]
+      },
+      "link": {
+        "median_s": 0.0709,
+        "min_s": 0.0698,
+        "max_s": 0.0716,
+        "samples_s": [
+          0.0712,
+          0.0709,
+          0.0716,
+          0.0705,
+          0.0698
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.0638,
+        "min_s": 1.0271,
+        "max_s": 1.1045,
+        "samples_s": [
+          1.1045,
+          1.0414,
+          1.0638,
+          1.0834,
+          1.0271
+        ]
+      },
+      "link": {
+        "median_s": 0.0714,
+        "min_s": 0.0691,
+        "max_s": 0.0739,
+        "samples_s": [
+          0.0739,
+          0.0691,
+          0.0722,
+          0.0714,
+          0.0698
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+deps-nodebug",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.103,
+        "min_s": 0.1027,
+        "max_s": 0.1079,
+        "samples_s": [
+          0.1079,
+          0.1041,
+          0.1027,
+          0.103,
+          0.1027
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+deps-nodebug",
+      "case": "comment",
+      "wall": {
+        "median_s": 1.0448,
+        "min_s": 1.0371,
+        "max_s": 1.0849,
+        "samples_s": [
+          1.0371,
+          1.0849,
+          1.0377,
+          1.0776,
+          1.0448
+        ]
+      },
+      "link": {
+        "median_s": 0.0691,
+        "min_s": 0.0678,
+        "max_s": 0.0706,
+        "samples_s": [
+          0.0683,
+          0.0703,
+          0.0691,
+          0.0706,
+          0.0678
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+deps-nodebug",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.079,
+        "min_s": 1.0346,
+        "max_s": 1.1081,
+        "samples_s": [
+          1.079,
+          1.0997,
+          1.0624,
+          1.0346,
+          1.1081
+        ]
+      },
+      "link": {
+        "median_s": 0.0692,
+        "min_s": 0.0667,
+        "max_s": 0.0711,
+        "samples_s": [
+          0.0667,
+          0.0692,
+          0.0701,
+          0.0683,
+          0.0711
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+deps-nodebug",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.0917,
+        "min_s": 1.0805,
+        "max_s": 1.1163,
+        "samples_s": [
+          1.1163,
+          1.0901,
+          1.0805,
+          1.0917,
+          1.0998
+        ]
+      },
+      "link": {
+        "median_s": 0.0707,
+        "min_s": 0.0674,
+        "max_s": 0.075,
+        "samples_s": [
+          0.0712,
+          0.0693,
+          0.0674,
+          0.0707,
+          0.075
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+line-tables",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.1046,
+        "min_s": 0.1027,
+        "max_s": 0.1412,
+        "samples_s": [
+          0.1104,
+          0.1039,
+          0.1027,
+          0.1046,
+          0.1412
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+line-tables",
+      "case": "comment",
+      "wall": {
+        "median_s": 1.059,
+        "min_s": 1.0225,
+        "max_s": 1.0743,
+        "samples_s": [
+          1.0225,
+          1.0566,
+          1.059,
+          1.0743,
+          1.0645
+        ]
+      },
+      "link": {
+        "median_s": 0.0681,
+        "min_s": 0.0667,
+        "max_s": 0.0695,
+        "samples_s": [
+          0.0681,
+          0.0667,
+          0.0678,
+          0.0682,
+          0.0695
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+line-tables",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.1127,
+        "min_s": 1.0663,
+        "max_s": 1.2044,
+        "samples_s": [
+          1.1042,
+          1.1127,
+          1.0663,
+          1.2044,
+          1.1625
+        ]
+      },
+      "link": {
+        "median_s": 0.0718,
+        "min_s": 0.0678,
+        "max_s": 0.0754,
+        "samples_s": [
+          0.0718,
+          0.0692,
+          0.0678,
+          0.0754,
+          0.0751
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+line-tables",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.1449,
+        "min_s": 1.0843,
+        "max_s": 1.1491,
+        "samples_s": [
+          1.1449,
+          1.1082,
+          1.1491,
+          1.0843,
+          1.1476
+        ]
+      },
+      "link": {
+        "median_s": 0.068,
+        "min_s": 0.068,
+        "max_s": 0.0729,
+        "samples_s": [
+          0.0692,
+          0.068,
+          0.0729,
+          0.068,
+          0.068
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nodebug",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.11,
+        "min_s": 0.1037,
+        "max_s": 0.117,
+        "samples_s": [
+          0.1137,
+          0.11,
+          0.1045,
+          0.1037,
+          0.117
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nodebug",
+      "case": "comment",
+      "wall": {
+        "median_s": 1.2269,
+        "min_s": 1.1712,
+        "max_s": 1.3838,
+        "samples_s": [
+          1.2055,
+          1.3838,
+          1.1712,
+          1.2857,
+          1.2269
+        ]
+      },
+      "link": {
+        "median_s": 0.0766,
+        "min_s": 0.072,
+        "max_s": 0.0858,
+        "samples_s": [
+          0.0734,
+          0.0858,
+          0.072,
+          0.0857,
+          0.0766
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nodebug",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.0644,
+        "min_s": 1.0026,
+        "max_s": 1.2108,
+        "samples_s": [
+          1.2108,
+          1.0644,
+          1.0839,
+          1.0455,
+          1.0026
+        ]
+      },
+      "link": {
+        "median_s": 0.0719,
+        "min_s": 0.0704,
+        "max_s": 0.0874,
+        "samples_s": [
+          0.0704,
+          0.0719,
+          0.0781,
+          0.0709,
+          0.0874
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nodebug",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.9819,
+        "min_s": 0.9756,
+        "max_s": 1.3459,
+        "samples_s": [
+          0.9884,
+          0.9756,
+          1.3459,
+          0.9819,
+          0.9798
+        ]
+      },
+      "link": {
+        "median_s": 0.0735,
+        "min_s": 0.0705,
+        "max_s": 0.0763,
+        "samples_s": [
+          0.0763,
+          0.0735,
+          0.0737,
+          0.0711,
+          0.0705
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+cgu-16",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0946,
+        "min_s": 0.0942,
+        "max_s": 0.1024,
+        "samples_s": [
+          0.1024,
+          0.0944,
+          0.0954,
+          0.0942,
+          0.0946
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+cgu-16",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.7194,
+        "min_s": 0.6908,
+        "max_s": 0.8414,
+        "samples_s": [
+          0.8414,
+          0.6908,
+          0.7601,
+          0.7007,
+          0.7194
+        ]
+      },
+      "link": {
+        "median_s": 0.0676,
+        "min_s": 0.0652,
+        "max_s": 0.0766,
+        "samples_s": [
+          0.0652,
+          0.0676,
+          0.0766,
+          0.069,
+          0.0666
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+cgu-16",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.7864,
+        "min_s": 0.7581,
+        "max_s": 0.8121,
+        "samples_s": [
+          0.8043,
+          0.7581,
+          0.7758,
+          0.7864,
+          0.8121
+        ]
+      },
+      "link": {
+        "median_s": 0.066,
+        "min_s": 0.0651,
+        "max_s": 0.0743,
+        "samples_s": [
+          0.0696,
+          0.0651,
+          0.066,
+          0.0654,
+          0.0743
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+cgu-16",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.8077,
+        "min_s": 0.7789,
+        "max_s": 0.8632,
+        "samples_s": [
+          0.8632,
+          0.82,
+          0.7789,
+          0.8077,
+          0.7845
+        ]
+      },
+      "link": {
+        "median_s": 0.0662,
+        "min_s": 0.0653,
+        "max_s": 0.069,
+        "samples_s": [
+          0.0662,
+          0.069,
+          0.0669,
+          0.0653,
+          0.066
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nightly",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0995,
+        "min_s": 0.0982,
+        "max_s": 0.1077,
+        "samples_s": [
+          0.1077,
+          0.1041,
+          0.0995,
+          0.0982,
+          0.099
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nightly",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.9697,
+        "min_s": 0.9442,
+        "max_s": 1.0672,
+        "samples_s": [
+          0.9828,
+          0.9442,
+          0.9697,
+          0.9601,
+          1.0672
+        ]
+      },
+      "link": {
+        "median_s": 0.0685,
+        "min_s": 0.0675,
+        "max_s": 0.0757,
+        "samples_s": [
+          0.0705,
+          0.0675,
+          0.0757,
+          0.0675,
+          0.0685
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nightly",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.0295,
+        "min_s": 0.9777,
+        "max_s": 1.1705,
+        "samples_s": [
+          0.9944,
+          0.9777,
+          1.0295,
+          1.1705,
+          1.1196
+        ]
+      },
+      "link": {
+        "median_s": 0.0703,
+        "min_s": 0.0688,
+        "max_s": 0.0726,
+        "samples_s": [
+          0.0702,
+          0.0703,
+          0.0688,
+          0.0726,
+          0.0705
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+nightly",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.1588,
+        "min_s": 1.0766,
+        "max_s": 1.2853,
+        "samples_s": [
+          1.0766,
+          1.1778,
+          1.1571,
+          1.1588,
+          1.2853
+        ]
+      },
+      "link": {
+        "median_s": 0.072,
+        "min_s": 0.0688,
+        "max_s": 0.0977,
+        "samples_s": [
+          0.0688,
+          0.0822,
+          0.069,
+          0.072,
+          0.0977
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+threads-8",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.1133,
+        "min_s": 0.1001,
+        "max_s": 3.1563,
+        "samples_s": [
+          3.1563,
+          0.1042,
+          0.1001,
+          0.1233,
+          0.1133
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 109,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+threads-8",
+      "case": "comment",
+      "wall": {
+        "median_s": 1.0611,
+        "min_s": 1.0457,
+        "max_s": 1.0885,
+        "samples_s": [
+          1.0611,
+          1.0457,
+          1.0545,
+          1.0756,
+          1.0885
+        ]
+      },
+      "link": {
+        "median_s": 0.0758,
+        "min_s": 0.0703,
+        "max_s": 0.0782,
+        "samples_s": [
+          0.0776,
+          0.0757,
+          0.0758,
+          0.0703,
+          0.0782
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+threads-8",
+      "case": "private_body",
+      "wall": {
+        "median_s": 1.0643,
+        "min_s": 1.0185,
+        "max_s": 1.1235,
+        "samples_s": [
+          1.0185,
+          1.0298,
+          1.0679,
+          1.0643,
+          1.1235
+        ]
+      },
+      "link": {
+        "median_s": 0.0731,
+        "min_s": 0.0705,
+        "max_s": 0.0765,
+        "samples_s": [
+          0.0735,
+          0.0705,
+          0.0765,
+          0.0713,
+          0.0731
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "role": "binary with build scripts and C dependencies",
+      "mode": "baseline+threads-8",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 1.1608,
+        "min_s": 1.08,
+        "max_s": 1.2282,
+        "samples_s": [
+          1.08,
+          1.2282,
+          1.2259,
+          1.1608,
+          1.1523
+        ]
+      },
+      "link": {
+        "median_s": 0.071,
+        "min_s": 0.0697,
+        "max_s": 0.0724,
+        "samples_s": [
+          0.0697,
+          0.0719,
+          0.071,
+          0.0724,
+          0.0701
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 108,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0631,
+        "min_s": 0.0619,
+        "max_s": 0.0683,
+        "samples_s": [
+          0.0683,
+          0.0631,
+          0.0638,
+          0.0628,
+          0.0619
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1665,
+        "min_s": 0.1621,
+        "max_s": 0.1707,
+        "samples_s": [
+          0.1707,
+          0.1665,
+          0.1621,
+          0.1691,
+          0.1643
+        ]
+      },
+      "link": {
+        "median_s": 0.0424,
+        "min_s": 0.0419,
+        "max_s": 0.0447,
+        "samples_s": [
+          0.0447,
+          0.0426,
+          0.0424,
+          0.0419,
+          0.0419
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.34,
+        "min_s": 0.3277,
+        "max_s": 0.346,
+        "samples_s": [
+          0.3277,
+          0.3337,
+          0.34,
+          0.346,
+          0.3446
+        ]
+      },
+      "link": {
+        "median_s": 0.0411,
+        "min_s": 0.0408,
+        "max_s": 0.0424,
+        "samples_s": [
+          0.0415,
+          0.0411,
+          0.0411,
+          0.0424,
+          0.0408
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.5891,
+        "min_s": 0.5781,
+        "max_s": 0.602,
+        "samples_s": [
+          0.5784,
+          0.597,
+          0.5891,
+          0.5781,
+          0.602
+        ]
+      },
+      "link": {
+        "median_s": 0.0432,
+        "min_s": 0.0417,
+        "max_s": 0.0443,
+        "samples_s": [
+          0.0417,
+          0.0443,
+          0.0421,
+          0.0432,
+          0.044
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+deps-nodebug",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0642,
+        "min_s": 0.0615,
+        "max_s": 0.0703,
+        "samples_s": [
+          0.0615,
+          0.0624,
+          0.0703,
+          0.0642,
+          0.066
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+deps-nodebug",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.165,
+        "min_s": 0.1605,
+        "max_s": 0.1811,
+        "samples_s": [
+          0.1605,
+          0.1619,
+          0.1653,
+          0.165,
+          0.1811
+        ]
+      },
+      "link": {
+        "median_s": 0.0408,
+        "min_s": 0.0401,
+        "max_s": 0.0469,
+        "samples_s": [
+          0.0408,
+          0.0401,
+          0.0412,
+          0.0406,
+          0.0469
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+deps-nodebug",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.3699,
+        "min_s": 0.3464,
+        "max_s": 0.3875,
+        "samples_s": [
+          0.3464,
+          0.3875,
+          0.3699,
+          0.3595,
+          0.3706
+        ]
+      },
+      "link": {
+        "median_s": 0.0463,
+        "min_s": 0.0422,
+        "max_s": 0.0479,
+        "samples_s": [
+          0.0452,
+          0.0479,
+          0.0463,
+          0.0464,
+          0.0422
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+deps-nodebug",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6077,
+        "min_s": 0.5867,
+        "max_s": 0.6374,
+        "samples_s": [
+          0.5867,
+          0.6077,
+          0.6066,
+          0.6267,
+          0.6374
+        ]
+      },
+      "link": {
+        "median_s": 0.0426,
+        "min_s": 0.0411,
+        "max_s": 0.0437,
+        "samples_s": [
+          0.0437,
+          0.042,
+          0.0411,
+          0.0426,
+          0.0437
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+line-tables",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0649,
+        "min_s": 0.0619,
+        "max_s": 0.0663,
+        "samples_s": [
+          0.0619,
+          0.0621,
+          0.0654,
+          0.0663,
+          0.0649
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+line-tables",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1722,
+        "min_s": 0.1684,
+        "max_s": 0.205,
+        "samples_s": [
+          0.1805,
+          0.1684,
+          0.17,
+          0.1722,
+          0.205
+        ]
+      },
+      "link": {
+        "median_s": 0.0424,
+        "min_s": 0.0399,
+        "max_s": 0.0442,
+        "samples_s": [
+          0.0442,
+          0.0413,
+          0.0399,
+          0.0425,
+          0.0424
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+line-tables",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.3578,
+        "min_s": 0.347,
+        "max_s": 0.3705,
+        "samples_s": [
+          0.347,
+          0.3705,
+          0.365,
+          0.3578,
+          0.3577
+        ]
+      },
+      "link": {
+        "median_s": 0.0419,
+        "min_s": 0.0416,
+        "max_s": 0.0426,
+        "samples_s": [
+          0.0419,
+          0.0416,
+          0.0416,
+          0.0425,
+          0.0426
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+line-tables",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6483,
+        "min_s": 0.605,
+        "max_s": 0.6684,
+        "samples_s": [
+          0.605,
+          0.6483,
+          0.6302,
+          0.6585,
+          0.6684
+        ]
+      },
+      "link": {
+        "median_s": 0.0421,
+        "min_s": 0.0407,
+        "max_s": 0.0431,
+        "samples_s": [
+          0.0411,
+          0.0407,
+          0.0429,
+          0.0431,
+          0.0421
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nodebug",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0725,
+        "min_s": 0.067,
+        "max_s": 0.0776,
+        "samples_s": [
+          0.0725,
+          0.0743,
+          0.0723,
+          0.0776,
+          0.067
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nodebug",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1974,
+        "min_s": 0.1918,
+        "max_s": 0.2098,
+        "samples_s": [
+          0.204,
+          0.1954,
+          0.1918,
+          0.2098,
+          0.1974
+        ]
+      },
+      "link": {
+        "median_s": 0.0409,
+        "min_s": 0.0402,
+        "max_s": 0.0446,
+        "samples_s": [
+          0.0417,
+          0.0402,
+          0.0407,
+          0.0446,
+          0.0409
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nodebug",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.3887,
+        "min_s": 0.373,
+        "max_s": 0.4213,
+        "samples_s": [
+          0.373,
+          0.3817,
+          0.3898,
+          0.3887,
+          0.4213
+        ]
+      },
+      "link": {
+        "median_s": 0.0419,
+        "min_s": 0.0403,
+        "max_s": 0.0477,
+        "samples_s": [
+          0.0406,
+          0.0419,
+          0.0403,
+          0.0446,
+          0.0477
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nodebug",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6578,
+        "min_s": 0.642,
+        "max_s": 0.674,
+        "samples_s": [
+          0.6503,
+          0.6578,
+          0.674,
+          0.6615,
+          0.642
+        ]
+      },
+      "link": {
+        "median_s": 0.0409,
+        "min_s": 0.0403,
+        "max_s": 0.054,
+        "samples_s": [
+          0.0436,
+          0.0403,
+          0.054,
+          0.0406,
+          0.0409
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cgu-16",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0621,
+        "min_s": 0.0605,
+        "max_s": 0.0629,
+        "samples_s": [
+          0.0629,
+          0.0605,
+          0.0621,
+          0.0613,
+          0.0622
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cgu-16",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1618,
+        "min_s": 0.1578,
+        "max_s": 0.168,
+        "samples_s": [
+          0.1578,
+          0.1616,
+          0.168,
+          0.1639,
+          0.1618
+        ]
+      },
+      "link": {
+        "median_s": 0.0407,
+        "min_s": 0.0402,
+        "max_s": 0.0414,
+        "samples_s": [
+          0.0414,
+          0.0402,
+          0.0405,
+          0.0407,
+          0.0407
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cgu-16",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.3985,
+        "min_s": 0.3704,
+        "max_s": 0.4099,
+        "samples_s": [
+          0.3704,
+          0.3852,
+          0.4081,
+          0.3985,
+          0.4099
+        ]
+      },
+      "link": {
+        "median_s": 0.0415,
+        "min_s": 0.0408,
+        "max_s": 0.0442,
+        "samples_s": [
+          0.0409,
+          0.0415,
+          0.0442,
+          0.0408,
+          0.043
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cgu-16",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.4448,
+        "min_s": 0.4393,
+        "max_s": 0.4711,
+        "samples_s": [
+          0.4711,
+          0.4393,
+          0.4448,
+          0.4503,
+          0.44
+        ]
+      },
+      "link": {
+        "median_s": 0.0403,
+        "min_s": 0.0399,
+        "max_s": 0.0414,
+        "samples_s": [
+          0.0414,
+          0.0405,
+          0.0403,
+          0.0399,
+          0.0401
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nightly",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0651,
+        "min_s": 0.0639,
+        "max_s": 0.0697,
+        "samples_s": [
+          0.0697,
+          0.0651,
+          0.0672,
+          0.0639,
+          0.064
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nightly",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1799,
+        "min_s": 0.1786,
+        "max_s": 0.1881,
+        "samples_s": [
+          0.1786,
+          0.1799,
+          0.1832,
+          0.1786,
+          0.1881
+        ]
+      },
+      "link": {
+        "median_s": 0.0416,
+        "min_s": 0.0406,
+        "max_s": 0.046,
+        "samples_s": [
+          0.0417,
+          0.0406,
+          0.046,
+          0.0411,
+          0.0416
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nightly",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.3965,
+        "min_s": 0.362,
+        "max_s": 0.4051,
+        "samples_s": [
+          0.362,
+          0.3775,
+          0.3965,
+          0.3984,
+          0.4051
+        ]
+      },
+      "link": {
+        "median_s": 0.0418,
+        "min_s": 0.0413,
+        "max_s": 0.0451,
+        "samples_s": [
+          0.0418,
+          0.044,
+          0.0413,
+          0.0416,
+          0.0451
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+nightly",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.7208,
+        "min_s": 0.698,
+        "max_s": 0.736,
+        "samples_s": [
+          0.698,
+          0.7266,
+          0.7207,
+          0.7208,
+          0.736
+        ]
+      },
+      "link": {
+        "median_s": 0.042,
+        "min_s": 0.0417,
+        "max_s": 0.0432,
+        "samples_s": [
+          0.0425,
+          0.0417,
+          0.0432,
+          0.0419,
+          0.042
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+threads-8",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0667,
+        "min_s": 0.0639,
+        "max_s": 0.0719,
+        "samples_s": [
+          0.0667,
+          0.0639,
+          0.0658,
+          0.0719,
+          0.0683
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+threads-8",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.1956,
+        "min_s": 0.1924,
+        "max_s": 0.2038,
+        "samples_s": [
+          0.2038,
+          0.1928,
+          0.1924,
+          0.2023,
+          0.1956
+        ]
+      },
+      "link": {
+        "median_s": 0.0426,
+        "min_s": 0.0423,
+        "max_s": 0.0471,
+        "samples_s": [
+          0.0425,
+          0.0426,
+          0.0423,
+          0.0471,
+          0.0435
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+threads-8",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.4163,
+        "min_s": 0.4008,
+        "max_s": 0.4281,
+        "samples_s": [
+          0.4163,
+          0.406,
+          0.4281,
+          0.4008,
+          0.4174
+        ]
+      },
+      "link": {
+        "median_s": 0.0431,
+        "min_s": 0.0409,
+        "max_s": 0.054,
+        "samples_s": [
+          0.0431,
+          0.0447,
+          0.054,
+          0.0409,
+          0.0423
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+threads-8",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.7969,
+        "min_s": 0.755,
+        "max_s": 0.8254,
+        "samples_s": [
+          0.7624,
+          0.755,
+          0.7969,
+          0.8121,
+          0.8254
+        ]
+      },
+      "link": {
+        "median_s": 0.0429,
+        "min_s": 0.0422,
+        "max_s": 0.0485,
+        "samples_s": [
+          0.0439,
+          0.0425,
+          0.0422,
+          0.0429,
+          0.0485
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cranelift",
+      "case": "noop",
+      "wall": {
+        "median_s": 0.0662,
+        "min_s": 0.0627,
+        "max_s": 0.0676,
+        "samples_s": [
+          0.0662,
+          0.0627,
+          0.0664,
+          0.0676,
+          0.0641
+        ]
+      },
+      "link": {
+        "median_s": 0,
+        "min_s": 0,
+        "max_s": 0,
+        "samples_s": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "links": 0,
+      "compiled": 0,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cranelift",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.193,
+        "min_s": 0.1878,
+        "max_s": 0.2123,
+        "samples_s": [
+          0.1914,
+          0.193,
+          0.1878,
+          0.2024,
+          0.2123
+        ]
+      },
+      "link": {
+        "median_s": 0.0432,
+        "min_s": 0.0405,
+        "max_s": 0.0486,
+        "samples_s": [
+          0.0405,
+          0.0436,
+          0.041,
+          0.0432,
+          0.0486
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cranelift",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.4014,
+        "min_s": 0.399,
+        "max_s": 0.4037,
+        "samples_s": [
+          0.4032,
+          0.4005,
+          0.4037,
+          0.4014,
+          0.399
+        ]
+      },
+      "link": {
+        "median_s": 0.0418,
+        "min_s": 0.0399,
+        "max_s": 0.049,
+        "samples_s": [
+          0.0418,
+          0.0399,
+          0.049,
+          0.0409,
+          0.0427
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 31,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "c79a959",
+      "role": "this repository, as a small workspace",
+      "mode": "baseline+cranelift",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.8078,
+        "min_s": 0.7493,
+        "max_s": 0.8406,
+        "samples_s": [
+          0.75,
+          0.7493,
+          0.8406,
+          0.8078,
+          0.8278
+        ]
+      },
+      "link": {
+        "median_s": 0.0431,
+        "min_s": 0.0397,
+        "max_s": 0.0443,
+        "samples_s": [
+          0.0397,
+          0.0431,
+          0.0443,
+          0.0417,
+          0.0443
+        ]
+      },
+      "links": 1,
+      "compiled": 5,
+      "fresh": 27,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  ],
+  "variants": {
+    "deps-nodebug": {
+      "config": [
+        "profile.dev.package.\"*\".debug=false"
+      ]
+    },
+    "line-tables": {
+      "config": [
+        "profile.dev.debug=\"line-tables-only\"",
+        "profile.dev.package.\"*\".debug=false"
+      ]
+    },
+    "nodebug": {
+      "config": [
+        "profile.dev.debug=false",
+        "profile.dev.package.\"*\".debug=false"
+      ]
+    },
+    "cgu-16": {
+      "config": [
+        "profile.dev.codegen-units=16"
+      ]
+    },
+    "nightly": {
+      "toolchain": "nightly"
+    },
+    "threads-8": {
+      "toolchain": "nightly",
+      "rustflags": [
+        "-Zthreads=8"
+      ]
+    },
+    "cranelift": {
+      "toolchain": "nightly",
+      "rustflags": [
+        "-Zcodegen-backend=cranelift"
+      ]
+    }
+  },
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 5
+}
