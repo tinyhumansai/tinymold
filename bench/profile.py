@@ -599,12 +599,13 @@ def profile_build(args: argparse.Namespace) -> None:
         tinymold = bench.tinymold_binary()
         env.update(RUSTC_WRAPPER=str(tinymold),
                    TINYMOLD_STORE=str(bench.WORK / "tinymold-store" / f"profile-{project['name']}"))
-    # The primed build and the profiled one share every flag but --timings,
-    # so cargo's fingerprints carry over and an edit case rebuilds only what
-    # the edit touched.
+    # The primed build and the profiled one share every flag, --timings
+    # included (with section timings it changes rustc's arguments), so
+    # cargo's fingerprints and tinymold's keys carry over and an edit case
+    # rebuilds only what the edit touched.
     unstable = ["-Zsection-timings"] if toolchain else []
     build = ["cargo", *toolchain, *unstable, *bench.STOCK_CONFIG, *config, "build", "--locked",
-             *bench.target_args(project)]
+             "--timings", *bench.target_args(project)]
     if args.self_profile:
         profdir = out / "self-profile"
         profdir.mkdir()
@@ -636,7 +637,7 @@ def profile_build(args: argparse.Namespace) -> None:
     if args.mode == "tinymold":
         env["TINYMOLD_TRACE"] = str(wrapper_log)
     shutil.rmtree(src / "target" / "cargo-timings", ignore_errors=True)
-    command = [*build, "--timings"]
+    command = build
     try:
         t0 = time.time()
         done = subprocess.run(command, cwd=src, env=env, capture_output=True, text=True)
