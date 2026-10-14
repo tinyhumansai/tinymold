@@ -26,4 +26,5 @@ the contract; production code still belongs under `src/`.
 |---|---|---|
 | [`architecture.md`](architecture.md) | Draft | Target architecture: components, data flow, two-level cache, storage tiers, correctness, platform notes |
 | [`cache-key.md`](cache-key.md) | Draft | The rustc ActionKey and ActionResult schema, two-phase lookup, and what breaks reuse |
+| [`rustc-wrapper.md`](rustc-wrapper.md) | Accepted | `RUSTC_WRAPPER=tinymold`: the unit cache's key, lookup, hits, misses and invariants |
 | [`freshness.md`](freshness.md) | Implemented | `tinymold fresh` and `tinymold snapshot`: undoing mtime-only changes and warm `target/` snapshots for worktrees and branch switches |

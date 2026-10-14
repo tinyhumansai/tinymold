@@ -24,6 +24,8 @@ Cargo.toml              # virtual workspace: members, [workspace.package],
 crates/
 ├── tinymold-hash/      # BLAKE3-256 `Digest`, file hashing, field hasher
 ├── tinymold-cas/       # local content-addressed store + materialization
+├── tinymold-key/       # rustc argument parsing, path roots, dep-info, keys
+├── tinymold-wrap/      # the RUSTC_WRAPPER: lookup, restore, run and store
 └── tinymold/           # the `tinymold` binary and its library half
     ├── src/
     │   ├── lib.rs      # crate docs + the entire public surface
@@ -45,15 +47,20 @@ docs/
 
 ### Crate boundaries
 
-Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ← `tinymold`.
-Planned crates (`tinymold-key`, `tinymold-wrap`, `tinymold-server`,
-`tinymold-remote`, `tinymold-link`, `tinymold-bench`) slot into the same chain
-as described in the architecture spec.
+Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ←
+`tinymold-wrap` ← `tinymold`, with `tinymold-key` (pure key computation,
+depending only on `tinymold-hash`) used by `tinymold-wrap`. Planned crates
+(`tinymold-server`, `tinymold-remote`, `tinymold-link`) slot into the same
+chain as described in the architecture spec.
 
 - `tinymold-hash` answers "what is the name of these bytes". No storage, no
   cache policy.
 - `tinymold-cas` answers "bytes in, bytes out, by name". No cache keys, no
   eviction, no network. Objects are immutable once committed.
+- `tinymold-key` answers "which inputs decide this compile's output". Pure
+  functions over arguments, paths and digests; no I/O, no processes.
+- `tinymold-wrap` answers "serve this rustc call": hashing files, running
+  rustc, and moving outputs in and out of the store.
 - `tinymold` holds the command line and whatever composes the layers.
 
 Put new code in the lowest crate that can hold it without pulling in anything
