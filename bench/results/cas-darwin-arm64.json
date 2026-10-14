@@ -1,0 +1,76 @@
+{
+  "benchmark": "cas",
+  "artifact_mb": 512,
+  "results": [
+    {
+      "method": "python byte copy (baseline)",
+      "restore": {
+        "median_s": 0.2234,
+        "min_s": 0.2133,
+        "max_s": 0.2468,
+        "samples_s": [
+          0.2281,
+          0.2234,
+          0.2171,
+          0.2468,
+          0.2133
+        ]
+      }
+    },
+    {
+      "method": "tinymold cas get --strategy reflink",
+      "restore": {
+        "median_s": 0.0035,
+        "min_s": 0.0032,
+        "max_s": 0.0062,
+        "samples_s": [
+          0.0062,
+          0.0039,
+          0.0035,
+          0.0033,
+          0.0032
+        ]
+      }
+    },
+    {
+      "method": "tinymold cas get --strategy hardlink",
+      "restore": {
+        "median_s": 0.0029,
+        "min_s": 0.0027,
+        "max_s": 0.0034,
+        "samples_s": [
+          0.0029,
+          0.003,
+          0.0028,
+          0.0027,
+          0.0034
+        ]
+      }
+    },
+    {
+      "method": "tinymold cas get --strategy copy",
+      "restore": {
+        "median_s": 0.2885,
+        "min_s": 0.2794,
+        "max_s": 0.2914,
+        "samples_s": [
+          0.2843,
+          0.2914,
+          0.2794,
+          0.289,
+          0.2885
+        ]
+      }
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "python": "3.12.0"
+  },
+  "date": "2026-10-14",
+  "runs": 5
+}
