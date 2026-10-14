@@ -301,6 +301,31 @@ fn old_pre_keys_caches_and_temporaries_go_and_corrupt_actions_are_dropped() {
 }
 
 #[test]
+fn old_lock_files_go_unless_a_wrapper_holds_them() {
+    let fixture = Fixture::new();
+    let old = fixture.now - 2 * DAY;
+    let lock = |name: &[u8]| {
+        fixture
+            .root
+            .join("locks")
+            .join(Digest::of_bytes(name).to_hex())
+    };
+    let (stale, held, young) = (lock(b"stale"), lock(b"held"), lock(b"young"));
+    write(&stale, "", old);
+    write(&held, "", old);
+    write(&young, "", fixture.now - Duration::from_secs(60));
+    let holder = fs::File::open(&held).unwrap();
+    holder.lock().unwrap();
+
+    let report = collect(&fixture.root, &fixture.policy()).unwrap();
+
+    assert!(!stale.exists());
+    assert!(held.exists(), "a held lock belongs to a compile in progress");
+    assert!(young.exists());
+    assert_eq!(report.caches_removed, 1);
+}
+
+#[test]
 fn without_limits_only_garbage_goes() {
     let fixture = Fixture::new();
     let output = fixture.object(b"rlib", 300 * DAY);
