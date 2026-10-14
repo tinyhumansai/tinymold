@@ -93,7 +93,12 @@ pub fn action_info(path: &Path) -> Result<ActionInfo> {
     let unit = action
         .outputs
         .iter()
-        .find(|output| output.text && output.name.ends_with(".d"))
+        .find(|output| {
+            output.text
+                && Path::new(&output.name)
+                    .extension()
+                    .is_some_and(|ext| ext == "d")
+        })
         .map(|output| output.name.clone());
     Ok(ActionInfo {
         references: action.references(),
