@@ -59,9 +59,15 @@ fn the_file_walk_alone_preserves_contents_and_mtimes() {
     let destination = dir.path().join("walked");
 
     let mut counts = (0, 0);
-    walk(&source, &destination, &mut counts).unwrap();
+    walk(&source, &destination, true, &mut counts).unwrap();
     assert_eq!(counts.0 + counts.1, 2);
     assert_cloned(&source, &destination, old);
+
+    let copied = dir.path().join("copied");
+    let mut counts = (0, 0);
+    walk(&source, &copied, false, &mut counts).unwrap();
+    assert_eq!(counts, (0, 2));
+    assert_cloned(&source, &copied, old);
 }
 
 #[test]
@@ -95,8 +101,26 @@ fn a_walk_into_a_missing_parent_reports_the_path() {
     fs::create_dir(&source).unwrap();
     let destination = dir.path().join("no/such/parent");
 
-    let error = walk(&source, &destination, &mut (0, 0)).unwrap_err();
+    let error = walk(&source, &destination, true, &mut (0, 0)).unwrap_err();
     assert!(matches!(error, Error::Io { action: "create", path, .. } if path == destination));
+}
+
+#[test]
+fn a_walk_of_a_missing_source_reports_the_source() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("gone");
+    let error = walk(&source, &dir.path().join("out"), true, &mut (0, 0)).unwrap_err();
+    assert!(matches!(error, Error::Io { action: "read", path, .. } if path == source));
+}
+
+#[test]
+fn a_whole_tree_clone_that_cannot_happen_falls_back_cleanly() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("target");
+    fs::create_dir(&source).unwrap();
+    let destination = dir.path().join("no/such/parent/clone");
+    assert!(!clone_whole(&source, &destination));
+    assert!(!destination.exists());
 }
 
 #[cfg(unix)]

@@ -67,7 +67,7 @@ pub fn clone_tree(source: &Path, destination: &Path) -> Result<TreeClone> {
         return Ok(TreeClone::Whole);
     }
     let mut counts = (0, 0);
-    walk(source, destination, &mut counts)?;
+    walk(source, destination, true, &mut counts)?;
     Ok(TreeClone::Files {
         reflinked: counts.0,
         copied: counts.1,
@@ -92,7 +92,9 @@ fn clone_whole(_source: &Path, _destination: &Path) -> bool {
     false
 }
 
-fn walk(source: &Path, destination: &Path, counts: &mut (u64, u64)) -> Result<()> {
+/// Places every entry of `source` under `destination`, counting files placed
+/// by reflink and by copy. `reflink: false` goes straight to copying.
+fn walk(source: &Path, destination: &Path, reflink: bool, counts: &mut (u64, u64)) -> Result<()> {
     fs::create_dir(destination).map_err(io_error("create", destination))?;
     let entries = fs::read_dir(source).map_err(io_error("read", source))?;
     for entry in entries {
@@ -101,11 +103,11 @@ fn walk(source: &Path, destination: &Path, counts: &mut (u64, u64)) -> Result<()
         let to = destination.join(entry.file_name());
         let kind = entry.file_type().map_err(io_error("read", &from))?;
         if kind.is_dir() {
-            walk(&from, &to, counts)?;
+            walk(&from, &to, reflink, counts)?;
         } else if kind.is_symlink() {
             copy_symlink(&from, &to)?;
         } else {
-            if reflink_copy::reflink(&from, &to).is_ok() {
+            if reflink && reflink_copy::reflink(&from, &to).is_ok() {
                 counts.0 += 1;
             } else {
                 fs::copy(&from, &to).map_err(io_error("copy", &to))?;
