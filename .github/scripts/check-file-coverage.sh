@@ -8,6 +8,13 @@ workspace_root="$(pwd -P)/"
 # whole workspace. Vendored submodules and `worktrees/` sit outside it and are
 # excluded by the same test.
 source_root="${workspace_root}crates/"
+# The linker forked from mold (docs/adr/0009-fork-mold-into-a-stateful-linker.md)
+# is tested by mold's shell suite, which drives real compilers and linkers and
+# runs in its own CI job, not by unit tests; its sources are kept as close to
+# upstream as possible, so they are held to that suite rather than to this
+# gate. New tinymold code for the linker lives in crates that are not listed
+# here and must meet the gate like any other.
+forked='^crates/tinymold-link(-common|-elf|-elf-x86_64|-elf-arm64|-macho|-macho-arm64|-macho-x86_64|-tests)?/'
 
 cargo llvm-cov \
   --locked \
@@ -17,10 +24,12 @@ cargo llvm-cov \
   --json \
   --output-path "$report"
 
-covered_files="$(jq --arg source_root "$source_root" '
+covered_files="$(jq --arg workspace_root "$workspace_root" --arg source_root "$source_root" --arg forked "$forked" '
   [
     .data[].files[]
     | select(.filename | startswith($source_root))
+  | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
+    | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
     | select(.summary.lines.count > 0)
   ]
   | length
@@ -31,9 +40,10 @@ if [[ "$covered_files" -eq 0 ]]; then
   exit 1
 fi
 
-summary="$(jq -r --arg workspace_root "$workspace_root" --arg source_root "$source_root" '
+summary="$(jq -r --arg workspace_root "$workspace_root" --arg source_root "$source_root" --arg forked "$forked" '
   .data[].files[]
   | select(.filename | startswith($source_root))
+  | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
   | select(.summary.lines.count > 0)
   | [
       (.filename | ltrimstr($workspace_root)),
@@ -63,9 +73,12 @@ fi
 failures="$(jq -r \
   --arg workspace_root "$workspace_root" \
   --arg source_root "$source_root" \
+  --arg forked "$forked" \
   --argjson minimum "$minimum" '
     .data[].files[]
     | select(.filename | startswith($source_root))
+  | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
+    | select(.filename | ltrimstr($workspace_root) | test($forked) | not)
     | select(.summary.lines.count > 0)
     | select(.summary.lines.percent < $minimum)
     | "\(.filename | ltrimstr($workspace_root)): \(.summary.lines.percent)%"
