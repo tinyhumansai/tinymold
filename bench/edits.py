@@ -187,8 +187,11 @@ class EditSession:
         if mode == "tinymold":
             self.store = bench.WORK / "tinymold-store" / f"edits-{project['name']}-{self.label}"
             self.cache_log = bench.WORK / f"tinymold-edits-{project['name']}-{self.label}.log"
+            # Collections run between steps when asked (--gc), never in the
+            # background of a timed build.
             self.env.update(TINYMOLD_STORE=str(self.store), RUSTC_WRAPPER=str(tinymold),
-                            TINYMOLD_LOG=str(self.cache_log))
+                            TINYMOLD_LOG=str(self.cache_log), TINYMOLD_AUTO_GC="0")
+            self.tinymold = tinymold
         if mode == "sccache":
             self.store = bench.WORK / "sccache" / f"edits-{project['name']}-{self.label}"
             self.env.update(RUSTC_WRAPPER=sccache, SCCACHE_DIR=str(self.store),
@@ -253,6 +256,15 @@ class EditSession:
             rows[label] = row
         return rows
 
+    def collect(self, keep: int) -> dict:
+        """Runs `tinymold gc --keep-generations keep` with no grace period,
+        as the background collection converges to, and returns its time."""
+        start = time.perf_counter()
+        bench.run([str(self.tinymold), "--store", str(self.store), "gc",
+                   "--keep-generations", str(keep), "--grace", "0s"],
+                  env=self.env, stdout=subprocess.DEVNULL)
+        return {"gc_s": round(time.perf_counter() - start, 4)}
+
     def sizes(self) -> dict:
         sizes = {"target": target_split(self.target)}
         if self.store:
@@ -271,13 +283,16 @@ def apply_edit(edits: bench.Edits, kind: str, step: int, sessions: list[EditSess
         edits.apply(kind, step)
 
 
-def run_step(session: EditSession, commands: list[str]) -> dict:
+def run_step(session: EditSession, commands: list[str], keep: int | None = None) -> dict:
     free_before = free_bytes(session.src)
     row = {"commands": {}}
     for name in commands:
         row["commands"].update(session.run(name))
     row["free_delta"] = free_before - free_bytes(session.src)
     row.update(session.sizes())
+    if keep is not None and session.mode == "tinymold":
+        row.update(session.collect(keep))
+        row["store_after_gc"] = disk_usage(session.store)
     return row
 
 
@@ -330,12 +345,12 @@ def bench_edits(args: argparse.Namespace) -> dict:
                 print(f"{project['name']} / {session.label} / warm-up", file=sys.stderr)
                 rows[session.label].append({"step": 0, "edit": "clean",
                                             "load": round(os.getloadavg()[0], 2),
-                                            **run_step(session, commands)})
+                                            **run_step(session, commands, args.gc)})
             for step, kind in enumerate(plan, start=1):
                 apply_edit(edits, kind, step, sessions)
                 for session in sessions:
                     row = {"step": step, "edit": kind, "load": round(os.getloadavg()[0], 2),
-                           **run_step(session, commands)}
+                           **run_step(session, commands, args.gc)}
                     rows[session.label].append(row)
                     walls = ", ".join(f"{k} {v['wall_s']}s" for k, v in row["commands"].items())
                     print(f"{project['name']} / {session.label} / {step} {kind}: {walls}",
@@ -352,7 +367,8 @@ def bench_edits(args: argparse.Namespace) -> dict:
             session.reset()
     return {"benchmark": "edits", "pins": {**bench.pins(), "linker": "per row"},
             "commands": commands, "schedule": "comment, private_body, public_signature in turn; "
-            f"churn every {args.churn_every} steps; fresh target every {args.fresh_every} steps",
+            f"churn every {args.churn_every} steps; fresh target every {args.fresh_every} steps"
+            + (f"; gc --keep-generations {args.gc} after each step" if args.gc is not None else ""),
             "results": results}
 
 
@@ -368,6 +384,9 @@ def add_parser(sub) -> None:
                        help=f"comma-separated, from: {', '.join(EDIT_MODES)}")
     edits.add_argument("--commands", default=",".join(COMMANDS),
                        help=f"comma-separated, from: {', '.join(COMMANDS)}")
+    edits.add_argument("--gc", type=int, metavar="KEEP",
+                       help="after every step, run tinymold gc --keep-generations KEEP "
+                       "with no grace period (outside the timings)")
     edits.add_argument("--against", metavar="BINARY",
                        help="another tinymold binary, run as mode tinymold-base")
     edits.add_argument("--linkers", default="default",
