@@ -59,21 +59,21 @@ without its machine is not a result.
 
 Pinned: cargo build jobs: 18; target filesystem: apfs; linker: cc, rustc's default, behind a timing wrapper; linker threads: linker default; the platform cc linker takes no thread flag; output reuse: rustc default: each link writes a fresh output; incremental: on for baseline; off under sccache, which refuses it.
 
-Each cell: median wall time, then median link time, then units compiled. Under sccache, `hits` counts rustc invocations served from the cache across all runs. Under tinymold, the wall time includes `tinymold fresh restore` before and `fresh record` after every build, and the worktree and branch-switch cases include restoring a `target/` snapshot.
+Each cell: median wall time, then median link time, then units compiled (cargo's count: a unit served from a cache still shows as compiled). Under sccache and tinymold, `hits` counts rustc invocations served from the cache across all runs. Under tinymold, cargo runs with `RUSTC_WRAPPER=tinymold`, the wall time includes `tinymold fresh restore` before and `fresh record` after every build, and the worktree and branch-switch cases include restoring a `target/` snapshot.
 
 #### ripgrep 14.1.1 (small, link-bound binary)
 
 | Case | baseline | sccache | tinymold |
 | --- | ---: | ---: | ---: |
-| Clean build | 3.49s · link 0.38s · 33 compiled | 1.81s · link 0.31s · 33 compiled · 64/96 hits · first (cold) run 4.22s | 3.55s · link 0.38s · 33 compiled |
-| No-op rebuild | 0.06s · link 0.00s · 0 compiled | 0.04s · link 0.00s · 0 compiled | 0.07s · link 0.00s · 0 compiled |
-| Comment edit | 0.54s · link 0.06s · 1 compiled | 0.93s · link 0.05s · 1 compiled | 0.54s · link 0.06s · 1 compiled |
-| Private function body edit | 0.60s · link 0.06s · 1 compiled | 0.92s · link 0.05s · 1 compiled | 0.61s · link 0.06s · 1 compiled |
-| Public signature edit | 0.60s · link 0.06s · 4 compiled | 1.23s · link 0.05s · 4 compiled · 0/9 hits | 0.59s · link 0.06s · 4 compiled |
-| Second worktree, same commit | 3.55s · link 0.36s · 33 compiled | 1.69s · link 0.32s · 33 compiled · 88/96 hits | 0.20s · link 0.00s · 0 compiled |
-| Every source file touched, no content change | 0.86s · link 0.11s · 9 compiled | 0.97s · link 0.09s · 9 compiled · 24/24 hits | 0.08s · link 0.00s · 0 compiled |
-| Branch switch A→B→A | 1.25s · link 0.13s · 8 compiled | 1.76s · link 0.11s · 8 compiled · 18/18 hits | 1.30s · link 0.08s · 4 compiled |
-| cargo test --no-run | 2.91s · link 0.17s · 6 compiled | 2.36s · link 0.16s · 6 compiled · 8/12 hits | 2.86s · link 0.16s · 6 compiled |
+| Clean build | 3.35s · link 0.36s · 33 compiled | 1.89s · link 0.31s · 33 compiled · 64/96 hits · first (cold) run 4.09s | 1.09s · link 0.00s · 33 compiled · 78/120 hits · first (cold) run 4.34s |
+| No-op rebuild | 0.06s · link 0.00s · 0 compiled | 0.03s · link 0.00s · 0 compiled | 0.05s · link 0.00s · 0 compiled |
+| Comment edit | 0.53s · link 0.06s · 1 compiled | 0.90s · link 0.05s · 1 compiled | 0.55s · link 0.07s · 1 compiled · 0/3 hits |
+| Private function body edit | 0.59s · link 0.06s · 1 compiled | 0.93s · link 0.05s · 1 compiled | 0.60s · link 0.06s · 1 compiled · 0/3 hits |
+| Public signature edit | 0.59s · link 0.07s · 4 compiled | 1.23s · link 0.05s · 4 compiled · 0/9 hits | 0.62s · link 0.07s · 4 compiled · 0/12 hits |
+| Second worktree, same commit | 3.39s · link 0.36s · 33 compiled | 1.86s · link 0.31s · 33 compiled · 88/96 hits | 0.08s · link 0.00s · 0 compiled |
+| Every source file touched, no content change | 0.84s · link 0.10s · 9 compiled | 1.00s · link 0.09s · 9 compiled · 24/24 hits | 0.04s · link 0.00s · 0 compiled |
+| Branch switch A→B→A | 1.18s · link 0.13s · 8 compiled | 2.19s · link 0.11s · 8 compiled · 9/18 hits | 0.43s · link 0.00s · 8 compiled · 24/24 hits |
+| cargo test --no-run | 2.82s · link 0.16s · 6 compiled | 2.16s · link 0.16s · 6 compiled · 8/12 hits | 0.29s · link 0.00s · 6 compiled · 16/27 hits |
 
 `target/` by kind (baseline):
 
@@ -82,19 +82,40 @@ Each cell: median wall time, then median link time, then units compiled. Under s
 | Clean build | 82 MiB | 27 MiB | 0 MiB | 73 MiB | 100 MiB | 36 MiB | 0 MiB | 318 MiB |
 | cargo test --no-run | 95 MiB | 29 MiB | 0 MiB | 105 MiB | 156 MiB | 49 MiB | 0 MiB | 434 MiB |
 
+#### tinymold ef5ac44 (this repository, as a small workspace)
+
+| Case | baseline | sccache | tinymold |
+| --- | ---: | ---: | ---: |
+| Clean build | 4.22s · link 0.34s · 32 compiled | 2.07s · link 0.33s · 32 compiled · 66/99 hits · first (cold) run 5.32s | 1.25s · link 0.00s · 32 compiled · 78/123 hits · first (cold) run 4.21s |
+| No-op rebuild | 0.07s · link 0.00s · 0 compiled | 0.04s · link 0.00s · 0 compiled | 0.04s · link 0.00s · 0 compiled |
+| Comment edit | 0.17s · link 0.04s · 1 compiled | 0.16s · link 0.04s · 1 compiled | 0.15s · link 0.05s · 1 compiled · 0/3 hits |
+| Private function body edit | 0.34s · link 0.04s · 1 compiled | 0.51s · link 0.04s · 1 compiled · 0/3 hits | 0.34s · link 0.04s · 1 compiled · 0/6 hits |
+| Public signature edit | 0.61s · link 0.05s · 5 compiled | 1.03s · link 0.04s · 5 compiled · 0/15 hits | 0.60s · link 0.04s · 5 compiled · 0/18 hits |
+| Second worktree, same commit | 4.17s · link 0.36s · 32 compiled | 2.03s · link 0.29s · 32 compiled · 92/99 hits | 0.07s · link 0.00s · 0 compiled |
+| Every source file touched, no content change | 0.60s · link 0.05s · 5 compiled | 0.35s · link 0.04s · 5 compiled · 15/15 hits | 0.04s · link 0.00s · 0 compiled |
+| Branch switch A→B→A | 1.32s · link 0.10s · 10 compiled | 0.71s · link 0.08s · 10 compiled · 30/30 hits | 0.49s · link 0.00s · 10 compiled · 36/36 hits |
+| cargo test --no-run | 2.75s · link 0.40s · 9 compiled | 1.50s · link 0.35s · 9 compiled · 16/24 hits | 0.55s · link 0.00s · 9 compiled · 32/48 hits |
+
+`target/` by kind (baseline):
+
+| After | rlib | rmeta | debuginfo | objects | incremental | executables | other | total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Clean build | 54 MiB | 8 MiB | 0 MiB | 54 MiB | 32 MiB | 28 MiB | 0 MiB | 175 MiB |
+| cargo test --no-run | 62 MiB | 14 MiB | 0 MiB | 66 MiB | 55 MiB | 43 MiB | 0 MiB | 240 MiB |
+
 #### bat v0.24.0 (binary with build scripts and C dependencies)
 
 | Case | baseline | sccache | tinymold |
 | --- | ---: | ---: | ---: |
-| Clean build | 7.77s · link 1.47s · 109 compiled | 5.14s · link 1.35s · 109 compiled · 698/1047 hits · first (cold) run 14.15s | 8.13s · link 1.51s · 109 compiled |
-| No-op rebuild | 0.10s · link 0.00s · 0 compiled | 0.06s · link 0.00s · 0 compiled | 0.12s · link 0.00s · 0 compiled |
-| Comment edit | 0.79s · link 0.07s · 1 compiled | 0.60s · link 0.06s · 1 compiled · 3/3 hits | 0.79s · link 0.07s · 1 compiled |
-| Private function body edit | 0.82s · link 0.07s · 1 compiled | 0.65s · link 0.06s · 1 compiled · 3/3 hits | 0.82s · link 0.07s · 1 compiled |
-| Public signature edit | 0.86s · link 0.07s · 1 compiled | 1.09s · link 0.06s · 1 compiled · 0/3 hits | 0.86s · link 0.07s · 1 compiled |
-| Second worktree, same commit | 13.84s · link 2.04s · 109 compiled | 4.26s · link 1.30s · 109 compiled · 823/1047 hits | 1.81s · link 0.09s · 1 compiled |
-| Every source file touched, no content change | 0.93s · link 0.10s · 1 compiled | 0.74s · link 0.09s · 1 compiled · 3/3 hits | 0.40s · link 0.07s · 1 compiled |
-| Branch switch A→B→A | 1.88s · link 0.16s · 2 compiled | 1.30s · link 0.12s · 2 compiled · 6/6 hits | 3.29s · link 0.16s · 2 compiled |
-| cargo test --no-run | 2.69s · link 2.64s · 29 compiled | 1.44s · link 2.12s · 29 compiled · 54/81 hits | 1.94s · link 2.21s · 29 compiled |
+| Clean build | 7.34s · link 1.47s · 109 compiled | 11.13s · link 1.41s · 109 compiled · 698/1047 hits · first (cold) run 11.69s | 5.27s · link 0.09s · 109 compiled · 259/393 hits · first (cold) run 14.33s |
+| No-op rebuild | 0.10s · link 0.00s · 0 compiled | 0.06s · link 0.00s · 0 compiled | 0.09s · link 0.00s · 0 compiled |
+| Comment edit | 0.85s · link 0.08s · 1 compiled | 0.68s · link 0.09s · 1 compiled · 3/3 hits | 0.70s · link 0.09s · 1 compiled · 3/6 hits |
+| Private function body edit | 0.86s · link 0.08s · 1 compiled | 0.66s · link 0.07s · 1 compiled · 3/3 hits | 0.69s · link 0.09s · 1 compiled · 3/6 hits |
+| Public signature edit | 0.88s · link 0.08s · 1 compiled | 1.16s · link 0.07s · 1 compiled · 0/3 hits | 0.88s · link 0.07s · 1 compiled · 0/6 hits |
+| Second worktree, same commit | 7.17s · link 1.39s · 109 compiled | 4.50s · link 1.28s · 109 compiled · 823/1047 hits | 1.55s · link 0.08s · 1 compiled · 0/3 hits |
+| Every source file touched, no content change | 0.99s · link 0.11s · 1 compiled | 0.75s · link 0.10s · 1 compiled · 3/3 hits | 0.09s · link 0.00s · 0 compiled |
+| Branch switch A→B→A | 1.72s · link 0.14s · 2 compiled | 1.80s · link 0.13s · 2 compiled · 3/6 hits | 1.44s · link 0.17s · 2 compiled · 6/12 hits |
+| cargo test --no-run | 2.25s · link 2.66s · 29 compiled | 1.78s · link 2.47s · 29 compiled · 54/81 hits | 0.71s · link 0.00s · 29 compiled · 94/141 hits |
 
 `target/` by kind (baseline):
 
@@ -102,27 +123,6 @@ Each cell: median wall time, then median link time, then units compiled. Under s
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Clean build | 199 MiB | 61 MiB | 0 MiB | 155 MiB | 46 MiB | 82 MiB | 9 MiB | 552 MiB |
 | cargo test --no-run | 220 MiB | 69 MiB | 0 MiB | 183 MiB | 91 MiB | 225 MiB | 9 MiB | 797 MiB |
-
-#### tinymold d08295f (this repository, as a small workspace)
-
-| Case | baseline | sccache | tinymold |
-| --- | ---: | ---: | ---: |
-| Clean build | 2.93s · link 0.27s · 30 compiled | 1.80s · link 0.26s · 30 compiled · 62/93 hits · first (cold) run 3.37s | 2.89s · link 0.28s · 30 compiled |
-| No-op rebuild | 0.06s · link 0.00s · 0 compiled | 0.03s · link 0.00s · 0 compiled | 0.07s · link 0.00s · 0 compiled |
-| Comment edit | 0.16s · link 0.04s · 1 compiled | 0.13s · link 0.04s · 1 compiled | 0.16s · link 0.04s · 1 compiled |
-| Private function body edit | 0.32s · link 0.04s · 1 compiled | 0.44s · link 0.04s · 1 compiled · 0/3 hits | 0.33s · link 0.04s · 1 compiled |
-| Public signature edit | 0.42s · link 0.04s · 3 compiled | 0.62s · link 0.04s · 3 compiled · 0/9 hits | 0.43s · link 0.04s · 3 compiled |
-| Second worktree, same commit | 2.84s · link 0.27s · 30 compiled | 1.65s · link 0.26s · 30 compiled · 88/93 hits | 0.14s · link 0.00s · 0 compiled |
-| Every source file touched, no content change | 0.40s · link 0.04s · 3 compiled | 0.27s · link 0.04s · 3 compiled · 9/9 hits | 0.07s · link 0.00s · 0 compiled |
-| Branch switch A→B→A | 0.85s · link 0.08s · 6 compiled | 0.54s · link 0.08s · 6 compiled · 18/18 hits | 1.20s · link 0.05s · 3 compiled |
-| cargo test --no-run | 1.73s · link 0.26s · 9 compiled | 2.02s · link 0.25s · 9 compiled · 16/24 hits | 1.65s · link 0.26s · 9 compiled |
-
-`target/` by kind (baseline):
-
-| After | rlib | rmeta | debuginfo | objects | incremental | executables | other | total |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Clean build | 48 MiB | 8 MiB | 0 MiB | 48 MiB | 18 MiB | 26 MiB | 0 MiB | 148 MiB |
-| cargo test --no-run | 56 MiB | 14 MiB | 0 MiB | 60 MiB | 39 MiB | 39 MiB | 0 MiB | 208 MiB |
 
 ### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 

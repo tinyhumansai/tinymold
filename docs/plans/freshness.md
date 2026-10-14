@@ -109,6 +109,12 @@ cache units.
   - Until one lands, use `snapshot restore --replace` for long-lived
     branches, not for quick round trips.
 
+**Update (Phase 3).** With the rustc wrapper, branch switching no longer
+needs snapshots. On the return to A, units are served from the unit cache,
+and branch switching now beats baseline on every corpus project (see
+[`rustc-wrapper.md`](rustc-wrapper.md)). Snapshots remain the fastest way to
+start a new worktree.
+
 ## Verification
 
 - The four contract commands are green.
