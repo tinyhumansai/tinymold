@@ -1,0 +1,60 @@
+{
+  "benchmark": "link",
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "linker": "default",
+      "rustflags": [],
+      "full_build_s": 8.127,
+      "edit_rebuild": {
+        "median_s": 0.8353,
+        "min_s": 0.8198,
+        "max_s": 0.8579,
+        "samples_s": [
+          0.8539,
+          0.8579,
+          0.8353,
+          0.8198,
+          0.8246
+        ]
+      },
+      "binary_bytes": 11704576,
+      "target_bytes": 117676553
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "linker": "rust-lld",
+      "rustflags": [
+        "-Clink-arg=-B/Users/enamakel/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld",
+        "-Clink-arg=-fuse-ld=lld"
+      ],
+      "full_build_s": 6.96,
+      "edit_rebuild": {
+        "median_s": 0.8843,
+        "min_s": 0.8706,
+        "max_s": 0.9183,
+        "samples_s": [
+          0.8805,
+          0.9183,
+          0.894,
+          0.8843,
+          0.8706
+        ]
+      },
+      "binary_bytes": 11281408,
+      "target_bytes": 116805218
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "python": "3.12.0"
+  },
+  "date": "2026-10-14",
+  "runs": 5
+}
