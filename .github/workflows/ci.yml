@@ -26,7 +26,6 @@ jobs:
           # This job executes repository code (cargo build/test); don't persist
           # the token in git config.
           persist-credentials: false
-          submodules: recursive
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -54,33 +53,20 @@ jobs:
         run: cargo test
 
       # `cargo build --all-targets` only *compiles* an example. `AGENTS.md`
-      # promises `cargo run -p template --example basic` works, and a compiled
+      # promises `cargo run -p tinymold --example basic` works, and a compiled
       # example can still fail on its first line.
       - name: Run the bundled example
-        run: cargo run -p template --example basic
+        run: cargo run -p tinymold --example basic
 
-      # `crates/template-bus` exists so a host can name the payload types
-      # without compiling the module. That promise is invisible in a diff,
-      # because a forbidden dependency arrives transitively through a feature
-      # someone enabled one crate away — so it is asserted rather than
-      # documented.
-      #
-      # The FORWARD form is required. `cargo tree -i <crate> -p template-bus`
-      # discards the `-p` scope, prints the whole-workspace inverse tree, and
-      # exits 0 looking clean even when this crate is the one at fault.
-      - name: Assert the contract crate stays transport-free
-        run: |
-          set -euo pipefail
-          forbidden="$(cargo tree -p template-bus -e normal,build --prefix none \
-            | grep -Ei 'tinybus|tokio|reqwest|ureq|hyper|rusqlite|git2' || true)"
-          if [ -n "$forbidden" ]; then
-            echo "template-bus pulled in a dependency its manifest forbids:" >&2
-            echo "$forbidden" >&2
-            echo >&2
-            echo "The contract is what a host compiles against. It must stay free" >&2
-            echo "of transports, async runtimes, HTTP clients and native libraries." >&2
-            exit 1
-          fi
+      - name: Run the doctor against this runner
+        run: cargo run -p tinymold -- doctor
+
+      # Every crate is published to crates.io. Packaging verifies what
+      # `cargo publish` would upload — manifest metadata, version requirements
+      # on internal crates, and that each crate builds from its packaged
+      # sources alone — so a release cannot discover it after tagging.
+      - name: Package every crate for crates.io
+        run: cargo package --workspace --locked
 
       - name: Require 90% line coverage in every source file
         run: .github/scripts/check-file-coverage.sh 90 coverage.json
@@ -100,7 +86,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          submodules: recursive
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -118,7 +103,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          submodules: recursive
 
       # `rust-version` is inherited from `[workspace.package]`, so every member
       # reports the same value. Read it off the package the module ships as
@@ -128,7 +112,7 @@ jobs:
         run: |
           set -euo pipefail
           msrv="$(cargo metadata --format-version 1 --no-deps \
-            | jq -r '.packages[] | select(.name == "template") | .rust_version')"
+            | jq -r '.packages[] | select(.name == "tinymold") | .rust_version')"
           if [[ -z "$msrv" || "$msrv" == "null" ]]; then
             echo "workspace.package.rust-version is not set in Cargo.toml" >&2
             exit 1
@@ -151,7 +135,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          submodules: recursive
 
       - name: Check advisories, licenses, bans, and sources
         uses: EmbarkStudios/cargo-deny-action@v2
