@@ -55,10 +55,25 @@ wrapper call when its first argument is not a tinymold subcommand and names a
 program: a path containing a separator, or a file named `rustc` or
 `clippy-driver`.
 
-- **Cacheable:** only invocations whose program is `rustc` and which compile
-  a crate.
-- **Run unchanged:** everything else, including `-vV`, `--print`, stdin
-  input, and `clippy-driver`.
+- **Cacheable:** invocations that compile a crate, whose program is `rustc`,
+  or `clippy-driver` wrapping rustc, as `cargo clippy` runs it for workspace
+  crates (`tinymold clippy-driver <rustc> <args…>`).
+- **Run unchanged:** everything else, including `-vV`, `--print` and stdin
+  input.
+
+**clippy-driver** is rustc with lints added: it takes the same arguments,
+writes the same outputs (an `.rmeta` and dep-info for a check) and reports
+its lints as diagnostics, which a hit replays. Its pre-key adds a `driver`
+field, so its entries never serve rustc or the reverse. The field holds
+`clippy-driver --version` and the configuration file clippy would read: the
+first `.clippy.toml` or `clippy.toml` in `CLIPPY_CONF_DIR`, else the crate's
+`CARGO_MANIFEST_DIR`, else the current directory, or their nearest ancestor,
+with its normalized path and digest, or `none`. clippy's dep-info already
+lists that file, `Cargo.toml` (for the `[lints]` table) and the
+`CLIPPY_ARGS` and `CLIPPY_CONF_DIR` variables, so the full key covers them.
+The pre-key field covers what dep-info cannot: a configuration file created
+since, or present in only one worktree. Without a `driver` field, rustc's
+pre-key encodes exactly as before, so existing entries stay valid.
 
 ## The key
 
