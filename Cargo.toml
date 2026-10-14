@@ -2,17 +2,13 @@
 resolver = "3"
 # Every crate in this repository lives under `crates/`, one directory per
 # package, each directory named for the package it holds. There is no root
-# package: the crate a host loads is `crates/template`, the same as any other
-# member. Keeping the root virtual is what makes that uniform — a root package
-# would make one crate structurally different from the rest for no reason other
-# than history, and it is the arrangement this template moved away from.
+# package: the `tinymold` binary is `crates/tinymold`, the same as any other
+# member, so no crate is structurally special.
 members = ["crates/*"]
-# `vendor/` holds the pinned TinyBus submodule, which is its own workspace with
-# its own lockfile. `worktrees/` holds `git worktree` checkouts of this same
-# repository; each contains a full copy of this manifest and every crate under
-# it, so without this entry cargo walks into them and reports duplicate
-# packages.
-exclude = ["vendor", "worktrees"]
+# `worktrees/` holds `git worktree` checkouts of this same repository; each
+# contains a full copy of this manifest and every crate under it, so without
+# this entry cargo walks into them and reports duplicate packages.
+exclude = ["worktrees"]
 
 # Shared package metadata. A member inherits a field with `field.workspace =
 # true`, so the version the release workflow bumps is written in exactly one
@@ -22,35 +18,30 @@ version = "0.2.1"
 edition = "2024"
 rust-version = "1.88"
 license = "GPL-3.0-only"
-repository = "https://github.com/tinyhumansai/rust-template"
+repository = "https://github.com/tinyhumansai/tinymold"
 
 [workspace.dependencies]
-# The wire contract. `crates/template` depends on it and re-exports it, so a
-# host that only makes calls takes this crate alone.
-# No `version` requirement on purpose: the workspace version moves on every
-# release, and a pinned requirement here would stop resolving the moment it did.
-# Nothing in this workspace is published, so the path is the whole address.
-template-bus = { path = "crates/template-bus" }
-# TinyBus defines the message types, interface macro, and frozen module ABI
-# used by the generated integration. Socket and CLI features are unnecessary
-# here.
-tinybus = { path = "vendor/tinybus/crates/tinybus", version = "0.1.0", default-features = false, features = [
-    "macros",
-    "modules",
-] }
-# The module-side SDK owns the isolated runtime and exports the ABI entrypoints
-# required by TinyBus's dynamic loader.
-tinybus-module = { path = "vendor/tinybus/crates/tinybus-module", version = "0.1.0" }
-# Derive macros for the crate-wide error type in `crates/template/src/error/`.
-# Every dependency entry should carry a comment like this one saying why it is
-# here.
+# Internal crates. No `version` requirement on purpose: the workspace version
+# moves on every release, and a pinned requirement here would stop resolving the
+# moment it did. Nothing in this workspace is published, so the path is the
+# whole address.
+tinymold-hash = { path = "crates/tinymold-hash" }
+tinymold-cas = { path = "crates/tinymold-cas" }
+# BLAKE3 is the digest for every persisted or shared cache key and object (see
+# docs/adr/0002-blake3-for-content-digests.md). Default features keep the SIMD
+# backends and runtime CPU detection; `mmap` and `rayon` stay off until the
+# hashing layer is benchmarked with them.
+blake3 = "1"
+# Copy-on-write clones (`clonefile` on APFS, `FICLONE` on btrfs/XFS) for
+# materializing store objects without copying bytes. It wraps the platform
+# calls so this workspace keeps `unsafe_code = "forbid"`.
+reflink-copy = "0.1"
+# Derive macros for each crate's error type in `src/error/`.
 thiserror = "2"
-# The bus payload types are serialized into TinyBus frames.
-serde = { version = "1", features = ["derive"] }
-# Positional argument arrays and the module configuration blob.
-serde_json = "1"
-# Module integration tests exercise the real asynchronous in-memory TinyBus.
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+# Argument parsing for the `tinymold` command-line interface.
+clap = { version = "4", features = ["derive"] }
+# Isolated, self-cleaning directories for tests that touch the filesystem.
+tempfile = "3"
 
 # Lints apply to every member that opts in with `[lints] workspace = true`, and
 # to every target of that member. CI runs clippy with `-D warnings`, so anything
