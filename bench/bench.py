@@ -1309,7 +1309,13 @@ def bench_retest(args: argparse.Namespace) -> dict:
 
         def measure(side: str) -> dict:
             log.unlink(missing_ok=True)
-            wall = timed(command, cwd=src, env=sides[side])
+            start = time.perf_counter()
+            done = subprocess.run(command, cwd=src, env=sides[side],
+                                  capture_output=True, text=True)
+            wall = time.perf_counter() - start
+            if done.returncode != 0:
+                sys.stderr.write(done.stdout[-3000:] + done.stderr[-3000:])
+                raise SystemExit(f"{project['name']}: cargo test failed on the {side} side")
             return {"wall": wall, **runner_counts(log)}
 
         print(f"{project['name']}: building and recording", file=sys.stderr)
