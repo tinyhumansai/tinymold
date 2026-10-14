@@ -121,6 +121,14 @@ The cheapest win, independent of everything else.
 
 ## Slice 4: clippy-driver calls
 
+**Status.** Built on the `clippy-cache` branch by another session, ahead
+of this plan, together with unrelated work (outputs carried over between
+compiles, benchmark changes). It keys `clippy-driver --version` and the
+config file clippy's own lookup finds, or `none`, which covers a
+`clippy.toml` created after a hit; clippy's dep-info already lists
+`clippy.toml`, `Cargo.toml`, `CLIPPY_ARGS` and `CLIPPY_CONF_DIR`
+(verified with clippy 0.1.99). Not duplicated here.
+
 - Verify, in a scratch crate, whether `clippy-driver` writes `clippy.toml`
   and `CLIPPY_ARGS` into dep-info. Record the result in the spec.
 - If it does: treat `clippy-driver` as a cacheable compiler. Key on its
@@ -132,10 +140,13 @@ The cheapest win, independent of everything else.
 
 ## Slice 5: measure
 
-- `bench/bench.py`: a `pipeline` benchmark — `cargo fmt --check`, `cargo
-  clippy`, `cargo build`, `cargo test`, `cargo llvm-cov --no-report` — run
-  cold, warm, and after a one-line library edit, with and without the
-  runner. A `retest` case runs `cargo test` twice with no edit.
+- `bench/bench.py retest` (done): `cargo test` for a project's package,
+  both sides built through the wrapper into one `target/`, with and without
+  the runner, taking alternate turns. Cases `again` (no edit) and
+  `private_body` (a new one-line private edit before every measurement).
+- A `pipeline` benchmark — `cargo fmt --check`, `cargo clippy`, `cargo
+  build`, `cargo test`, `cargo llvm-cov --no-report` — remains, and waits
+  for slice 4 to merge so clippy is measured cached.
 - Commit the result JSON and the `python3 bench/report.py` output; quote the
   before and after numbers in each slice's pull request.
 
@@ -151,6 +162,6 @@ The cheapest win, independent of everything else.
 - [ ] Slice 1: lint flags leave capped keys
 - [x] Slice 2: test key
 - [x] Slice 3: records and `run-test`
-- [ ] Slice 4: clippy-driver caching
+- [x] Slice 4: clippy-driver caching (on the `clippy-cache` branch)
 - [ ] Slice 5: pipeline and retest benchmarks
 - [ ] Slice 6: impact-analysis ADR

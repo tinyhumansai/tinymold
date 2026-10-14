@@ -347,6 +347,7 @@ python3 bench/bench.py baseline --runs 5
 python3 bench/bench.py cache --runs 3         # needs sccache on PATH
 python3 bench/bench.py link --runs 5
 python3 bench/bench.py cas --runs 5 --size-mb 512
+python3 bench/bench.py retest --project ripgrep --runs 5   # cargo test again, with run-test
 python3 bench/report.py                       # refresh the tables and charts
 ```
 
