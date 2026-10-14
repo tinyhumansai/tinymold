@@ -132,7 +132,7 @@ pub fn list(store: &Path) -> Result<Vec<Snapshot>> {
 /// than the snapshot's outputs, so cargo rebuilds what depends on it.
 ///
 /// When `target` exists it is an error unless `replace` is set. Replacing
-/// keeps the old target as a snapshot named `auto-<stamp>` when its own
+/// keeps the old target as a snapshot named `auto-<fingerprint digest>` when its own
 /// manifest is still valid and it can be moved into the store without a copy,
 /// so switching back to it later is just as fast. Otherwise it is deleted.
 ///
@@ -191,13 +191,15 @@ pub fn restore(
 /// Moves an existing target directory out of the way: into the store as a
 /// snapshot when that is valid and free, otherwise into the bin.
 fn set_aside(store: &Path, target: &Path) -> Result<Option<String>> {
-    let valid = match fresh::load(target) {
-        Ok(Some(manifest)) => fresh::stamp(target).ok() == Some(manifest.stamp_ns),
-        _ => false,
-    };
+    let state = fresh::target_state(target)?;
+    let valid = matches!(
+        fresh::load(target),
+        Ok(Some(manifest)) if manifest.fingerprints == state.fingerprints
+    );
     if valid {
-        let stamp = fresh::stamp(target)?;
-        let name = format!("auto-{stamp}");
+        // Named by what cargo built, so the same outputs set aside twice are
+        // kept once.
+        let name = format!("auto-{}", &state.fingerprints.to_hex()[..16]);
         let dir = snapshots_dir(store);
         let destination = dir.join(&name);
         if destination.exists() {
