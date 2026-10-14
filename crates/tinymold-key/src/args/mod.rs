@@ -131,7 +131,9 @@ impl Parser {
                     self.text(arg.clone());
                 }
             } else if arg.len() > 1 && arg.starts_with('-') {
-                let flag = &arg[..2];
+                // `get` rather than slicing: a non-ASCII second character is
+                // not a known flag, and must not panic.
+                let flag = arg.get(..2).unwrap_or_default();
                 if SHORT_WITH_VALUE.contains(&flag) {
                     let value = if arg.len() > 2 {
                         arg[2..].to_owned()
