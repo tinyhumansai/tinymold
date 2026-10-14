@@ -1,6 +1,6 @@
 //! Unit tests for the test-binary and test-run record encodings.
 
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 
 use super::*;
 

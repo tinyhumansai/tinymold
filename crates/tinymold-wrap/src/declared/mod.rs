@@ -39,7 +39,7 @@ pub(crate) fn parse(manifest: &str) -> Declared {
             continue;
         }
         if line.starts_with('[') {
-            table = line.to_owned();
+            line.clone_into(&mut table);
             if table != HEADER && mentions_table(&table) {
                 return Declared::Uncached("unreadable tinymold metadata");
             }
