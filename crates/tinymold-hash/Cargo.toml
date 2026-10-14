@@ -1,0 +1,22 @@
+[package]
+name = "tinymold-hash"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Content digests for tinymold: the BLAKE3-256 identity of every cached input and output."
+readme = "../../README.md"
+keywords = ["build", "cache", "hash", "blake3", "content-addressed"]
+categories = ["development-tools::build-utils"]
+publish = false
+
+[dependencies]
+blake3 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
