@@ -72,7 +72,11 @@ pub fn manifest_path(target: &Path) -> PathBuf {
 /// hashed.
 pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
     let recorded_ns = nanos(SystemTime::now());
-    let previous: HashMap<String, Entry> = load(target)?
+    // The previous manifest is only a digest cache: an unreadable or
+    // outdated one is ignored, not an error.
+    let previous: HashMap<String, Entry> = load(target)
+        .ok()
+        .flatten()
         .map(|manifest| {
             let cutoff = manifest.recorded_ns;
             manifest
