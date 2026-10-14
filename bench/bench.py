@@ -462,8 +462,7 @@ def tree_size(path: Path) -> int:
 
 
 def bench_cas(args: argparse.Namespace) -> dict:
-    run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=ROOT, env=STOCK_ENV)
-    tinymold = ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+    tinymold = tinymold_binary()
 
     work = WORK / "cas"
     shutil.rmtree(work, ignore_errors=True)
