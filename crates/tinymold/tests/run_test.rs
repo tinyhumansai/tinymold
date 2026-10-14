@@ -72,7 +72,6 @@ fn cargo_test(root: &Path, store: &Path) -> (Output, Vec<String>) {
         .env_remove("CARGO_TARGET_DIR")
         .env_remove("CARGO_BUILD_TARGET_DIR")
         .env_remove("RUSTC_WORKSPACE_WRAPPER")
-        .env_remove("LLVM_PROFILE_FILE")
         .env_remove("TINYMOLD_TEST_CACHE")
         .output()
         .unwrap();
@@ -103,6 +102,15 @@ fn runner_variable() -> String {
     )
 }
 
+/// Whether this test itself runs under `cargo llvm-cov`. Then
+/// `LLVM_PROFILE_FILE` reaches the runner, which must treat every run as a
+/// coverage run and never cache it; it is kept, so the instrumented
+/// `tinymold` writes its own profile where coverage collects it rather than
+/// into a package, where it would count as a changed input.
+fn under_coverage() -> bool {
+    std::env::var_os("LLVM_PROFILE_FILE").is_some()
+}
+
 /// The crates whose runs had `outcome` (`test-hit` or `test-miss`).
 fn crates(lines: &[String], outcome: &str) -> BTreeSet<String> {
     lines
@@ -125,6 +133,16 @@ fn cargo_test_reruns_exactly_the_binaries_an_edit_reaches() {
 
     let (first, lines) = cargo_test(&root, &store);
     assert!(first.status.success(), "{first:?}");
+    if under_coverage() {
+        assert_eq!(lines.len(), 3, "{lines:?}");
+        assert!(
+            lines
+                .iter()
+                .all(|line| line.starts_with("test-pass - ") && line.ends_with("a coverage run")),
+            "{lines:?}"
+        );
+        return;
+    }
     assert_eq!(
         crates(&lines, "test-miss"),
         set(&["alpha", "beta", "gamma"])
@@ -167,6 +185,9 @@ fn a_failing_test_fails_again_instead_of_being_replayed() {
     for _ in 0..2 {
         let (output, lines) = cargo_test(&root, &store);
         assert!(!output.status.success());
+        if under_coverage() {
+            continue;
+        }
         assert!(
             lines.iter().any(|line| line.starts_with("test-miss alpha ")
                 && line.ends_with("not recorded: the run failed")),
