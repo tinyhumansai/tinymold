@@ -23,7 +23,10 @@
 //! - `tinymold stats` — hit rates and times from the wrapper's log, via
 //!   [`stats`];
 //! - `RUSTC_WRAPPER=tinymold` — a unit cache keyed by content, via
-//!   [`tinymold_wrap`] (see [`wrapper_call`]).
+//!   [`tinymold_wrap`] (see [`wrapper_call`]);
+//! - `tinymold remote` — share that cache between machines through a REAPI
+//!   server, via `tinymold_remote` (the default `remote` feature; see
+//!   [`wrapper_remote`]).
 //!
 //! # Example
 //!
@@ -54,13 +57,15 @@ mod tree;
 mod wrapper;
 
 pub use cli::{
-    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, StatsArgs, Outcome, SnapshotCommand, StrategyArg, run,
+    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, RemoteCommand, StatsArgs, Outcome, SnapshotCommand, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
 pub use location::default_store;
 pub use tinymold_cas;
 pub use tinymold_hash;
+#[cfg(feature = "remote")]
+pub use tinymold_remote;
 pub use tinymold_wrap;
 pub use tree::{TreeClone, clone_tree};
-pub use wrapper::{wrapper_call, wrapper_config};
+pub use wrapper::{wrapper_call, wrapper_config, wrapper_remote};

@@ -60,6 +60,26 @@ pub enum Command {
     Gc(GcArgs),
     /// Summarize the wrapper log: hits, misses, and time spent.
     Stats(StatsArgs),
+    /// Share the cache through a remote REAPI server (`TINYMOLD_REMOTE_URL`).
+    #[command(subcommand)]
+    Remote(RemoteCommand),
+}
+
+/// Remote cache commands.
+#[derive(Debug, Subcommand)]
+#[non_exhaustive]
+pub enum RemoteCommand {
+    /// Upload the actions and input sets used since `--since` (all without
+    /// it), with every object the server lacks.
+    Push {
+        /// Only records used at or after this time, in Unix seconds, such as
+        /// the start of the CI job.
+        #[arg(long, value_name = "UNIX_SECONDS")]
+        since: Option<u64>,
+    },
+    /// Check that the server is reachable and accepts the credential, and
+    /// print what it supports.
+    Check,
 }
 
 /// What `tinymold stats` reads and how it reports.
@@ -259,7 +279,8 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         Command::Cas(command) => return run_cas(command, &open_store(cli)?, out),
         Command::Doctor => {
             let path = std::env::var_os("PATH");
-            let report = Report::gather(path.as_deref(), Path::new("rustc"), store_dir(cli));
+            let mut report = Report::gather(path.as_deref(), Path::new("rustc"), store_dir(cli));
+            report.remote = remote_summary(env);
             write!(out, "{report}").map_err(Error::Output)?;
         }
         Command::Fresh(command) => return run_fresh(command, out),
@@ -277,6 +298,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
             line(out, format_args!("{report}"))?;
         }
         Command::Stats(args) => return run_stats(args, out),
+        Command::Remote(command) => return run_remote(cli, command, out),
     }
     Ok(Outcome::Success)
 }
@@ -312,6 +334,50 @@ fn run_stats(args: &StatsArgs, out: &mut impl Write) -> Result<Outcome> {
     } else {
         Outcome::Absent
     })
+}
+
+/// What `doctor` says about the remote tier: its URL, or why it is unusable.
+fn remote_summary(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<String> {
+    let url = lookup("TINYMOLD_REMOTE_URL").filter(|v| !v.is_empty())?;
+    let url = url.to_string_lossy().into_owned();
+    #[cfg(feature = "remote")]
+    let summary = match tinymold_remote::RemoteConfig::from_env(lookup) {
+        Ok(Some(config)) if config.authorization.is_some() => format!("{url} (with credential)"),
+        Ok(_) => format!("{url} (anonymous)"),
+        Err(error) => format!("{url} ({error})"),
+    };
+    #[cfg(not(feature = "remote"))]
+    let summary = format!("{url} (ignored: built without the remote feature)");
+    Some(summary)
+}
+
+#[cfg(feature = "remote")]
+fn run_remote(cli: &Cli, command: &RemoteCommand, out: &mut impl Write) -> Result<Outcome> {
+    let config = tinymold_remote::RemoteConfig::from_env(env)?.ok_or(Error::NoRemote)?;
+    let remote = tinymold_remote::RemoteCache::new(&config)?;
+    match command {
+        RemoteCommand::Push { since } => {
+            let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
+            let since = since.map(|seconds| {
+                std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds)
+            });
+            let report = remote.push(&store, since)?;
+            line(out, format_args!("remote: {report}"))?;
+        }
+        RemoteCommand::Check => {
+            let capabilities = remote.check()?;
+            line(
+                out,
+                format_args!("remote: {} reachable; {capabilities}", config.endpoint),
+            )?;
+        }
+    }
+    Ok(Outcome::Success)
+}
+
+#[cfg(not(feature = "remote"))]
+fn run_remote(_cli: &Cli, _command: &RemoteCommand, _out: &mut impl Write) -> Result<Outcome> {
+    Err(Error::NoRemote)
 }
 
 fn env(name: &str) -> Option<std::ffi::OsString> {

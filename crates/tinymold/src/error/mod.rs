@@ -36,6 +36,15 @@ pub enum Error {
     #[error("no store location: pass --store or set TINYMOLD_STORE")]
     NoStoreLocation,
 
+    /// The remote cache tier failed.
+    #[cfg(feature = "remote")]
+    #[error(transparent)]
+    Remote(#[from] tinymold_remote::Error),
+
+    /// A remote command was run without a remote configured.
+    #[error("no remote cache: set TINYMOLD_REMOTE_URL")]
+    NoRemote,
+
     /// `tinymold stats` was given no log and `TINYMOLD_LOG` is not set.
     #[error("no wrapper log: pass --log or set TINYMOLD_LOG")]
     NoLogLocation,

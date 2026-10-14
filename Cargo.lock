@@ -795,6 +795,7 @@ dependencies = [
  "thiserror",
  "tinymold-cas",
  "tinymold-hash",
+ "tinymold-remote",
  "tinymold-wrap",
 ]
 

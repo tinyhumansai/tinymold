@@ -42,6 +42,9 @@ pub struct Report {
     pub store: Option<PathBuf>,
     /// How much the store holds, when it could be read.
     pub store_usage: Option<StoreUsage>,
+    /// The remote cache tier, when one is configured: its URL and whether a
+    /// credential is set, never the credential itself.
+    pub remote: Option<String>,
     /// The fast linkers and caches searched for on `PATH`.
     pub tools: Vec<Tool>,
 }
@@ -88,6 +91,7 @@ impl Report {
             rustc: version.and_then(|text| text.lines().next().map(str::to_owned)),
             rust_lld,
             store_usage: store.as_deref().and_then(|store| gc::usage(store).ok()),
+            remote: None,
             store,
             tools,
         }
@@ -112,6 +116,11 @@ impl fmt::Display for Report {
             Some(usage) => writeln!(f, "store     {} ({usage})", found(self.store.as_ref()))?,
             None => writeln!(f, "store     {}", found(self.store.as_ref()))?,
         }
+        writeln!(
+            f,
+            "remote    {}",
+            self.remote.as_deref().unwrap_or("not configured")
+        )?;
         writeln!(f)?;
         writeln!(f, "linkers and caches on PATH")?;
         for tool in &self.tools {
