@@ -296,8 +296,11 @@ async fn read(state: Arc<Mutex<State>>, request: http::Request<Body>) -> http::R
         let Some(mut data) = state.blobs.get(&hash).cloned() else {
             return ready(Err(Status::not_found(hash)));
         };
-        if state.corrupt.contains(&hash) {
-            data.push(b'!');
+        if state.corrupt.contains(&hash)
+            && let Some(first) = data.first_mut()
+        {
+            // Same length, different content: only the hash can tell.
+            *first ^= 1;
         }
         // Two chunks, so the client has to put a stream together.
         let middle = data.len() / 2;
