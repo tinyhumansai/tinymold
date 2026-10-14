@@ -33,6 +33,19 @@ tinymold-cas = { path = "crates/tinymold-cas", version = "=0.0.1" }
 tinymold-key = { path = "crates/tinymold-key", version = "=0.0.1" }
 tinymold-wrap = { path = "crates/tinymold-wrap", version = "=0.0.1" }
 tinymold-remote = { path = "crates/tinymold-remote", version = "=0.0.1" }
+# The linker, forked from mold (docs/adr/0009-fork-mold-into-a-stateful-linker.md).
+# Each crate is depended on under its upstream name, so the forked sources
+# keep their `mold_common::` and `mold_elf::` paths unchanged and upstream
+# commits still apply to them.
+mold-common = { package = "tinymold-link-common", path = "crates/tinymold-link-common", version = "=0.0.1" }
+mold-elf = { package = "tinymold-link-elf", path = "crates/tinymold-link-elf", version = "=0.0.1" }
+mold-elf-x86_64 = { package = "tinymold-link-elf-x86_64", path = "crates/tinymold-link-elf-x86_64", version = "=0.0.1" }
+mold-elf-arm64 = { package = "tinymold-link-elf-arm64", path = "crates/tinymold-link-elf-arm64", version = "=0.0.1" }
+mold-macho = { package = "tinymold-link-macho", path = "crates/tinymold-link-macho", version = "=0.0.1" }
+mold-macho-arm64 = { package = "tinymold-link-macho-arm64", path = "crates/tinymold-link-macho-arm64", version = "=0.0.1" }
+mold-macho-x86_64 = { package = "tinymold-link-macho-x86_64", path = "crates/tinymold-link-macho-x86_64", version = "=0.0.1" }
+# Raw system calls for the forked linker (mmap, madvise, fork, flock).
+libc = "0.2"
 # BLAKE3 is the digest for every persisted or shared cache key and object (see
 # docs/adr/0002-blake3-for-content-digests.md). Default features keep the SIMD
 # backends and runtime CPU detection; `mmap` and `rayon` stay off until the
