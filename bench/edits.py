@@ -205,8 +205,7 @@ class EditSession:
         """(label, command line, whether a non-zero exit is tolerated)."""
         base = ["--locked", "-v", *self.package_args()]
         if name == "build":
-            target = [a for a in bench.target_args(self.project) if a != "--package"
-                      and a != self.project["package"]]
+            target = bench.target_args(self.project)[2:]  # past "--package <name>"
             return [("build", ["cargo", "build", *base, *target], False)]
         if name == "clippy":
             return [("clippy", ["cargo", "clippy", *base, "--all-targets"], False)]
@@ -308,7 +307,7 @@ def bench_edits(args: argparse.Namespace) -> dict:
                 session.reset()
                 print(f"{project['name']} / {session.label} / warm-up", file=sys.stderr)
                 rows[session.label].append({"step": 0, "edit": "clean",
-                                            "load": os.getloadavg()[0],
+                                            "load": round(os.getloadavg()[0], 2),
                                             **run_step(session, commands)})
             for step, kind in enumerate(plan, start=1):
                 apply_edit(edits, kind, step, sessions)

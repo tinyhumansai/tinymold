@@ -57,7 +57,13 @@ into its own checkout's target/ directory.
          restore through TINYMOLD_TRACE; with --against, another revision's
          tinymold takes alternate turns on the same store.
 
+  edits  A cumulative sequence of edits, with build, clippy, tests and
+         coverage after each: latency, link time, peak RSS, and target/ and
+         store growth per step (see bench/edits.py).
+
 Usage:
+  python3 bench/bench.py edits [--steps N] [--project NAME] [--modes M,..] [--commands C,..]
+                               [--linkers L,..] [--churn-every N]
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
                                    [--variants V,..]
   python3 bench/bench.py dedup [--project NAME]
@@ -661,15 +667,22 @@ def unit_counts(stderr: str) -> dict[str, int]:
 
 
 class Edits:
-    """Applies one edit kind to a checkout and always restores it afterwards."""
+    """Applies one edit kind to a checkout and always restores it afterwards.
 
-    def __init__(self, src: Path, spec: dict):
+    Each edit replaces the previous one to the same file, unless `cumulative`,
+    when edits pile up until `restore` (the edit-sequence benchmark).
+    """
+
+    def __init__(self, src: Path, spec: dict, cumulative: bool = False):
         self.src, self.spec, self.saved = src, spec, {}
+        self.cumulative = cumulative
 
     def apply(self, kind: str, n: int) -> None:
         edit = self.spec[kind]
         path = self.src / edit["file"]
         text = self.saved.setdefault(path, path.read_text())
+        if self.cumulative:
+            text = path.read_text()
         if kind == "comment":
             text = f"{text}\n// tinymold-bench comment edit {n}\n"
         elif kind == "private_body":
@@ -1454,12 +1467,14 @@ def main() -> None:
     hit.add_argument("--runs", type=int, default=7)
     hit.add_argument("--project", help="only this corpus project")
     hit.add_argument("--against", help="a git rev whose tinymold takes alternate turns")
+    import edits  # the edit-sequence benchmark lives in its own module
+    edits.add_parser(sub)
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "edits": edits.bench_edits}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
