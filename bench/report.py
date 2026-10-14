@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import sys
 from html import escape
 from pathlib import Path
 
