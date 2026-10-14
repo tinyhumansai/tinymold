@@ -36,6 +36,10 @@ use crate::stat::{nanos, still_valid};
 /// The first line of every record.
 const HEADER: &str = "tinymold-placed 1";
 
+/// One output as placed: its name in the out-dir, its identity there, and
+/// its digest.
+pub(crate) type Placement = (String, Identity, Digest);
+
 /// The outputs one unit last left in one out-dir.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct Placed {
@@ -81,7 +85,7 @@ impl Placed {
     ///
     /// Returns [`Error::Io`](crate::Error::Io) when the record cannot be
     /// written.
-    pub(crate) fn save(path: &Path, files: &[(String, Identity, Digest)]) -> Result<()> {
+    pub(crate) fn save(path: &Path, files: &[Placement]) -> Result<()> {
         let placed = Self {
             recorded_ns: nanos(SystemTime::now()),
             files: files

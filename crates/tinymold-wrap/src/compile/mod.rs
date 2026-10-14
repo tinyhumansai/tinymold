@@ -29,7 +29,7 @@ use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, 
 
 use crate::error::io;
 use crate::exec::{self, Captured};
-use crate::placed::Placed;
+use crate::placed::{Placed, Placement};
 use crate::record::{
     self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
@@ -384,11 +384,7 @@ impl Unit<'_> {
 
     /// Places one batch of outputs, leaving those in `kept` where they are,
     /// and returns the binary outputs as they now are on disk.
-    fn place_outputs(
-        &self,
-        batch: &[&Output],
-        kept: &HashSet<String>,
-    ) -> Result<Vec<(String, Identity, Digest)>> {
+    fn place_outputs(&self, batch: &[&Output], kept: &HashSet<String>) -> Result<Vec<Placement>> {
         let mut placed = Vec::with_capacity(batch.len());
         for output in batch {
             let destination = self.out_dir.join(&output.name);
@@ -500,10 +496,7 @@ impl Unit<'_> {
 
     /// Stores every output this compile wrote and describes them, with the
     /// binary outputs as they are on disk.
-    #[allow(clippy::type_complexity)]
-    fn ingest_outputs(
-        &self,
-    ) -> std::result::Result<(Vec<Output>, Vec<(String, Identity, Digest)>), Unstorable> {
+    fn ingest_outputs(&self) -> std::result::Result<(Vec<Output>, Vec<Placement>), Unstorable> {
         // Every file with this unit's prefix, whatever its mtime: incremental
         // rustc hardlinks artifacts it reuses (objects, sometimes the .rmeta)
         // back into the out-dir with their old mtimes, and they are as much
