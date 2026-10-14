@@ -47,8 +47,10 @@ Non-goals:
 ### `tinymold fresh record`
 
 Writes `<target>/.tinymold/fresh`: the mtime, size and BLAKE3 digest of every
-workspace file, plus a **stamp**. The stamp is the newest mtime of any build
-output under the target directory.
+workspace file, plus two values that describe the target directory:
+
+- the **stamp**, the newest mtime among cargo's fingerprint files;
+- the **fingerprints** digest, over every fingerprint file's path and mtime.
 
 - **Run it after a build.** Its cost is a stat walk: about 5 ms on ripgrep's
   212 files when nothing changed.
@@ -72,8 +74,8 @@ Applies the manifest to the workspace, file by file:
 | Content differs, mtime not newer than the stamp | Mtime set to now (`changed`), so cargo cannot take the outputs for current ones |
 | Missing | Counted (`missing`) |
 
-If the target directory's stamp no longer equals the manifest's, something was
-built after the record. The restore then does nothing and exits 1. It also
+If the target directory's fingerprints digest no longer equals the
+manifest's, something was built after the record. The restore then does nothing and exits 1. It also
 exits 1 when there is no manifest.
 
 ### `tinymold snapshot save [NAME]`
@@ -123,14 +125,17 @@ Prints each snapshot's name and its file count.
    newer than the stamp.
 3. **Snapshots are immutable once saved.** Saving the same name again
    replaces the snapshot atomically.
-4. **The stamp ignores cargo's bookkeeping.** These files are rewritten even
-   on a no-op build:
-   - `.cargo-lock`, `.rustc_info.json`, `CACHEDIR.TAG`, `.package-cache`;
-   - dep-info files (`*.d`): cargo rewrites `target/debug/<bin>.d` on every
-     build.
+4. **Only cargo's fingerprints describe the target.** Cargo keeps one
+   fingerprint directory per unit, at `<profile>/.fingerprint/<unit>/`, or
+   `<profile>/build/<pkg>/<hash>/fingerprint/` in build-dir layout v2.
+   - It rewrites a unit's fingerprint after every build of that unit.
+   - It deletes the fingerprint before rebuilding, so a failed build changes
+     the digest too.
+   - A no-op build leaves fingerprints alone, even though it rewrites
+     `.cargo-lock`, `.rustc_info.json` and the uplifted `<bin>.d`.
 
-   Any build that compiles or links also writes fingerprints, objects or
-   binaries, so a real build always moves the stamp.
+   Reading only the fingerprints also keeps the check cheap: about 600 files
+   for bat's 9,667-file `target/`, or 14 ms for a whole `fresh restore`.
 
 ## Constraints
 
@@ -155,6 +160,18 @@ All are measured with `bench/bench.py scenarios --modes baseline,tinymold`.
 - A branch switch A→B→A compiles nothing on the return to A.
 - Unit tests pin the manifest encoding, and cover every restore row and
   every error variant.
+
+### Inputs tinymold does not control
+
+Some crates make `.git` files build inputs. bat's binary lists `.git/index`
+and `.git/logs/HEAD` in its dep-info, for its version metadata:
+
+- `git` commands rewrite those files;
+- in a second worktree `.git` is a file, so `.git/logs/HEAD` does not exist.
+
+tinymold never touches `.git`, so cargo correctly rebuilds bat's binary after
+a branch switch and in every second worktree. One rebuilt unit is the floor
+for such a crate.
 
 ## Open questions
 
