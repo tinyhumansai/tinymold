@@ -63,6 +63,15 @@ fn cargo_test(root: &Path, store: &Path) -> (Output, Vec<String>) {
 }
 
 fn cargo_test_with(root: &Path, store: &Path, targets: &[&str]) -> (Output, Vec<String>) {
+    cargo_test_env(root, store, targets, &[])
+}
+
+fn cargo_test_env(
+    root: &Path,
+    store: &Path,
+    targets: &[&str],
+    env: &[(&str, &str)],
+) -> (Output, Vec<String>) {
     let log = store.with_extension("log");
     let _ = fs::remove_file(&log);
     let tinymold = env!("CARGO_BIN_EXE_tinymold");
@@ -88,6 +97,7 @@ fn cargo_test_with(root: &Path, store: &Path, targets: &[&str]) -> (Output, Vec<
         .env_remove("CARGO_BUILD_TARGET_DIR")
         .env_remove("RUSTC_WORKSPACE_WRAPPER")
         .env_remove("TINYMOLD_TEST_CACHE")
+        .envs(env.iter().copied())
         .output()
         .unwrap();
     let lines = fs::read_to_string(&log)
@@ -289,4 +299,25 @@ fn an_integration_test_reruns_when_the_binary_it_runs_changes() {
 /// `cargo test --test cli -p tool`, as [`cargo_test`] runs it.
 fn cargo_test_tool(root: &Path, store: &Path) -> (Output, Vec<String>) {
     cargo_test_with(root, store, &["--package", "tool", "--test", "cli"])
+}
+
+#[test]
+fn a_package_binary_outside_the_build_turns_caching_off() {
+    // A CARGO_BIN_EXE_ variable naming something the runner could not find
+    // again from the test binary leaves the binary without a record.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("ws");
+    let store = dir.path().join("store");
+    workspace(&root);
+    let elsewhere = [("CARGO_BIN_EXE_elsewhere", "/opt/elsewhere/tool")];
+    let (output, lines) = cargo_test_env(&root, &store, &["--lib"], &elsewhere);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(lines.len(), 3, "{lines:?}");
+    assert!(
+        lines.iter().all(
+            |line| line.starts_with("test-pass - ") && !line.contains("coverage")
+                || under_coverage()
+        ),
+        "{lines:?}"
+    );
 }

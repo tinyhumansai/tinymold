@@ -500,3 +500,35 @@ fn arguments_and_env_vars_that_are_not_utf8_pass_through() {
         ]
     );
 }
+
+#[test]
+fn a_changed_build_script_output_or_package_binary_runs_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), COUNTS_RUNS);
+    let binary = build(&root, &config);
+    // As the wrapper records a test compiled with OUT_DIR and
+    // CARGO_BIN_EXE_tool set.
+    let profile = root.join("target/debug");
+    fs::create_dir_all(profile.join("build/demo-1/out")).unwrap();
+    fs::write(profile.join("build/demo-1/out/table.bin"), "v1").unwrap();
+    fs::write(profile.join("tool"), "tool v1").unwrap();
+    let digest = Digest::of_file(&binary).unwrap();
+    let record = TestBinary {
+        crate_name: "demo".into(),
+        dylibs: Vec::new(),
+        exes: vec!["${PROFILE}/tool".into()],
+        out_dirs: vec!["${PROFILE}/build/demo-1/out".into()],
+    };
+    fs::write(TestBinary::path(&config.store, &digest), record.encode()).unwrap();
+    let marker = dir.path().join("marker");
+    let env = env(&[("MARKER", marker.to_str().unwrap())]);
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(runs(&marker), 1);
+    fs::write(profile.join("build/demo-1/out/table.bin"), "version two").unwrap();
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(runs(&marker), 2);
+    fs::write(profile.join("tool"), "tool version two").unwrap();
+    assert_eq!(run(&config, &root, &binary, &[], &env), 0);
+    assert_eq!(runs(&marker), 3);
+}
