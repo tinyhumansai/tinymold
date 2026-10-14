@@ -44,9 +44,9 @@ pub fn claim(store: &Path, now: SystemTime) -> bool {
     let path = stamp(store);
     if let Ok(last) = fs::metadata(&path).and_then(|meta| meta.modified()) {
         // A stamp from the future, after a clock change, counts as recent.
-        let recent = now
+        let recent = !now
             .duration_since(last)
-            .map_or(true, |elapsed| elapsed < INTERVAL);
+            .is_ok_and(|elapsed| elapsed >= INTERVAL);
         if recent {
             return false;
         }
