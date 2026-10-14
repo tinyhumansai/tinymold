@@ -14,6 +14,8 @@ struct Fixture {
 
 const OLD: u64 = 1_700_000_000_000_000_000;
 const BUILT: u64 = 1_700_000_100_000_000_000;
+/// The fixture's one cargo fingerprint file, relative to the target.
+const FINGERPRINT: &str = "debug/.fingerprint/demo-1/bin-demo";
 
 fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
@@ -22,7 +24,7 @@ fn fixture() -> Fixture {
     fs::create_dir_all(workspace.join("src")).unwrap();
     fs::create_dir_all(workspace.join(".git")).unwrap();
     fs::create_dir_all(workspace.join("nested/.git")).unwrap();
-    fs::create_dir_all(target.join("debug")).unwrap();
+    fs::create_dir_all(target.join("debug/.fingerprint/demo-1")).unwrap();
     fs::write(workspace.join("Cargo.toml"), b"[package]").unwrap();
     fs::write(workspace.join("src/main.rs"), b"fn main() {}").unwrap();
     fs::write(workspace.join(".git/HEAD"), b"ref").unwrap();
@@ -32,7 +34,9 @@ fn fixture() -> Fixture {
     for file in ["Cargo.toml", "src/main.rs"] {
         set_modified(&workspace.join(file), from_nanos(OLD)).unwrap();
     }
+    fs::write(target.join(FINGERPRINT), b"0123abcd").unwrap();
     set_modified(&target.join("debug/demo"), from_nanos(BUILT)).unwrap();
+    set_modified(&target.join(FINGERPRINT), from_nanos(BUILT)).unwrap();
     Fixture {
         _dir: dir,
         workspace,
@@ -53,6 +57,7 @@ fn the_manifest_encoding_is_pinned() {
     let manifest = Manifest {
         recorded_ns: 2,
         stamp_ns: 1,
+        fingerprints: Digest::of_bytes(b""),
         entries: vec![Entry {
             path: "src/main.rs".into(),
             size: 0,
@@ -62,6 +67,7 @@ fn the_manifest_encoding_is_pinned() {
     };
     // The BLAKE3 digest of empty input is a published test vector.
     let expected = "tinymold-fresh 1\nrecorded 2\nstamp 1\n\
+        fingerprints af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262\n\
         3 0 af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262 src/main.rs\n";
     assert_eq!(manifest.encode(), expected);
     assert_eq!(
@@ -141,7 +147,7 @@ fn restore_refuses_after_a_build_changed_the_target() {
     // cargo would think the edited build's outputs are still current.
     let f = fixture();
     record(&f.workspace, &f.target).unwrap();
-    touch(&f.target.join("debug/demo"));
+    touch(&f.target.join(FINGERPRINT));
     touch(&f.workspace.join("src/main.rs"));
 
     assert_eq!(
@@ -152,16 +158,49 @@ fn restore_refuses_after_a_build_changed_the_target() {
 }
 
 #[test]
-fn cargo_bookkeeping_files_do_not_move_the_stamp() {
+fn only_cargo_fingerprints_move_the_stamp() {
+    // A no-op cargo build rewrites `.cargo-lock`, `.rustc_info.json` and the
+    // uplifted `<bin>.d`, but never a fingerprint.
     let f = fixture();
     record(&f.workspace, &f.target).unwrap();
     fs::write(f.target.join("debug/.cargo-lock"), b"").unwrap();
     fs::write(f.target.join(".rustc_info.json"), b"{}").unwrap();
     fs::write(f.target.join("debug/demo.d"), b"demo: src/main.rs").unwrap();
+    touch(&f.target.join("debug/demo"));
     assert!(matches!(
         restore(&f.workspace, &f.target).unwrap(),
         Restore::Applied(_)
     ));
+}
+
+#[test]
+fn every_fingerprint_location_cargo_uses_is_read() {
+    let f = fixture();
+    let before = target_state(&f.target).unwrap();
+    assert_eq!(before.newest_ns, BUILT);
+    // Another target triple, and build-dir layout v2.
+    for unit in [
+        "aarch64-apple-darwin/debug/.fingerprint/x-1/lib-x",
+        "debug/build/pkg/0abc/fingerprint/lib-pkg",
+    ] {
+        let path = f.target.join(unit);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, b"").unwrap();
+        let after = target_state(&f.target).unwrap();
+        assert_ne!(after.fingerprints, before.fingerprints, "{unit}");
+    }
+    // A deleted fingerprint, as cargo does before a rebuild, also counts.
+    let state = target_state(&f.target).unwrap();
+    fs::remove_file(f.target.join(FINGERPRINT)).unwrap();
+    assert_ne!(
+        target_state(&f.target).unwrap().fingerprints,
+        state.fingerprints
+    );
+    // tinymold's own state directory is not a profile.
+    let state = target_state(&f.target).unwrap();
+    fs::create_dir_all(f.target.join(".tinymold/.fingerprint/u")).unwrap();
+    fs::write(f.target.join(".tinymold/.fingerprint/u/f"), b"").unwrap();
+    assert_eq!(target_state(&f.target).unwrap(), state);
 }
 
 #[test]
@@ -174,33 +213,59 @@ fn restore_without_a_manifest_does_nothing() {
 }
 
 #[test]
-fn a_missing_target_has_a_zero_stamp() {
+fn a_missing_or_non_directory_target_has_no_fingerprints() {
     let dir = tempfile::tempdir().unwrap();
-    assert_eq!(stamp(&dir.path().join("missing")).unwrap(), 0);
+    let empty = TargetState {
+        newest_ns: 0,
+        fingerprints: Hasher::new().finish(),
+    };
+    assert_eq!(target_state(&dir.path().join("missing")).unwrap(), empty);
+    let file = dir.path().join("target");
+    fs::write(&file, b"").unwrap();
+    assert_eq!(target_state(&file).unwrap(), empty);
+    assert!(matches!(load(&file), Err(Error::Io { action: "read", .. })));
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_profile_directory_is_an_error() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let f = fixture();
+    let debug = f.target.join("debug");
+    fs::set_permissions(&debug, fs::Permissions::from_mode(0o000)).unwrap();
+    let result = target_state(&f.target);
+    fs::set_permissions(&debug, fs::Permissions::from_mode(0o755)).unwrap();
+    // Root reads anything, so only a refused read is checked.
+    if let Err(error) = result {
+        assert!(matches!(error, Error::Io { action: "read", .. }));
+    }
 }
 
 #[test]
-fn reading_a_target_that_is_a_file_fails_with_its_path() {
-    let dir = tempfile::tempdir().unwrap();
-    let file = dir.path().join("target");
-    fs::write(&file, b"").unwrap();
-    assert!(matches!(
-        stamp(&file),
-        Err(Error::Io { action: "read", .. })
-    ));
-    assert!(matches!(load(&file), Err(Error::Io { action: "read", .. })));
+fn record_ignores_an_unreadable_previous_manifest() {
+    let f = fixture();
+    write_atomically(&manifest_path(&f.target), b"tinymold-fresh 0").unwrap();
+    assert_eq!(record(&f.workspace, &f.target).unwrap().hashed, 2);
 }
 
 #[test]
 fn a_corrupt_manifest_names_the_bad_line() {
     let path = Path::new("fresh");
-    let cases = [
+    let digest = Digest::of_bytes(b"");
+    let head = format!("tinymold-fresh 1\nrecorded 1\nstamp 1\nfingerprints {digest}\n");
+    let cases: [(&str, usize); 8] = [
         ("", 1),
         ("tinymold-fresh 1\n", 2),
         ("tinymold-fresh 1\nrecorded x\n", 2),
         ("tinymold-fresh 1\nrecorded 1\nstamp\n", 3),
-        ("tinymold-fresh 1\nrecorded 1\nstamp 1\n1 2 nothex a\n", 4),
-        ("tinymold-fresh 1\nrecorded 1\nstamp 1\n1 2\n", 4),
+        ("tinymold-fresh 1\nrecorded 1\nstamp x\n", 3),
+        (
+            "tinymold-fresh 1\nrecorded 1\nstamp 1\nfingerprints zz\n",
+            4,
+        ),
+        (&format!("{head}1 2 nothex a\n"), 5),
+        (&format!("{head}1 2\n"), 5),
     ];
     for (text, line) in cases {
         let error = Manifest::decode(text, path).unwrap_err();
@@ -209,8 +274,7 @@ fn a_corrupt_manifest_names_the_bad_line() {
             "{text:?} -> {error}"
         );
     }
-    let digest = Digest::of_bytes(b"");
-    let no_path = format!("tinymold-fresh 1\nrecorded 1\nstamp 1\n1 2 {digest} \n");
+    let no_path = format!("{head}1 2 {digest} \n");
     assert!(Manifest::decode(&no_path, path).is_err());
 }
 

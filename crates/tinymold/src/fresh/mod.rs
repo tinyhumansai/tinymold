@@ -17,9 +17,11 @@
 //! A restore only reproduces a state cargo has already seen: the mtimes the
 //! workspace had when the target directory last matched it. That holds only
 //! while the target directory is unchanged since the record, so the manifest
-//! carries a *stamp*: the newest output mtime in the target. Any build in
-//! between writes newer outputs, the stamp no longer matches, and the restore
-//! refuses ([`Restore::TargetChanged`]). Without that check, an edit, a build,
+//! carries a digest of cargo's fingerprint files (their paths and mtimes).
+//! Cargo rewrites a unit's fingerprint whenever it builds that unit, so any
+//! build in between changes the digest and the restore refuses
+//! ([`Restore::TargetChanged`]). Only fingerprints are read, not the outputs
+//! themselves: about 600 files for bat's 9,667-file `target/`. Without that check, an edit, a build,
 //! and an undo would get the undone file an old mtime that cargo would wrongly
 //! judge older than the edited build's outputs.
 //!
@@ -34,7 +36,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tinymold_hash::Digest;
+use tinymold_hash::{Digest, Hasher};
 
 use crate::tree::{io_error, set_modified};
 use crate::{Error, Result};
@@ -44,19 +46,6 @@ pub use types::{RecordReport, Restore, RestoreReport};
 
 /// The directory inside a target directory where tinymold keeps its files.
 const STATE_DIR: &str = ".tinymold";
-
-/// Files cargo rewrites on every invocation, even a no-op one. They describe
-/// cargo's bookkeeping, not build outputs, so they are left out of the stamp.
-/// Dep-info (`*.d`) files are left out too, by [`counts_for_stamp`]: cargo
-/// rewrites the uplifted `target/debug/<bin>.d` on every build. Any build that
-/// compiles or links also writes fingerprints, objects or binaries, so the
-/// stamp still moves.
-const STAMP_IGNORED: &[&str] = &[
-    ".cargo-lock",
-    ".rustc_info.json",
-    "CACHEDIR.TAG",
-    ".package-cache",
-];
 
 /// Where the freshness manifest for `target` lives.
 #[must_use]
@@ -83,7 +72,11 @@ pub fn manifest_path(target: &Path) -> PathBuf {
 /// hashed.
 pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
     let recorded_ns = nanos(SystemTime::now());
-    let previous: HashMap<String, Entry> = load(target)?
+    // The previous manifest is only a digest cache: an unreadable or
+    // outdated one is ignored, not an error.
+    let previous: HashMap<String, Entry> = load(target)
+        .ok()
+        .flatten()
         .map(|manifest| {
             let cutoff = manifest.recorded_ns;
             manifest
@@ -130,9 +123,11 @@ pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
     }
     entries.sort_by(|a, b| a.path.cmp(&b.path));
 
+    let state = target_state(target)?;
     let manifest = Manifest {
         recorded_ns,
-        stamp_ns: stamp(target)?,
+        stamp_ns: state.newest_ns,
+        fingerprints: state.fingerprints,
         entries,
     };
     write_atomically(&manifest_path(target), manifest.encode().as_bytes())?;
@@ -176,7 +171,7 @@ pub(crate) fn apply(
     let Some(manifest) = load(target)? else {
         return Ok(Restore::NoManifest);
     };
-    if stamp(target)? != manifest.stamp_ns {
+    if target_state(target)?.fingerprints != manifest.fingerprints {
         return Ok(Restore::TargetChanged);
     }
     let mut verify = verify;
@@ -289,46 +284,112 @@ fn relative(root: &Path, path: &Path) -> Option<String> {
     (!joined.contains('\n') && !joined.contains('\r')).then_some(joined)
 }
 
-/// The newest mtime of any build output under `target`, in nanoseconds; 0
-/// when the target is empty or missing.
-pub(crate) fn stamp(target: &Path) -> Result<u64> {
-    let mut newest = 0;
-    stamp_dir(target, true, &mut newest)?;
-    Ok(newest)
+/// What a target directory's cargo fingerprints say about it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TargetState {
+    /// The newest fingerprint mtime, in nanoseconds; 0 when there are none.
+    pub(crate) newest_ns: u64,
+    /// Digest of every fingerprint file's path and mtime.
+    pub(crate) fingerprints: Digest,
 }
 
-fn stamp_dir(dir: &Path, top: bool, newest: &mut u64) -> Result<()> {
-    let entries = match fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(error) if top && error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(io_error("read", dir)(error)),
-    };
-    for entry in entries {
-        let entry = entry.map_err(io_error("read", dir))?;
-        let name = entry.file_name();
-        if (top && name == STATE_DIR) || !counts_for_stamp(&name) {
+/// Reads `target`'s cargo fingerprints.
+///
+/// Cargo keeps one fingerprint directory per unit, at
+/// `<profile>/.fingerprint/<unit>/` (and `<profile>/build/<pkg>/<hash>/fingerprint/`
+/// in build-dir layout v2), with `<profile>` one or two levels below the
+/// target root (`debug`, or `<triple>/debug`). It rewrites a unit's
+/// fingerprint after every build of that unit and deletes it before
+/// rebuilding, while a no-op build leaves them all alone. A missing target
+/// has no fingerprints.
+pub(crate) fn target_state(target: &Path) -> Result<TargetState> {
+    let mut found = Vec::new();
+    for profile in profile_dirs(target)? {
+        collect_fingerprints(target, &profile.join(".fingerprint"), &mut found)?;
+        for package in subdirs(&profile.join("build"))? {
+            for unit in subdirs(&package)? {
+                collect_fingerprints(target, &unit.join("fingerprint"), &mut found)?;
+            }
+        }
+    }
+    found.sort();
+    let mut hasher = Hasher::new();
+    let mut newest_ns = 0;
+    for (path, mtime_ns) in &found {
+        hasher.field(path.as_bytes()).field(&mtime_ns.to_le_bytes());
+        newest_ns = newest_ns.max(*mtime_ns);
+    }
+    Ok(TargetState {
+        newest_ns,
+        fingerprints: hasher.finish(),
+    })
+}
+
+/// Directories one and two levels below `target`, where cargo's profile
+/// directories live; tinymold's own state directory is not one.
+fn profile_dirs(target: &Path) -> Result<Vec<PathBuf>> {
+    let mut dirs = Vec::new();
+    for first in subdirs(target)? {
+        if first.file_name().is_some_and(|name| name == STATE_DIR) {
             continue;
         }
-        let path = entry.path();
-        let kind = entry.file_type().map_err(io_error("read", &path))?;
-        if kind.is_dir() {
-            stamp_dir(&path, false, newest)?;
-        } else if kind.is_file() {
-            let modified = entry
-                .metadata()
-                .and_then(|meta| meta.modified())
-                .map_err(io_error("read", &path))?;
-            *newest = (*newest).max(nanos(modified));
+        dirs.extend(subdirs(&first)?);
+        dirs.push(first);
+    }
+    Ok(dirs)
+}
+
+/// The subdirectories of `dir`; none when `dir` does not exist or is not a
+/// directory.
+fn subdirs(dir: &Path) -> Result<Vec<PathBuf>> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+            ) =>
+        {
+            return Ok(Vec::new());
+        }
+        Err(error) => return Err(io_error("read", dir)(error)),
+    };
+    let mut dirs = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(io_error("read", dir))?;
+        if entry
+            .file_type()
+            .map_err(io_error("read", &entry.path()))?
+            .is_dir()
+        {
+            dirs.push(entry.path());
+        }
+    }
+    Ok(dirs)
+}
+
+/// Adds every file under the fingerprint directory `dir` to `found`, as its
+/// path relative to `target` and its mtime.
+fn collect_fingerprints(target: &Path, dir: &Path, found: &mut Vec<(String, u64)>) -> Result<()> {
+    for unit in subdirs(dir)?
+        .into_iter()
+        .chain(std::iter::once(dir.to_path_buf()))
+    {
+        let Ok(entries) = fs::read_dir(&unit) else {
+            continue;
+        };
+        for entry in entries {
+            let entry = entry.map_err(io_error("read", &unit))?;
+            let path = entry.path();
+            let meta = entry.metadata().map_err(io_error("read", &path))?;
+            if meta.is_file() {
+                let modified = meta.modified().map_err(io_error("read", &path))?;
+                let rel = path.strip_prefix(target).unwrap_or(&path);
+                found.push((rel.to_string_lossy().replace('\\', "/"), nanos(modified)));
+            }
         }
     }
     Ok(())
-}
-
-/// Whether a target entry named `name` can move the stamp.
-fn counts_for_stamp(name: &std::ffi::OsStr) -> bool {
-    let ignored = STAMP_IGNORED.iter().any(|ignored| name == *ignored);
-    let dep_info = Path::new(name).extension().is_some_and(|ext| ext == "d");
-    !ignored && !dep_info
 }
 
 /// Writes `bytes` to `path` through a temporary file and a rename, so a

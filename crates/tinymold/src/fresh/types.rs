@@ -7,12 +7,14 @@
 //! tinymold-fresh 1
 //! recorded 1760450000123456789
 //! stamp 1760449990000000000
+//! fingerprints <64 hex digits>
 //! 1760440000000000000 42 <64 hex digits> src/main.rs
 //! ```
 //!
 //! `recorded` is when the manifest was written and `stamp` is the newest
-//! output mtime in the target directory at that moment, both in nanoseconds
-//! since the Unix epoch. Each entry is the file's mtime, size, BLAKE3 digest
+//! mtime among cargo's fingerprint files at that moment, both in nanoseconds
+//! since the Unix epoch. `fingerprints` is a digest of every fingerprint
+//! file's path and mtime: any build since the record changes it. Each entry is the file's mtime, size, BLAKE3 digest
 //! and path relative to the workspace root with `/` separators. Entries are
 //! sorted by path so the same tree always encodes to the same bytes.
 
@@ -45,8 +47,11 @@ pub(crate) struct Entry {
 pub(crate) struct Manifest {
     /// When the manifest was written, in nanoseconds since the Unix epoch.
     pub(crate) recorded_ns: u64,
-    /// The newest output mtime in the target directory when it was written.
+    /// The newest fingerprint mtime in the target directory when it was
+    /// written.
     pub(crate) stamp_ns: u64,
+    /// Digest of the target's fingerprint files when it was written.
+    pub(crate) fingerprints: Digest,
     /// Every recorded file, sorted by path.
     pub(crate) entries: Vec<Entry>,
 }
@@ -55,8 +60,8 @@ impl Manifest {
     /// Encodes the manifest in its canonical text form.
     pub(crate) fn encode(&self) -> String {
         let mut text = format!(
-            "{HEADER}\nrecorded {}\nstamp {}\n",
-            self.recorded_ns, self.stamp_ns
+            "{HEADER}\nrecorded {}\nstamp {}\nfingerprints {}\n",
+            self.recorded_ns, self.stamp_ns, self.fingerprints
         );
         for entry in &self.entries {
             // Writing to a String cannot fail.
@@ -80,23 +85,24 @@ impl Manifest {
         if lines.next() != Some(HEADER) {
             return Err(corrupt(1));
         }
-        let mut field = |name: &str, line: usize| -> Result<u64> {
+        let mut field = |name: &str, line: usize| -> Result<&str> {
             lines
                 .next()
                 .and_then(|text| text.strip_prefix(name))
                 .and_then(|value| value.strip_prefix(' '))
-                .and_then(|value| value.parse().ok())
                 .ok_or_else(|| corrupt(line))
         };
-        let recorded_ns = field("recorded", 2)?;
-        let stamp_ns = field("stamp", 3)?;
+        let recorded_ns = field("recorded", 2)?.parse().map_err(|_| corrupt(2))?;
+        let stamp_ns = field("stamp", 3)?.parse().map_err(|_| corrupt(3))?;
+        let fingerprints = Digest::from_str(field("fingerprints", 4)?).map_err(|_| corrupt(4))?;
         let entries = lines
             .enumerate()
-            .map(|(index, line)| parse_entry(line).ok_or_else(|| corrupt(index + 4)))
+            .map(|(index, line)| parse_entry(line).ok_or_else(|| corrupt(index + 5)))
             .collect::<Result<_>>()?;
         Ok(Self {
             recorded_ns,
             stamp_ns,
+            fingerprints,
             entries,
         })
     }
