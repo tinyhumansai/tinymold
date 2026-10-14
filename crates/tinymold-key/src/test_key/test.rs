@@ -78,8 +78,8 @@ fn the_test_key_encoding_is_pinned() {
     );
 }
 
-const PINNED_TEST_KEY: &str = "";
-const PINNED_TREE: &str = "";
+const PINNED_TEST_KEY: &str = "db7612381a0065794552bb3da3f1ef5f1d6fd221dcc481cbf0b9de16e3c79111";
+const PINNED_TREE: &str = "90d63e2c71ca5b3245c813e4fb067ccff7bfec19ac0c5ec6143615c62e201033";
 
 #[test]
 fn every_keyed_field_moves_the_key() {
