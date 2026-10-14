@@ -106,5 +106,6 @@ choose what to measure next, not as results):
   changes: 0.24s of a 0.64s comment-edit rebuild.
 - **The edit loop's rustc time is mostly copying incremental objects.** In
   the comment edit, `rg`'s largest self-profile item was
-  `codegen_copy_artifacts_from_incr_cache`: 868ms, 63% of its profiled time,
+  `codegen_copy_artifacts_from_incr_cache`: 868ms summed across threads, 63%
+  of its profiled time, while the unit itself ran under 0.5s wall,
   for 256 codegen units.
