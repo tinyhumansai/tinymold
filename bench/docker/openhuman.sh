@@ -120,6 +120,9 @@ restore() {
 }
 trap restore EXIT
 
+# Download every dependency first, so no build's time includes the network.
+(cd "$SRC" && cargo fetch --locked > "$OUT/logs/fetch.log" 2>&1)
+
 store_bytes() { du -sb "$STORE" 2>/dev/null | cut -f1 || echo 0; }
 
 for config in $CONFIGS; do
