@@ -81,7 +81,7 @@ fn the_best_match_is_the_snapshot_sharing_the_most_content() {
 #[test]
 fn saving_again_replaces_the_snapshot_and_list_shows_it() {
     let f = Fixture::new();
-    assert!(list(&f.store).unwrap().is_empty());
+    assert_eq!(list(&f.store).unwrap(), Vec::<Snapshot>::new());
     let (a, a_target) = f.worktree("a", "one");
     save(&f.store, "main", &a, &a_target).unwrap();
     fs::write(a.join("src/lib.rs"), "two").unwrap();
