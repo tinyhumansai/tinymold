@@ -132,6 +132,16 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
                     }
                 }
             }
+            // A held lock belongs to a compile in progress; its age only
+            // says when the key was first compiled.
+            RecordKind::Lock => {
+                if policy.older_than(record.last_used, Some(policy.grace))
+                    && !tinymold_wrap::lock_held(&record.path)
+                {
+                    remove_file(&record.path, policy)?;
+                    report.caches_removed += 1;
+                }
+            }
             _ => {
                 if policy.older_than(record.last_used, Some(policy.grace)) {
                     remove_file(&record.path, policy)?;

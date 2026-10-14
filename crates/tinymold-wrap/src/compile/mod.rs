@@ -10,9 +10,12 @@
 //! 3. on a hit, place every output by reflink or copy, give it a fresh mtime,
 //!    replay rustc's output, and record the hit as the last use of its action
 //!    and pre-key records (`docs/specs/gc.md`);
-//! 4. with a remote tier, on a local miss, fetch the unit's input sets and
+//! 4. on a local miss, lock the compile this most likely is, so that other
+//!    builds wanting it wait; if another build holds the lock, wait for it
+//!    and look again ([`crate::flight`]);
+//! 5. with a remote tier, on a local miss, fetch the unit's input sets and
 //!    action from it and restore that (`docs/specs/remote.md`);
-//! 5. on a miss, run rustc with its output streamed through, then store the
+//! 6. on a miss, run rustc with its output streamed through, then store the
 //!    outputs, the action, and the input set, if the compile succeeded and no
 //!    input changed while it ran.
 
@@ -20,7 +23,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
@@ -29,6 +32,7 @@ use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, 
 use crate::clock::{filesystem_now, written_before};
 use crate::error::io;
 use crate::exec::{self, Captured};
+use crate::flight::{self, Claim};
 use crate::parallel;
 use crate::record::{
     self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
@@ -48,21 +52,36 @@ use crate::{Error, Result};
 /// files to amortize its spawn over.
 const PARALLEL_RESTORE_MIN: usize = 16;
 
-/// How a cacheable invocation was served.
+/// How long a miss waits for another build compiling the same unit before
+/// compiling it too.
+pub(crate) const LOCK_WAIT: Duration = Duration::from_secs(600);
+
+/// How a cacheable invocation was served. `waited` is how long it waited
+/// for another build compiling the same unit, when it did.
 #[derive(Debug)]
 pub(crate) enum Served {
     /// Restored from the local cache; rustc did not run.
-    Hit,
+    Hit { waited: Option<Duration> },
     /// Fetched from the remote tier, then restored; rustc did not run.
-    RemoteHit,
+    RemoteHit { waited: Option<Duration> },
     /// rustc ran and exited with `code`; `stored` says how long storing its
     /// outputs took, or why they were not stored.
     Miss {
         code: i32,
-        stored: std::result::Result<std::time::Duration, String>,
+        stored: std::result::Result<Duration, String>,
         /// Why the remote tier could not serve the unit, when it failed.
         remote: Option<String>,
+        waited: Option<Duration>,
     },
+}
+
+/// What a local lookup found.
+struct Lookup {
+    /// The matching action and the path of its record.
+    hit: Option<(Action, PathBuf)>,
+    /// The full key the newest recorded input set gives for today's files:
+    /// the compile a miss most likely is.
+    likely: Option<Digest>,
 }
 
 /// Everything about one invocation the steps share.
@@ -81,7 +100,8 @@ struct Unit<'a> {
 }
 
 /// Serves `invocation` from the cache in `store_dir`, or by running
-/// `program`.
+/// `program`, waiting up to `lock_wait` for another build compiling the same
+/// unit.
 ///
 /// An error means rustc has not run and nothing was restored, so the caller
 /// can fall back to running rustc itself.
@@ -91,6 +111,7 @@ pub(crate) fn serve(
     program: &Path,
     args: &[OsString],
     invocation: &Invocation,
+    lock_wait: Duration,
     trace: &mut Trace,
 ) -> Result<Served> {
     let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
@@ -107,13 +128,27 @@ pub(crate) fn serve(
         now_ns: filesystem_now(&store_dir.join("stat"))?,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program))?;
-    if let Some((action, entry)) = trace.span("lookup", || unit.lookup(&pre))?
-        && trace.span("restore", || unit.restore(&action)).is_ok()
-    {
-        record::touch(&entry);
-        record::touch(&unit.prekey_path(&pre));
-        return Ok(Served::Hit);
+    let found = trace.span("lookup", || unit.lookup(&pre))?;
+    if unit.restore_hit(&pre, found.hit, trace) {
+        return Ok(Served::Hit { waited: None });
     }
+    // Held until the compile is stored, so that a build wanting the same
+    // unit waits for it rather than compiling it again.
+    let lock_key = found.likely.unwrap_or(pre);
+    let (_flight, waited) =
+        match trace.span("wait", || flight::claim(store_dir, &lock_key, lock_wait)) {
+            Claim::Held(flight) => (Some(flight), None),
+            Claim::Waited(flight, waited) => {
+                let again = trace.span("lookup", || unit.lookup(&pre))?;
+                if unit.restore_hit(&pre, again.hit, trace) {
+                    return Ok(Served::Hit {
+                        waited: Some(waited),
+                    });
+                }
+                (Some(flight), Some(waited))
+            }
+            Claim::Unlocked => (None, None),
+        };
     let mut remote_failure = None;
     if let Some(remote) = remote {
         match trace.span("remote", || unit.remote_lookup(remote, &pre)) {
@@ -121,7 +156,7 @@ pub(crate) fn serve(
                 if trace.span("restore", || unit.restore(&action)).is_ok() =>
             {
                 record::touch(&entry);
-                return Ok(Served::RemoteHit);
+                return Ok(Served::RemoteHit { waited });
             }
             Ok(_) => {}
             Err(error) => remote_failure = Some(error.to_string()),
@@ -142,6 +177,7 @@ pub(crate) fn serve(
         code: captured.code,
         stored,
         remote: remote_failure,
+        waited,
     })
 }
 
@@ -246,22 +282,43 @@ impl Unit<'_> {
 
     /// The action of the first recorded input set that still matches, and
     /// the path of its record.
-    fn lookup(&self, pre: &Digest) -> Result<Option<(Action, PathBuf)>> {
+    fn lookup(&self, pre: &Digest) -> Result<Lookup> {
+        let mut found = Lookup {
+            hit: None,
+            likely: None,
+        };
         let path = self.prekey_path(pre);
         let Some(text) = record::read(&path)? else {
-            return Ok(None);
+            return Ok(found);
         };
         for set in decode_sets(&text, &path)? {
             let Some(key) = self.full_key_of(pre, &set) else {
                 continue;
             };
+            found.likely.get_or_insert(key);
             let entry = self.action_path(&key);
             if let Some(text) = record::read(&entry)? {
                 let action = Action::decode(&text, &entry)?;
-                return Ok(Some((action, entry)));
+                found.hit = Some((action, entry));
+                break;
             }
         }
-        Ok(None)
+        Ok(found)
+    }
+
+    /// Restores `hit`, when there is one, and records it as the last use of
+    /// its action and of the pre-key. False when there is nothing to restore
+    /// or restoring failed, so the unit must be compiled.
+    fn restore_hit(&self, pre: &Digest, hit: Option<(Action, PathBuf)>, trace: &mut Trace) -> bool {
+        let Some((action, entry)) = hit else {
+            return false;
+        };
+        if trace.span("restore", || self.restore(&action)).is_err() {
+            return false;
+        }
+        record::touch(&entry);
+        record::touch(&self.prekey_path(pre));
+        true
     }
 
     /// The first remote input set that matches the local files and whose
