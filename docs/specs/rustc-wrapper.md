@@ -76,7 +76,14 @@ fields, in order, each length-prefixed (`tinymold_hash::Hasher`):
      upstream rebuild that produces identical bytes keeps the dependent's
      key (early cutoff).
    - **Each `-L native=|all=|framework=|crate=` directory becomes the
-     digests of the files in it.**
+     digests of the files in it.** A static archive (`!<arch>`) is hashed
+     with each member's time, uid and gid fields zeroed.
+     - `ar` stamps those fields on every build, and the linker never reads
+       them.
+     - Measured on bat: its `libgit2.a` was member-for-member identical
+       across two clean builds once they were zeroed.
+     - Without this, every rebuilt `-sys` crate would change its dependents'
+       keys.
    - **Every other path is rewritten:** prefixes of the current directory
      become `${CWD}`, the profile directory becomes `${PROFILE}`, and
      `CARGO_HOME` becomes `${CARGO_HOME}`.
