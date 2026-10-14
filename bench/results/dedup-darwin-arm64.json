@@ -1,0 +1,35 @@
+{
+  "benchmark": "dedup",
+  "results": [
+    {
+      "project": "tinymold",
+      "rev": "9db903e",
+      "files": {
+        "bytes": 121256152,
+        "identical_bytes": 96165133,
+        "unique_items": 509
+      },
+      "rlib_members": {
+        "bytes": 44718800,
+        "identical_bytes": 41091336,
+        "unique_items": 317
+      },
+      "dwarf_sections": {
+        "bytes": 31540026,
+        "identical_bytes": 29149004,
+        "unique_items": 2667
+      }
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 1
+}

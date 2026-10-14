@@ -655,7 +655,8 @@ class Session:
             command = cargo(*self.config, "build", "--locked", "-v", *args)
         self.log.unlink(missing_ok=True)
         if self.sccache and self.mode == "sccache":
-            run([self.sccache, "--zero-stats"], env=self.env, stdout=subprocess.DEVNULL)
+            run([self.sccache, "--zero-stats"], env=self.env, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL)
         start = time.perf_counter()
         done = subprocess.run(command, cwd=cwd or self.src, env=self.env,
                               capture_output=True, text=True)
@@ -974,7 +975,13 @@ def main() -> None:
 
     RESULTS.mkdir(exist_ok=True)
     name = f"{result['benchmark']}-{result['machine']['os']}-{result['machine']['arch']}.json"
-    (RESULTS / name).write_text(json.dumps(result, indent=2) + "\n")
+    path = RESULTS / name
+    if getattr(args, "project", None) and path.exists():
+        # A single-project run replaces that project's rows and keeps the rest.
+        previous = json.loads(path.read_text())
+        kept = [r for r in previous["results"] if r["project"] != args.project]
+        result["results"] = kept + result["results"]
+    path.write_text(json.dumps(result, indent=2) + "\n")
     print(f"wrote bench/results/{name}", file=sys.stderr)
 
 

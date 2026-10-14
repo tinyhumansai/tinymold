@@ -35,6 +35,32 @@ without its machine is not a result.
 
 <!-- results:start -->
 
+### Edit-loop scenarios (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
+
+Pinned: cargo build jobs: 18; target filesystem: apfs; linker: cc, rustc's default, behind a timing wrapper; linker threads: linker default; the platform cc linker takes no thread flag; output reuse: rustc default: each link writes a fresh output; incremental: on for baseline; off under sccache, which refuses it.
+
+Each cell: median wall time, then median link time, then units compiled. Under sccache, `hits` counts rustc invocations served from the cache across all runs.
+
+#### tinymold 85f8ef5 (this repository, as a small workspace)
+
+| Case | baseline | sccache |
+| --- | ---: | ---: |
+| Clean build | 6.21s · link 0.33s · 30 compiled | 3.85s · link 0.29s · 30 compiled · 0/31 hits · first (cold) run 3.85s |
+| No-op rebuild | 0.07s · link 0.00s · 0 compiled | 0.04s · link 0.00s · 0 compiled |
+| Comment edit | 0.16s · link 0.04s · 1 compiled | 0.14s · link 0.04s · 1 compiled |
+| Private function body edit | 0.27s · link 0.04s · 1 compiled | 0.32s · link 0.04s · 1 compiled · 0/1 hits |
+| Public signature edit | 0.37s · link 0.04s · 3 compiled | 0.55s · link 0.04s · 3 compiled · 0/3 hits |
+| Second worktree, same commit | 4.30s · link 0.26s · 30 compiled | 3.28s · link 0.26s · 30 compiled · 26/31 hits |
+| Branch switch A→B→A | 0.72s · link 0.08s · 6 compiled | 0.48s · link 0.07s · 6 compiled · 6/6 hits |
+| cargo test --no-run | 3.82s · link 0.25s · 9 compiled | 1.96s · link 0.28s · 9 compiled · 0/8 hits |
+
+`target/` by kind (baseline):
+
+| After | rlib | rmeta | debuginfo | objects | incremental | executables | other | total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Clean build | 45 MiB | 8 MiB | 0 MiB | 46 MiB | 11 MiB | 24 MiB | 0 MiB | 134 MiB |
+| cargo test --no-run | 54 MiB | 14 MiB | 0 MiB | 55 MiB | 23 MiB | 37 MiB | 0 MiB | 183 MiB |
+
 ### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
 What every tinymold phase is measured against. Times are wall clock; loops report the median.
@@ -65,6 +91,14 @@ Cache: sccache 0.17.0, private directory and port. Each cell is the median clean
 | Second worktree hit rate | 32/32 hits | 349/349 hits |
 | Not cacheable (bins, proc-macros, incremental, …) | 0 | 0 |
 | Cache size on disk | 36 MiB | 128 MiB |
+
+### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
+
+Share of the second worktree's `target/` bytes that are byte-identical to something in the first's, at three granularities. Incremental state is excluded.
+
+| Project | Files | rlib members | DWARF sections |
+| --- | ---: | ---: | ---: |
+| tinymold 9db903e | 79% of 116 MiB | 92% of 43 MiB | 92% of 30 MiB |
 
 ### Edit-rebuild loop (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
