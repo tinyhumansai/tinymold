@@ -17,7 +17,9 @@
 //! - `tinymold fresh` — undo mtime changes that did not change content, via
 //!   [`fresh`];
 //! - `tinymold snapshot` — whole `target/` snapshots for new worktrees and
-//!   branch switches, via [`snapshot`].
+//!   branch switches, via [`snapshot`];
+//! - `RUSTC_WRAPPER=tinymold` — a unit cache keyed by content, via
+//!   [`tinymold_wrap`] (see [`wrapper_call`]).
 //!
 //! # Example
 //!
@@ -43,6 +45,7 @@ pub mod fresh;
 mod location;
 pub mod snapshot;
 mod tree;
+mod wrapper;
 
 pub use cli::{
     CasCommand, Cli, Command, FreshCommand, Location, Outcome, SnapshotCommand, StrategyArg, run,
@@ -52,4 +55,6 @@ pub use error::{Error, Result};
 pub use location::default_store;
 pub use tinymold_cas;
 pub use tinymold_hash;
+pub use tinymold_wrap;
 pub use tree::{TreeClone, clone_tree};
+pub use wrapper::{wrapper_call, wrapper_config};
