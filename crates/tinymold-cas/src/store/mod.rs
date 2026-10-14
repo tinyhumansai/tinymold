@@ -86,6 +86,7 @@ impl Store {
     pub fn insert_bytes(&self, bytes: &[u8]) -> Result<Digest> {
         let digest = Digest::of_bytes(bytes);
         if self.contains(&digest) {
+            touch(&self.object_path(&digest));
             return Ok(digest);
         }
 
@@ -312,7 +313,8 @@ impl Store {
     fn commit(&self, staging: &Path, digest: Digest) -> Result<()> {
         let object = self.object_path(&digest);
         if object.is_file() {
-            // Another writer got there first with the same bytes.
+            // Already stored, perhaps by another writer just now.
+            touch(&object);
             return remove(staging);
         }
 
@@ -329,7 +331,10 @@ impl Store {
             Ok(()) => Ok(()),
             // Some platforms refuse to rename over an existing read-only
             // file. If the object appeared meanwhile, the race was benign.
-            Err(_) if object.is_file() => remove(staging),
+            Err(_) if object.is_file() => {
+                touch(&object);
+                remove(staging)
+            }
             Err(source) => Err(Error::Io {
                 action: "rename into place",
                 path: object,
@@ -377,6 +382,27 @@ fn remove_if_present(path: &Path) -> Result<bool> {
             path: path.to_path_buf(),
             source,
         }),
+    }
+}
+
+/// Sets an existing object's mtime to now, best effort. An object's mtime
+/// is when it was last stored, which is what keeps one an ingest is about to
+/// reference inside `tinymold gc`'s grace period.
+fn touch(path: &Path) {
+    let mut options = fs::OpenOptions::new();
+    // Objects are read-only. Unix sets times through any descriptor of a
+    // file the caller owns; Windows needs a handle with write-attributes
+    // access.
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_WRITE_ATTRIBUTES: u32 = 0x100;
+        options.access_mode(FILE_WRITE_ATTRIBUTES);
+    }
+    #[cfg(not(windows))]
+    options.read(true);
+    if let Ok(file) = options.open(path) {
+        let _ = file.set_modified(std::time::SystemTime::now());
     }
 }
 
