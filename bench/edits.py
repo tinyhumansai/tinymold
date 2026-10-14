@@ -243,7 +243,11 @@ class EditSession:
                 self.cache_log.unlink(missing_ok=True)
             done = measure(cmd, self.src, self.env)
             if done["rc"] != 0 and not tolerated:
-                sys.stderr.write(done["stderr"][-4000:])
+                # rustc's own error lines first: the tail is mostly the
+                # failed command line.
+                errors = [line for line in done["stderr"].splitlines()
+                          if line.lstrip().startswith(("error", "-->"))]
+                sys.stderr.write("\n".join(errors[:40]) + "\n" + done["stderr"][-2000:])
                 raise SystemExit(f"{self.project['name']}: {label} failed in {self.label}")
             links = ([float(x) for x in self.log.read_text().split()]
                      if self.log.exists() else [])
@@ -335,6 +339,12 @@ def bench_edits(args: argparse.Namespace) -> dict:
                                      Path(args.against).resolve(), sccache, "tinymold-base")
                          for linker in linkers]
         rows: dict[str, list[dict]] = {s.label: [] for s in sessions}
+        edited = sorted({edit["file"] for edit in project["edits"].values()})
+        dirty = bench.output(["git", "-C", str(src), "status", "--porcelain", "--", *edited])
+        if dirty:
+            # Edits left by an interrupted run would make every later edit a
+            # different one, or a duplicate definition.
+            raise SystemExit(f"{project['name']}: edited files are not clean in {src}:\n{dirty}")
         plan = schedule(args.steps, args.churn_every, "churn" in project, args.fresh_every)
         edits = bench.Edits(src, project["edits"], cumulative=True)
         servers = [s for s in sessions if s.mode == "sccache"]
