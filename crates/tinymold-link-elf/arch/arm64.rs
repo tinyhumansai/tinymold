@@ -263,7 +263,7 @@ impl<const LE: bool> Target for Arm64Target<LE> {
         let insn = if ctx.args.z_pac_plt { &PAC_INSN } else { &INSN };
         let off = write_landing_pad(buf, Self::plt_needs_landing_pad(ctx, sym));
         let buf = &mut buf[off..Self::plt_entry_size(ctx) as usize];
-        for (loc, &v) in buf.chunks_exact_mut(4).zip(insn) {
+        for (loc, &v) in buf.as_chunks_mut::<4>().0.iter_mut().zip(insn) {
             write_ul32(loc, v);
         }
         let gotplt = sym.gotplt_addr(ctx);
@@ -283,7 +283,7 @@ impl<const LE: bool> Target for Arm64Target<LE> {
         // A landing pad, if any, replaces the trailing brk.
         let off = write_landing_pad(buf, Self::plt_needs_landing_pad(ctx, sym));
         let buf = &mut buf[off..Self::PLTGOT_SIZE as usize];
-        for (loc, &v) in buf.chunks_exact_mut(4).zip(&INSN) {
+        for (loc, &v) in buf.as_chunks_mut::<4>().0.iter_mut().zip(&INSN) {
             write_ul32(loc, v);
         }
         let got = sym.got_pltgot_addr(ctx);
