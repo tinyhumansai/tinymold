@@ -246,7 +246,8 @@ def parse_links(text: str, t0: float) -> list[dict]:
     for line in text.splitlines():
         start, end, out = line.split(" ", 2)
         links.append({"start": float(start) - t0, "end": float(end) - t0,
-                      "duration": float(end) - float(start), "output": Path(out).name})
+                      "duration": float(end) - float(start),
+                      "output": "/".join(Path(out).parts[-2:])})
     return links
 
 
