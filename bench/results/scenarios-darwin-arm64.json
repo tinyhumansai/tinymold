@@ -2217,50 +2217,6 @@
       "rev": "ef5ac44",
       "role": "this repository, as a small workspace",
       "mode": "tinymold",
-      "case": "branch_switch",
-      "wall": {
-        "median_s": 0.5752,
-        "min_s": 0.552,
-        "max_s": 0.6471,
-        "samples_s": [
-          0.552,
-          0.6471,
-          0.5752
-        ]
-      },
-      "link": {
-        "median_s": 0,
-        "min_s": 0,
-        "max_s": 0,
-        "samples_s": [
-          0,
-          0,
-          0
-        ]
-      },
-      "links": 0,
-      "compiled": 5,
-      "fresh": 59,
-      "tinymold": {
-        "median_s": 0.3199,
-        "min_s": 0.3063,
-        "max_s": 0.3204,
-        "samples_s": [
-          0.3063,
-          0.3199,
-          0.3204
-        ]
-      },
-      "cache": {
-        "hits": 18,
-        "misses": 0
-      }
-    },
-    {
-      "project": "tinymold",
-      "rev": "ef5ac44",
-      "role": "this repository, as a small workspace",
-      "mode": "tinymold",
       "case": "test_no_run",
       "wall": {
         "median_s": 0.5041,
@@ -3649,6 +3605,50 @@
       "cache": {
         "hits": 3,
         "misses": 9
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "bced1b4",
+      "role": "this repository, as a small workspace",
+      "mode": "tinymold",
+      "case": "branch_switch",
+      "wall": {
+        "median_s": 0.8099,
+        "min_s": 0.7936,
+        "max_s": 6.0895,
+        "samples_s": [
+          6.0895,
+          0.8099,
+          0.7936
+        ]
+      },
+      "link": {
+        "median_s": 0.0406,
+        "min_s": 0.0393,
+        "max_s": 0.043,
+        "samples_s": [
+          0.043,
+          0.0406,
+          0.0393
+        ]
+      },
+      "links": 1,
+      "compiled": 10,
+      "fresh": 54,
+      "tinymold": {
+        "median_s": 0.0201,
+        "min_s": 0.0192,
+        "max_s": 0.0223,
+        "samples_s": [
+          0.0223,
+          0.0201,
+          0.0192
+        ]
+      },
+      "cache": {
+        "hits": 18,
+        "misses": 18
       }
     }
   ],
