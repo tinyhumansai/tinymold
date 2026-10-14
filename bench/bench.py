@@ -538,6 +538,7 @@ VARIANTS = {
     "cgu-16": {"config": ["profile.dev.codegen-units=16"]},
     "cgu-32": {"config": ["profile.dev.codegen-units=32"]},
     "cgu-64": {"config": ["profile.dev.codegen-units=64"]},
+    "cgu-128": {"config": ["profile.dev.codegen-units=128"]},
     "nightly": {"toolchain": "nightly"},
     "threads-8": {"toolchain": "nightly", "rustflags": ["-Zthreads=8"]},
     "cranelift": {"toolchain": "nightly", "rustflags": ["-Zcodegen-backend=cranelift"]},
