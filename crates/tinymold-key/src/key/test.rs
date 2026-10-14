@@ -78,28 +78,33 @@ fn every_input_moves_the_pre_key() {
     let (flagged, roots_f) = compile("/w/a", &["-C", "opt-level=3"]);
     assert_ne!(key_of(&flagged, &roots_f, b"rmeta"), reference, "a flag");
 
-    let with = |change: &dyn Fn(&mut PreKeyInputs<'_>)| {
-        let mut inputs = PreKeyInputs {
-            invocation: &base,
-            roots: &roots,
-            rustc_version: "rustc 1.99.0",
-            env: &[("SDKROOT".into(), None)],
-            externs: &[Some(Digest::of_bytes(b"rmeta"))],
-            search_paths: &[vec![("libnative.a".into(), Digest::of_bytes(b"archive"))]],
-            linker: None,
-        };
-        change(&mut inputs);
-        pre_key(&inputs)
+    let env = [("SDKROOT".to_owned(), None)];
+    let externs = [Some(Digest::of_bytes(b"rmeta"))];
+    let search = [vec![("libnative.a".to_owned(), Digest::of_bytes(b"archive"))]];
+    let defaults = PreKeyInputs {
+        invocation: &base,
+        roots: &roots,
+        rustc_version: "rustc 1.99.0",
+        env: &env,
+        externs: &externs,
+        search_paths: &search,
+        linker: None,
     };
-    assert_eq!(with(&|_| {}), reference);
-    assert_ne!(with(&|i| i.rustc_version = "rustc 1.100.0"), reference, "compiler");
+    assert_eq!(pre_key(&defaults), reference);
+
     let set = [("SDKROOT".to_owned(), Some("/sdk".to_owned()))];
-    assert_ne!(with(&|i| i.env = &set), reference, "env");
-    assert_ne!(with(&|i| i.externs = &[None]), reference, "missing extern");
     let native = [vec![("libnative.a".to_owned(), Digest::of_bytes(b"changed"))]];
-    assert_ne!(with(&|i| i.search_paths = &native), reference, "native lib");
-    assert_ne!(with(&|i| i.search_paths = &[]), reference, "no search listing");
-    assert_ne!(with(&|i| i.linker = Some("cc 1")), reference, "linker");
+    let changes = [
+        ("compiler", PreKeyInputs { rustc_version: "rustc 1.100.0", ..defaults.clone() }),
+        ("env", PreKeyInputs { env: &set, ..defaults.clone() }),
+        ("missing extern", PreKeyInputs { externs: &[None], ..defaults.clone() }),
+        ("native lib", PreKeyInputs { search_paths: &native, ..defaults.clone() }),
+        ("no search listing", PreKeyInputs { search_paths: &[], ..defaults.clone() }),
+        ("linker", PreKeyInputs { linker: Some("cc 1"), ..defaults.clone() }),
+    ];
+    for (what, inputs) in changes {
+        assert_ne!(pre_key(&inputs), reference, "{what}");
+    }
 }
 
 #[test]
