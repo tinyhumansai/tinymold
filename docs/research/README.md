@@ -144,7 +144,7 @@ M = weeks, L = months, XL = upstream rustc/linker work or a quarter or more.
 "Phase" refers to [`../plans/roadmap.md`](../plans/roadmap.md).
 
 Short report names: **L** = linkers, **R** = rustc-pipeline, **H** = hashing
-and cache server, **SC** = source control and caching, **F** = fast tools. "L7#2"
+and cache server, **SC** = source control and caching, **F** = fast tools, **C** = compilers-2026. "L7#2"
 means idea 2 in section 7 of the linkers report.
 
 ### 3.1 Build caching
