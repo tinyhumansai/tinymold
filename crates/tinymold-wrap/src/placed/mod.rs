@@ -23,6 +23,7 @@
 //! ```
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -98,10 +99,11 @@ impl Placed {
         let mut text = format!("{HEADER}\nrecorded {}\n", self.recorded_ns);
         for name in names {
             let (identity, digest) = &self.files[name];
-            text.push_str(&format!(
-                "{} {} {} {} {digest} {name}\n",
+            let _ = writeln!(
+                text,
+                "{} {} {} {} {digest} {name}",
                 identity.dev, identity.ino, identity.size, identity.mtime_ns
-            ));
+            );
         }
         text
     }
