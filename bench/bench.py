@@ -671,7 +671,8 @@ class Session:
     """
 
     def __init__(self, project: dict, src: Path, mode: str, sccache: str | None,
-                 tinymold: Path | None = None, variant: str | None = None):
+                 tinymold: Path | None = None, variant: str | None = None,
+                 target_dir: str | None = None):
         self.project, self.src, self.mode = project, src, mode
         self.tinymold = tinymold
         self.label = mode if variant is None else f"{mode}+{variant}"
@@ -685,6 +686,10 @@ class Session:
             flags = ", ".join(json.dumps(flag) for flag in settings["rustflags"])
             self.config += ["--config", f"build.rustflags=[{flags}]"]
         self.toolchain = settings.get("toolchain")
+        if target_dir:
+            # A/B runs keep each side's build in its own directory under the
+            # checkout's target/, so alternating never rebuilds dependencies.
+            self.config += ["--config", f'build.target-dir="{target_dir}"']
         self.env = dict(STOCK_ENV, TINYMOLD_BENCH_LINK_LOG=str(self.log))
         self.sccache = sccache
         if mode == "sccache":
@@ -916,6 +921,51 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
     return {"benchmark": "scenarios", "pins": pins(), "results": results}
 
 
+def bench_ab(args: argparse.Namespace) -> dict:
+    """Interleaved A/B of the edit loop: the baseline against one variant.
+
+    Sequential runs (all baseline samples, then all variant samples) are
+    biased by load drift on a shared machine. Here each edit is built by both
+    sides back to back, in alternating order, each side in its own target
+    directory, so drift hits both equally.
+    """
+    if args.variant not in VARIANTS:
+        raise SystemExit(f"unknown variant {args.variant!r}; choose from {', '.join(VARIANTS)}")
+    cases = args.cases.split(",")
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        sides = [Session(project, src, "baseline", None, target_dir="target/ab-baseline"),
+                 Session(project, src, "baseline", None, variant=args.variant,
+                         target_dir=f"target/ab-{args.variant}")]
+        for case in cases:
+            print(f"{project['name']} / {case}: baseline vs {args.variant}", file=sys.stderr)
+            edits = Edits(src, project["edits"])
+            for side in sides:
+                side.build()
+            samples: dict[str, list[dict]] = {side.label: [] for side in sides}
+            for n in range(args.runs):
+                order = sides if n % 2 == 0 else list(reversed(sides))
+                try:
+                    edits.apply(case, n)
+                    for side in order:
+                        samples[side.label].append(side.build())
+                finally:
+                    edits.restore()
+                for side in sides:
+                    side.build()  # settle the restore before the next sample
+            for label, taken in samples.items():
+                results.append({"project": project["name"], "rev": project["rev"],
+                                "mode": label, "case": case,
+                                "wall": summarize([s["wall"] for s in taken]),
+                                "link": summarize([s["link"] for s in taken])})
+            base, other = (statistics.median(s["wall"] for s in samples[side.label])
+                           for side in sides)
+            print(f"  {base:.3f}s vs {other:.3f}s ({other / base - 1:+.0%})", file=sys.stderr)
+    return {"benchmark": "ab", "variant": args.variant,
+            "settings": VARIANTS[args.variant], "pins": pins(), "results": results}
+
+
 def pins() -> dict:
     """What the scenario numbers depend on, pinned where cargo allows it."""
     return {
@@ -1064,6 +1114,12 @@ def main() -> None:
     scenarios.add_argument("--cases", help=f"comma-separated subset of: {', '.join(CASES)}")
     scenarios.add_argument("--variants", help="edit-loop experiments on top of the baseline, "
                            f"comma-separated, from: {', '.join(VARIANTS)}")
+    ab = sub.add_parser("ab", help="interleaved edit-loop A/B: baseline against one variant")
+    ab.add_argument("--variant", required=True, help=f"one of: {', '.join(VARIANTS)}")
+    ab.add_argument("--runs", type=int, default=7)
+    ab.add_argument("--project", help="only this corpus project")
+    ab.add_argument("--cases", default="comment,private_body,public_signature",
+                    help="comma-separated edit kinds")
     dedup = sub.add_parser("dedup", help="byte-identical share of two worktrees' target/")
     dedup.add_argument("--project", help="only this corpus project")
     cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
@@ -1080,7 +1136,7 @@ def main() -> None:
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()

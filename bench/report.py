@@ -238,6 +238,32 @@ def experiments_section(result: dict) -> list[str]:
     return lines
 
 
+def ab_section(result: dict) -> list[str]:
+    """Interleaved A/B: the baseline against one variant, per edit kind."""
+    variant = result["variant"]
+    settings = result.get("settings", {})
+    parts = list(settings.get("config", []))
+    parts += [f"RUSTFLAGS {' '.join(settings['rustflags'])}"] if settings.get("rustflags") else []
+    parts += [f"toolchain {settings['toolchain']}"] if settings.get("toolchain") else []
+    lines = [f"### A/B: baseline vs `{variant}` ({describe(result)})", "",
+             f"`{variant}`: " + "; ".join(f"`{part}`" for part in parts) + ". Each edit is "
+             "built by both sides back to back, in alternating order, each in its own "
+             "target directory. Cells: median wall time (min–max).", "",
+             "| Project | Edit | baseline | " + variant + " | change |",
+             "| --- | --- | ---: | ---: | ---: |"]
+    rows = result["results"]
+    for project in dict.fromkeys(r["project"] for r in rows):
+        for case in dict.fromkeys(r["case"] for r in rows if r["project"] == project):
+            pair = {r["mode"]: r for r in rows if r["project"] == project and r["case"] == case}
+            base, other = pair["baseline"], pair[f"baseline+{variant}"]
+            cell = lambda r: (f"{r['wall']['median_s']:.3f}s "
+                              f"({r['wall']['min_s']:.2f}–{r['wall']['max_s']:.2f})")
+            change = other["wall"]["median_s"] / base["wall"]["median_s"] - 1
+            lines.append(f"| {project} {base['rev']} | {CASE_LABELS.get(case, case)} | "
+                         f"{cell(base)} | {cell(other)} | {change:+.0%} |")
+    return lines + [""]
+
+
 def dedup_section(result: dict) -> list[str]:
     lines = [f"### Dedup probe: second worktree vs first ({describe(result)})", "",
              "Share of the second worktree's `target/` bytes that are byte-identical to "
@@ -267,8 +293,8 @@ def cas_section(result: dict) -> list[str]:
 
 def main() -> None:
     sections: list[str] = []
-    order = {"scenarios": 0, "experiments": 1, "baseline": 2, "cache": 3, "dedup": 4,
-             "link": 5, "native": 6, "cas": 7}
+    order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "dedup": 5,
+             "link": 6, "native": 7, "cas": 8}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -277,6 +303,8 @@ def main() -> None:
             sections += scenarios_section(result)
         elif result["benchmark"] == "experiments":
             sections += experiments_section(result)
+        elif result["benchmark"] == "ab":
+            sections += ab_section(result)
         elif result["benchmark"] == "dedup":
             sections += dedup_section(result)
         elif result["benchmark"] == "baseline":
