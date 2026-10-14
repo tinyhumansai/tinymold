@@ -4,7 +4,7 @@
   [`../specs/remote.md`](../specs/remote.md),
   [`../specs/github-actions.md`](../specs/github-actions.md)
 - **Decision:** [ADR 0006](../adr/0006-remote-tier-reapi-bazel-remote.md)
-- **Status:** Implemented; bench numbers pending (step 10)
+- **Status:** Implemented
 
 ## Order of implementation
 
@@ -62,7 +62,22 @@ green.
 - [x] Steps 7-8 (remote tier)
 - [x] Step 9 (actions, CI, deployment)
 - [x] README section
-- [ ] Step 10 bench numbers
+- [x] Step 10 bench numbers
+
+## Measured (`bench/bench.py ci`, darwin arm64, 18 CPUs, 3 runs)
+
+| Mode | ripgrep | bat | tinymold |
+|---|---:|---:|---:|
+| Cold | 3.9s | 9.9s | 7.6s |
+| `target/` restored, sources touched | 1.8s | 3.3s | 3.3s |
+| tinymold store restored | 1.9s | 6.7s | 3.8s |
+| tinymold from bazel-remote | 1.4s | 7.1s | 2.9s |
+
+tinymold beats a cold build by 2-3x everywhere. It does not yet beat a
+`target/` cache: cargo re-runs every build script in an empty `target/`, and
+bat's compile C code, which `RUSTC_WRAPPER` never sees. Caching build-script
+runs, or restoring `target/` alongside the store (`tinymold fresh` already
+makes that safe), is the next step.
 
 ## Found by running against bazel-remote
 
