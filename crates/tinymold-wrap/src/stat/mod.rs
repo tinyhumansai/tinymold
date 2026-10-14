@@ -4,19 +4,19 @@
 //! the same rlibs are read by dozens of dependents per build. The stat cache
 //! (`stat/<digest of the path>` in the store) remembers each file's digest
 //! next to its identity: device, inode, size and mtime. A file whose identity
-//! is unchanged, and whose mtime is older than the entry, reuses the digest.
-//! That last condition is git's racily-clean rule: a file modified within the
-//! same timestamp tick it was hashed in could have changed unseen.
+//! is unchanged, and whose mtime was written before the entry was, reuses the
+//! digest. That last condition is git's racily-clean rule, applied in the
+//! filesystem's clock and tick by [`crate::clock`].
 //!
 //! Where the platform has no inode numbers the cache is never trusted, since
 //! size and mtime alone can coincide between two different files.
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use tinymold_hash::Digest;
 
+use crate::clock::{nanos, tick_of, written_before};
 use crate::error::io;
 use crate::record::{Identity, read, write_atomically};
 use crate::{Error, Result};
@@ -48,17 +48,11 @@ fn device_and_inode(_meta: &fs::Metadata) -> (u64, u64) {
     (0, 0)
 }
 
-/// Nanoseconds since the Unix epoch; 0 before it, saturating far after it.
-pub(crate) fn nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH).map_or(0, |since| {
-        u64::try_from(since.as_nanos()).unwrap_or(u64::MAX)
-    })
-}
-
-/// Whether a digest recorded for `recorded` at `recorded_ns` still describes a
+/// Whether a digest recorded for `recorded` at `recorded_ns`, a reading of
+/// the filesystem clock taken before the file was hashed, still describes a
 /// file whose identity is now `current`.
 pub(crate) fn still_valid(recorded: Identity, recorded_ns: u64, current: Identity) -> bool {
-    current.ino != 0 && recorded == current && current.mtime_ns < recorded_ns
+    current.ino != 0 && recorded == current && written_before(current.mtime_ns, recorded_ns)
 }
 
 /// How a file's digest is computed.
@@ -83,12 +77,15 @@ fn entry_path(store: &Path, path: &Path, kind: Kind) -> PathBuf {
 
 /// The digest of the file at `path`, from the stat cache when its identity is
 /// unchanged, otherwise by hashing it (and remembering the result).
-pub(crate) fn digest(store: &Path, path: &Path) -> Result<Digest> {
-    digest_as(store, path, Kind::Bytes)
+///
+/// `now_ns` is a reading of the filesystem clock
+/// ([`crate::clock::filesystem_now`]) taken before this call.
+pub(crate) fn digest(store: &Path, path: &Path, now_ns: u64) -> Result<Digest> {
+    digest_as(store, path, Kind::Bytes, now_ns)
 }
 
 /// [`digest`], computed as `kind`.
-pub(crate) fn digest_as(store: &Path, path: &Path, kind: Kind) -> Result<Digest> {
+pub(crate) fn digest_as(store: &Path, path: &Path, kind: Kind, now_ns: u64) -> Result<Digest> {
     let current = identity(path)?;
     let entry = entry_path(store, path, kind);
     if let Some((recorded, recorded_ns, digest)) = read(&entry)?.as_deref().and_then(parse_entry)
@@ -100,19 +97,27 @@ pub(crate) fn digest_as(store: &Path, path: &Path, kind: Kind) -> Result<Digest>
         Kind::Bytes => Digest::of_file(path)?,
         Kind::Archive => tinymold_key::content_digest(&fs::read(path).map_err(io("read", path))?),
     };
-    write_entry(store, path, kind, current, digest)?;
+    write_entry(store, path, kind, current, digest, now_ns)?;
     Ok(digest)
 }
 
-/// Records that the file at `path`, with identity `identity`, has `digest`.
-/// Used after hashing, and after restoring an output whose digest is known.
+/// Records that the file at `path`, with identity `identity`, has `digest`,
+/// trusted from the end of its own timestamp tick.
+///
+/// Only for a file whose writer has finished, and which nothing rewrites
+/// without going through the wrapper again: an output rustc wrote before it
+/// exited, or one the wrapper placed itself. Whoever writes it next records
+/// its new digest.
 pub(crate) fn remember(
     store: &Path,
     path: &Path,
     identity: Identity,
     digest: Digest,
 ) -> Result<()> {
-    write_entry(store, path, Kind::Bytes, identity, digest)
+    let settled_ns = identity
+        .mtime_ns
+        .saturating_add(tick_of(identity.mtime_ns));
+    write_entry(store, path, Kind::Bytes, identity, digest, settled_ns)
 }
 
 fn write_entry(
@@ -121,6 +126,7 @@ fn write_entry(
     kind: Kind,
     identity: Identity,
     digest: Digest,
+    recorded_ns: u64,
 ) -> Result<()> {
     let line = format!(
         "{} {} {} {} {} {digest}\n",
@@ -128,7 +134,7 @@ fn write_entry(
         identity.ino,
         identity.size,
         identity.mtime_ns,
-        nanos(SystemTime::now())
+        recorded_ns
     );
     write_atomically(&entry_path(store, path, kind), &line)
 }
