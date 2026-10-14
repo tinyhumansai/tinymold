@@ -9,6 +9,10 @@
 //! - `pass`: run unchanged, not cacheable;
 //! - `error`: a cache failure, after which rustc ran unchanged.
 //!
+//! `tinymold run-test` logs its test runs the same way, as `test-hit`
+//! (replayed), `test-miss` (run), `test-pass` (not cacheable) and
+//! `test-error`, counted apart from compiles.
+//!
 //! [`Stats::parse`] counts them, and the hit rate is hits over cacheable
 //! invocations. CI prints the [`Stats::markdown`] table into its job summary,
 //! and can fail a job whose hit rate is too low.
