@@ -103,6 +103,29 @@ fn a_second_record_reuses_digests_of_unchanged_files() {
 }
 
 #[test]
+fn a_file_rewritten_within_a_coarse_tick_of_the_record_is_hashed_again() {
+    // With whole-second timestamps, a same-size rewrite in the second the
+    // record was taken leaves size and mtime unchanged.
+    let f = fixture();
+    let main = f.workspace.join("src/main.rs");
+    let now = nanos(SystemTime::now());
+    let whole_second = from_nanos(now - now % 1_000_000_000);
+    set_modified(&main, whole_second).unwrap();
+    record(&f.workspace, &f.target).unwrap();
+    fs::write(&main, b"fn main() {;}").unwrap();
+    set_modified(&main, whole_second).unwrap();
+
+    record(&f.workspace, &f.target).unwrap();
+    let manifest = load(&f.target).unwrap().unwrap();
+    let entry = manifest
+        .entries
+        .iter()
+        .find(|entry| entry.path == "src/main.rs")
+        .unwrap();
+    assert_eq!(entry.digest, Digest::of_bytes(b"fn main() {;}"));
+}
+
+#[test]
 fn restore_undoes_a_touch_that_did_not_change_content() {
     let f = fixture();
     record(&f.workspace, &f.target).unwrap();

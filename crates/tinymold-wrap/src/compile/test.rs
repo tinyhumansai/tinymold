@@ -2,7 +2,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use std::time::Duration;
+use std::time::{Duration, UNIX_EPOCH};
 
 use tinymold_key::Classified;
 
@@ -204,6 +204,29 @@ fn an_input_modified_during_the_compile_is_not_stored() {
         .open(unit.root.join("src/lib.rs"))
         .unwrap()
         .set_modified(future)
+        .unwrap();
+    match unit.serve(&[]).unwrap() {
+        Served::Miss {
+            code: 0, stored, ..
+        } => {
+            assert_eq!(stored.unwrap_err(), "an input changed during the compile");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn an_input_rewritten_within_a_coarse_tick_of_the_compile_is_not_stored() {
+    // On a filesystem with whole-second timestamps, an edit made while rustc
+    // runs can read back as earlier than the moment the compile started.
+    let unit = Crate::new("pub fn f() {}\n");
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let whole_second = UNIX_EPOCH + Duration::from_secs(now.as_secs());
+    fs::File::options()
+        .write(true)
+        .open(unit.root.join("src/lib.rs"))
+        .unwrap()
+        .set_modified(whole_second)
         .unwrap();
     match unit.serve(&[]).unwrap() {
         Served::Miss {

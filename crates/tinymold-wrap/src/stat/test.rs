@@ -53,6 +53,20 @@ fn validity_needs_an_inode_an_equal_identity_and_an_older_mtime() {
 }
 
 #[test]
+fn a_whole_second_mtime_is_not_trusted_within_its_tick() {
+    // HFS+ and ext3 keep whole seconds: a file hashed at 10.5 s and
+    // rewritten at 10.8 s, same size, still reads back as 10 s.
+    let second = 1_000_000_000;
+    let id = Identity {
+        dev: 1,
+        ino: 2,
+        size: 3,
+        mtime_ns: 10 * second,
+    };
+    assert!(!still_valid(id, 10 * second + second / 2, id));
+}
+
+#[test]
 fn a_corrupt_stat_entry_is_ignored() {
     assert_eq!(parse_entry("garbage"), None);
     assert_eq!(parse_entry("1 2 3 4 5 nothex"), None);
