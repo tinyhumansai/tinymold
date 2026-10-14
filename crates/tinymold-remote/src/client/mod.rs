@@ -11,7 +11,7 @@
 use std::time::Duration;
 
 use tonic::client::Grpc;
-use tonic::codegen::http::uri::PathAndQuery;
+use http::uri::PathAndQuery;
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
 use tonic::{Code, Request};

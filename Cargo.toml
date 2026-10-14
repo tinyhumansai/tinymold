@@ -56,7 +56,10 @@ tonic-prost = { version = "0.14", default-features = false }
 prost = { version = "0.14", default-features = false, features = ["derive", "std"] }
 # The runtime the gRPC client runs on: one current-thread runtime per wrapper
 # process, entered only when a remote is configured.
-tokio = { version = "1", default-features = false, features = ["rt", "time"] }
+tokio = { version = "1", default-features = false, features = ["rt", "time", "net"] }
+# The gRPC method paths tonic's generic client takes (`PathAndQuery`); tonic
+# already depends on it, so it adds no build time.
+http = { version = "1", default-features = false }
 # Turns a list of ByteStream write chunks into the request stream tonic sends.
 tokio-stream = { version = "0.1", default-features = false }
 # SHA-256 for blobs on REAPI servers that only accept it, such as bazel-remote
