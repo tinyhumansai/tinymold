@@ -321,7 +321,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         }
         Command::Stats(args) => return run_stats(args, out),
         Command::Remote(command) => return run_remote(cli, command, env, out),
-        Command::RunTest(args) => return run_test(cli, args),
+        Command::RunTest(args) => return Ok(run_test(cli, args)),
     }
     Ok(Outcome::Success)
 }
@@ -329,7 +329,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
 /// Runs a test binary through the test result cache, or unchanged when no
 /// store can be found. The binary's output goes straight to this process's
 /// stdout and stderr, as cargo expects of a runner.
-fn run_test(cli: &Cli, args: &RunTestArgs) -> Result<Outcome> {
+fn run_test(cli: &Cli, args: &RunTestArgs) -> Outcome {
     // Cargo runs tests in the package root; should the absolute path be
     // unreadable, `.` still names it, only without normalizing paths.
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -353,7 +353,7 @@ fn run_test(cli: &Cli, args: &RunTestArgs) -> Result<Outcome> {
             None => tinymold_wrap::run_test_uncached(&command),
         },
     };
-    Ok(Outcome::Exit(u8::try_from(code).unwrap_or(1)))
+    Outcome::Exit(u8::try_from(code).unwrap_or(1))
 }
 
 fn run_stats(args: &StatsArgs, out: &mut impl Write) -> Result<Outcome> {
