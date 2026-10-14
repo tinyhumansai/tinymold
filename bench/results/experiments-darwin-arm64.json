@@ -59,144 +59,6 @@
       "project": "ripgrep",
       "rev": "14.1.1",
       "role": "small, link-bound binary",
-      "mode": "baseline",
-      "case": "comment",
-      "wall": {
-        "median_s": 0.5784,
-        "min_s": 0.5468,
-        "max_s": 0.5814,
-        "samples_s": [
-          0.5483,
-          0.5795,
-          0.5468,
-          0.5814,
-          0.5784
-        ]
-      },
-      "link": {
-        "median_s": 0.0684,
-        "min_s": 0.0634,
-        "max_s": 0.0762,
-        "samples_s": [
-          0.0634,
-          0.0762,
-          0.0672,
-          0.0684,
-          0.0716
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 32,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "ripgrep",
-      "rev": "14.1.1",
-      "role": "small, link-bound binary",
-      "mode": "baseline",
-      "case": "private_body",
-      "wall": {
-        "median_s": 0.6078,
-        "min_s": 0.5869,
-        "max_s": 0.6388,
-        "samples_s": [
-          0.6388,
-          0.6001,
-          0.5869,
-          0.6078,
-          0.6306
-        ]
-      },
-      "link": {
-        "median_s": 0.063,
-        "min_s": 0.0595,
-        "max_s": 0.0693,
-        "samples_s": [
-          0.0693,
-          0.0595,
-          0.063,
-          0.0608,
-          0.0651
-        ]
-      },
-      "links": 1,
-      "compiled": 1,
-      "fresh": 32,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "ripgrep",
-      "rev": "14.1.1",
-      "role": "small, link-bound binary",
-      "mode": "baseline",
-      "case": "public_signature",
-      "wall": {
-        "median_s": 0.6214,
-        "min_s": 0.5935,
-        "max_s": 0.7981,
-        "samples_s": [
-          0.7981,
-          0.5935,
-          0.6151,
-          0.6214,
-          0.6467
-        ]
-      },
-      "link": {
-        "median_s": 0.0635,
-        "min_s": 0.0626,
-        "max_s": 0.0654,
-        "samples_s": [
-          0.0628,
-          0.0654,
-          0.0626,
-          0.0652,
-          0.0635
-        ]
-      },
-      "links": 1,
-      "compiled": 4,
-      "fresh": 29,
-      "tinymold": {
-        "median_s": 0.0,
-        "min_s": 0.0,
-        "max_s": 0.0,
-        "samples_s": [
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ]
-      }
-    },
-    {
-      "project": "ripgrep",
-      "rev": "14.1.1",
-      "role": "small, link-bound binary",
       "mode": "baseline+deps-nodebug",
       "case": "noop",
       "wall": {
@@ -4240,44 +4102,431 @@
           0.0
         ]
       }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.6621,
+        "min_s": 0.6317,
+        "max_s": 0.683,
+        "samples_s": [
+          0.6564,
+          0.6621,
+          0.6317,
+          0.6645,
+          0.683
+        ]
+      },
+      "link": {
+        "median_s": 0.0622,
+        "min_s": 0.0605,
+        "max_s": 0.0646,
+        "samples_s": [
+          0.0628,
+          0.0607,
+          0.0605,
+          0.0646,
+          0.0622
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.7287,
+        "min_s": 0.6907,
+        "max_s": 0.7464,
+        "samples_s": [
+          0.7464,
+          0.7104,
+          0.7287,
+          0.6907,
+          0.7337
+        ]
+      },
+      "link": {
+        "median_s": 0.0628,
+        "min_s": 0.059,
+        "max_s": 0.0705,
+        "samples_s": [
+          0.0705,
+          0.0647,
+          0.0628,
+          0.0601,
+          0.059
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.9601,
+        "min_s": 0.9322,
+        "max_s": 1.0015,
+        "samples_s": [
+          0.9322,
+          0.9562,
+          1.0015,
+          0.9688,
+          0.9601
+        ]
+      },
+      "link": {
+        "median_s": 0.0625,
+        "min_s": 0.0609,
+        "max_s": 0.0685,
+        "samples_s": [
+          0.0647,
+          0.0625,
+          0.0685,
+          0.061,
+          0.0609
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-32",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.4788,
+        "min_s": 0.4708,
+        "max_s": 0.527,
+        "samples_s": [
+          0.527,
+          0.4708,
+          0.5053,
+          0.4788,
+          0.4786
+        ]
+      },
+      "link": {
+        "median_s": 0.061,
+        "min_s": 0.0595,
+        "max_s": 0.062,
+        "samples_s": [
+          0.0595,
+          0.0612,
+          0.062,
+          0.0601,
+          0.061
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-32",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.8007,
+        "min_s": 0.7631,
+        "max_s": 0.8665,
+        "samples_s": [
+          0.7631,
+          0.7882,
+          0.8665,
+          0.8084,
+          0.8007
+        ]
+      },
+      "link": {
+        "median_s": 0.0631,
+        "min_s": 0.056,
+        "max_s": 0.0684,
+        "samples_s": [
+          0.0658,
+          0.0684,
+          0.0631,
+          0.0571,
+          0.056
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-32",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.5823,
+        "min_s": 0.5752,
+        "max_s": 0.6023,
+        "samples_s": [
+          0.5796,
+          0.5752,
+          0.6023,
+          0.5947,
+          0.5823
+        ]
+      },
+      "link": {
+        "median_s": 0.0571,
+        "min_s": 0.0544,
+        "max_s": 0.0575,
+        "samples_s": [
+          0.0571,
+          0.0544,
+          0.0575,
+          0.0571,
+          0.0552
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-64",
+      "case": "comment",
+      "wall": {
+        "median_s": 0.5591,
+        "min_s": 0.4933,
+        "max_s": 0.5795,
+        "samples_s": [
+          0.5021,
+          0.5591,
+          0.5603,
+          0.4933,
+          0.5795
+        ]
+      },
+      "link": {
+        "median_s": 0.0571,
+        "min_s": 0.0562,
+        "max_s": 0.0657,
+        "samples_s": [
+          0.0571,
+          0.0567,
+          0.0562,
+          0.0657,
+          0.0628
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-64",
+      "case": "private_body",
+      "wall": {
+        "median_s": 0.5709,
+        "min_s": 0.5507,
+        "max_s": 0.6495,
+        "samples_s": [
+          0.6495,
+          0.5543,
+          0.5709,
+          0.5507,
+          0.6073
+        ]
+      },
+      "link": {
+        "median_s": 0.058,
+        "min_s": 0.0562,
+        "max_s": 0.0642,
+        "samples_s": [
+          0.0642,
+          0.0608,
+          0.0576,
+          0.0562,
+          0.058
+        ]
+      },
+      "links": 1,
+      "compiled": 1,
+      "fresh": 32,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "role": "small, link-bound binary",
+      "mode": "baseline+cgu-64",
+      "case": "public_signature",
+      "wall": {
+        "median_s": 0.6601,
+        "min_s": 0.6198,
+        "max_s": 0.6713,
+        "samples_s": [
+          0.6198,
+          0.6677,
+          0.6713,
+          0.6567,
+          0.6601
+        ]
+      },
+      "link": {
+        "median_s": 0.0597,
+        "min_s": 0.0562,
+        "max_s": 0.0661,
+        "samples_s": [
+          0.0661,
+          0.0562,
+          0.0594,
+          0.0606,
+          0.0597
+        ]
+      },
+      "links": 1,
+      "compiled": 4,
+      "fresh": 29,
+      "tinymold": {
+        "median_s": 0.0,
+        "min_s": 0.0,
+        "max_s": 0.0,
+        "samples_s": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
     }
   ],
   "variants": {
-    "deps-nodebug": {
+    "cgu-32": {
       "config": [
-        "profile.dev.package.\"*\".debug=false"
+        "profile.dev.codegen-units=32"
       ]
     },
-    "line-tables": {
+    "cgu-64": {
       "config": [
-        "profile.dev.debug=\"line-tables-only\"",
-        "profile.dev.package.\"*\".debug=false"
-      ]
-    },
-    "nodebug": {
-      "config": [
-        "profile.dev.debug=false",
-        "profile.dev.package.\"*\".debug=false"
-      ]
-    },
-    "cgu-16": {
-      "config": [
-        "profile.dev.codegen-units=16"
-      ]
-    },
-    "nightly": {
-      "toolchain": "nightly"
-    },
-    "threads-8": {
-      "toolchain": "nightly",
-      "rustflags": [
-        "-Zthreads=8"
-      ]
-    },
-    "cranelift": {
-      "toolchain": "nightly",
-      "rustflags": [
-        "-Zcodegen-backend=cranelift"
+        "profile.dev.codegen-units=64"
       ]
     }
   },
