@@ -115,7 +115,11 @@ impl Location {
         let target = self
             .target_dir
             .clone()
-            .or_else(|| lookup("CARGO_TARGET_DIR").filter(|v| !v.is_empty()).map(PathBuf::from))
+            .or_else(|| {
+                lookup("CARGO_TARGET_DIR")
+                    .filter(|v| !v.is_empty())
+                    .map(PathBuf::from)
+            })
             .map_or_else(|| workspace.join("target"), |dir| workspace.join(dir));
         (workspace, target)
     }
@@ -318,7 +322,10 @@ fn run_snapshot(cli: &Cli, command: &SnapshotCommand, out: &mut impl Write) -> R
         }
         SnapshotCommand::List => {
             for snapshot in snapshot::list(&store)? {
-                line(out, format_args!("{}  {} files", snapshot.name, snapshot.files))?;
+                line(
+                    out,
+                    format_args!("{}  {} files", snapshot.name, snapshot.files),
+                )?;
             }
             Ok(Outcome::Success)
         }

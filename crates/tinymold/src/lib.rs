@@ -50,6 +50,6 @@ pub use cli::{
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
 pub use location::default_store;
-pub use tree::{TreeClone, clone_tree};
 pub use tinymold_cas;
 pub use tinymold_hash;
+pub use tree::{TreeClone, clone_tree};

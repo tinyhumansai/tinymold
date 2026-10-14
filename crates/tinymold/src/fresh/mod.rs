@@ -47,7 +47,12 @@ const STATE_DIR: &str = ".tinymold";
 
 /// Files cargo rewrites on every invocation, even a no-op one. They describe
 /// cargo's bookkeeping, not build outputs, so they are left out of the stamp.
-const STAMP_IGNORED: &[&str] = &[".cargo-lock", ".rustc_info.json", "CACHEDIR.TAG", ".package-cache"];
+const STAMP_IGNORED: &[&str] = &[
+    ".cargo-lock",
+    ".rustc_info.json",
+    "CACHEDIR.TAG",
+    ".package-cache",
+];
 
 /// Where the freshness manifest for `target` lives.
 #[must_use]
@@ -92,7 +97,13 @@ pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
     let mut files = Vec::new();
     let mut skipped = 0;
     let excluded = fs::canonicalize(target).ok();
-    walk_workspace(workspace, workspace, excluded.as_deref(), &mut files, &mut skipped)?;
+    walk_workspace(
+        workspace,
+        workspace,
+        excluded.as_deref(),
+        &mut files,
+        &mut skipped,
+    )?;
 
     let mut hashed = 0;
     let mut entries = Vec::with_capacity(files.len());
@@ -205,7 +216,8 @@ fn walk_workspace(
         if kind.is_dir() {
             if path.join("CACHEDIR.TAG").exists()
                 || path.join(".git").exists()
-                || target.is_some_and(|target| fs::canonicalize(&path).ok().as_deref() == Some(target))
+                || target
+                    .is_some_and(|target| fs::canonicalize(&path).ok().as_deref() == Some(target))
             {
                 continue;
             }
@@ -227,7 +239,10 @@ fn walk_workspace(
 /// written as one manifest line.
 fn relative(root: &Path, path: &Path) -> Option<String> {
     let rel = path.strip_prefix(root).ok()?;
-    let parts: Option<Vec<&str>> = rel.components().map(|part| part.as_os_str().to_str()).collect();
+    let parts: Option<Vec<&str>> = rel
+        .components()
+        .map(|part| part.as_os_str().to_str())
+        .collect();
     let joined = parts?.join("/");
     (!joined.contains('\n') && !joined.contains('\r')).then_some(joined)
 }
@@ -280,8 +295,9 @@ pub(crate) fn write_atomically(path: &Path, bytes: &[u8]) -> Result<()> {
 /// Nanoseconds since the Unix epoch; times before it count as 0, and times
 /// past the year 2554 saturate.
 fn nanos(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH)
-        .map_or(0, |since| u64::try_from(since.as_nanos()).unwrap_or(u64::MAX))
+    time.duration_since(UNIX_EPOCH).map_or(0, |since| {
+        u64::try_from(since.as_nanos()).unwrap_or(u64::MAX)
+    })
 }
 
 fn from_nanos(nanos: u64) -> SystemTime {

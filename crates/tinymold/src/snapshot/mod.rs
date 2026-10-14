@@ -199,7 +199,10 @@ fn score(
     let mut matched = 0;
     for entry in &manifest.entries {
         let path = workspace.join(&entry.path);
-        let size = fs::metadata(&path).ok().filter(fs::Metadata::is_file).map(|m| m.len());
+        let size = fs::metadata(&path)
+            .ok()
+            .filter(fs::Metadata::is_file)
+            .map(|m| m.len());
         if size != Some(entry.size) {
             continue;
         }

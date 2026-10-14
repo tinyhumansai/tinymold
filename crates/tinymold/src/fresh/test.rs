@@ -64,7 +64,10 @@ fn the_manifest_encoding_is_pinned() {
     let expected = "tinymold-fresh 1\nrecorded 2\nstamp 1\n\
         3 0 af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262 src/main.rs\n";
     assert_eq!(manifest.encode(), expected);
-    assert_eq!(Manifest::decode(expected, Path::new("m")).unwrap(), manifest);
+    assert_eq!(
+        Manifest::decode(expected, Path::new("m")).unwrap(),
+        manifest
+    );
 }
 
 #[test]
@@ -180,7 +183,10 @@ fn reading_a_target_that_is_a_file_fails_with_its_path() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("target");
     fs::write(&file, b"").unwrap();
-    assert!(matches!(stamp(&file), Err(Error::Io { action: "read", .. })));
+    assert!(matches!(
+        stamp(&file),
+        Err(Error::Io { action: "read", .. })
+    ));
     assert!(matches!(load(&file), Err(Error::Io { action: "read", .. })));
 }
 
@@ -230,13 +236,22 @@ fn write_atomically_reports_an_unwritable_location() {
     let blocker = dir.path().join("file");
     fs::write(&blocker, b"").unwrap();
     let error = write_atomically(&blocker.join("sub/manifest"), b"x").unwrap_err();
-    assert!(matches!(error, Error::Io { action: "create", .. }));
+    assert!(matches!(
+        error,
+        Error::Io {
+            action: "create",
+            ..
+        }
+    ));
 }
 
 #[test]
 fn paths_that_cannot_be_one_manifest_line_are_skipped() {
     let root = Path::new("/ws");
-    assert_eq!(relative(root, Path::new("/ws/a/b.rs")).as_deref(), Some("a/b.rs"));
+    assert_eq!(
+        relative(root, Path::new("/ws/a/b.rs")).as_deref(),
+        Some("a/b.rs")
+    );
     assert_eq!(relative(root, Path::new("/ws/bad\nname")), None);
     assert_eq!(relative(root, Path::new("/elsewhere")), None);
 }
@@ -254,5 +269,8 @@ fn record_counts_files_with_unencodable_names_as_skipped() {
 fn times_convert_to_nanoseconds_and_back() {
     assert_eq!(nanos(from_nanos(OLD)), OLD);
     assert_eq!(nanos(UNIX_EPOCH - Duration::from_secs(1)), 0);
-    assert_eq!(manifest_path(Path::new("t")), Path::new("t/.tinymold/fresh"));
+    assert_eq!(
+        manifest_path(Path::new("t")),
+        Path::new("t/.tinymold/fresh")
+    );
 }

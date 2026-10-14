@@ -59,8 +59,14 @@ fn a_second_worktree_restores_a_snapshot_and_gets_the_built_mtimes() {
         "built from fn main() {}"
     );
     assert_eq!(
-        fs::metadata(second.join("src/main.rs")).unwrap().modified().unwrap(),
-        fs::metadata(first.join("src/main.rs")).unwrap().modified().unwrap()
+        fs::metadata(second.join("src/main.rs"))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        fs::metadata(first.join("src/main.rs"))
+            .unwrap()
+            .modified()
+            .unwrap()
     );
 }
 
@@ -161,12 +167,24 @@ fn store_failures_carry_the_path() {
     let (a, a_target) = f.worktree("a", "one");
     assert!(matches!(
         save(&f.store, "main", &a, &a_target),
-        Err(Error::Io { action: "create", .. })
+        Err(Error::Io {
+            action: "create",
+            ..
+        })
     ));
-    assert!(matches!(list(&f.store), Err(Error::Io { action: "read", .. })));
+    assert!(matches!(
+        list(&f.store),
+        Err(Error::Io { action: "read", .. })
+    ));
 
     let file = f.dir.path().join("file");
     fs::write(&file, b"").unwrap();
-    assert!(matches!(remove_tree(&file), Err(Error::Io { action: "remove", .. })));
+    assert!(matches!(
+        remove_tree(&file),
+        Err(Error::Io {
+            action: "remove",
+            ..
+        })
+    ));
     remove_tree(&f.dir.path().join("missing")).unwrap();
 }

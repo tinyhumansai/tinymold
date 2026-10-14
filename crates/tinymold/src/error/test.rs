@@ -31,3 +31,42 @@ fn output_errors_keep_their_cause() {
     assert_eq!(error.to_string(), "failed to write output");
     assert!(std::error::Error::source(&error).is_some());
 }
+
+#[test]
+fn freshness_and_snapshot_errors_say_what_went_wrong() {
+    let io = Error::Io {
+        action: "read",
+        path: "target".into(),
+        source: std::io::Error::from(std::io::ErrorKind::NotFound),
+    };
+    assert_eq!(io.to_string(), "failed to read target");
+    assert!(std::error::Error::source(&io).is_some());
+
+    let cases = [
+        (
+            Error::CorruptManifest {
+                path: "fresh".into(),
+                line: 3,
+            },
+            "freshness manifest fresh is corrupt at line 3",
+        ),
+        (Error::NotADirectory("f".into()), "f is not a directory"),
+        (Error::AlreadyExists("t".into()), "t already exists"),
+        (
+            Error::InvalidSnapshotName("a/b".into()),
+            "invalid snapshot name \"a/b\": use ASCII letters, digits, '.', '_' and '-'",
+        ),
+        (Error::SnapshotNotFound("x".into()), "no snapshot named x"),
+        (
+            Error::NoSnapshots,
+            "the store holds no snapshots: run tinymold snapshot save after a build",
+        ),
+        (
+            Error::NoSnapshotName,
+            "cannot name the snapshot from git HEAD: pass a name",
+        ),
+    ];
+    for (error, message) in cases {
+        assert_eq!(error.to_string(), message);
+    }
+}
