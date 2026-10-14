@@ -1,5 +1,27 @@
 [package]
-name="tinymold"
-version.workspace=true
-edition.workspace=true
+name = "tinymold"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Make Rust builds fast and small: content-addressed build caching, fast linking, and a hot cache server for cargo."
+readme = "../../README.md"
+keywords = ["build", "cache", "cargo", "linker", "compile-time"]
+categories = ["development-tools::build-utils", "command-line-utilities"]
+
+[[bin]]
+name = "tinymold"
+path = "src/main.rs"
+
 [dependencies]
+tinymold-hash = { workspace = true }
+tinymold-cas = { workspace = true }
+clap = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
