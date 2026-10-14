@@ -538,7 +538,6 @@ def main() -> None:
             sections += hit_section(result)
         elif result["benchmark"] == "edits":
             edit_sections += edits_section(path.stem, result)
-    body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     if edit_sections:
         EDITS.write_text(EDITS_INTRO + "\n".join(edit_sections).rstrip() + "\n")
