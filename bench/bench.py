@@ -815,20 +815,15 @@ def branch_switch(session: Session, edits: Edits, n: int) -> dict:
     run([*git, "commit", "--quiet", "-am", "tinymold bench: branch B"])
     run([*git, "switch", "--quiet", "--detach", base])
     session.build()  # start from a fresh build of A
-    tinymold = session.mode == "tinymold"
+    # Under tinymold the return to A is served by the rustc wrapper's unit
+    # cache. Snapshots are not used here: saving one right after a build waits
+    # for the filesystem to flush it, which cost more than it saved on bat
+    # (2.42 s against 1.47 s without; see docs/plans/rustc-wrapper.md).
     try:
-        # Under tinymold, leaving A saves its target/ as a snapshot and coming
-        # back restores it, which a post-checkout hook would do.
-        save = session.tm("snapshot", "save") if tinymold else 0.0
         run([*git, "switch", "--quiet", branch])
         to_b = session.build()
-        to_b["wall"] += save
-        to_b["tinymold"] += save
         run([*git, "switch", "--quiet", "--detach", base])
-        restore = session.tm("snapshot", "restore", "--replace") if tinymold else 0.0
         back = session.build()
-        back["wall"] += restore
-        back["tinymold"] += restore
     finally:
         run([*git, "switch", "--quiet", "--detach", base])
         run([*git, "branch", "--quiet", "-D", branch])
@@ -1054,9 +1049,17 @@ def main() -> None:
     name = f"{result['benchmark']}-{result['machine']['os']}-{result['machine']['arch']}.json"
     path = RESULTS / name
     if getattr(args, "project", None) and path.exists():
-        # A single-project run replaces that project's rows and keeps the rest.
+        # A run limited to one project (and, for scenarios, to some modes or
+        # cases) replaces exactly the rows it measured and keeps the rest.
         previous = json.loads(path.read_text())
-        kept = [r for r in previous["results"] if r["project"] != args.project]
+        measured = {(r["project"], r.get("mode"), r.get("case")) for r in result["results"]}
+        limited = bool(getattr(args, "cases", None)) or getattr(args, "modes", None) not in (
+            None, "baseline,sccache")
+        if limited:
+            kept = [r for r in previous["results"]
+                    if (r["project"], r.get("mode"), r.get("case")) not in measured]
+        else:
+            kept = [r for r in previous["results"] if r["project"] != args.project]
         result["results"] = kept + result["results"]
     path.write_text(json.dumps(result, indent=2) + "\n")
     print(f"wrote bench/results/{name}", file=sys.stderr)
