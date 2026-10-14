@@ -324,10 +324,49 @@ def cas_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def hit_section(result: dict) -> list[str]:
+    """Cache hits on many-output units: one tinymold revision against another."""
+    rows = result["results"]
+    lines = [f"### Cache hits on many-output units ({describe(result)})", "",
+             "Every source file touched, then rebuilt through the wrapper, so each "
+             "workspace unit is a cache hit. Incremental units with "
+             + ", ".join(f"`{value}`" for value in result["config"])
+             + " keep one object file per codegen unit, so a hit places hundreds of "
+             "files. Before is the `--against` revision, after is the checkout's; they "
+             "take alternate turns on the same store. Restore times come from "
+             "`TINYMOLD_TRACE`; cells are medians (min–max). A crate's row adds up all "
+             "of its units, such as a library and a binary of the same name.", "",
+             "| Project | What | before | after | change |",
+             "| --- | --- | ---: | ---: | ---: |"]
+
+    def cell(stats: dict, scale: float, unit: str, digits: int) -> str:
+        return (f"{stats['median_s'] * scale:.{digits}f}{unit} "
+                f"({stats['min_s'] * scale:.{digits}f}–{stats['max_s'] * scale:.{digits}f})")
+
+    for project in dict.fromkeys(r["project"] for r in rows):
+        mine = [r for r in rows if r["project"] == project]
+        before, after = mine[0], mine[-1]
+        name = f"{project} {before['rev']}<br>tinymold {before['tinymold']} → {after['tinymold']}"
+        measures = [("Build wall time", lambda r: r["wall"], 1, "s", 2),
+                    (f"All {before['hits']:.0f} restores, summed", lambda r: r["restore"],
+                     1000, " ms", 0)]
+        for unit in before["units"][:3]:
+            def pick(r: dict, crate: str = unit["crate"]) -> dict:
+                return next(u["restore"] for u in r["units"] if u["crate"] == crate)
+            measures.append((f"`{unit['crate']}` restore ({unit['files']} files)", pick,
+                             1000, " ms", 1))
+        for label, pick, scale, unit, digits in measures:
+            old, new = pick(before), pick(after)
+            change = f"{new['median_s'] / old['median_s'] - 1:+.0%}" if old["median_s"] else "–"
+            lines.append(f"| {name} | {label} | {cell(old, scale, unit, digits)} | "
+                         f"{cell(new, scale, unit, digits)} | {change} |")
+    return lines + [""]
+
+
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "dedup": 6, "link": 7, "native": 8, "cas": 9}
+             "hit": 6, "dedup": 7, "link": 8, "native": 9, "cas": 10}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -350,6 +389,8 @@ def main() -> None:
             sections += cas_section(result)
         elif result["benchmark"] == "ci":
             sections += ci_section(result)
+        elif result["benchmark"] == "hit":
+            sections += hit_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()

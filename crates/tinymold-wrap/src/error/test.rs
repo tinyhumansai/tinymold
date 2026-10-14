@@ -22,6 +22,14 @@ fn errors_say_what_failed_and_keep_their_cause() {
     };
     assert_eq!(spawn.to_string(), "failed to run rustc");
 
+    let panicked = Error::WorkerPanicked {
+        task: "restoring outputs",
+    };
+    assert_eq!(
+        panicked.to_string(),
+        "a worker thread panicked while restoring outputs"
+    );
+
     let key = Error::from(tinymold_key::Error::MalformedDepInfo { line: 1 });
     assert_eq!(key.to_string(), "malformed dep-info at line 1");
     let hash = Error::from(tinymold_hash::Error::InvalidHex { text: "x".into() });

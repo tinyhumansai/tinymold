@@ -29,6 +29,7 @@ use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, 
 use crate::clock::{filesystem_now, written_before};
 use crate::error::io;
 use crate::exec::{self, Captured};
+use crate::parallel;
 use crate::record::{
     self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
@@ -37,6 +38,15 @@ use crate::remote::{Remote, RemoteError};
 use crate::stat;
 use crate::trace::Trace;
 use crate::{Error, Result};
+
+/// The fewest outputs a hit places on worker threads rather than in turn.
+///
+/// Most units have two to four outputs, and spawning a thread costs about as
+/// much as reflinking a small file, so those stay serial. An incremental
+/// compile with split debuginfo leaves dozens to hundreds of object files,
+/// and 16 is where every one of up to eight workers still gets a couple of
+/// files to amortize its spawn over.
+const PARALLEL_RESTORE_MIN: usize = 16;
 
 /// How a cacheable invocation was served.
 #[derive(Debug)]
@@ -337,41 +347,53 @@ impl Unit<'_> {
                 Err(error) => return Err(io("replace", &path)(error)),
             }
         }
-        for output in &action.outputs {
-            let destination = self.out_dir.join(&output.name);
-            if output.text {
-                let text = self.expand_object(&output.digest)?;
-                fs::write(&destination, text).map_err(io("write", &destination))?;
-            } else {
-                // A reflink or a copy, never a hardlink: a linker may rewrite
-                // its output in place, and that must not be the store's inode.
-                if self
-                    .store
-                    .materialize(&output.digest, &destination, Strategy::Reflink)
-                    .is_err()
-                {
-                    self.store
-                        .materialize(&output.digest, &destination, Strategy::Copy)?;
-                }
+        if action.outputs.len() < PARALLEL_RESTORE_MIN {
+            for output in &action.outputs {
+                self.place(output)?;
             }
-            set_mode(&destination, output.executable)?;
-            let file = fs::OpenOptions::new()
-                .write(true)
-                .open(&destination)
-                .map_err(io("open", &destination))?;
-            file.set_modified(SystemTime::now())
-                .map_err(io("set the mtime of", &destination))?;
-            if !output.text
-                && let Ok(identity) = stat::identity(&destination)
-            {
-                // Dependents hash this file next; they need not read it.
-                let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
-            }
+        } else {
+            parallel::map(&action.outputs, "restoring outputs", |output| {
+                self.place(output)
+            })?;
         }
         // Like rustc, report errors writing our own output only through the
         // exit status of whoever reads it.
         let _ = io::stdout().lock().write_all(stdout.as_bytes());
         let _ = io::stderr().lock().write_all(stderr.as_bytes());
+        Ok(())
+    }
+
+    /// Places one output of a hit in the out-dir, freshly modified.
+    fn place(&self, output: &Output) -> Result<()> {
+        let destination = self.out_dir.join(&output.name);
+        if output.text {
+            let text = self.expand_object(&output.digest)?;
+            fs::write(&destination, text).map_err(io("write", &destination))?;
+        } else {
+            // A reflink or a copy, never a hardlink: a linker may rewrite
+            // its output in place, and that must not be the store's inode.
+            if self
+                .store
+                .materialize(&output.digest, &destination, Strategy::Reflink)
+                .is_err()
+            {
+                self.store
+                    .materialize(&output.digest, &destination, Strategy::Copy)?;
+            }
+        }
+        set_mode(&destination, output.executable)?;
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .open(&destination)
+            .map_err(io("open", &destination))?;
+        file.set_modified(SystemTime::now())
+            .map_err(io("set the mtime of", &destination))?;
+        if !output.text
+            && let Ok(identity) = stat::identity(&destination)
+        {
+            // Dependents hash this file next; they need not read it.
+            let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
+        }
         Ok(())
     }
 
@@ -457,54 +479,35 @@ impl Unit<'_> {
         // An incremental compile with split debuginfo writes hundreds of
         // object files; storing them one by one would hold cargo up for
         // longer than the compile's own link.
-        let workers = std::thread::available_parallelism().map_or(4, |n| n.get().min(8));
-        let chunk = found.len().div_ceil(workers);
-        let mut outputs = Vec::with_capacity(found.len());
-        std::thread::scope(|scope| {
-            let handles: Vec<_> = found
-                .chunks(chunk)
-                .map(|batch| scope.spawn(move || self.store_outputs(batch)))
-                .collect();
-            for handle in handles {
-                match handle.join() {
-                    Ok(batch) => outputs.extend(batch?),
-                    Err(_) => return Err(Unstorable::Reason("a storing thread panicked")),
-                }
-            }
-            Ok(())
-        })?;
+        let mut outputs = parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(outputs)
     }
 
-    /// Stores one batch of output files.
-    fn store_outputs(
+    /// Stores one output file.
+    fn store_output(
         &self,
-        batch: &[(String, PathBuf, fs::Metadata)],
-    ) -> std::result::Result<Vec<Output>, Unstorable> {
-        let mut outputs = Vec::with_capacity(batch.len());
-        for (name, path, meta) in batch {
-            let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
-            let text = extension == Some("d");
-            let digest = if text {
-                let content = fs::read(path).map_err(io("read", path))?;
-                self.store_text(&content)?
-            } else {
-                let digest = self.store.insert_file(path)?;
-                if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
-                    // A dependent hashes this file next; it need not read it.
-                    let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
-                }
-                digest
-            };
-            outputs.push(Output {
-                name: name.clone(),
-                digest,
-                executable: is_executable(meta),
-                text,
-            });
-        }
-        Ok(outputs)
+        (name, path, meta): &(String, PathBuf, fs::Metadata),
+    ) -> std::result::Result<Output, Unstorable> {
+        let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
+        let text = extension == Some("d");
+        let digest = if text {
+            let content = fs::read(path).map_err(io("read", path))?;
+            self.store_text(&content)?
+        } else {
+            let digest = self.store.insert_file(path)?;
+            if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
+                // A dependent hashes this file next; it need not read it.
+                let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
+            }
+            digest
+        };
+        Ok(Output {
+            name: name.clone(),
+            digest,
+            executable: is_executable(meta),
+            text,
+        })
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's

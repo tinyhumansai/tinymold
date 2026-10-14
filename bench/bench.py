@@ -51,6 +51,12 @@ into its own checkout's target/ directory.
          second's target/ is byte-identical to the first's, at file level,
          rlib-member level, and DWARF-section level.
 
+  hit    Cache hits on units with many outputs: incremental workspace units
+         with unpacked split debuginfo, rebuilt after every source file is
+         touched, so the wrapper restores each from the store. Times each
+         restore through TINYMOLD_TRACE; with --against, another revision's
+         tinymold takes alternate turns on the same store.
+
 Usage:
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
                                    [--variants V,..]
@@ -60,6 +66,7 @@ Usage:
   python3 bench/bench.py link [--runs N] [--project NAME]
   python3 bench/bench.py cas [--runs N] [--size-mb N]
   python3 bench/bench.py ci [--runs N] [--project NAME] [--no-remote]
+  python3 bench/bench.py hit [--runs N] [--project NAME] [--against REV]
   python3 bench/report.py      # render results into bench/README.md
 """
 
@@ -1115,6 +1122,107 @@ def bench_ab(args: argparse.Namespace) -> dict:
             "settings": VARIANTS[args.variant], "pins": pins(), "results": results}
 
 
+# ---------------------------------------------------------------------------
+# Hit: restoring units with many outputs, one tinymold build against another
+# ---------------------------------------------------------------------------
+
+# Incremental units with split debuginfo keep one object file per codegen unit
+# (up to 256) beside their rlib, so a hit on one places hundreds of files.
+# macOS dev builds default to unpacked split debuginfo; Linux has to be told.
+HIT_CONFIG = ['profile.dev.split-debuginfo="unpacked"']
+
+
+def tinymold_at(rev: str) -> tuple[str, Path]:
+    """Builds tinymold at `rev` in a detached worktree under bench/.work and
+    returns its short sha and binary."""
+    sha = output(["git", "-C", str(ROOT), "rev-parse", "--short", rev])
+    path = WORK / f"tinymold-{sha}"
+    if not path.is_dir():
+        WORK.mkdir(parents=True, exist_ok=True)
+        run(["git", "-C", str(ROOT), "worktree", "add", "--quiet", "--detach", str(path), sha])
+    run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=path, env=STOCK_ENV)
+    return sha, path / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+
+
+def restore_spans(trace: Path) -> dict[str, float]:
+    """Seconds each crate's cache hit spent restoring, from TINYMOLD_TRACE."""
+    spans: dict[str, float] = {}
+    for line in trace.read_text().splitlines() if trace.exists() else []:
+        event = json.loads(line)
+        if event["name"] == "restore" and event["args"].get("outcome") == "hit":
+            crate = event["args"]["crate"]
+            spans[crate] = spans.get(crate, 0.0) + event["dur"] / 1e6
+    return spans
+
+
+def unit_files(deps: Path, crate: str) -> int:
+    """Files in deps/ named for `crate`: its outputs, objects included."""
+    prefixes = (f"{crate}-", f"lib{crate}-")
+    return sum(path.name.startswith(prefixes) for path in deps.iterdir())
+
+
+def bench_hit(args: argparse.Namespace) -> dict:
+    """Cache hits on units with many outputs, this checkout's tinymold against
+    another revision's.
+
+    Each project is built once through the wrapper to fill a private store.
+    Every run then touches every source file of the checkout and rebuilds, so
+    cargo reruns every workspace unit and the wrapper serves each one from the
+    store. Both binaries take turns on the same store and target/, in
+    alternating order, so load drift hits both. TINYMOLD_TRACE times each
+    restore on its own, apart from cargo's overhead.
+    """
+    sides = [(output(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]),
+              tinymold_binary())]
+    if args.against:
+        sides.insert(0, tinymold_at(args.against))
+    config = [arg for value in HIT_CONFIG for arg in ("--config", value)]
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        store = WORK / "tinymold-store" / f"hit-{project['name']}"
+        trace = WORK / f"hit-{project['name']}.trace"
+        shutil.rmtree(store, ignore_errors=True)
+        shutil.rmtree(src / "target", ignore_errors=True)
+        command = cargo(*config, "build", "--locked", *target_args(project))
+
+        def build(binary: Path) -> dict:
+            now = time.time()
+            for path in src.rglob("*.rs"):
+                if "target" not in path.relative_to(src).parts:
+                    os.utime(path, (now, now))
+            trace.unlink(missing_ok=True)
+            env = dict(STOCK_ENV, RUSTC_WRAPPER=str(binary), TINYMOLD_STORE=str(store),
+                       TINYMOLD_TRACE=str(trace))
+            wall = timed(command, cwd=src, env=env)
+            return {"wall": wall, "restores": restore_spans(trace)}
+
+        print(f"{project['name']}: filling the store", file=sys.stderr)
+        for _, binary in sides:
+            build(binary)  # the first fills the store; every later build hits
+        samples: dict[str, list[dict]] = {label: [] for label, _ in sides}
+        for n in range(args.runs):
+            for label, binary in sides if n % 2 == 0 else list(reversed(sides)):
+                samples[label].append(build(binary))
+        deps = src / "target" / "debug" / "deps"
+        for label, taken in samples.items():
+            crates = sorted({crate for sample in taken for crate in sample["restores"]})
+            units = [{"crate": crate, "files": unit_files(deps, crate),
+                      "restore": summarize([s["restores"].get(crate, 0.0) for s in taken])}
+                     for crate in crates]
+            units.sort(key=lambda unit: -unit["files"])
+            results.append({"project": project["name"], "rev": project["rev"], "tinymold": label,
+                            "wall": summarize([s["wall"] for s in taken]),
+                            "restore": summarize([sum(s["restores"].values()) for s in taken]),
+                            "hits": statistics.median(len(s["restores"]) for s in taken),
+                            "units": units})
+            print(f"  tinymold {label}: wall {results[-1]['wall']['median_s']}s, "
+                  f"restores {results[-1]['restore']['median_s']}s over "
+                  f"{results[-1]['hits']} hits", file=sys.stderr)
+        shutil.rmtree(store, ignore_errors=True)
+    return {"benchmark": "hit", "config": HIT_CONFIG, "pins": pins(), "results": results}
+
+
 def pins() -> dict:
     """What the scenario numbers depend on, pinned where cargo allows it."""
     return {
@@ -1284,12 +1392,16 @@ def main() -> None:
     ci.add_argument("--runs", type=int, default=3)
     ci.add_argument("--project", help="only this corpus project")
     ci.add_argument("--no-remote", action="store_true", help="skip the bazel-remote mode")
+    hit = sub.add_parser("hit", help="cache hits on many-output units, against another rev")
+    hit.add_argument("--runs", type=int, default=7)
+    hit.add_argument("--project", help="only this corpus project")
+    hit.add_argument("--against", help="a git rev whose tinymold takes alternate turns")
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()

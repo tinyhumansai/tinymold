@@ -120,9 +120,9 @@ miss in another worktree, and it does.
      against another version of it.
    - **The outputs the `--emit` kinds imply must be present:** `.d`,
      `.rmeta`, and a library's `.rlib`.
-3. stores the outputs in the CAS, then writes the ActionResult
-   (`entries/<crate>/<key>`, per ADR 0004), and records the input set under
-   the pre-key.
+3. stores the outputs in the CAS, spread over up to eight threads, then
+   writes the ActionResult (`entries/<crate>/<key>`, per ADR 0004), and
+   records the input set under the pre-key.
 
 **On a hit**, tinymold:
 
@@ -131,6 +131,13 @@ miss in another worktree, and it does.
    because linkers may rewrite outputs in place;
 2. sets each output's mtime to now, as if rustc had just written it;
 3. replays stdout and stderr, then exits 0.
+
+Steps 1 and 2 run per output, in turn for a unit with fewer than 16
+outputs and spread over up to eight threads above that, since an
+incremental compile with split debuginfo leaves hundreds of object files.
+Either way, stdout and stderr are read before any file is removed, so a
+missing replay object fails the hit with the out-dir untouched, and any
+output that cannot be placed fails the whole hit, which then runs rustc.
 
 **Text gets placeholders.** Dep-info, stdout and stderr name absolute paths,
 so they are stored with the out-dir, profile, current-directory and
