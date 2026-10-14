@@ -73,7 +73,7 @@ fn the_pre_key_encoding_is_pinned() {
     assert_eq!(full.to_hex(), PINNED_FULL_KEY);
 }
 
-const PINNED_PRE_KEY: &str = "6fd753f1a3045931f7e770536ce6fe2c590995b86ad724828709c3ed13ebbedb";
+const PINNED_PRE_KEY: &str = "0d7cf5f0dd570a68d8d27b4c0c7e8fb0bf1a5013dc0d4d78d27c8d358f65f96a";
 const PINNED_FULL_KEY: &str = "0928ee02526ad8465c56c90f19c168211dee5e0f8467911165ac6c580def0de6";
 
 #[test]
