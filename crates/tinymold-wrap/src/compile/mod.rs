@@ -1,0 +1,429 @@
+//! Serving one cacheable rustc invocation: look up, restore, or run and store.
+//!
+//! The steps follow `docs/specs/rustc-wrapper.md`:
+//!
+//! 1. compute the pre-key from the arguments, the compiler, the `--extern`
+//!    artifacts, native search directories, a few env vars and the linker;
+//! 2. for each input set recorded under that pre-key, newest first, hash the
+//!    inputs (reusing digests of unchanged files), compute the full key, and
+//!    look for an action under it;
+//! 3. on a hit, place every output by reflink or copy, give it a fresh mtime,
+//!    and replay rustc's output;
+//! 4. on a miss, run rustc with its output streamed through, then store the
+//!    outputs, the action, and the input set, if the compile succeeded and no
+//!    input changed while it ran.
+
+use std::ffi::OsString;
+use std::fs;
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+
+use tinymold_cas::{Store, Strategy};
+use tinymold_hash::Digest;
+use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
+
+use crate::error::io;
+use crate::exec::{self, Captured};
+use crate::record::{
+    self, Action, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets, write_atomically,
+};
+use crate::stat::{self, nanos};
+use crate::{Error, Result};
+
+/// How a cacheable invocation was served.
+#[derive(Debug)]
+pub(crate) enum Served {
+    /// Restored from the cache; rustc did not run.
+    Hit,
+    /// rustc ran and exited with `code`; `stored` says whether its outputs
+    /// were cached, or why not.
+    Miss {
+        code: i32,
+        stored: std::result::Result<(), String>,
+    },
+}
+
+/// Everything about one invocation the steps share.
+struct Unit<'a> {
+    store_dir: &'a Path,
+    store: Store,
+    invocation: &'a Invocation,
+    cwd: PathBuf,
+    out_dir: PathBuf,
+    roots: Roots,
+}
+
+/// Serves `invocation` from the cache in `store_dir`, or by running
+/// `program`.
+///
+/// An error means rustc has not run and nothing was restored, so the caller
+/// can fall back to running rustc itself.
+pub(crate) fn serve(
+    store_dir: &Path,
+    program: &Path,
+    args: &[OsString],
+    invocation: &Invocation,
+) -> Result<Served> {
+    let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
+    let cargo_home = std::env::var_os("CARGO_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cargo")));
+    let unit = Unit {
+        store_dir,
+        store: Store::open(store_dir)?,
+        invocation,
+        out_dir: cwd.join(&invocation.out_dir),
+        roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
+        cwd,
+    };
+    let pre = unit.pre_key(program)?;
+    if let Some(action) = unit.lookup(&pre)?
+        && unit.restore(&action).is_ok()
+    {
+        return Ok(Served::Hit);
+    }
+
+    let started = SystemTime::now();
+    let captured = exec::run_captured(program, args)?;
+    let stored = if captured.code == 0 {
+        unit.ingest(&pre, started, &captured).map_err(|error| error.to_string())
+    } else {
+        Err("rustc failed".to_owned())
+    };
+    Ok(Served::Miss {
+        code: captured.code,
+        stored,
+    })
+}
+
+/// Why a successful compile was not stored.
+#[derive(Debug)]
+enum Unstorable {
+    Error(Error),
+    Reason(&'static str),
+}
+
+impl std::fmt::Display for Unstorable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Error(error) => write!(f, "{error}"),
+            Self::Reason(reason) => f.write_str(reason),
+        }
+    }
+}
+
+impl<E: Into<Error>> From<E> for Unstorable {
+    fn from(error: E) -> Self {
+        Self::Error(error.into())
+    }
+}
+
+impl Unit<'_> {
+    fn pre_key(&self, program: &Path) -> Result<Digest> {
+        let invocation = self.invocation;
+        let rustc_version = stat::rustc_version(self.store_dir, program)?;
+        let externs = invocation
+            .externs
+            .iter()
+            .map(|ext| {
+                ext.path
+                    .as_ref()
+                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path)))
+                    .transpose()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let search_paths = invocation
+            .search_paths
+            .iter()
+            .map(|search| self.listing(&self.cwd.join(&search.path)))
+            .collect::<Result<Vec<_>>>()?;
+        let env: Vec<(String, Option<String>)> = KEY_ENV
+            .iter()
+            .map(|name| ((*name).to_owned(), std::env::var(name).ok()))
+            .collect();
+        let linker = invocation.links().then(|| {
+            let linker = invocation.linker.as_deref().unwrap_or(Path::new("cc"));
+            stat::linker_identity(linker, &self.cwd)
+        });
+        Ok(pre_key(&PreKeyInputs {
+            invocation,
+            roots: &self.roots,
+            rustc_version: &rustc_version,
+            env: &env,
+            externs: &externs,
+            search_paths: &search_paths,
+            linker: linker.as_deref(),
+        }))
+    }
+
+    /// The `(name, digest)` of every file in a search directory, sorted; empty
+    /// when the directory does not exist.
+    fn listing(&self, dir: &Path) -> Result<Vec<(String, Digest)>> {
+        let entries = match fs::read_dir(dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(io("read", dir)(error)),
+        };
+        let mut files = Vec::new();
+        for entry in entries {
+            let path = entry.map_err(io("read", dir))?.path();
+            if path.is_file() {
+                let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                files.push((name, stat::digest(self.store_dir, &path)?));
+            }
+        }
+        files.sort();
+        Ok(files)
+    }
+
+    fn prekey_path(&self, pre: &Digest) -> PathBuf {
+        self.store_dir.join("prekeys").join(pre.to_hex())
+    }
+
+    fn action_path(&self, key: &Digest) -> PathBuf {
+        self.store_dir
+            .join("entries")
+            .join(&self.invocation.crate_name)
+            .join(key.to_hex())
+    }
+
+    /// The action of the first recorded input set that still matches.
+    fn lookup(&self, pre: &Digest) -> Result<Option<Action>> {
+        let path = self.prekey_path(pre);
+        let Some(text) = record::read(&path)? else {
+            return Ok(None);
+        };
+        for set in decode_sets(&text, &path)? {
+            let Some(key) = self.full_key_of(pre, &set) else {
+                continue;
+            };
+            let entry = self.action_path(&key);
+            if let Some(text) = record::read(&entry)? {
+                return Ok(Some(Action::decode(&text, &entry)?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The full key `set` gives today, or `None` when one of its inputs is
+    /// gone or unreadable.
+    fn full_key_of(&self, pre: &Digest, set: &InputSet) -> Option<Digest> {
+        let mut inputs = Vec::with_capacity(set.inputs.len());
+        for input in &set.inputs {
+            let path = self.cwd.join(self.roots.expand(&input.path));
+            let current = stat::identity(&path).ok()?;
+            let digest = if stat::still_valid(input.identity, set.recorded_ns, current) {
+                input.digest
+            } else {
+                Digest::of_file(&path).ok()?
+            };
+            inputs.push((input.path.clone(), digest));
+        }
+        let env: Vec<(String, Option<String>)> = set
+            .env
+            .iter()
+            .map(|name| (name.clone(), std::env::var(name).ok()))
+            .collect();
+        Some(full_key(pre, &inputs, &env))
+    }
+
+    /// Places every output of `action` and replays rustc's output.
+    fn restore(&self, action: &Action) -> Result<()> {
+        // Read the replayed text first, so a missing object fails the hit
+        // before any output is touched.
+        let stdout = self.expand_object(&action.stdout)?;
+        let stderr = self.expand_object(&action.stderr)?;
+        for output in &action.outputs {
+            let destination = self.out_dir.join(&output.name);
+            match fs::remove_file(&destination) {
+                Ok(()) => {}
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Err(error) => return Err(io("replace", &destination)(error)),
+            }
+            if output.text {
+                let text = self.expand_object(&output.digest)?;
+                fs::write(&destination, text).map_err(io("write", &destination))?;
+            } else {
+                self.store
+                    .materialize(&output.digest, &destination, Strategy::Clone)?;
+            }
+            set_mode(&destination, output.executable)?;
+            let file = fs::OpenOptions::new()
+                .write(true)
+                .open(&destination)
+                .map_err(io("open", &destination))?;
+            file.set_modified(SystemTime::now())
+                .map_err(io("set the mtime of", &destination))?;
+            if !output.text
+                && let Ok(identity) = stat::identity(&destination)
+            {
+                // Dependents hash this file next; they need not read it.
+                let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
+            }
+        }
+        // Like rustc, report errors writing our own output only through the
+        // exit status of whoever reads it.
+        let _ = io::stdout().lock().write_all(stdout.as_bytes());
+        let _ = io::stderr().lock().write_all(stderr.as_bytes());
+        Ok(())
+    }
+
+    fn expand_object(&self, digest: &Digest) -> Result<String> {
+        let bytes = self.store.read(digest)?;
+        Ok(self.roots.expand(&String::from_utf8_lossy(&bytes)))
+    }
+
+    /// Stores what a successful compile produced.
+    fn ingest(
+        &self,
+        pre: &Digest,
+        started: SystemTime,
+        captured: &Captured,
+    ) -> std::result::Result<(), Unstorable> {
+        let invocation = self.invocation;
+        let started_ns = nanos(started);
+        let recorded_ns = nanos(SystemTime::now());
+        let stem = format!("{}{}", invocation.crate_name, invocation.extra_filename);
+        let dep_info = self.out_dir.join(format!("{stem}.d"));
+        let Some(text) = record::read(&dep_info)? else {
+            return Err(Unstorable::Reason("no dep-info"));
+        };
+        let info = DepInfo::parse(&text)?;
+
+        let mut inputs = Vec::with_capacity(info.inputs.len());
+        for written in &info.inputs {
+            let path = self.cwd.join(written);
+            let identity = stat::identity(&path)?;
+            if identity.mtime_ns >= started_ns {
+                return Err(Unstorable::Reason("an input changed during the compile"));
+            }
+            inputs.push(Input {
+                path: self.roots.normalize(written),
+                identity,
+                digest: Digest::of_file(&path)?,
+            });
+        }
+        let key_inputs: Vec<(String, Digest)> = inputs
+            .iter()
+            .map(|input| (input.path.clone(), input.digest))
+            .collect();
+        let key = full_key(pre, &key_inputs, &info.env);
+
+        let outputs = self.ingest_outputs(started_ns)?;
+        let action = Action {
+            stdout: self.store_text(&captured.stdout)?,
+            stderr: self.store_text(&captured.stderr)?,
+            outputs,
+        };
+        write_atomically(&self.action_path(&key), &action.encode())?;
+
+        let set = InputSet {
+            recorded_ns,
+            inputs,
+            env: info.env.into_iter().map(|(name, _)| name).collect(),
+        };
+        self.remember_set(pre, set)?;
+        Ok(())
+    }
+
+    /// Stores every output this compile wrote and describes them.
+    fn ingest_outputs(&self, started_ns: u64) -> std::result::Result<Vec<Output>, Unstorable> {
+        // Whole seconds: on filesystems with coarse timestamps a file written
+        // just after the start can carry a time just before it.
+        let threshold = started_ns - started_ns % 1_000_000_000;
+        let prefixes = self.invocation.output_prefixes();
+        let mut outputs = Vec::new();
+        let entries = fs::read_dir(&self.out_dir).map_err(io("read", &self.out_dir))?;
+        for entry in entries {
+            let entry = entry.map_err(io("read", &self.out_dir))?;
+            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            if !prefixes.iter().any(|prefix| name.starts_with(prefix.as_str())) {
+                continue;
+            }
+            let path = entry.path();
+            let meta = fs::symlink_metadata(&path).map_err(io("read", &path))?;
+            if !meta.is_file() {
+                return Err(Unstorable::Reason("an output is not a regular file"));
+            }
+            if meta.modified().map_or(0, nanos) < threshold {
+                continue; // left over from an earlier compile of this unit
+            }
+            let text = Path::new(&name).extension().is_some_and(|ext| ext == "d");
+            let digest = if text {
+                let content = fs::read(&path).map_err(io("read", &path))?;
+                self.store_text(&content)?
+            } else {
+                let digest = self.store.insert_file(&path)?;
+                let _ = stat::remember(self.store_dir, &path, stat::identity_of(&meta), digest);
+                digest
+            };
+            outputs.push(Output {
+                name,
+                digest,
+                executable: is_executable(&meta),
+                text,
+            });
+        }
+        if outputs.is_empty() {
+            return Err(Unstorable::Reason("no outputs found"));
+        }
+        outputs.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(outputs)
+    }
+
+    /// Stores `bytes` as text with this unit's roots replaced by placeholders.
+    fn store_text(&self, bytes: &[u8]) -> std::result::Result<Digest, Unstorable> {
+        let text = std::str::from_utf8(bytes).map_err(|_| Unstorable::Reason("output is not UTF-8"))?;
+        Ok(self.store.insert_bytes(self.roots.normalize(text).as_bytes())?)
+    }
+
+    /// Adds `set` as the newest input set of `pre`, replacing an older set
+    /// that read the same files and variables.
+    fn remember_set(&self, pre: &Digest, set: InputSet) -> Result<()> {
+        let path = self.prekey_path(pre);
+        let mut sets = record::read(&path)?
+            .and_then(|text| decode_sets(&text, &path).ok())
+            .unwrap_or_default();
+        let same_shape = |other: &InputSet| {
+            other.env == set.env
+                && other.inputs.len() == set.inputs.len()
+                && other.inputs.iter().zip(&set.inputs).all(|(a, b)| a.path == b.path)
+        };
+        sets.retain(|other| !same_shape(other));
+        sets.insert(0, set);
+        sets.truncate(MAX_SETS);
+        write_atomically(&path, &encode_sets(&sets))
+    }
+}
+
+#[cfg(unix)]
+fn is_executable(meta: &fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    meta.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(not(unix))]
+fn is_executable(_meta: &fs::Metadata) -> bool {
+    false
+}
+
+#[cfg(unix)]
+fn set_mode(path: &Path, executable: bool) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = if executable { 0o755 } else { 0o644 };
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).map_err(io("set the mode of", path))
+}
+
+#[cfg(not(unix))]
+fn set_mode(path: &Path, _executable: bool) -> Result<()> {
+    let mut permissions = fs::metadata(path).map_err(io("read", path))?.permissions();
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(false);
+    fs::set_permissions(path, permissions).map_err(io("set the mode of", path))
+}
+
+#[cfg(test)]
+mod test;
