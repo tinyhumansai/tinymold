@@ -47,7 +47,10 @@ fn a_compile_misses_then_hits_and_says_so() {
     assert_eq!(run(&config, &rustc(), &args), 0);
     assert_eq!(run(&config, &rustc(), &args), 0);
     let lines = log_lines(dir.path());
-    assert!(lines[0].starts_with("miss demo ") && lines[0].contains("stored in"), "{lines:?}");
+    assert!(
+        lines[0].starts_with("miss demo ") && lines[0].contains("stored in"),
+        "{lines:?}"
+    );
     assert!(lines[1].starts_with("hit demo "), "{lines:?}");
 }
 

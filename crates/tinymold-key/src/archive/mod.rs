@@ -36,7 +36,11 @@ fn normalized(bytes: &[u8]) -> Option<Vec<u8>> {
         if &header[58..60] != b"`\n" {
             return None;
         }
-        let size: usize = std::str::from_utf8(&header[48..58]).ok()?.trim().parse().ok()?;
+        let size: usize = std::str::from_utf8(&header[48..58])
+            .ok()?
+            .trim()
+            .parse()
+            .ok()?;
         for field in [16..28, 28..34, 34..40] {
             let width = field.len();
             header[field].copy_from_slice(format!("{:<width$}", "0").as_bytes());
