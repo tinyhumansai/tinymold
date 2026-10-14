@@ -135,9 +135,9 @@ miss in another worktree, and it does.
 Steps 1 and 2 run per output, in turn for a unit with fewer than 16
 outputs and spread over up to eight threads above that, since an
 incremental compile with split debuginfo leaves hundreds of object files.
-Either way, an object missing from the store fails the hit before any file
-is removed only for stdout and stderr; any output that cannot be placed
-fails the whole hit, which then runs rustc.
+Either way, stdout and stderr are read before any file is removed, so a
+missing replay object fails the hit with the out-dir untouched, and any
+output that cannot be placed fails the whole hit, which then runs rustc.
 
 **Text gets placeholders.** Dep-info, stdout and stderr name absolute paths,
 so they are stored with the out-dir, profile, current-directory and
