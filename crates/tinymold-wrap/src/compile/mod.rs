@@ -167,7 +167,7 @@ impl Unit<'_> {
             .map(|ext| {
                 ext.path
                     .as_ref()
-                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path)))
+                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path), self.now_ns))
                     .transpose()
             })
             .collect::<Result<Vec<_>>>()?;
@@ -214,7 +214,7 @@ impl Unit<'_> {
                     .into_owned();
                 // Archives a build script rebuilt keep their digest when only
                 // their build stamps changed.
-                let digest = stat::digest_as(self.store_dir, &path, stat::Kind::Archive)?;
+                let digest = stat::digest_as(self.store_dir, &path, stat::Kind::Archive, self.now_ns)?;
                 files.push((name, digest));
             }
         }
@@ -383,12 +383,9 @@ impl Unit<'_> {
     fn ingest(
         &self,
         pre: &Digest,
-        started: SystemTime,
         captured: &Captured,
     ) -> std::result::Result<(), Unstorable> {
         let invocation = self.invocation;
-        let started_ns = nanos(started);
-        let recorded_ns = nanos(SystemTime::now());
         let stem = format!("{}{}", invocation.crate_name, invocation.extra_filename);
         let dep_info = self.out_dir.join(format!("{stem}.d"));
         let Some(text) = record::read(&dep_info)? else {
@@ -400,7 +397,10 @@ impl Unit<'_> {
         for written in &info.inputs {
             let path = self.cwd.join(written);
             let identity = stat::identity(&path)?;
-            if identity.mtime_ns >= started_ns {
+            // Inputs are hashed after the compile, so one written since
+            // the unit's clock reading, or within a tick before it, may not
+            // be what rustc read.
+            if !written_before(identity.mtime_ns, self.now_ns) {
                 return Err(Unstorable::Reason("an input changed during the compile"));
             }
             inputs.push(Input {
@@ -424,7 +424,7 @@ impl Unit<'_> {
         write_atomically(&self.action_path(&key), &action.encode())?;
 
         let set = InputSet {
-            recorded_ns,
+            recorded_ns: self.now_ns,
             inputs,
             env: info.env.into_iter().map(|(name, _)| name).collect(),
         };
