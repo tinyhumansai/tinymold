@@ -74,6 +74,34 @@ def link_section(name: str, result: dict) -> list[str]:
     return lines
 
 
+def baseline_section(result: dict) -> list[str]:
+    rows = result["results"]
+    lines = [f"### Baseline: plain cargo, default linker ({describe(result)})", "",
+             "What every tinymold phase is measured against. Times are wall clock; "
+             "loops report the median.", "",
+             "| Scenario | " + " | ".join(f"{r['project']} {r['rev']}" for r in rows) + " |",
+             "| --- |" + " ---: |" * len(rows)]
+
+    def row(label: str, cell) -> None:
+        lines.append(f"| {label} | " + " | ".join(cell(r) for r in rows) + " |")
+
+    row("Clean build", lambda r: f"{r['clean_build_s']:.1f}s")
+    row("No-op rebuild", lambda r: f"{r['noop_rebuild']['median_s']:.2f}s")
+    row("One-line edit → rebuilt binary", lambda r: f"{r['edit_rebuild']['median_s']:.2f}s")
+    row("Every source file touched, no content change",
+        lambda r: f"{r['touch_all_rebuild']['median_s']:.2f}s")
+    row("Build tests (after the binary)", lambda r: f"{r['build_tests_s']:.1f}s")
+    row("Second worktree, same commit, clean build",
+        lambda r: f"{r['second_worktree_build_s']:.1f}s")
+    row("`target/` after binary + tests", lambda r: mib(r["target_bytes"]))
+    row("Second worktree `deps/` artifacts",
+        lambda r: mib(r["second_worktree_deps_bytes"]))
+    row("…of which byte-identical to the first worktree's",
+        lambda r: f"{mib(r['second_worktree_identical_deps_bytes'])} "
+                  f"({100 * r['second_worktree_identical_deps_bytes'] / max(1, r['second_worktree_deps_bytes']):.0f}%)")
+    return lines + [""]
+
+
 def cas_section(result: dict) -> list[str]:
     lines = [f"### Restoring a {result['artifact_mb']} MiB artifact ({describe(result)})", "",
              "| Method | Median | min–max |", "| --- | ---: | ---: |"]
@@ -86,9 +114,14 @@ def cas_section(result: dict) -> list[str]:
 
 def main() -> None:
     sections: list[str] = []
-    for path in sorted(RESULTS.glob("*.json")):
+    order = {"baseline": 0, "link": 1, "cas": 2}
+    paths = sorted(RESULTS.glob("*.json"),
+                   key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
+    for path in paths:
         result = json.loads(path.read_text())
-        if result["benchmark"] == "link":
+        if result["benchmark"] == "baseline":
+            sections += baseline_section(result)
+        elif result["benchmark"] == "link":
             sections += link_section(path.stem, result)
         elif result["benchmark"] == "cas":
             sections += cas_section(result)
