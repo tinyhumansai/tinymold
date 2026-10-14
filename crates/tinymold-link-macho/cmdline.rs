@@ -30,10 +30,11 @@ pub const LD64_COMPAT_VERSION: &str = "1267";
 /// version in the -dependency_info file. It names the Mach-O linker, so
 /// that it tells apart from the ELF linker's.
 pub static VERSION_BANNER: LazyLock<String> = LazyLock::new(|| {
-    let version = env!("CARGO_PKG_VERSION");
+    let version = mold_common::MOLD_VERSION;
+    let fork = concat!("tinymold-link ", env!("CARGO_PKG_VERSION"));
     match mold_common::GIT_HASH {
-        Some(hash) => format!("mold-macho {version} ({hash})"),
-        None => format!("mold-macho {version}"),
+        Some(hash) => format!("mold-macho {version} ({fork} {hash})"),
+        None => format!("mold-macho {version} ({fork})"),
     }
 });
 

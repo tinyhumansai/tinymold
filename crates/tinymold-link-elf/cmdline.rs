@@ -241,10 +241,11 @@ mold: supported targets: elf32-i386 elf64-x86-64 elf32-littlearm elf64-littleaar
 mold: supported emulations: elf_i386 elf_x86_64 armelf_linux_eabi aarch64elf aarch64linux aarch64elfb aarch64linuxb elf32lriscv elf32briscv elf64lriscv elf64briscv elf32ppc elf32ppclinux elf64ppc elf64lppc elf64_s390 elf64_sparc m68kelf shlelf_linux shelf_linux elf64loongarch elf32loongarch";
 
 pub static VERSION: LazyLock<String> = LazyLock::new(|| {
-    let version = env!("CARGO_PKG_VERSION");
+    let version = mold_common::MOLD_VERSION;
+    let fork = concat!("tinymold-link ", env!("CARGO_PKG_VERSION"));
     match mold_common::GIT_HASH {
-        Some(hash) => format!("mold {version} ({hash}; compatible with GNU ld)"),
-        None => format!("mold {version} (compatible with GNU ld)"),
+        Some(hash) => format!("mold {version} ({fork} {hash}; compatible with GNU ld)"),
+        None => format!("mold {version} ({fork}; compatible with GNU ld)"),
     }
 });
 

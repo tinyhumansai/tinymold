@@ -33,3 +33,9 @@ pub use prefetch::prefetch;
 /// The git commit that mold is built from, or None if the source tree has
 /// no git metadata, as in a source tarball.
 pub const GIT_HASH: Option<&str> = option_env!("MOLD_GIT_HASH");
+
+/// The mold release this fork is based on. The version banners lead with
+/// it, after "mold", because build tools and mold's own tests recognize
+/// the linker by that prefix; the fork's own version follows in
+/// parentheses. See crates/tinymold-link/FORK.md.
+pub const MOLD_VERSION: &str = "3.0.0";
