@@ -80,3 +80,45 @@ versions, and the filesystem the sources and store live on.
 - **Build scripts and proc macros.** tinymold caches rustc invocations, not
   build-script runs, so every build script still runs on a warm cache. See
   [`PROFILING.md`](PROFILING.md).
+
+## Findings
+
+Linux aarch64 in Docker Desktop (12 CPUs, 16 GiB) on a darwin arm64 host,
+OpenHuman 9a0a654, 2026-10-15. The table is in
+[`README.md`](README.md#results); the raw samples are in
+`results/openhuman-docker-linux-aarch64.json`.
+
+- **A clean build is one crate long.** The core library (`openhuman`)
+  compiles alone for 136s of a 175s clean build. Average concurrency is 2.3,
+  and one unit runs alone for 139s. The build's 393s of unit time would fit
+  in 33s on 12 slots. No linker or cache changes that first build: splitting
+  the core crate, or a parallel frontend, is where its time is.
+- **The linker decides the edit loop.** A one-line edit to the binary takes
+  15.4s with GNU ld, 14.7s of it linking. With mold it takes 1.1s. An edit
+  to the core library takes 32.9s with ld and 16.4s with mold; what remains
+  is recompiling the core.
+- **A warm cache turns a clean build into seconds.** With the store filled,
+  a clean `target/` builds in 4.5s instead of 175s: 1410 of 1422 compiles
+  hit, and the misses are build-script probes that fail by design. The
+  critical path left is `libsqlite3-sys`'s build script (2.7s), which
+  tinymold does not cache. Filling the store cost nothing measurable on the
+  cold build (176s against 175s).
+- **A new path misses about a quarter of the graph.** The first build of a
+  copy at another path hit 347 of 474 compiles and took 165s. Repeat builds
+  at that path then hit (5.8s). Crates whose build scripts write into
+  `OUT_DIR`, and everything that depends on them, miss. Their outputs embed
+  the absolute path, so the keys are right to differ
+  ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md) keys env values raw
+  for this reason). Remapping path prefixes so those outputs stop depending
+  on the checkout is the change that would make a new worktree warm.
+- **A snapshot does not help a new path yet.** Restoring the first
+  checkout's `target/` (4.5-9.6s, copies on ext4) leaves the six workspace
+  crates to compile against dependencies built at the other path. That first
+  build took 155s.
+- **Storing and restoring by copy costs the edit loop.** Without reflinks,
+  storing the rebuilt binary costs about 0.7s on every edit, so a leaf edit
+  takes 2.1s under tinymold against 1.1s with mold alone. A core edit takes
+  19.1s against 16.4s: storing the core costs 1.5-3.4s, and the binary is
+  then a hit, restored by a copy of 0.3-2.1s. On a reflinking filesystem
+  both are close to free. On ext4, storing in the background would take
+  them off the critical path.
