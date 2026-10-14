@@ -2,9 +2,14 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use super::*;
+
+/// The store's filesystem clock, as the wrapper reads it once per call.
+fn now(store: &Path) -> u64 {
+    crate::clock::filesystem_now(&store.join("stat")).unwrap()
+}
 
 #[test]
 fn a_digest_is_reused_until_the_file_changes() {
@@ -20,7 +25,7 @@ fn a_digest_is_reused_until_the_file_changes() {
         .set_modified(old)
         .unwrap();
 
-    assert_eq!(digest(&store, &file).unwrap(), Digest::of_bytes(b"one"));
+    assert_eq!(digest(&store, &file, now(&store)).unwrap(), Digest::of_bytes(b"one"));
     // A wrong cached digest is returned as-is, which proves the cache is read.
     let poisoned = Digest::of_bytes(b"cached");
     remember(&store, &file, identity(&file).unwrap(), poisoned).unwrap();
@@ -29,12 +34,12 @@ fn a_digest_is_reused_until_the_file_changes() {
     } else {
         Digest::of_bytes(b"one")
     };
-    assert_eq!(digest(&store, &file).unwrap(), expected);
+    assert_eq!(digest(&store, &file, now(&store)).unwrap(), expected);
 
     // Same size, new content and mtime: the entry no longer applies.
     fs::write(&file, b"two").unwrap();
-    assert_eq!(digest(&store, &file).unwrap(), Digest::of_bytes(b"two"));
-    assert!(digest(&store, &dir.path().join("missing")).is_err());
+    assert_eq!(digest(&store, &file, now(&store)).unwrap(), Digest::of_bytes(b"two"));
+    assert!(digest(&store, &dir.path(, now(&store)).join("missing")).is_err());
 }
 
 #[test]
@@ -43,13 +48,13 @@ fn validity_needs_an_inode_an_equal_identity_and_an_older_mtime() {
         dev: 1,
         ino: 2,
         size: 3,
-        mtime_ns: 10,
+        mtime_ns: 1_234_567_891,
     };
-    assert!(still_valid(id, 11, id));
-    assert!(!still_valid(id, 10, id), "racily clean");
-    assert!(!still_valid(id, 11, Identity { size: 4, ..id }));
+    assert!(still_valid(id, 1_234_567_892, id));
+    assert!(!still_valid(id, 1_234_567_891, id), "racily clean");
+    assert!(!still_valid(id, 1_234_567_892, Identity { size: 4, ..id }));
     let no_inode = Identity { ino: 0, ..id };
-    assert!(!still_valid(no_inode, 11, no_inode));
+    assert!(!still_valid(no_inode, 1_234_567_892, no_inode));
 }
 
 #[test]
@@ -118,7 +123,6 @@ fn linker_identity_names_the_file_or_says_it_is_missing() {
         linker_identity(Path::new("no-such-linker-anywhere"), dir.path()),
         "missing no-such-linker-anywhere"
     );
-    assert_eq!(nanos(UNIX_EPOCH - Duration::from_secs(1)), 0);
 }
 
 #[test]
@@ -139,16 +143,16 @@ fn archives_are_digested_without_their_build_stamps() {
     let second = dir.path().join("two.a");
     fs::write(&first, archive("1700000000")).unwrap();
     fs::write(&second, archive("1800000000")).unwrap();
-    let a = digest_as(&store, &first, Kind::Archive).unwrap();
-    assert_eq!(a, digest_as(&store, &second, Kind::Archive).unwrap());
+    let a = digest_as(&store, &first, Kind::Archive, now(&store)).unwrap();
+    assert_eq!(a, digest_as(&store, &second, Kind::Archive, now(&store)).unwrap());
     assert_ne!(
         a,
-        digest(&store, &first).unwrap(),
+        digest(&store, &first, now(&store)).unwrap(),
         "the byte digest is kept apart"
     );
     assert_eq!(
         a,
-        digest_as(&store, &first, Kind::Archive).unwrap(),
+        digest_as(&store, &first, Kind::Archive, now(&store)).unwrap(),
         "cached"
     );
 }
