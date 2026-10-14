@@ -5,7 +5,7 @@ seconds, so the scenario matrix runs in minutes. OpenHuman
 ([tinyhumansai/openhuman](https://github.com/tinyhumansai/openhuman)) is the
 other end: about a thousand packages, a dozen vendored submodules, and one
 large core library under a binary. This benchmark builds its `openhuman-core`
-binary on Linux, in Docker, and compares five ways to build it:
+binary on Linux, in Docker, and compares seven ways to build it:
 
 | Config | Wrapper | Linker |
 | --- | --- | --- |
@@ -14,6 +14,8 @@ binary on Linux, in Docker, and compares five ways to build it:
 | `tinymold` | `RUSTC_WRAPPER=tinymold` | mold |
 | `sccache` | `RUSTC_WRAPPER=sccache`, local disk cache | mold |
 | `sccache-noinc` | the same, with `CARGO_INCREMENTAL=0` | mold |
+| `tinymold-link` | none | tinymold-link, the mold fork in [`crates/tinymold-link`](../crates/tinymold-link), via `-C link-arg=-B/usr/local/libexec/tinymold-link` |
+| `tinymold-full` | `RUSTC_WRAPPER=tinymold`, its own store | tinymold-link: no mold anywhere |
 
 sccache does not cache a compile that uses incremental compilation, which
 cargo's dev profile turns on for workspace crates. So `sccache` caches only
@@ -23,7 +25,9 @@ reuse in the edit loop. Each sccache config has its own cache directory and
 server.
 
 Each config builds into its own `--target-dir`, so they never invalidate
-each other.
+each other. gcc's `-fuse-ld=` takes only the linkers it knows, so the
+tinymold-link configs point gcc at a directory whose `ld` is tinymold-link,
+the way mold installs itself under `libexec/mold`.
 
 ## Cases
 
@@ -61,7 +65,7 @@ Requirements: Docker, `git` with access to the OpenHuman repository, and
 Python 3.9 or newer.
 
 ```sh
-python3 bench/docker_openhuman.py run --runs 3   # about two hours for all five configs
+python3 bench/docker_openhuman.py run --runs 3   # about two and a half hours for all seven configs
 python3 bench/docker_openhuman.py report         # rewrite the result file and print tables
 ```
 
@@ -75,6 +79,11 @@ mount, so builds use the VM's own filesystem and never cross into the host's.
 Dependencies are fetched before the first build, so no build's time includes
 the network.
 
+`--configs tinymold-link,tinymold-full` runs only those configs and keeps the
+committed samples of the others in the result file; it refuses to mix
+OpenHuman commits, so pass the committed one with `--rev` (`--fresh` discards
+the other configs instead).
+
 The result is `bench/results/openhuman-docker-linux-<arch>.json`. It records
 the Docker VM's CPUs, memory and kernel, the toolchain, the mold and ld
 versions, and the filesystem the sources and store live on.
@@ -85,7 +94,10 @@ versions, and the filesystem the sources and store live on.
   restores every output by copy. On btrfs, XFS or APFS a hit is a reflink and
   costs almost nothing.
 - **The VM.** Docker Desktop's VM gets a share of the host's CPUs and memory.
-  The result records what it had.
+  The result records what it had, but not how busy the host was: configs run
+  on different days are not comparable to a few tens of percent (see the
+  tinymold-link finding below). Compare linkers with an interleaved A/B on
+  one link line instead.
 - **Build scripts and proc macros.** tinymold caches rustc invocations, not
   build-script runs, so every build script still runs on a warm cache. See
   [`PROFILING.md`](PROFILING.md).
@@ -147,3 +159,28 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   then a hit, restored by a copy of 0.3-2.1s. On a reflinking filesystem
   both are close to free. On ext4, storing in the background would take
   them off the critical path.
+
+### tinymold-link (2026-10-15, second run)
+
+The two tinymold-link configs ran on 2026-10-15 on the same Docker VM and
+OpenHuman commit, a few hours after the others, with the host busy (load
+average 9-12 from other work).
+
+- **The table cannot compare linkers across the two runs.** Everything was
+  slower in the second run, including work no linker touches: the cold build
+  (98% compiling) took 208s against mold's 175s, and a core edit under
+  `tinymold-full`, which ran no link at all, took 26.7s against `tinymold`'s
+  19.1s. The link times in the table (0.87s against mold's 0.61s for a leaf
+  edit) carry the same drift.
+- **Interleaved on one link, tinymold-link is as fast as mold.** Replaying
+  the captured `openhuman-core` link line (a 956 MB debug binary) in the
+  benchmark image, alternating mold 3.0.0's release binary and tinymold-link,
+  30 runs each: mold median 0.750s (min 0.610s), tinymold-link median 0.748s
+  (min 0.597s). The outputs differ only in the 16-byte version string in
+  `.comment`. That is the expected result: tinymold-link is mold's code, and
+  the per-input cache that is meant to make it faster is not built yet
+  ([plan](../docs/plans/linker.md)).
+- **Without mold, tinymold keeps its edit-loop and warm-cache wins.**
+  `tinymold-full` serves a core edit's binary from the store (no link), a
+  clean `target/` in 6.5s (470 of 474 hits) and a snapshot second checkout in
+  5.4s with every workspace crate a hit.
