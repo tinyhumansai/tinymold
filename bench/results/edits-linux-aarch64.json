@@ -1,0 +1,5656 @@
+{
+  "benchmark": "edits",
+  "pins": {
+    "cargo_build_jobs": 12,
+    "target_filesystem": "ext2/ext3",
+    "linker": "per row",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "commands": [
+    "build",
+    "clippy",
+    "test"
+  ],
+  "schedule": "comment, private_body, public_signature in turn; churn every 6 steps; fresh target every 9 steps",
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "linker": "default",
+      "steps": [
+        {
+          "step": 0,
+          "edit": "clean",
+          "load": 2.7,
+          "commands": {
+            "build": {
+              "wall_s": 3.9131,
+              "rc": 0,
+              "rss_mb": 406.1,
+              "link_s": 1.117,
+              "links": 7,
+              "compiled": 33,
+              "fresh": 0
+            },
+            "clippy": {
+              "wall_s": 2.6669,
+              "rc": 0,
+              "rss_mb": 305.1,
+              "link_s": 0.3414,
+              "links": 3,
+              "compiled": 38,
+              "fresh": 0
+            },
+            "test_build": {
+              "wall_s": 1.4305,
+              "rc": 0,
+              "rss_mb": 339.6,
+              "link_s": 0.9527,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5863,
+              "rc": 0,
+              "rss_mb": 40.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 997257216,
+          "target": {
+            "total": {
+              "apparent": 595233036,
+              "allocated": 599740416,
+              "files": 2013
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 239572654,
+              "allocated": 242417664,
+              "files": 1430
+            }
+          }
+        },
+        {
+          "step": 1,
+          "edit": "comment",
+          "load": 6.42,
+          "commands": {
+            "build": {
+              "wall_s": 1.2927,
+              "rc": 0,
+              "rss_mb": 266.6,
+              "link_s": 1.0351,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2174,
+              "rc": 0,
+              "rss_mb": 226.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.7339,
+              "rc": 0,
+              "rss_mb": 258.9,
+              "link_s": 0.9261,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.6313,
+              "rc": 0,
+              "rss_mb": 55.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 327458816,
+          "target": {
+            "total": {
+              "apparent": 691971000,
+              "allocated": 696512512,
+              "files": 2037
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 336310604,
+              "allocated": 339193856,
+              "files": 1454
+            }
+          }
+        },
+        {
+          "step": 2,
+          "edit": "private_body",
+          "load": 9.23,
+          "commands": {
+            "build": {
+              "wall_s": 1.9103,
+              "rc": 0,
+              "rss_mb": 282.2,
+              "link_s": 1.5565,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.3739,
+              "rc": 0,
+              "rss_mb": 233.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 1.2603,
+              "rc": 0,
+              "rss_mb": 263.5,
+              "link_s": 1.3976,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.716,
+              "rc": 0,
+              "rss_mb": 40.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 579796992,
+          "target": {
+            "total": {
+              "apparent": 690415626,
+              "allocated": 694956032,
+              "files": 2041
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 334754990,
+              "allocated": 337641472,
+              "files": 1458
+            }
+          }
+        },
+        {
+          "step": 3,
+          "edit": "public_signature",
+          "load": 9.51,
+          "commands": {
+            "build": {
+              "wall_s": 1.2228,
+              "rc": 0,
+              "rss_mb": 288.1,
+              "link_s": 0.7977,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 29
+            },
+            "clippy": {
+              "wall_s": 0.3933,
+              "rc": 0,
+              "rss_mb": 232.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 34
+            },
+            "test_build": {
+              "wall_s": 0.6862,
+              "rc": 0,
+              "rss_mb": 253.8,
+              "link_s": 0.7681,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.583,
+              "rc": 0,
+              "rss_mb": 55.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 80138240,
+          "target": {
+            "total": {
+              "apparent": 709937499,
+              "allocated": 714522624,
+              "files": 2068
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354273521,
+              "allocated": 357203968,
+              "files": 1485
+            }
+          }
+        },
+        {
+          "step": 4,
+          "edit": "comment",
+          "load": 8.37,
+          "commands": {
+            "build": {
+              "wall_s": 0.75,
+              "rc": 0,
+              "rss_mb": 266.6,
+              "link_s": 0.5954,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.1972,
+              "rc": 0,
+              "rss_mb": 221.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.6921,
+              "rc": 0,
+              "rss_mb": 229.3,
+              "link_s": 0.8302,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5825,
+              "rc": 0,
+              "rss_mb": 55.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 3555328,
+          "target": {
+            "total": {
+              "apparent": 709759389,
+              "allocated": 714342400,
+              "files": 2068
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354095411,
+              "allocated": 357023744,
+              "files": 1485
+            }
+          }
+        },
+        {
+          "step": 5,
+          "edit": "private_body",
+          "load": 8.42,
+          "commands": {
+            "build": {
+              "wall_s": 0.8031,
+              "rc": 0,
+              "rss_mb": 266.6,
+              "link_s": 0.5899,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2318,
+              "rc": 0,
+              "rss_mb": 219.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.6857,
+              "rc": 0,
+              "rss_mb": 242.1,
+              "link_s": 0.7501,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5553,
+              "rc": 0,
+              "rss_mb": 40.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 14352384,
+          "target": {
+            "total": {
+              "apparent": 710437247,
+              "allocated": 715030528,
+              "files": 2070
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354773266,
+              "allocated": 357711872,
+              "files": 1487
+            }
+          }
+        },
+        {
+          "step": 6,
+          "edit": "churn",
+          "load": 8.32,
+          "commands": {
+            "build": {
+              "wall_s": 2.4726,
+              "rc": 0,
+              "rss_mb": 373.6,
+              "link_s": 0.9425,
+              "links": 3,
+              "compiled": 9,
+              "fresh": 31
+            },
+            "clippy": {
+              "wall_s": 0.637,
+              "rc": 0,
+              "rss_mb": 246.1,
+              "link_s": 0.0531,
+              "links": 1,
+              "compiled": 5,
+              "fresh": 40
+            },
+            "test_build": {
+              "wall_s": 1.3059,
+              "rc": 0,
+              "rss_mb": 336.2,
+              "link_s": 0.8352,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0897,
+              "rc": 0,
+              "rss_mb": 40.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 364425216,
+          "target": {
+            "total": {
+              "apparent": 1033550244,
+              "allocated": 1040109568,
+              "files": 2981
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 518144076,
+              "allocated": 522612736,
+              "files": 2246
+            }
+          }
+        },
+        {
+          "step": 7,
+          "edit": "public_signature",
+          "load": 6.37,
+          "commands": {
+            "build": {
+              "wall_s": 0.9843,
+              "rc": 0,
+              "rss_mb": 275.3,
+              "link_s": 0.6715,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36
+            },
+            "clippy": {
+              "wall_s": 0.3734,
+              "rc": 0,
+              "rss_mb": 215.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41
+            },
+            "test_build": {
+              "wall_s": 0.6711,
+              "rc": 0,
+              "rss_mb": 237.0,
+              "link_s": 0.7791,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.079,
+              "rc": 0,
+              "rss_mb": 42.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 106885120,
+          "target": {
+            "total": {
+              "apparent": 1133391410,
+              "allocated": 1140006912,
+              "files": 3016
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 617984050,
+              "allocated": 622518272,
+              "files": 2281
+            }
+          }
+        },
+        {
+          "step": 8,
+          "edit": "comment",
+          "load": 7.05,
+          "commands": {
+            "build": {
+              "wall_s": 0.8678,
+              "rc": 0,
+              "rss_mb": 275.3,
+              "link_s": 0.6918,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39
+            },
+            "clippy": {
+              "wall_s": 0.2535,
+              "rc": 0,
+              "rss_mb": 203.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_build": {
+              "wall_s": 0.7155,
+              "rc": 0,
+              "rss_mb": 234.6,
+              "link_s": 0.8195,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0822,
+              "rc": 0,
+              "rss_mb": 55.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 158072832,
+          "target": {
+            "total": {
+              "apparent": 1130931935,
+              "allocated": 1137549312,
+              "files": 3016
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 615524575,
+              "allocated": 620060672,
+              "files": 2281
+            }
+          }
+        },
+        {
+          "step": 9,
+          "edit": "fresh",
+          "load": 6.06,
+          "commands": {
+            "build": {
+              "wall_s": 4.1792,
+              "rc": 0,
+              "rss_mb": 403.3,
+              "link_s": 1.1948,
+              "links": 8,
+              "compiled": 40,
+              "fresh": 0
+            },
+            "clippy": {
+              "wall_s": 2.4119,
+              "rc": 0,
+              "rss_mb": 305.4,
+              "link_s": 0.3368,
+              "links": 3,
+              "compiled": 41,
+              "fresh": 4
+            },
+            "test_build": {
+              "wall_s": 1.2642,
+              "rc": 0,
+              "rss_mb": 337.5,
+              "link_s": 0.8501,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0794,
+              "rc": 0,
+              "rss_mb": 42.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 679903232,
+          "target": {
+            "total": {
+              "apparent": 642057909,
+              "allocated": 646975488,
+              "files": 2145
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 251155332,
+              "allocated": 254128128,
+              "files": 1484
+            }
+          }
+        },
+        {
+          "step": 10,
+          "edit": "private_body",
+          "load": 6.33,
+          "commands": {
+            "build": {
+              "wall_s": 1.3069,
+              "rc": 0,
+              "rss_mb": 275.3,
+              "link_s": 0.9833,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39
+            },
+            "clippy": {
+              "wall_s": 0.3296,
+              "rc": 0,
+              "rss_mb": 218.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_build": {
+              "wall_s": 0.9573,
+              "rc": 0,
+              "rss_mb": 243.7,
+              "link_s": 1.0646,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.1738,
+              "rc": 0,
+              "rss_mb": 40.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 370831360,
+          "target": {
+            "total": {
+              "apparent": 742583624,
+              "allocated": 747552768,
+              "files": 2171
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 351681047,
+              "allocated": 354705408,
+              "files": 1510
+            }
+          }
+        },
+        {
+          "step": 11,
+          "edit": "public_signature",
+          "load": 5.98,
+          "commands": {
+            "build": {
+              "wall_s": 1.8011,
+              "rc": 0,
+              "rss_mb": 275.4,
+              "link_s": 1.3543,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36
+            },
+            "clippy": {
+              "wall_s": 0.5819,
+              "rc": 0,
+              "rss_mb": 226.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41
+            },
+            "test_build": {
+              "wall_s": 1.0816,
+              "rc": 0,
+              "rss_mb": 248.0,
+              "link_s": 1.2818,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.1471,
+              "rc": 0,
+              "rss_mb": 55.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 246886400,
+          "target": {
+            "total": {
+              "apparent": 759661729,
+              "allocated": 764698624,
+              "files": 2200
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 368758230,
+              "allocated": 371843072,
+              "files": 1539
+            }
+          }
+        },
+        {
+          "step": 12,
+          "edit": "churn",
+          "load": 8.57,
+          "commands": {
+            "build": {
+              "wall_s": 1.7338,
+              "rc": 0,
+              "rss_mb": 391.0,
+              "link_s": 0.7523,
+              "links": 2,
+              "compiled": 2,
+              "fresh": 31
+            },
+            "clippy": {
+              "wall_s": 0.5624,
+              "rc": 0,
+              "rss_mb": 271.1,
+              "link_s": 0.047,
+              "links": 1,
+              "compiled": 2,
+              "fresh": 36
+            },
+            "test_build": {
+              "wall_s": 1.2019,
+              "rc": 0,
+              "rss_mb": 402.2,
+              "link_s": 0.8434,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.576,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 763719680,
+          "target": {
+            "total": {
+              "apparent": 1035978319,
+              "allocated": 1042534400,
+              "files": 2980
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 520570350,
+              "allocated": 525045760,
+              "files": 2245
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold",
+      "linker": "default",
+      "steps": [
+        {
+          "step": 0,
+          "edit": "clean",
+          "load": 3.95,
+          "commands": {
+            "build": {
+              "wall_s": 5.5803,
+              "rc": 0,
+              "rss_mb": 401.8,
+              "link_s": 1.374,
+              "links": 7,
+              "compiled": 33,
+              "fresh": 0,
+              "cache": {
+                "hits": 0,
+                "misses": 40
+              }
+            },
+            "clippy": {
+              "wall_s": 2.8787,
+              "rc": 0,
+              "rss_mb": 303.5,
+              "link_s": 0.3585,
+              "links": 3,
+              "compiled": 38,
+              "fresh": 0,
+              "cache": {
+                "hits": 0,
+                "misses": 31
+              }
+            },
+            "test_build": {
+              "wall_s": 1.374,
+              "rc": 0,
+              "rss_mb": 334.1,
+              "link_s": 0.8565,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5623,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 2157854720,
+          "target": {
+            "total": {
+              "apparent": 595234308,
+              "allocated": 599744512,
+              "files": 2014
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 239572630,
+              "allocated": 242417664,
+              "files": 1430
+            }
+          },
+          "store": {
+            "apparent": 351602922,
+            "allocated": 353439744,
+            "files": 634
+          }
+        },
+        {
+          "step": 1,
+          "edit": "comment",
+          "load": 6.15,
+          "commands": {
+            "build": {
+              "wall_s": 1.0038,
+              "rc": 0,
+              "rss_mb": 271.1,
+              "link_s": 0.7701,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.3121,
+              "rc": 0,
+              "rss_mb": 227.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 1.2355,
+              "rc": 0,
+              "rss_mb": 259.0,
+              "link_s": 0.9001,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.6353,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 527339520,
+          "target": {
+            "total": {
+              "apparent": 669992760,
+              "allocated": 674533376,
+              "files": 2034
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 314331068,
+              "allocated": 317210624,
+              "files": 1450
+            }
+          },
+          "store": {
+            "apparent": 351603634,
+            "allocated": 353447936,
+            "files": 638
+          }
+        },
+        {
+          "step": 2,
+          "edit": "private_body",
+          "load": 9.23,
+          "commands": {
+            "build": {
+              "wall_s": 1.381,
+              "rc": 0,
+              "rss_mb": 291.2,
+              "link_s": 0.8811,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.3349,
+              "rc": 0,
+              "rss_mb": 234.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.8531,
+              "rc": 0,
+              "rss_mb": 286.2,
+              "link_s": 0.53,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5648,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 416407552,
+          "target": {
+            "total": {
+              "apparent": 668945397,
+              "allocated": 673484800,
+              "files": 2038
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 313283465,
+              "allocated": 316166144,
+              "files": 1454
+            }
+          },
+          "store": {
+            "apparent": 401638186,
+            "allocated": 403492864,
+            "files": 643
+          }
+        },
+        {
+          "step": 3,
+          "edit": "public_signature",
+          "load": 8.99,
+          "commands": {
+            "build": {
+              "wall_s": 1.0513,
+              "rc": 0,
+              "rss_mb": 266.6,
+              "link_s": 0.6712,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 29,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.409,
+              "rc": 0,
+              "rss_mb": 225.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 34,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.7806,
+              "rc": 0,
+              "rss_mb": 299.4,
+              "link_s": 0.8655,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5519,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 366067712,
+          "target": {
+            "total": {
+              "apparent": 710446798,
+              "allocated": 715034624,
+              "files": 2069
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354781524,
+              "allocated": 357711872,
+              "files": 1485
+            }
+          },
+          "store": {
+            "apparent": 406452637,
+            "allocated": 408346624,
+            "files": 666
+          }
+        },
+        {
+          "step": 4,
+          "edit": "comment",
+          "load": 8.37,
+          "commands": {
+            "build": {
+              "wall_s": 0.8178,
+              "rc": 0,
+              "rss_mb": 266.6,
+              "link_s": 0.6162,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.217,
+              "rc": 0,
+              "rss_mb": 215.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.7356,
+              "rc": 0,
+              "rss_mb": 229.2,
+              "link_s": 0.5064,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5443,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 2691072,
+          "target": {
+            "total": {
+              "apparent": 710268697,
+              "allocated": 714854400,
+              "files": 2069
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354603423,
+              "allocated": 357531648,
+              "files": 1485
+            }
+          },
+          "store": {
+            "apparent": 406453349,
+            "allocated": 408354816,
+            "files": 670
+          }
+        },
+        {
+          "step": 5,
+          "edit": "private_body",
+          "load": 8.42,
+          "commands": {
+            "build": {
+              "wall_s": 0.8572,
+              "rc": 0,
+              "rss_mb": 266.6,
+              "link_s": 0.6114,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2234,
+              "rc": 0,
+              "rss_mb": 217.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.6858,
+              "rc": 0,
+              "rss_mb": 242.6,
+              "link_s": 0.4562,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5498,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 69623808,
+          "target": {
+            "total": {
+              "apparent": 710946533,
+              "allocated": 715542528,
+              "files": 2071
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 355281256,
+              "allocated": 358219776,
+              "files": 1487
+            }
+          },
+          "store": {
+            "apparent": 456487901,
+            "allocated": 458399744,
+            "files": 675
+          }
+        },
+        {
+          "step": 6,
+          "edit": "churn",
+          "load": 7.89,
+          "commands": {
+            "build": {
+              "wall_s": 3.3252,
+              "rc": 0,
+              "rss_mb": 372.3,
+              "link_s": 0.788,
+              "links": 3,
+              "compiled": 9,
+              "fresh": 31,
+              "cache": {
+                "hits": 0,
+                "misses": 11
+              }
+            },
+            "clippy": {
+              "wall_s": 0.6951,
+              "rc": 0,
+              "rss_mb": 244.7,
+              "link_s": 0.0529,
+              "links": 1,
+              "compiled": 5,
+              "fresh": 40,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_build": {
+              "wall_s": 1.318,
+              "rc": 0,
+              "rss_mb": 334.7,
+              "link_s": 0.7976,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0737,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 509779968,
+          "target": {
+            "total": {
+              "apparent": 1034059527,
+              "allocated": 1040609280,
+              "files": 2982
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 518652063,
+              "allocated": 523120640,
+              "files": 2246
+            }
+          },
+          "store": {
+            "apparent": 610479651,
+            "allocated": 615849984,
+            "files": 1579
+          }
+        },
+        {
+          "step": 7,
+          "edit": "public_signature",
+          "load": 7.7,
+          "commands": {
+            "build": {
+              "wall_s": 0.998,
+              "rc": 0,
+              "rss_mb": 275.3,
+              "link_s": 0.6142,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.3768,
+              "rc": 0,
+              "rss_mb": 213.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.7589,
+              "rc": 0,
+              "rss_mb": 235.0,
+              "link_s": 0.8194,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0692,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 116563968,
+          "target": {
+            "total": {
+              "apparent": 1133900733,
+              "allocated": 1140514816,
+              "files": 3017
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 618492077,
+              "allocated": 623026176,
+              "files": 2281
+            }
+          },
+          "store": {
+            "apparent": 615295923,
+            "allocated": 620707840,
+            "files": 1602
+          }
+        },
+        {
+          "step": 8,
+          "edit": "comment",
+          "load": 6.72,
+          "commands": {
+            "build": {
+              "wall_s": 0.9481,
+              "rc": 0,
+              "rss_mb": 275.2,
+              "link_s": 0.7305,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2332,
+              "rc": 0,
+              "rss_mb": 200.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.7028,
+              "rc": 0,
+              "rss_mb": 234.6,
+              "link_s": 0.4953,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0675,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 39079936,
+          "target": {
+            "total": {
+              "apparent": 1131997771,
+              "allocated": 1138610176,
+              "files": 3017
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 616589115,
+              "allocated": 621121536,
+              "files": 2281
+            }
+          },
+          "store": {
+            "apparent": 615296635,
+            "allocated": 620716032,
+            "files": 1606
+          }
+        },
+        {
+          "step": 9,
+          "edit": "fresh",
+          "load": 5.67,
+          "commands": {
+            "build": {
+              "wall_s": 0.1911,
+              "rc": 0,
+              "rss_mb": 91.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 40,
+              "fresh": 0,
+              "cache": {
+                "hits": 47,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.8129,
+              "rc": 0,
+              "rss_mb": 244.4,
+              "link_s": 0.0556,
+              "links": 1,
+              "compiled": 43,
+              "fresh": 2,
+              "cache": {
+                "hits": 36,
+                "misses": 2
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3128,
+              "rc": 0,
+              "rss_mb": 86.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 20,
+              "fresh": 25,
+              "cache": {
+                "hits": 22,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0681,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 458608640,
+          "target": {
+            "total": {
+              "apparent": 445083599,
+              "allocated": 447516672,
+              "files": 789
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 51683673,
+              "allocated": 51929088,
+              "files": 118
+            }
+          },
+          "store": {
+            "apparent": 615296635,
+            "allocated": 620716032,
+            "files": 1606
+          }
+        },
+        {
+          "step": 10,
+          "edit": "private_body",
+          "load": 6.46,
+          "commands": {
+            "build": {
+              "wall_s": 2.5115,
+              "rc": 0,
+              "rss_mb": 365.7,
+              "link_s": 1.0812,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.5246,
+              "rc": 0,
+              "rss_mb": 218.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 5,
+              "fresh": 40,
+              "cache": {
+                "hits": 2,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 2.0767,
+              "rc": 0,
+              "rss_mb": 337.3,
+              "link_s": 0.9436,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.2144,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 976375808,
+          "target": {
+            "total": {
+              "apparent": 568715785,
+              "allocated": 572010496,
+              "files": 1229
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 175315859,
+              "allocated": 176455680,
+              "files": 558
+            }
+          },
+          "store": {
+            "apparent": 668421691,
+            "allocated": 673849344,
+            "files": 1611
+          }
+        },
+        {
+          "step": 11,
+          "edit": "public_signature",
+          "load": 9.11,
+          "commands": {
+            "build": {
+              "wall_s": 2.06,
+              "rc": 0,
+              "rss_mb": 275.0,
+              "link_s": 1.403,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.4299,
+              "rc": 0,
+              "rss_mb": 226.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 1.302,
+              "rc": 0,
+              "rss_mb": 327.8,
+              "link_s": 0.8863,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0964,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 351334400,
+          "target": {
+            "total": {
+              "apparent": 672882898,
+              "allocated": 676773888,
+              "files": 1528
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 280677892,
+              "allocated": 282435584,
+              "files": 860
+            }
+          },
+          "store": {
+            "apparent": 673239158,
+            "allocated": 678711296,
+            "files": 1634
+          }
+        },
+        {
+          "step": 12,
+          "edit": "churn",
+          "load": 8.36,
+          "commands": {
+            "build": {
+              "wall_s": 1.6328,
+              "rc": 0,
+              "rss_mb": 385.5,
+              "link_s": 0.7661,
+              "links": 1,
+              "compiled": 2,
+              "fresh": 31,
+              "cache": {
+                "hits": 1,
+                "misses": 2
+              }
+            },
+            "clippy": {
+              "wall_s": 0.777,
+              "rc": 0,
+              "rss_mb": 270.9,
+              "link_s": 0.0514,
+              "links": 1,
+              "compiled": 2,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 1.8412,
+              "rc": 0,
+              "rss_mb": 431.9,
+              "link_s": 1.1495,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.6349,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 1156694016,
+          "target": {
+            "total": {
+              "apparent": 948286845,
+              "allocated": 953630720,
+              "files": 2247
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 431577369,
+              "allocated": 434601984,
+              "files": 1505
+            }
+          },
+          "store": {
+            "apparent": 723294681,
+            "allocated": 728793088,
+            "files": 1649
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline+mold",
+      "linker": "mold",
+      "steps": [
+        {
+          "step": 0,
+          "edit": "clean",
+          "load": 4.78,
+          "commands": {
+            "build": {
+              "wall_s": 3.7191,
+              "rc": 0,
+              "rss_mb": 423.1,
+              "link_s": 0.6971,
+              "links": 7,
+              "compiled": 33,
+              "fresh": 0
+            },
+            "clippy": {
+              "wall_s": 2.3846,
+              "rc": 0,
+              "rss_mb": 362.8,
+              "link_s": 0.219,
+              "links": 3,
+              "compiled": 38,
+              "fresh": 0
+            },
+            "test_build": {
+              "wall_s": 0.8903,
+              "rc": 0,
+              "rss_mb": 360.1,
+              "link_s": 0.1594,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5557,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 958296064,
+          "target": {
+            "total": {
+              "apparent": 597295422,
+              "allocated": 602038272,
+              "files": 2013
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 239572666,
+              "allocated": 242417664,
+              "files": 1430
+            }
+          }
+        },
+        {
+          "step": 1,
+          "edit": "comment",
+          "load": 8.06,
+          "commands": {
+            "build": {
+              "wall_s": 0.7106,
+              "rc": 0,
+              "rss_mb": 272.4,
+              "link_s": 0.1855,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.4079,
+              "rc": 0,
+              "rss_mb": 212.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.586,
+              "rc": 0,
+              "rss_mb": 240.6,
+              "link_s": 0.3168,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.7221,
+              "rc": 0,
+              "rss_mb": 55.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 303714304,
+          "target": {
+            "total": {
+              "apparent": 694033399,
+              "allocated": 698814464,
+              "files": 2037
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 336310626,
+              "allocated": 339193856,
+              "files": 1454
+            }
+          }
+        },
+        {
+          "step": 2,
+          "edit": "private_body",
+          "load": 9.21,
+          "commands": {
+            "build": {
+              "wall_s": 0.3744,
+              "rc": 0,
+              "rss_mb": 321.4,
+              "link_s": 0.0628,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2624,
+              "rc": 0,
+              "rss_mb": 245.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.3553,
+              "rc": 0,
+              "rss_mb": 279.9,
+              "link_s": 0.2172,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5788,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 219254784,
+          "target": {
+            "total": {
+              "apparent": 692478188,
+              "allocated": 697262080,
+              "files": 2041
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 334754983,
+              "allocated": 337641472,
+              "files": 1458
+            }
+          }
+        },
+        {
+          "step": 3,
+          "edit": "public_signature",
+          "load": 8.99,
+          "commands": {
+            "build": {
+              "wall_s": 0.3933,
+              "rc": 0,
+              "rss_mb": 290.7,
+              "link_s": 0.0712,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 29
+            },
+            "clippy": {
+              "wall_s": 0.3544,
+              "rc": 0,
+              "rss_mb": 234.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 34
+            },
+            "test_build": {
+              "wall_s": 0.3349,
+              "rc": 0,
+              "rss_mb": 259.9,
+              "link_s": 0.1955,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5669,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 113856512,
+          "target": {
+            "total": {
+              "apparent": 712000045,
+              "allocated": 716828672,
+              "files": 2068
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354273498,
+              "allocated": 357203968,
+              "files": 1485
+            }
+          }
+        },
+        {
+          "step": 4,
+          "edit": "comment",
+          "load": 7.94,
+          "commands": {
+            "build": {
+              "wall_s": 0.2602,
+              "rc": 0,
+              "rss_mb": 200.6,
+              "link_s": 0.0957,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2017,
+              "rc": 0,
+              "rss_mb": 201.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.3098,
+              "rc": 0,
+              "rss_mb": 205.6,
+              "link_s": 0.2438,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5615,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 56131584,
+          "target": {
+            "total": {
+              "apparent": 711821951,
+              "allocated": 716648448,
+              "files": 2068
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354095407,
+              "allocated": 357023744,
+              "files": 1485
+            }
+          }
+        },
+        {
+          "step": 5,
+          "edit": "private_body",
+          "load": 7.91,
+          "commands": {
+            "build": {
+              "wall_s": 0.3083,
+              "rc": 0,
+              "rss_mb": 254.6,
+              "link_s": 0.0951,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2313,
+              "rc": 0,
+              "rss_mb": 231.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.3294,
+              "rc": 0,
+              "rss_mb": 250.8,
+              "link_s": 0.1847,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.546,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 11767808,
+          "target": {
+            "total": {
+              "apparent": 712499819,
+              "allocated": 717336576,
+              "files": 2070
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354773256,
+              "allocated": 357711872,
+              "files": 1487
+            }
+          }
+        },
+        {
+          "step": 6,
+          "edit": "churn",
+          "load": 7.58,
+          "commands": {
+            "build": {
+              "wall_s": 1.7551,
+              "rc": 0,
+              "rss_mb": 386.8,
+              "link_s": 0.2936,
+              "links": 3,
+              "compiled": 9,
+              "fresh": 31
+            },
+            "clippy": {
+              "wall_s": 0.5927,
+              "rc": 0,
+              "rss_mb": 263.0,
+              "link_s": 0.0497,
+              "links": 1,
+              "compiled": 5,
+              "fresh": 40
+            },
+            "test_build": {
+              "wall_s": 0.9661,
+              "rc": 0,
+              "rss_mb": 357.4,
+              "link_s": 0.3219,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0883,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 345313280,
+          "target": {
+            "total": {
+              "apparent": 1037542880,
+              "allocated": 1044393984,
+              "files": 2981
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 518144060,
+              "allocated": 522612736,
+              "files": 2246
+            }
+          }
+        },
+        {
+          "step": 7,
+          "edit": "public_signature",
+          "load": 7.7,
+          "commands": {
+            "build": {
+              "wall_s": 0.5233,
+              "rc": 0,
+              "rss_mb": 242.2,
+              "link_s": 0.1539,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36
+            },
+            "clippy": {
+              "wall_s": 0.3511,
+              "rc": 0,
+              "rss_mb": 230.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41
+            },
+            "test_build": {
+              "wall_s": 0.2816,
+              "rc": 0,
+              "rss_mb": 251.2,
+              "link_s": 0.138,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0686,
+              "rc": 0,
+              "rss_mb": 55.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 115286016,
+          "target": {
+            "total": {
+              "apparent": 1137384078,
+              "allocated": 1144299520,
+              "files": 3016
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 617984066,
+              "allocated": 622518272,
+              "files": 2281
+            }
+          }
+        },
+        {
+          "step": 8,
+          "edit": "comment",
+          "load": 6.72,
+          "commands": {
+            "build": {
+              "wall_s": 0.3249,
+              "rc": 0,
+              "rss_mb": 207.8,
+              "link_s": 0.1295,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39
+            },
+            "clippy": {
+              "wall_s": 0.216,
+              "rc": 0,
+              "rss_mb": 208.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_build": {
+              "wall_s": 0.2856,
+              "rc": 0,
+              "rss_mb": 219.4,
+              "link_s": 0.1848,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0642,
+              "rc": 0,
+              "rss_mb": 55.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 10022912,
+          "target": {
+            "total": {
+              "apparent": 1134924594,
+              "allocated": 1141841920,
+              "files": 3016
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 615524582,
+              "allocated": 620060672,
+              "files": 2281
+            }
+          }
+        },
+        {
+          "step": 9,
+          "edit": "fresh",
+          "load": 5.67,
+          "commands": {
+            "build": {
+              "wall_s": 3.1331,
+              "rc": 0,
+              "rss_mb": 429.6,
+              "link_s": 0.5664,
+              "links": 8,
+              "compiled": 40,
+              "fresh": 0
+            },
+            "clippy": {
+              "wall_s": 2.1556,
+              "rc": 0,
+              "rss_mb": 375.7,
+              "link_s": 0.2228,
+              "links": 3,
+              "compiled": 41,
+              "fresh": 4
+            },
+            "test_build": {
+              "wall_s": 0.9493,
+              "rc": 0,
+              "rss_mb": 357.6,
+              "link_s": 0.1869,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0737,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 690151424,
+          "target": {
+            "total": {
+              "apparent": 644377158,
+              "allocated": 649502720,
+              "files": 2145
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 251155353,
+              "allocated": 254128128,
+              "files": 1484
+            }
+          }
+        },
+        {
+          "step": 10,
+          "edit": "private_body",
+          "load": 6.43,
+          "commands": {
+            "build": {
+              "wall_s": 0.5158,
+              "rc": 0,
+              "rss_mb": 275.8,
+              "link_s": 0.1524,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39
+            },
+            "clippy": {
+              "wall_s": 0.307,
+              "rc": 0,
+              "rss_mb": 236.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_build": {
+              "wall_s": 0.3835,
+              "rc": 0,
+              "rss_mb": 266.8,
+              "link_s": 0.1991,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.1125,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 333570048,
+          "target": {
+            "total": {
+              "apparent": 744902886,
+              "allocated": 750080000,
+              "files": 2171
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 351681062,
+              "allocated": 354705408,
+              "files": 1510
+            }
+          }
+        },
+        {
+          "step": 11,
+          "edit": "public_signature",
+          "load": 9.5,
+          "commands": {
+            "build": {
+              "wall_s": 0.7628,
+              "rc": 0,
+              "rss_mb": 258.2,
+              "link_s": 0.2386,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36
+            },
+            "clippy": {
+              "wall_s": 0.3991,
+              "rc": 0,
+              "rss_mb": 235.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41
+            },
+            "test_build": {
+              "wall_s": 0.3697,
+              "rc": 0,
+              "rss_mb": 260.7,
+              "link_s": 0.2679,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.1281,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 119279616,
+          "target": {
+            "total": {
+              "apparent": 761981011,
+              "allocated": 767221760,
+              "files": 2200
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 368758265,
+              "allocated": 371843072,
+              "files": 1539
+            }
+          }
+        },
+        {
+          "step": 12,
+          "edit": "churn",
+          "load": 8.73,
+          "commands": {
+            "build": {
+              "wall_s": 1.9556,
+              "rc": 0,
+              "rss_mb": 383.6,
+              "link_s": 0.1566,
+              "links": 2,
+              "compiled": 2,
+              "fresh": 31
+            },
+            "clippy": {
+              "wall_s": 1.213,
+              "rc": 0,
+              "rss_mb": 265.4,
+              "link_s": 0.0257,
+              "links": 1,
+              "compiled": 2,
+              "fresh": 36
+            },
+            "test_build": {
+              "wall_s": 1.6928,
+              "rc": 0,
+              "rss_mb": 389.9,
+              "link_s": 0.4361,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.7241,
+              "rc": 0,
+              "rss_mb": 55.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 1197830144,
+          "target": {
+            "total": {
+              "apparent": 1039971017,
+              "allocated": 1046831104,
+              "files": 2980
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 520570388,
+              "allocated": 525045760,
+              "files": 2245
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold+mold",
+      "linker": "mold",
+      "steps": [
+        {
+          "step": 0,
+          "edit": "clean",
+          "load": 4.74,
+          "commands": {
+            "build": {
+              "wall_s": 3.7165,
+              "rc": 0,
+              "rss_mb": 442.8,
+              "link_s": 0.6029,
+              "links": 7,
+              "compiled": 33,
+              "fresh": 0,
+              "cache": {
+                "hits": 0,
+                "misses": 40
+              }
+            },
+            "clippy": {
+              "wall_s": 2.9708,
+              "rc": 0,
+              "rss_mb": 351.6,
+              "link_s": 0.5308,
+              "links": 3,
+              "compiled": 38,
+              "fresh": 0,
+              "cache": {
+                "hits": 0,
+                "misses": 31
+              }
+            },
+            "test_build": {
+              "wall_s": 0.9688,
+              "rc": 0,
+              "rss_mb": 354.5,
+              "link_s": 0.2049,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5694,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 1375121408,
+          "target": {
+            "total": {
+              "apparent": 597296711,
+              "allocated": 602042368,
+              "files": 2014
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 239572658,
+              "allocated": 242417664,
+              "files": 1430
+            }
+          },
+          "store": {
+            "apparent": 353622762,
+            "allocated": 355450880,
+            "files": 634
+          }
+        },
+        {
+          "step": 1,
+          "edit": "comment",
+          "load": 8.06,
+          "commands": {
+            "build": {
+              "wall_s": 0.6137,
+              "rc": 0,
+              "rss_mb": 268.1,
+              "link_s": 0.1845,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.4541,
+              "rc": 0,
+              "rss_mb": 214.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.6997,
+              "rc": 0,
+              "rss_mb": 228.7,
+              "link_s": 0.2743,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.7153,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 502923264,
+          "target": {
+            "total": {
+              "apparent": 672055174,
+              "allocated": 676835328,
+              "files": 2034
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 314331104,
+              "allocated": 317210624,
+              "files": 1450
+            }
+          },
+          "store": {
+            "apparent": 353623474,
+            "allocated": 355459072,
+            "files": 638
+          }
+        },
+        {
+          "step": 2,
+          "edit": "private_body",
+          "load": 9.21,
+          "commands": {
+            "build": {
+              "wall_s": 0.3566,
+              "rc": 0,
+              "rss_mb": 328.6,
+              "link_s": 0.0959,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2458,
+              "rc": 0,
+              "rss_mb": 246.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3455,
+              "rc": 0,
+              "rss_mb": 299.5,
+              "link_s": 0.0932,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5472,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 92389376,
+          "target": {
+            "total": {
+              "apparent": 671008000,
+              "allocated": 675790848,
+              "files": 2038
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 313283498,
+              "allocated": 316166144,
+              "files": 1454
+            }
+          },
+          "store": {
+            "apparent": 404349906,
+            "allocated": 406196224,
+            "files": 643
+          }
+        },
+        {
+          "step": 3,
+          "edit": "public_signature",
+          "load": 8.75,
+          "commands": {
+            "build": {
+              "wall_s": 0.4377,
+              "rc": 0,
+              "rss_mb": 286.3,
+              "link_s": 0.083,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 29,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.3466,
+              "rc": 0,
+              "rss_mb": 242.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 34,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.2928,
+              "rc": 0,
+              "rss_mb": 291.4,
+              "link_s": 0.119,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5354,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 120815616,
+          "target": {
+            "total": {
+              "apparent": 712509393,
+              "allocated": 717340672,
+              "files": 2069
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354781549,
+              "allocated": 357711872,
+              "files": 1485
+            }
+          },
+          "store": {
+            "apparent": 409164357,
+            "allocated": 411049984,
+            "files": 666
+          }
+        },
+        {
+          "step": 4,
+          "edit": "comment",
+          "load": 7.94,
+          "commands": {
+            "build": {
+              "wall_s": 0.331,
+              "rc": 0,
+              "rss_mb": 226.6,
+              "link_s": 0.1408,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.1974,
+              "rc": 0,
+              "rss_mb": 217.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.328,
+              "rc": 0,
+              "rss_mb": 244.8,
+              "link_s": 0.1307,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5396,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 64692224,
+          "target": {
+            "total": {
+              "apparent": 712331290,
+              "allocated": 717160448,
+              "files": 2069
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354603449,
+              "allocated": 357531648,
+              "files": 1485
+            }
+          },
+          "store": {
+            "apparent": 409165069,
+            "allocated": 411062272,
+            "files": 670
+          }
+        },
+        {
+          "step": 5,
+          "edit": "private_body",
+          "load": 7.91,
+          "commands": {
+            "build": {
+              "wall_s": 0.3576,
+              "rc": 0,
+              "rss_mb": 270.1,
+              "link_s": 0.103,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2378,
+              "rc": 0,
+              "rss_mb": 234.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3266,
+              "rc": 0,
+              "rss_mb": 265.7,
+              "link_s": 0.0965,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5391,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 60235776,
+          "target": {
+            "total": {
+              "apparent": 713009147,
+              "allocated": 717848576,
+              "files": 2071
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 355281287,
+              "allocated": 358219776,
+              "files": 1487
+            }
+          },
+          "store": {
+            "apparent": 459891517,
+            "allocated": 461799424,
+            "files": 675
+          }
+        },
+        {
+          "step": 6,
+          "edit": "churn",
+          "load": 7.21,
+          "commands": {
+            "build": {
+              "wall_s": 2.3574,
+              "rc": 0,
+              "rss_mb": 396.5,
+              "link_s": 0.2285,
+              "links": 3,
+              "compiled": 9,
+              "fresh": 31,
+              "cache": {
+                "hits": 0,
+                "misses": 11
+              }
+            },
+            "clippy": {
+              "wall_s": 0.6105,
+              "rc": 0,
+              "rss_mb": 259.5,
+              "link_s": 0.0517,
+              "links": 1,
+              "compiled": 5,
+              "fresh": 40,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_build": {
+              "wall_s": 0.9701,
+              "rc": 0,
+              "rss_mb": 349.0,
+              "link_s": 0.1851,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.2185,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 520327168,
+          "target": {
+            "total": {
+              "apparent": 1038052243,
+              "allocated": 1044905984,
+              "files": 2982
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 518652126,
+              "allocated": 523120640,
+              "files": 2246
+            }
+          },
+          "store": {
+            "apparent": 615773371,
+            "allocated": 621142016,
+            "files": 1579
+          }
+        },
+        {
+          "step": 7,
+          "edit": "public_signature",
+          "load": 7.49,
+          "commands": {
+            "build": {
+              "wall_s": 0.4835,
+              "rc": 0,
+              "rss_mb": 279.4,
+              "link_s": 0.1017,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.3575,
+              "rc": 0,
+              "rss_mb": 234.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.6081,
+              "rc": 0,
+              "rss_mb": 267.7,
+              "link_s": 0.1566,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.071,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 116666368,
+          "target": {
+            "total": {
+              "apparent": 1137893412,
+              "allocated": 1144811520,
+              "files": 3017
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 618492103,
+              "allocated": 623026176,
+              "files": 2281
+            }
+          },
+          "store": {
+            "apparent": 620589643,
+            "allocated": 625999872,
+            "files": 1602
+          }
+        },
+        {
+          "step": 8,
+          "edit": "comment",
+          "load": 6.5,
+          "commands": {
+            "build": {
+              "wall_s": 0.3441,
+              "rc": 0,
+              "rss_mb": 209.8,
+              "link_s": 0.1305,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2006,
+              "rc": 0,
+              "rss_mb": 204.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3196,
+              "rc": 0,
+              "rss_mb": 210.3,
+              "link_s": 0.1079,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0665,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 7725056,
+          "target": {
+            "total": {
+              "apparent": 1135990437,
+              "allocated": 1142906880,
+              "files": 3017
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 616589128,
+              "allocated": 621121536,
+              "files": 2281
+            }
+          },
+          "store": {
+            "apparent": 620590355,
+            "allocated": 626008064,
+            "files": 1606
+          }
+        },
+        {
+          "step": 9,
+          "edit": "fresh",
+          "load": 6.94,
+          "commands": {
+            "build": {
+              "wall_s": 0.1689,
+              "rc": 0,
+              "rss_mb": 111.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 40,
+              "fresh": 0,
+              "cache": {
+                "hits": 47,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.7891,
+              "rc": 0,
+              "rss_mb": 261.1,
+              "link_s": 0.024,
+              "links": 1,
+              "compiled": 41,
+              "fresh": 4,
+              "cache": {
+                "hits": 32,
+                "misses": 2
+              }
+            },
+            "test_build": {
+              "wall_s": 0.1102,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 9,
+              "fresh": 36,
+              "cache": {
+                "hits": 11,
+                "misses": 0
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0517,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 470044672,
+          "target": {
+            "total": {
+              "apparent": 447402834,
+              "allocated": 449826816,
+              "files": 789
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 51683679,
+              "allocated": 51929088,
+              "files": 118
+            }
+          },
+          "store": {
+            "apparent": 620590355,
+            "allocated": 626008064,
+            "files": 1606
+          }
+        },
+        {
+          "step": 10,
+          "edit": "private_body",
+          "load": 6.07,
+          "commands": {
+            "build": {
+              "wall_s": 1.2535,
+              "rc": 0,
+              "rss_mb": 450.8,
+              "link_s": 0.1287,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 39,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2702,
+              "rc": 0,
+              "rss_mb": 246.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.9937,
+              "rc": 0,
+              "rss_mb": 390.1,
+              "link_s": 0.0774,
+              "links": 1,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.1101,
+              "rc": 0,
+              "rss_mb": 26.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 386895872,
+          "target": {
+            "total": {
+              "apparent": 570320942,
+              "allocated": 573620224,
+              "files": 1221
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 174601768,
+              "allocated": 175722496,
+              "files": 550
+            }
+          },
+          "store": {
+            "apparent": 674499667,
+            "allocated": 679927808,
+            "files": 1611
+          }
+        },
+        {
+          "step": 11,
+          "edit": "public_signature",
+          "load": 9.5,
+          "commands": {
+            "build": {
+              "wall_s": 0.8125,
+              "rc": 0,
+              "rss_mb": 300.4,
+              "link_s": 0.0937,
+              "links": 1,
+              "compiled": 4,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.4849,
+              "rc": 0,
+              "rss_mb": 234.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.9835,
+              "rc": 0,
+              "rss_mb": 380.8,
+              "link_s": 0.1584,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.1026,
+              "rc": 0,
+              "rss_mb": 26.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 545734656,
+          "target": {
+            "total": {
+              "apparent": 674528848,
+              "allocated": 678449152,
+              "files": 1524
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 280004594,
+              "allocated": 281751552,
+              "files": 856
+            }
+          },
+          "store": {
+            "apparent": 679317134,
+            "allocated": 684789760,
+            "files": 1634
+          }
+        },
+        {
+          "step": 12,
+          "edit": "churn",
+          "load": 9.87,
+          "commands": {
+            "build": {
+              "wall_s": 1.7677,
+              "rc": 0,
+              "rss_mb": 379.6,
+              "link_s": 0.2493,
+              "links": 1,
+              "compiled": 2,
+              "fresh": 31,
+              "cache": {
+                "hits": 1,
+                "misses": 2
+              }
+            },
+            "clippy": {
+              "wall_s": 1.4863,
+              "rc": 0,
+              "rss_mb": 267.2,
+              "link_s": 0.1631,
+              "links": 1,
+              "compiled": 2,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 1.3068,
+              "rc": 0,
+              "rss_mb": 414.8,
+              "link_s": 0.1971,
+              "links": 2,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.6302,
+              "rc": 0,
+              "rss_mb": 25.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 1378521088,
+          "target": {
+            "total": {
+              "apparent": 951606206,
+              "allocated": 957022208,
+              "files": 2243
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 430904069,
+              "allocated": 433917952,
+              "files": 1501
+            }
+          },
+          "store": {
+            "apparent": 730064545,
+            "allocated": 735563776,
+            "files": 1649
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline+wild",
+      "linker": "wild",
+      "steps": [
+        {
+          "step": 0,
+          "edit": "clean",
+          "load": 4.84,
+          "commands": {
+            "build": {
+              "wall_s": 3.369,
+              "rc": 0,
+              "rss_mb": 434.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 33,
+              "fresh": 0
+            },
+            "clippy": {
+              "wall_s": 2.5138,
+              "rc": 0,
+              "rss_mb": 343.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 38,
+              "fresh": 0
+            },
+            "test_build": {
+              "wall_s": 0.907,
+              "rc": 0,
+              "rss_mb": 354.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5518,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 1389121536,
+          "target": {
+            "total": {
+              "apparent": 594242911,
+              "allocated": 599011328,
+              "files": 2018
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 239572655,
+              "allocated": 242417664,
+              "files": 1430
+            }
+          }
+        },
+        {
+          "step": 1,
+          "edit": "comment",
+          "load": 9.33,
+          "commands": {
+            "build": {
+              "wall_s": 0.8407,
+              "rc": 0,
+              "rss_mb": 233.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.4236,
+              "rc": 0,
+              "rss_mb": 210.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.6741,
+              "rc": 0,
+              "rss_mb": 216.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.7199,
+              "rc": 0,
+              "rss_mb": 55.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 460742656,
+          "target": {
+            "total": {
+              "apparent": 690980864,
+              "allocated": 695787520,
+              "files": 2042
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 336310597,
+              "allocated": 339193856,
+              "files": 1454
+            }
+          }
+        },
+        {
+          "step": 2,
+          "edit": "private_body",
+          "load": 9.51,
+          "commands": {
+            "build": {
+              "wall_s": 0.2696,
+              "rc": 0,
+              "rss_mb": 322.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.3434,
+              "rc": 0,
+              "rss_mb": 246.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.4979,
+              "rc": 0,
+              "rss_mb": 298.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5535,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 13041664,
+          "target": {
+            "total": {
+              "apparent": 689425645,
+              "allocated": 694235136,
+              "files": 2046
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 334754962,
+              "allocated": 337641472,
+              "files": 1458
+            }
+          }
+        },
+        {
+          "step": 3,
+          "edit": "public_signature",
+          "load": 8.75,
+          "commands": {
+            "build": {
+              "wall_s": 0.4039,
+              "rc": 0,
+              "rss_mb": 286.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 29
+            },
+            "clippy": {
+              "wall_s": 0.3644,
+              "rc": 0,
+              "rss_mb": 241.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 34
+            },
+            "test_build": {
+              "wall_s": 0.3095,
+              "rc": 0,
+              "rss_mb": 289.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5758,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 172531712,
+          "target": {
+            "total": {
+              "apparent": 708947527,
+              "allocated": 713801728,
+              "files": 2073
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354273502,
+              "allocated": 357203968,
+              "files": 1485
+            }
+          }
+        },
+        {
+          "step": 4,
+          "edit": "comment",
+          "load": 7.94,
+          "commands": {
+            "build": {
+              "wall_s": 0.2315,
+              "rc": 0,
+              "rss_mb": 224.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2192,
+              "rc": 0,
+              "rss_mb": 214.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.3531,
+              "rc": 0,
+              "rss_mb": 220.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5666,
+              "rc": 0,
+              "rss_mb": 55.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 8941568,
+          "target": {
+            "total": {
+              "apparent": 708769443,
+              "allocated": 713621504,
+              "files": 2073
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354095424,
+              "allocated": 357023744,
+              "files": 1485
+            }
+          }
+        },
+        {
+          "step": 5,
+          "edit": "private_body",
+          "load": 7.91,
+          "commands": {
+            "build": {
+              "wall_s": 0.2983,
+              "rc": 0,
+              "rss_mb": 273.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32
+            },
+            "clippy": {
+              "wall_s": 0.2834,
+              "rc": 0,
+              "rss_mb": 231.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_build": {
+              "wall_s": 0.2822,
+              "rc": 0,
+              "rss_mb": 257.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.5511,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 7675904,
+          "target": {
+            "total": {
+              "apparent": 709447299,
+              "allocated": 714309632,
+              "files": 2075
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354773269,
+              "allocated": 357711872,
+              "files": 1487
+            }
+          }
+        },
+        {
+          "step": 6,
+          "edit": "churn",
+          "load": 6.79,
+          "commands": {
+            "build": {
+              "wall_s": 1.601,
+              "rc": 0,
+              "rss_mb": 385.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 9,
+              "fresh": 31
+            },
+            "clippy": {
+              "wall_s": 0.6112,
+              "rc": 0,
+              "rss_mb": 245.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 5,
+              "fresh": 40
+            },
+            "test_build": {
+              "wall_s": 0.9216,
+              "rc": 0,
+              "rss_mb": 342.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0735,
+              "rc": 0,
+              "rss_mb": 51.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 337858560,
+          "target": {
+            "total": {
+              "apparent": 1031823455,
+              "allocated": 1038712832,
+              "files": 2991
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 518144083,
+              "allocated": 522612736,
+              "files": 2246
+            }
+          }
+        },
+        {
+          "step": 7,
+          "edit": "public_signature",
+          "load": 7.49,
+          "commands": {
+            "build": {
+              "wall_s": 0.3889,
+              "rc": 0,
+              "rss_mb": 290.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 36
+            },
+            "clippy": {
+              "wall_s": 0.3485,
+              "rc": 0,
+              "rss_mb": 232.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41
+            },
+            "test_build": {
+              "wall_s": 0.3113,
+              "rc": 0,
+              "rss_mb": 253.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0706,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 110702592,
+          "target": {
+            "total": {
+              "apparent": 1131664654,
+              "allocated": 1138618368,
+              "files": 3026
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 617984090,
+              "allocated": 622518272,
+              "files": 2281
+            }
+          }
+        },
+        {
+          "step": 8,
+          "edit": "comment",
+          "load": 6.5,
+          "commands": {
+            "build": {
+              "wall_s": 0.2479,
+              "rc": 0,
+              "rss_mb": 207.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 39
+            },
+            "clippy": {
+              "wall_s": 0.2188,
+              "rc": 0,
+              "rss_mb": 204.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_build": {
+              "wall_s": 0.368,
+              "rc": 0,
+              "rss_mb": 206.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.0764,
+              "rc": 0,
+              "rss_mb": 47.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 9084928,
+          "target": {
+            "total": {
+              "apparent": 1129205184,
+              "allocated": 1136160768,
+              "files": 3026
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 615524614,
+              "allocated": 620060672,
+              "files": 2281
+            }
+          }
+        },
+        {
+          "step": 9,
+          "edit": "fresh",
+          "load": 6.94,
+          "commands": {
+            "build": {
+              "wall_s": 3.2385,
+              "rc": 0,
+              "rss_mb": 410.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 40,
+              "fresh": 0
+            },
+            "clippy": {
+              "wall_s": 2.2633,
+              "rc": 0,
+              "rss_mb": 314.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 41,
+              "fresh": 4
+            },
+            "test_build": {
+              "wall_s": 0.8411,
+              "rc": 0,
+              "rss_mb": 348.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.1268,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 717824000,
+          "target": {
+            "total": {
+              "apparent": 641007195,
+              "allocated": 646148096,
+              "files": 2150
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 251155366,
+              "allocated": 254128128,
+              "files": 1484
+            }
+          }
+        },
+        {
+          "step": 10,
+          "edit": "private_body",
+          "load": 6.07,
+          "commands": {
+            "build": {
+              "wall_s": 0.6675,
+              "rc": 0,
+              "rss_mb": 298.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 39
+            },
+            "clippy": {
+              "wall_s": 0.4128,
+              "rc": 0,
+              "rss_mb": 235.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_build": {
+              "wall_s": 0.6255,
+              "rc": 0,
+              "rss_mb": 264.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.172,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 229670912,
+          "target": {
+            "total": {
+              "apparent": 741532899,
+              "allocated": 746725376,
+              "files": 2176
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 351681065,
+              "allocated": 354705408,
+              "files": 1510
+            }
+          }
+        },
+        {
+          "step": 11,
+          "edit": "public_signature",
+          "load": 9.14,
+          "commands": {
+            "build": {
+              "wall_s": 0.5644,
+              "rc": 0,
+              "rss_mb": 245.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 36
+            },
+            "clippy": {
+              "wall_s": 0.7653,
+              "rc": 0,
+              "rss_mb": 242.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41
+            },
+            "test_build": {
+              "wall_s": 0.3324,
+              "rc": 0,
+              "rss_mb": 291.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44
+            },
+            "test_run": {
+              "wall_s": 1.1297,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45
+            }
+          },
+          "free_delta": 2066890752,
+          "target": {
+            "total": {
+              "apparent": 758611005,
+              "allocated": 763867136,
+              "files": 2205
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 368758249,
+              "allocated": 371843072,
+              "files": 1539
+            }
+          }
+        },
+        {
+          "step": 12,
+          "edit": "churn",
+          "load": 10.53,
+          "commands": {
+            "build": {
+              "wall_s": 1.0631,
+              "rc": 0,
+              "rss_mb": 391.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 2,
+              "fresh": 31
+            },
+            "clippy": {
+              "wall_s": 0.563,
+              "rc": 0,
+              "rss_mb": 271.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 2,
+              "fresh": 36
+            },
+            "test_build": {
+              "wall_s": 0.9009,
+              "rc": 0,
+              "rss_mb": 403.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37
+            },
+            "test_run": {
+              "wall_s": 0.563,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38
+            }
+          },
+          "free_delta": 334979072,
+          "target": {
+            "total": {
+              "apparent": 1034251551,
+              "allocated": 1041149952,
+              "files": 2990
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 520570361,
+              "allocated": 525045760,
+              "files": 2245
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold+wild",
+      "linker": "wild",
+      "steps": [
+        {
+          "step": 0,
+          "edit": "clean",
+          "load": 5.76,
+          "commands": {
+            "build": {
+              "wall_s": 3.8438,
+              "rc": 0,
+              "rss_mb": 485.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 33,
+              "fresh": 0,
+              "cache": {
+                "hits": 0,
+                "misses": 40
+              }
+            },
+            "clippy": {
+              "wall_s": 2.4794,
+              "rc": 0,
+              "rss_mb": 373.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 38,
+              "fresh": 0,
+              "cache": {
+                "hits": 0,
+                "misses": 31
+              }
+            },
+            "test_build": {
+              "wall_s": 0.9193,
+              "rc": 0,
+              "rss_mb": 400.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5645,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": -1337561088,
+          "target": {
+            "total": {
+              "apparent": 594244215,
+              "allocated": 599015424,
+              "files": 2019
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 239572664,
+              "allocated": 242417664,
+              "files": 1430
+            }
+          },
+          "store": {
+            "apparent": 350625984,
+            "allocated": 352460800,
+            "files": 634
+          }
+        },
+        {
+          "step": 1,
+          "edit": "comment",
+          "load": 9.33,
+          "commands": {
+            "build": {
+              "wall_s": 0.6006,
+              "rc": 0,
+              "rss_mb": 209.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.371,
+              "rc": 0,
+              "rss_mb": 216.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3503,
+              "rc": 0,
+              "rss_mb": 253.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.6654,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 318066688,
+          "target": {
+            "total": {
+              "apparent": 669002654,
+              "allocated": 673808384,
+              "files": 2039
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 314331092,
+              "allocated": 317210624,
+              "files": 1450
+            }
+          },
+          "store": {
+            "apparent": 350626696,
+            "allocated": 352468992,
+            "files": 638
+          }
+        },
+        {
+          "step": 2,
+          "edit": "private_body",
+          "load": 9.51,
+          "commands": {
+            "build": {
+              "wall_s": 0.2875,
+              "rc": 0,
+              "rss_mb": 328.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2258,
+              "rc": 0,
+              "rss_mb": 246.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.2695,
+              "rc": 0,
+              "rss_mb": 305.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5525,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 61763584,
+          "target": {
+            "total": {
+              "apparent": 667955475,
+              "allocated": 672763904,
+              "files": 2043
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 313283497,
+              "allocated": 316166144,
+              "files": 1454
+            }
+          },
+          "store": {
+            "apparent": 400012150,
+            "allocated": 401862656,
+            "files": 643
+          }
+        },
+        {
+          "step": 3,
+          "edit": "public_signature",
+          "load": 8.75,
+          "commands": {
+            "build": {
+              "wall_s": 0.3774,
+              "rc": 0,
+              "rss_mb": 292.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 29,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.3802,
+              "rc": 0,
+              "rss_mb": 241.8,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 34,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3605,
+              "rc": 0,
+              "rss_mb": 289.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5439,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 111738880,
+          "target": {
+            "total": {
+              "apparent": 709456868,
+              "allocated": 714313728,
+              "files": 2074
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354781548,
+              "allocated": 357711872,
+              "files": 1485
+            }
+          },
+          "store": {
+            "apparent": 404826601,
+            "allocated": 406716416,
+            "files": 666
+          }
+        },
+        {
+          "step": 4,
+          "edit": "comment",
+          "load": 8.42,
+          "commands": {
+            "build": {
+              "wall_s": 0.2451,
+              "rc": 0,
+              "rss_mb": 206.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.1988,
+              "rc": 0,
+              "rss_mb": 204.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.2448,
+              "rc": 0,
+              "rss_mb": 205.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5585,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 10813440,
+          "target": {
+            "total": {
+              "apparent": 709278748,
+              "allocated": 714133504,
+              "files": 2074
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 354603434,
+              "allocated": 357531648,
+              "files": 1485
+            }
+          },
+          "store": {
+            "apparent": 404827313,
+            "allocated": 406724608,
+            "files": 670
+          }
+        },
+        {
+          "step": 5,
+          "edit": "private_body",
+          "load": 8.32,
+          "commands": {
+            "build": {
+              "wall_s": 0.3032,
+              "rc": 0,
+              "rss_mb": 265.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 32,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2365,
+              "rc": 0,
+              "rss_mb": 219.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.2776,
+              "rc": 0,
+              "rss_mb": 250.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5484,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 57786368,
+          "target": {
+            "total": {
+              "apparent": 709956623,
+              "allocated": 714821632,
+              "files": 2076
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 355281298,
+              "allocated": 358219776,
+              "files": 1487
+            }
+          },
+          "store": {
+            "apparent": 454212775,
+            "allocated": 456118272,
+            "files": 675
+          }
+        },
+        {
+          "step": 6,
+          "edit": "churn",
+          "load": 6.49,
+          "commands": {
+            "build": {
+              "wall_s": 2.4398,
+              "rc": 0,
+              "rss_mb": 374.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 9,
+              "fresh": 31,
+              "cache": {
+                "hits": 0,
+                "misses": 11
+              }
+            },
+            "clippy": {
+              "wall_s": 0.6225,
+              "rc": 0,
+              "rss_mb": 246.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 5,
+              "fresh": 40,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_build": {
+              "wall_s": 0.9722,
+              "rc": 0,
+              "rss_mb": 337.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0718,
+              "rc": 0,
+              "rss_mb": 26.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 494886912,
+          "target": {
+            "total": {
+              "apparent": 1032332782,
+              "allocated": 1039224832,
+              "files": 2992
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 518652115,
+              "allocated": 523120640,
+              "files": 2246
+            }
+          },
+          "store": {
+            "apparent": 607485658,
+            "allocated": 612843520,
+            "files": 1579
+          }
+        },
+        {
+          "step": 7,
+          "edit": "public_signature",
+          "load": 7.05,
+          "commands": {
+            "build": {
+              "wall_s": 0.4458,
+              "rc": 0,
+              "rss_mb": 256.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.349,
+              "rc": 0,
+              "rss_mb": 229.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.3708,
+              "rc": 0,
+              "rss_mb": 253.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0798,
+              "rc": 0,
+              "rss_mb": 26.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 110276608,
+          "target": {
+            "total": {
+              "apparent": 1132173972,
+              "allocated": 1139130368,
+              "files": 3027
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 618492113,
+              "allocated": 623026176,
+              "files": 2281
+            }
+          },
+          "store": {
+            "apparent": 612301930,
+            "allocated": 617701376,
+            "files": 1602
+          }
+        },
+        {
+          "step": 8,
+          "edit": "comment",
+          "load": 6.06,
+          "commands": {
+            "build": {
+              "wall_s": 0.2787,
+              "rc": 0,
+              "rss_mb": 207.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 39,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.2271,
+              "rc": 0,
+              "rss_mb": 201.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.2621,
+              "rc": 0,
+              "rss_mb": 208.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0582,
+              "rc": 0,
+              "rss_mb": 26.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 10891264,
+          "target": {
+            "total": {
+              "apparent": 1130271021,
+              "allocated": 1137225728,
+              "files": 3027
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 616589156,
+              "allocated": 621121536,
+              "files": 2281
+            }
+          },
+          "store": {
+            "apparent": 612302642,
+            "allocated": 617709568,
+            "files": 1606
+          }
+        },
+        {
+          "step": 9,
+          "edit": "fresh",
+          "load": 6.33,
+          "commands": {
+            "build": {
+              "wall_s": 0.3302,
+              "rc": 0,
+              "rss_mb": 91.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 40,
+              "fresh": 0,
+              "cache": {
+                "hits": 47,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.8364,
+              "rc": 0,
+              "rss_mb": 247.2,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 41,
+              "fresh": 4,
+              "cache": {
+                "hits": 32,
+                "misses": 2
+              }
+            },
+            "test_build": {
+              "wall_s": 0.1009,
+              "rc": 0,
+              "rss_mb": 55.3,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 12,
+              "fresh": 33,
+              "cache": {
+                "hits": 14,
+                "misses": 0
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0656,
+              "rc": 0,
+              "rss_mb": 26.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 523440128,
+          "target": {
+            "total": {
+              "apparent": 444032849,
+              "allocated": 446472192,
+              "files": 794
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 51683672,
+              "allocated": 51929088,
+              "files": 118
+            }
+          },
+          "store": {
+            "apparent": 612302642,
+            "allocated": 617709568,
+            "files": 1606
+          }
+        },
+        {
+          "step": 10,
+          "edit": "private_body",
+          "load": 6.07,
+          "commands": {
+            "build": {
+              "wall_s": 1.6402,
+              "rc": 0,
+              "rss_mb": 390.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 39,
+              "cache": {
+                "hits": 0,
+                "misses": 1
+              }
+            },
+            "clippy": {
+              "wall_s": 0.6659,
+              "rc": 0,
+              "rss_mb": 231.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.92,
+              "rc": 0,
+              "rss_mb": 352.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 1,
+                "misses": 1
+              }
+            },
+            "test_run": {
+              "wall_s": 1.1181,
+              "rc": 0,
+              "rss_mb": 26.5,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 379502592,
+          "target": {
+            "total": {
+              "apparent": 566950948,
+              "allocated": 570265600,
+              "files": 1226
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 174601766,
+              "allocated": 175722496,
+              "files": 550
+            }
+          },
+          "store": {
+            "apparent": 664805770,
+            "allocated": 670220288,
+            "files": 1611
+          }
+        },
+        {
+          "step": 11,
+          "edit": "public_signature",
+          "load": 9.14,
+          "commands": {
+            "build": {
+              "wall_s": 0.9004,
+              "rc": 0,
+              "rss_mb": 319.7,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 4
+              }
+            },
+            "clippy": {
+              "wall_s": 0.8818,
+              "rc": 0,
+              "rss_mb": 242.1,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 4,
+              "fresh": 41,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 1.6014,
+              "rc": 0,
+              "rss_mb": 403.6,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 44,
+              "cache": {
+                "hits": 0,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 1.0904,
+              "rc": 0,
+              "rss_mb": 26.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 45,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": -9818947584,
+          "target": {
+            "total": {
+              "apparent": 671158874,
+              "allocated": 675094528,
+              "files": 1529
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 280004612,
+              "allocated": 281751552,
+              "files": 856
+            }
+          },
+          "store": {
+            "apparent": 669623237,
+            "allocated": 675082240,
+            "files": 1634
+          }
+        },
+        {
+          "step": 12,
+          "edit": "churn",
+          "load": 9.92,
+          "commands": {
+            "build": {
+              "wall_s": 1.0178,
+              "rc": 0,
+              "rss_mb": 390.4,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 2,
+              "fresh": 31,
+              "cache": {
+                "hits": 1,
+                "misses": 2
+              }
+            },
+            "clippy": {
+              "wall_s": 0.5884,
+              "rc": 0,
+              "rss_mb": 271.0,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 2,
+              "fresh": 36,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            },
+            "test_build": {
+              "wall_s": 0.8437,
+              "rc": 0,
+              "rss_mb": 401.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 1,
+              "fresh": 37,
+              "cache": {
+                "hits": 1,
+                "misses": 2
+              }
+            },
+            "test_run": {
+              "wall_s": 0.5404,
+              "rc": 0,
+              "rss_mb": 25.9,
+              "link_s": 0,
+              "links": 0,
+              "compiled": 0,
+              "fresh": 38,
+              "cache": {
+                "hits": 0,
+                "misses": 0
+              }
+            }
+          },
+          "free_delta": 356564992,
+          "target": {
+            "total": {
+              "apparent": 945886765,
+              "allocated": 951345152,
+              "files": 2253
+            },
+            "coverage": {
+              "apparent": 0,
+              "allocated": 0,
+              "files": 0
+            },
+            "incremental": {
+              "apparent": 430904069,
+              "allocated": 433917952,
+              "files": 1501
+            }
+          },
+          "store": {
+            "apparent": 719029670,
+            "allocated": 724512768,
+            "files": 1649
+          }
+        }
+      ]
+    }
+  ],
+  "machine": {
+    "os": "linux",
+    "os_release": "6.12.76-linuxkit",
+    "arch": "aarch64",
+    "cpus": 12,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.11.2",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=12, no RUSTFLAGS beyond the linker's",
+    "host": "docker on darwin arm64"
+  },
+  "date": "2026-10-14",
+  "runs": 1
+}
