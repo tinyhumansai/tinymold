@@ -163,16 +163,45 @@ def linkers() -> dict[str, list[str]]:
 
 
 def checkout(project: dict) -> Path:
-    path = WORK / f"{project['name']}-{project['rev']}"
-    if not path.is_dir():
-        WORK.mkdir(parents=True, exist_ok=True)
-        run(["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1", "--branch", project["rev"],
-             project["repo"], str(path)])
+    if project["repo"] == "local":
+        # tinymold itself: a detached worktree of this repository at `rev`.
+        sha = output(["git", "-C", str(ROOT), "rev-parse", "--short", project["rev"]])
+        path = WORK / f"{project['name']}-{sha}"
+        if not path.is_dir():
+            WORK.mkdir(parents=True, exist_ok=True)
+            run(["git", "-C", str(ROOT), "worktree", "add", "--quiet", "--detach",
+                 str(path), sha])
+        project["rev"] = sha
+    else:
+        path = WORK / f"{project['name']}-{project['rev']}"
+        if not path.is_dir():
+            WORK.mkdir(parents=True, exist_ok=True)
+            run(["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1",
+                 "--branch", project["rev"], project["repo"], str(path)])
+    if not (path / "Cargo.lock").exists():
+        # Libraries often ship without a lockfile. Resolve once, then every
+        # build runs --locked against the same graph.
+        run(["cargo", "generate-lockfile"], cwd=path, env=STOCK_ENV,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return path
 
 
+def target_args(project: dict) -> list[str]:
+    """The cargo arguments selecting what a corpus project builds."""
+    args = ["--package", project["package"]]
+    if "bin" in project:
+        args += ["--bin", project["bin"]]
+    elif "example" in project:
+        args += ["--example", project["example"]]
+    else:
+        args.append("--lib")
+    if "features" in project:
+        args += ["--features", project["features"]]
+    return args
+
+
 def bench_link(args: argparse.Namespace) -> dict:
-    corpus = load_corpus(args.project)
+    corpus = load_corpus(args.project, needs=("bin", "edit"))
     available = linkers()
     print(f"linkers: {', '.join(available)}", file=sys.stderr)
 
@@ -215,7 +244,7 @@ def bench_link(args: argparse.Namespace) -> dict:
 
 
 def bench_baseline(args: argparse.Namespace) -> dict:
-    corpus = load_corpus(args.project)
+    corpus = load_corpus(args.project, needs=("bin", "edit"))
     results = []
     for project in corpus:
         src = checkout(project)
@@ -228,6 +257,10 @@ def bench_baseline(args: argparse.Namespace) -> dict:
         row: dict = {"project": name, "rev": project["rev"]}
 
         print(f"{name}: clean build", file=sys.stderr)
+        # Download once up front: a clean build should measure compiling,
+        # not the network.
+        run(["cargo", "fetch", "--locked"], cwd=src, env=env, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL)
         shutil.rmtree(src / "target", ignore_errors=True)
         row["clean_build_s"] = round(timed(build, cwd=src, env=env), 3)
         row["noop_rebuild"] = summarize([timed(build, cwd=src, env=env) for _ in range(args.runs)])
@@ -306,7 +339,7 @@ def bench_cache(args: argparse.Namespace) -> dict:
         raise SystemExit("the cache benchmark needs sccache on PATH (cargo install sccache)")
     version = output([sccache, "--version"])
     results = []
-    for project in load_corpus(args.project):
+    for project in load_corpus(args.project, needs=("bin",)):
         src = checkout(project)
         name = project["name"]
         cache_dir = WORK / "sccache" / name
@@ -395,9 +428,12 @@ def shared_artifact_bytes(first: Path, second: Path) -> tuple[int, int]:
     return shared, sum(theirs.values())
 
 
-def load_corpus(only: str | None) -> list[dict]:
+def load_corpus(only: str | None, needs: tuple[str, ...] = ()) -> list[dict]:
+    """Corpus projects, optionally only `only`, and only those with every key
+    in `needs` (the older benchmarks need a binary and a single edit file)."""
     corpus = json.loads((BENCH / "corpus.json").read_text())["projects"]
-    return [p for p in corpus if only is None or p["name"] == only]
+    return [p for p in corpus
+            if (only is None or p["name"] == only) and all(key in p for key in needs)]
 
 
 def tree_size(path: Path) -> int:
