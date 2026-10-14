@@ -234,7 +234,9 @@ requester's `target/`
 - **Single-flight.** The first request for a key that misses gets a lease to
   run rustc. Concurrent requests for the same key, from any worktree or
   agent, wait for the result instead of compiling it again. A lease expires if
-  the holder dies, and a waiter then takes over.
+  the holder dies, and a waiter then takes over. Without the server, the
+  wrapper does the same with a file lock per key
+  ([rustc-wrapper spec](rustc-wrapper.md#outputs-hits-and-misses)).
 - **Per-key incremental-dir store.** rustc incremental state is local and
   path-sensitive. The server keeps one `incremental/` directory per (crate,
   key without source inputs) and swaps it into place when a worktree or branch

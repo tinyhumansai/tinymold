@@ -81,7 +81,9 @@ It runs these steps in order:
    costs a rehash, never a wrong hit.
 4. **Sweep objects** that no surviving action references and that are older
    than the grace period (one hour). Then remove staging files in `tmp/` and
-   record temporaries that are older than the grace period.
+   record temporaries that are older than the grace period, and lock files
+   in `locks/` older than the grace period that no wrapper holds
+   ([`rustc-wrapper.md`](rustc-wrapper.md)).
 5. **Expire snapshots** whose directory is older than `--snapshots-max-age`.
 
 It prints counts and bytes removed and kept. `--dry-run` reports the same
