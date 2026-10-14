@@ -4,18 +4,28 @@ tinymold exists to make Rust builds faster and smaller, so every claim it makes
 has to come with a number anyone can reproduce. This directory holds the
 harness, the corpus it builds, and the results it has produced.
 
-Two benchmarks exist today. Both measure costs tinymold targets, and both set
-the baseline that later phases must beat:
+Four benchmarks exist today. All of them measure plain cargo or the store
+alone, so together they are the baseline every later phase has to beat:
 
-- **`link`**: the edit loop. Build a real project, append a comment to one
-  source file, rebuild, and repeat, once per linker available on the machine.
-  That edit recompiles the leaf crate and relinks the whole binary, and on
-  ripgrep about half of that rebuild is the linker
+- **`baseline`**: plain cargo, default linker, no cache. Per corpus project: a
+  clean build, a no-op rebuild, a one-line edit, an mtime-only change to every
+  source file (what a branch switch or a cache restore does to cargo), building
+  the tests, and a clean build in a second worktree at another path. It also
+  measures `target/` size and how many of the second worktree's artifact bytes
+  are identical to the first's, which is what a shared store would dedupe.
+- **`cache`**: clean builds with a compile cache. No cache, then an empty cache
+  (the dry run that fills it), then the warm cache (the cached run), then the
+  warm cache from a second worktree at another path. The cache is
+  [sccache](https://github.com/mozilla/sccache), today's reference, which
+  tinymold's cache has to beat on hit rate and wall time.
+- **`link`**: the edit loop per linker. Append a comment to one source file and
+  rebuild, once per linker available on the machine. That edit recompiles the
+  leaf crate and relinks the whole binary, and on ripgrep about half of that
+  rebuild is the linker
   ([research](../docs/research/linkers.md#3-what-fraction-of-a-rust-build-is-link-time)).
-- **`cas`**: the cache-hit cost. Restore one large artifact into a fresh path:
-  a plain byte copy against `tinymold cas get` by reflink, hardlink, and copy.
-  A cache hit is only a win if restoring is cheaper than rebuilding, and
-  restoring is only cheap if it doesn't copy bytes.
+- **`cas`**: the cost of a cache hit. Restore one large artifact into a fresh
+  path: a plain byte copy against `tinymold cas get` by reflink, hardlink, and
+  copy. A hit only beats a rebuild if restoring doesn't copy bytes.
 
 ## Results
 
@@ -51,10 +61,21 @@ Requirements: a Rust toolchain, `git`, and Python 3.9 or newer. No Python
 packages are needed.
 
 ```sh
+python3 bench/bench.py baseline --runs 5      # clones the corpus into bench/.work/
+python3 bench/bench.py cache --runs 3         # needs sccache on PATH
+python3 bench/bench.py link --runs 5
 python3 bench/bench.py cas --runs 5 --size-mb 512
-python3 bench/bench.py link --runs 5          # clones the corpus into bench/.work/
-python3 bench/report.py                        # refresh the tables and charts
+python3 bench/report.py                       # refresh the tables and charts
 ```
+
+Every corpus build runs as **stock cargo**. Cargo reads `config.toml` from
+`CARGO_HOME` and every ancestor directory, so a developer's own tuning (a
+`rustc-wrapper` such as sccache, reduced debuginfo, a `jobs` limit, incremental
+off) would otherwise leak into the numbers. The harness disables any rustc
+wrapper, turns incremental on, forces full debuginfo, sets `jobs` to the CPU
+count through `--config` (which outranks every config file), and records
+those settings in each result. The `cache` benchmark then adds sccache back
+explicitly, on a private port and directory.
 
 `link` measures every linker it finds: the default, the `rust-lld` bundled with
 the toolchain, and on Linux `mold` and `wild` when they're on `PATH`. Install
@@ -74,8 +95,11 @@ architecture, so results from different machines sit side by side.
 | Project | Revision | Edited file |
 | --- | --- | --- |
 | [ripgrep](https://github.com/BurntSushi/ripgrep) | 14.1.1 | `crates/core/main.rs` |
+| [bat](https://github.com/sharkdp/bat) | v0.24.0 | `src/bin/bat/main.rs` |
 
-Phase 1 of the [roadmap](../docs/plans/roadmap.md) grows this to a Bevy app, a
+ripgrep is a small, link-bound binary; bat pulls in a larger dependency graph
+with build scripts and C code. Phase 1 of the
+[roadmap](../docs/plans/roadmap.md) grows the corpus to a Bevy app, a
 test-heavy workspace, a `-sys`-heavy workspace, and tinymold itself. Add a
 project by appending to `corpus.json` with a tag or commit, the package and
 binary to build, and a file whose edit forces a relink.
