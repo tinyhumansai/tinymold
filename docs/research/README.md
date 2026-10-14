@@ -1,6 +1,6 @@
 # Research: where Rust build time and disk go, and what tinymold does about it
 
-This directory holds the research that shaped tinymold's architecture. The six
+This directory holds the research that shaped tinymold's architecture. The seven
 reports are kept as written (dated 2026-10-14) so their sources and confidence
 labels stay intact. This README is the synthesis: the numbers that define the
 problem, the principles every design decision follows, a de-duplicated catalogue
@@ -14,6 +14,7 @@ of ideas grouped by pillar, what tinymold will not do, and what is still open.
 | [`source-control-and-caching.md`](source-control-and-caching.md) | Scion/OpenScion, Piper/CitC/Bazel, EdenFS/Buck2, REAPI, Nix CA derivations; content addressing at scale |
 | [`fast-tools.md`](fast-tools.md) | Bun, Zig, esbuild, Go's build cache, tsgo; transferable engineering principles |
 | [`compilers-2026.md`](compilers-2026.md) | Second pass: mold 3.x, cargo's shared-cache design, build-dir v2, Swift/Clang LLVM-CAS caching, Bun's Zig fork, Roc's surgical linker; ranking against tinymold's own baselines |
+| [`zig.md`](zig.md) | Third pass: Zig's build system: `std.Build.Cache` manifests, lock-based sharing, whole vs incremental cache modes, `--watch`, configure-cache poisoning, `max_rss` scheduling |
 
 Confidence labels are carried over from the reports: **[measured]** (on the
 author's machine), **[vendor]** (a project's own benchmark), **(unverified)** or
@@ -144,7 +145,7 @@ M = weeks, L = months, XL = upstream rustc/linker work or a quarter or more.
 "Phase" refers to [`../plans/roadmap.md`](../plans/roadmap.md).
 
 Short report names: **L** = linkers, **R** = rustc-pipeline, **H** = hashing
-and cache server, **SC** = source control and caching, **F** = fast tools, **C** = compilers-2026. "L7#2"
+and cache server, **SC** = source control and caching, **F** = fast tools, **C** = compilers-2026, **Z** = zig. "L7#2"
 means idea 2 in section 7 of the linkers report.
 
 ### 3.1 Build caching
@@ -164,7 +165,7 @@ means idea 2 in section 7 of the linkers report.
 | Affected-crate selection from a diff against the merge base | H in CI and agent loops | S-M | later | [SC5#10](source-control-and-caching.md#5-ideas-for-tinymold-rustcargo-many-worktrees-many-agents) |
 | Serve `cargo check` diagnostics from cache; materialize binaries only when run | M-H for agents | M | later | [SC5#9](source-control-and-caching.md#5-ideas-for-tinymold-rustcargo-many-worktrees-many-agents) |
 | Proc-macro expansion cache with a purity allowlist | M (10-35% incremental, estimate) | L | 6 | [R10#12](rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty), [F9#13](fast-tools.md#9-concrete-ideas-for-tinymold) |
-| RDR-lite: span-insensitive public-interface hash of `.rmeta` | H (5-10x claimed upstream) | XL | 6 | [R10#11](rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty), [F9#3](fast-tools.md#9-concrete-ideas-for-tinymold) |
+| RDR-lite: span-insensitive public-interface hash of `.rmeta` (spiked: blocked by the upstream crate hash dependents record, [ADR 0007](../adr/0007-no-interface-hashing-in-the-wrapper.md)) | H (5-10x claimed upstream) | XL | 6 | [R10#11](rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty), [F9#3](fast-tools.md#9-concrete-ideas-for-tinymold) |
 | Verified, reproducibly built proc-macro and `-sys` artifacts (avoids the serde_derive mistake) | H on clean builds | M | later | [R10#13](rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty) |
 | Nightly turbo mode: `-Zthreads`, Cranelift for workspace crates, `-Zhint-mostly-unused` | M-H | M | later | [R10#17](rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty), [F9#9](fast-tools.md#9-concrete-ideas-for-tinymold) |
 
@@ -250,6 +251,26 @@ The full ranking is in
 | Prelinked dependency image, then a Roc-style append link | H if it works | L | [C7](compilers-2026.md#7-rocs-surgical-linker) |
 | Never select rust-lld on macOS (3x slower than ld-prime for bat) [measured] | M | S | [C1](compilers-2026.md#1-mold-3x) |
 
+### 3.7 Added by the Zig pass
+
+Zig's build system shares one cache across concurrent processes with file
+locks and no daemon; the full ranking is in
+[zig §8](zig.md#8-ideas-ranked-for-tinymold).
+
+| Idea | Impact | Diff. | Sources |
+|---|---|---|---|
+| Single-flight without the daemon: `flock` pre-key records, shared for hits, exclusive for fills, re-check after upgrade | H for agent bursts | S-M | [Z2.4](zig.md#24-locking-shared-hits-exclusive-fills), [Z8.1](zig.md#81-lock-based-single-flight) |
+| GC skips any record whose lock is held | Correctness | S | [Z2.6](zig.md#26-no-garbage-collection), [Z8.2](zig.md#82-the-lock-as-gc-liveness) |
+| Fold extern stat data into the pre-key record (Zig phase-1 shape); measure first | L-M | M | [Z8.3](zig.md#83-inline-stat-data-for-externs) |
+| Whole mode for shared units, incremental mode (keyed on configuration) for the edited crate | M-H | M | [Z2.7](zig.md#27-two-cache-modes-whole-and-incremental), [Z8.4](zig.md#84-two-cache-modes) |
+| Watch set from recorded inputs: directories, 50 ms debounce, fanotify per mount / FSEvents | M | M | [Z3.1](zig.md#31---watch-and-the-watch-set), [Z8.5](zig.md#85-watch-set-from-discovered-inputs) |
+| Build-script cache with directory and metadata-only inputs and a poisoning policy | M-H | M | [Z3.3](zig.md#33-caching-the-build-script-itself-017), [Z8.6](zig.md#86-build-script-cache-with-poisoning) |
+| `zig cc` as a hermetic, shareable linker identity | M | M | [Z6](zig.md#6-packages-and-zig-cc), [Z8.7](zig.md#87-hermetic-zig-cc-linker) |
+| `tinymold cache cat` and miss explanation from the record format | Enabler | S | [Z2.2](zig.md#22-the-manifest-format), [Z8.8](zig.md#88-miss-explanation-and-cache-cat) |
+| Edit-sequence correctness corpus (edit, expect hit/miss, compare to clean) | Correctness | S-M | [Z8.9](zig.md#89-edit-sequence-correctness-corpus) |
+| Link governor admits by estimated RSS, not a fixed count (Zig `max_rss`) | M (avoids OOM) | S-M | [Z3.4](zig.md#34-run-steps-and-memory-budgets), [Z9](zig.md#9-parallelism) |
+| Order-independent parallel hashing; same digest with 1 and N workers | L-M | S | [Z6](zig.md#6-packages-and-zig-cc), [Z9](zig.md#9-parallelism) |
+
 ## 4. What tinymold will not do
 
 - **Write a new linker from scratch.** mold is already near `cp` speed for full
@@ -291,6 +312,9 @@ The full ranking is in
 - **`share-generics` default.** The linkers report read rustc source and found
   it on by default at opt-level 0/1/s/z; the rustc-pipeline report marks the
   default unverified. Treat the source reading as current until re-checked.
+- **How Zig keys ZIR.** fast-tools says per-file ZIR is keyed by content
+  hash; the Zig pass read the source and found it keyed by path and
+  validated by stat ([zig §5](zig.md#5-compiler-internals-that-touch-the-cache)).
 
 ## 6. Open questions for planning
 
@@ -298,6 +322,8 @@ The full ranking is in
    are not reproducible. Do we turn incremental off for cached units, keep it
    on and cache only locally as unverified, or rely on the per-key
    incremental-dir store? What is the measured cost of each on the corpus?
+   Zig answers it per unit: whole mode for shared units, incremental for the
+   edited one ([zig §2.7](zig.md#27-two-cache-modes-whole-and-incremental)).
 2. **Is `.rmeta` deterministic enough for early cutoff on stable?** Which
    edits (comments, private bodies) actually leave rmeta bytes unchanged once
    paths are remapped?

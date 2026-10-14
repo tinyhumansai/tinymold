@@ -52,6 +52,7 @@ the `tinymold` binary is a thin CLI over them.
 | `tinymold` | Phase 0, 2 | The CLI. `tinymold hash <files>` prints digests; `tinymold cas put\|get\|has\|verify` operates the store (default location `TINYMOLD_STORE`, then `XDG_CACHE_HOME/tinymold`, then `LOCALAPPDATA/tinymold`, then `HOME/.cache/tinymold`); `tinymold fresh record\|restore` undoes mtime-only changes and `tinymold snapshot save\|restore\|list` keeps warm `target/` clones ([freshness spec](freshness.md)); `tinymold doctor` reports the host, the `rustc` version, the sysroot's `rust-lld`, the store, and which of mold, wild, `ld.lld`, `ld64.lld`, clang and sccache are on `PATH`. |
 | `tinymold-key` | Phase 3 | The rustc ActionKey and ActionResult schema, argument classification, and path normalization ([cache-key spec](cache-key.md)). Pure functions, no I/O beyond reading inputs. |
 | `tinymold-wrap` | Phase 3 (wrapper); linker shim planned for Phase 4 | The `RUSTC_WRAPPER` ([spec](rustc-wrapper.md)) and, later, the linker shim. Short-lived, native, starts in a few ms. Talks to the server when one is running and runs the same lookup in-process when not. |
+| `tinymold run-test` | Planned (Phase 4) | The test result cache: a cargo `runner` that replays recorded passes keyed by the test binary's digest and its run-time inputs ([test-cache spec](test-cache.md)). Lives in `tinymold-wrap` beside the wrapper. |
 | `tinymold-server` | Planned (Phase 6) | The hot cache daemon: stat cache, FSEvents/inotify dirty set, Unix-socket protocol, single-flight dedup, per-key incremental-dir store, storage tiers and eviction. |
 | `tinymold-remote` | Planned (Phase 6) | REAPI v2 client for the LAN/remote tier, with zstd-compressed transfers and `FindMissingBlobs` batching. |
 | `tinymold-link` | Planned (Phase 4) | Linker autoselect, link-skip, link concurrency governor, test-binary consolidation, dylib dev mode, prelinked dependency archive. |
@@ -163,6 +164,24 @@ Early cutoff on the *public interface* of a crate (ignoring spans, the RDR
 idea) is a stronger form that needs rmeta decoding; it is a Phase 7 research
 bet ([rustc-pipeline §10](../research/rustc-pipeline.md#10-ideas-tinymold-could-adopt-or-build-impact--difficulty), idea 11).
 
+## Affected work: tests after an edit
+
+Unit keys decide which compiles a change reaches. The same chain decides
+which tests it reaches ([test-cache spec](test-cache.md),
+[ADR 0008](../adr/0008-test-results-keyed-by-binary-digest.md)):
+
+```text
+L1 unit key       → only units whose dependency closure holds the edit miss
+L2 binary digest  → a rebuild with identical bytes stops here
+L3 test key       → binary digest + args + host + package tree + env;
+                    a recorded pass replays, anything else runs
+```
+
+L3 hooks in through cargo's `runner` setting as `tinymold run-test`, the
+way the wrapper hooks in through `RUSTC_WRAPPER`. Tests are leaves, so a
+test edit invalidates only its own unit and results; a `#[cfg(test)] mod
+test;` file is not even an input of the library it tests.
+
 ## Path normalization
 
 Absolute paths appear in debuginfo (`DW_AT_comp_dir`), `file!()` strings,
@@ -226,15 +245,18 @@ requester's `target/`
 
 - **Stat cache.** Maps (dev, inode, size, mtime_ns, ctime_ns) to a digest.
   A file is only rehashed when that tuple changes. Git's racily-clean rule
-  applies: a file whose mtime is not older than the entry's write time is not
-  trusted.
+  applies: a file whose mtime, plus one inferred timestamp tick, is not
+  before the entry's write time is not trusted, with "now" read from the
+  filesystem's clock ([rustc-wrapper spec](rustc-wrapper.md#invariants)).
 - **Dirty set.** FSEvents (macOS) and inotify (Linux) watchers per active
   worktree turn "what changed" into an O(changes) query. On a watcher queue
   overflow or restart the server falls back to a full stat walk.
 - **Single-flight.** The first request for a key that misses gets a lease to
   run rustc. Concurrent requests for the same key, from any worktree or
   agent, wait for the result instead of compiling it again. A lease expires if
-  the holder dies, and a waiter then takes over.
+  the holder dies, and a waiter then takes over. Without the server, the
+  wrapper does the same with a file lock per key
+  ([rustc-wrapper spec](rustc-wrapper.md#outputs-hits-and-misses)).
 - **Per-key incremental-dir store.** rustc incremental state is local and
   path-sensitive. The server keeps one `incremental/` directory per (crate,
   key without source inputs) and swaps it into place when a worktree or branch

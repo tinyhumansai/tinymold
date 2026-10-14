@@ -52,6 +52,13 @@ pub enum Error {
         #[source]
         source: std::io::Error,
     },
+
+    /// A worker thread panicked partway through a job split across threads.
+    #[error("a worker thread panicked while {task}")]
+    WorkerPanicked {
+        /// What the threads were doing.
+        task: &'static str,
+    },
 }
 
 /// The crate's standard result type.

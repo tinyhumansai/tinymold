@@ -51,6 +51,12 @@ into its own checkout's target/ directory.
          second's target/ is byte-identical to the first's, at file level,
          rlib-member level, and DWARF-section level.
 
+  hit    Cache hits on units with many outputs: incremental workspace units
+         with unpacked split debuginfo, rebuilt after every source file is
+         touched, so the wrapper restores each from the store. Times each
+         restore through TINYMOLD_TRACE; with --against, another revision's
+         tinymold takes alternate turns on the same store.
+
 Usage:
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
                                    [--variants V,..]
@@ -60,6 +66,7 @@ Usage:
   python3 bench/bench.py link [--runs N] [--project NAME]
   python3 bench/bench.py cas [--runs N] [--size-mb N]
   python3 bench/bench.py ci [--runs N] [--project NAME] [--no-remote]
+  python3 bench/bench.py hit [--runs N] [--project NAME] [--against REV]
   python3 bench/report.py      # render results into bench/README.md
 """
 
@@ -552,6 +559,23 @@ VARIANTS = {
     "cranelift": {"toolchain": "nightly", "rustflags": ["-Zcodegen-backend=cranelift"]},
 }
 
+
+def reference_variant(variant: str) -> str | None:
+    """What `variant` is measured against: the `nightly` variant for one that
+    needs nightly, so the difference is the setting and not the toolchain, or
+    the stable baseline (None)."""
+    if VARIANTS[variant].get("toolchain") == "nightly" and variant != "nightly":
+        return "nightly"
+    return None
+
+
+def toolchains(variants) -> dict:
+    """The exact compilers non-default toolchains resolve to today: `machine()`
+    records only the default one, and `nightly` moves."""
+    names = {VARIANTS[v]["toolchain"] for v in variants if VARIANTS[v].get("toolchain")}
+    return {name: output(["rustc", f"+{name}", "-V"]) for name in sorted(names)}
+
+
 # A linker wrapper that times the real linker and appends the duration to a
 # log. Perl because it starts in a few milliseconds on every Unix and its
 # Time::HiRes is core; a Python wrapper would add ~30 ms to every link.
@@ -695,6 +719,7 @@ class Session:
             flags = ", ".join(json.dumps(flag) for flag in settings["rustflags"])
             self.config += ["--config", f"build.rustflags=[{flags}]"]
         self.toolchain = settings.get("toolchain")
+        self.target_dir = target_dir
         if target_dir:
             # A/B runs keep each side's build in its own directory under the
             # checkout's target/, so alternating never rebuilds dependencies.
@@ -765,7 +790,8 @@ class Session:
         return sample
 
     def clean(self, cwd: Path | None = None) -> None:
-        shutil.rmtree((cwd or self.src) / "target", ignore_errors=True)
+        """Removes this session's build: its own target directory in an A/B."""
+        shutil.rmtree((cwd or self.src) / (self.target_dir or "target"), ignore_errors=True)
 
 
 def run_case(session: Session, case: str, runs: int) -> dict:
@@ -926,7 +952,8 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
         # Experiments get their own result file, so they never crowd the
         # scenario table the roadmap's gates are read from.
         return {"benchmark": "experiments", "pins": pins(), "results": results,
-                "variants": {name: VARIANTS[name] for name in variants}}
+                "variants": {name: VARIANTS[name] for name in variants},
+                "toolchains": toolchains(variants)}
     return {"benchmark": "scenarios", "pins": pins(), "results": results}
 
 
@@ -1081,20 +1108,29 @@ def bench_ab(args: argparse.Namespace) -> dict:
     if args.variant not in VARIANTS:
         raise SystemExit(f"unknown variant {args.variant!r}; choose from {', '.join(VARIANTS)}")
     cases = args.cases.split(",")
+    reference = reference_variant(args.variant)
     results = []
     for project in load_corpus(args.project, needs=("edits",)):
         src = checkout(project)
-        sides = [Session(project, src, "baseline", None, target_dir="target/ab-baseline"),
+        sides = [Session(project, src, "baseline", None, variant=reference,
+                         target_dir=f"target/ab-{reference or 'baseline'}"),
                  Session(project, src, "baseline", None, variant=args.variant,
                          target_dir=f"target/ab-{args.variant}")]
         for case in cases:
-            print(f"{project['name']} / {case}: baseline vs {args.variant}", file=sys.stderr)
+            print(f"{project['name']} / {case}: {sides[0].label} vs {sides[1].label}",
+                  file=sys.stderr)
             edits = Edits(src, project["edits"])
-            for side in sides:
-                side.build()
             samples: dict[str, list[dict]] = {side.label: [] for side in sides}
             for n in range(args.runs):
                 order = sides if n % 2 == 0 else list(reversed(sides))
+                if case == "clean":
+                    for side in order:
+                        side.clean()
+                        samples[side.label].append(side.build())
+                    continue
+                if n == 0:
+                    for side in sides:
+                        side.build()  # edits start from an up-to-date build
                 try:
                     edits.apply(case, n)
                     for side in order:
@@ -1111,8 +1147,116 @@ def bench_ab(args: argparse.Namespace) -> dict:
             base, other = (statistics.median(s["wall"] for s in samples[side.label])
                            for side in sides)
             print(f"  {base:.3f}s vs {other:.3f}s ({other / base - 1:+.0%})", file=sys.stderr)
-    return {"benchmark": "ab", "variant": args.variant,
-            "settings": VARIANTS[args.variant], "pins": pins(), "results": results}
+    used = [args.variant] + ([reference] if reference else [])
+    return {"benchmark": "ab", "variant": args.variant, "reference": reference,
+            "settings": VARIANTS[args.variant], "toolchains": toolchains(used),
+            "pins": pins(), "results": results}
+
+
+# ---------------------------------------------------------------------------
+# Hit: restoring units with many outputs, one tinymold build against another
+# ---------------------------------------------------------------------------
+
+# Incremental units with split debuginfo keep one object file per codegen unit
+# (up to 256) beside their rlib, so a hit on one places hundreds of files.
+# macOS dev builds default to unpacked split debuginfo; Linux has to be told.
+HIT_CONFIG = ['profile.dev.split-debuginfo="unpacked"']
+
+
+def tinymold_at(rev: str) -> tuple[str, Path]:
+    """Builds tinymold at `rev` in a detached worktree under bench/.work and
+    returns its short sha and binary."""
+    sha = output(["git", "-C", str(ROOT), "rev-parse", "--short", rev])
+    path = WORK / f"tinymold-{sha}"
+    if not path.is_dir():
+        WORK.mkdir(parents=True, exist_ok=True)
+        run(["git", "-C", str(ROOT), "worktree", "add", "--quiet", "--detach", str(path), sha])
+    run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=path, env=STOCK_ENV)
+    return sha, path / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+
+
+def restore_spans(trace: Path) -> dict[str, float]:
+    """Seconds each crate's cache hit spent restoring, from TINYMOLD_TRACE."""
+    spans: dict[str, float] = {}
+    for line in trace.read_text().splitlines() if trace.exists() else []:
+        event = json.loads(line)
+        if event["name"] == "restore" and event["args"].get("outcome") == "hit":
+            crate = event["args"]["crate"]
+            spans[crate] = spans.get(crate, 0.0) + event["dur"] / 1e6
+    return spans
+
+
+def unit_files(deps: Path, crate: str) -> int:
+    """Files in deps/ named for `crate`: its outputs, objects included."""
+    prefixes = (f"{crate}-", f"lib{crate}-")
+    return sum(path.name.startswith(prefixes) for path in deps.iterdir())
+
+
+def bench_hit(args: argparse.Namespace) -> dict:
+    """Cache hits on units with many outputs, this checkout's tinymold against
+    another revision's.
+
+    Each project is built once through the wrapper to fill a private store.
+    Every run then touches every source file of the checkout and rebuilds, so
+    cargo reruns every workspace unit and the wrapper serves each one from the
+    store. Both binaries take turns on the same store, in alternating order,
+    so load drift hits both. Each builds into its own directory under target/:
+    a hit may keep outputs the same binary's last build left in place, and on
+    a shared target/ the other binary's turn would always have replaced them.
+    TINYMOLD_TRACE times each restore on its own, apart from cargo's overhead.
+    """
+    sides = [(output(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"]),
+              tinymold_binary())]
+    if args.against:
+        sides.insert(0, tinymold_at(args.against))
+    config = [arg for value in HIT_CONFIG for arg in ("--config", value)]
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        store = WORK / "tinymold-store" / f"hit-{project['name']}"
+        trace = WORK / f"hit-{project['name']}.trace"
+        shutil.rmtree(store, ignore_errors=True)
+        shutil.rmtree(src / "target", ignore_errors=True)
+        def command(label: str) -> list[str]:
+            target_dir = f'build.target-dir="target/hit-{label}"'
+            return cargo(*config, "--config", target_dir, "build", "--locked",
+                         *target_args(project))
+
+        def build(label: str, binary: Path) -> dict:
+            now = time.time()
+            for path in src.rglob("*.rs"):
+                if "target" not in path.relative_to(src).parts:
+                    os.utime(path, (now, now))
+            trace.unlink(missing_ok=True)
+            env = dict(STOCK_ENV, RUSTC_WRAPPER=str(binary), TINYMOLD_STORE=str(store),
+                       TINYMOLD_TRACE=str(trace))
+            wall = timed(command(label), cwd=src, env=env)
+            return {"wall": wall, "restores": restore_spans(trace)}
+
+        print(f"{project['name']}: filling the store", file=sys.stderr)
+        for label, binary in sides:
+            build(label, binary)  # the first fills the store; every later build hits
+        samples: dict[str, list[dict]] = {label: [] for label, _ in sides}
+        for n in range(args.runs):
+            for label, binary in sides if n % 2 == 0 else list(reversed(sides)):
+                samples[label].append(build(label, binary))
+        for label, taken in samples.items():
+            deps = src / "target" / f"hit-{label}" / "debug" / "deps"
+            crates = sorted({crate for sample in taken for crate in sample["restores"]})
+            units = [{"crate": crate, "files": unit_files(deps, crate),
+                      "restore": summarize([s["restores"].get(crate, 0.0) for s in taken])}
+                     for crate in crates]
+            units.sort(key=lambda unit: -unit["files"])
+            results.append({"project": project["name"], "rev": project["rev"], "tinymold": label,
+                            "wall": summarize([s["wall"] for s in taken]),
+                            "restore": summarize([sum(s["restores"].values()) for s in taken]),
+                            "hits": statistics.median(len(s["restores"]) for s in taken),
+                            "units": units})
+            print(f"  tinymold {label}: wall {results[-1]['wall']['median_s']}s, "
+                  f"restores {results[-1]['restore']['median_s']}s over "
+                  f"{results[-1]['hits']} hits", file=sys.stderr)
+        shutil.rmtree(store, ignore_errors=True)
+    return {"benchmark": "hit", "config": HIT_CONFIG, "pins": pins(), "results": results}
 
 
 def pins() -> dict:
@@ -1251,6 +1395,28 @@ def pct(level: dict) -> str:
     return f"{100 * level['identical_bytes'] / max(1, level['bytes']):.0f}%"
 
 
+def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
+    """Folds the rows a run did not measure back in from the previous file.
+
+    A run limited to one project replaces exactly the rows it measured, by
+    project and, for scenarios, mode and case; the rest are kept. Experiments
+    always merge, because each run usually tries a different subset of
+    variants and they share one file; their variant settings and toolchains
+    merge with them, so every kept row can still be compared.
+    """
+    experiments = result["benchmark"] == "experiments"
+    if previous is None or not (limited or experiments):
+        return result
+    measured = {(r["project"], r.get("mode"), r.get("case")) for r in result["results"]}
+    kept = [r for r in previous["results"]
+            if (r["project"], r.get("mode"), r.get("case")) not in measured]
+    result["results"] = kept + result["results"]
+    if experiments:
+        for key in ("variants", "toolchains"):
+            result[key] = {**previous.get(key, {}), **result.get(key, {})}
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1268,7 +1434,7 @@ def main() -> None:
     ab.add_argument("--runs", type=int, default=7)
     ab.add_argument("--project", help="only this corpus project")
     ab.add_argument("--cases", default="comment,private_body,public_signature",
-                    help="comma-separated edit kinds")
+                    help="comma-separated edit kinds, or clean for a full build")
     dedup = sub.add_parser("dedup", help="byte-identical share of two worktrees' target/")
     dedup.add_argument("--project", help="only this corpus project")
     cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
@@ -1284,12 +1450,16 @@ def main() -> None:
     ci.add_argument("--runs", type=int, default=3)
     ci.add_argument("--project", help="only this corpus project")
     ci.add_argument("--no-remote", action="store_true", help="skip the bazel-remote mode")
+    hit = sub.add_parser("hit", help="cache hits on many-output units, against another rev")
+    hit.add_argument("--runs", type=int, default=7)
+    hit.add_argument("--project", help="only this corpus project")
+    hit.add_argument("--against", help="a git rev whose tinymold takes alternate turns")
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
@@ -1301,14 +1471,8 @@ def main() -> None:
         stem = f"ab-{result['variant']}"  # one file per variant tried
     name = f"{stem}-{result['machine']['os']}-{result['machine']['arch']}.json"
     path = RESULTS / name
-    if getattr(args, "project", None) and path.exists():
-        # A run limited to one project replaces exactly the rows it measured,
-        # by project and, for scenarios, mode and case; the rest are kept.
-        previous = json.loads(path.read_text())
-        measured = {(r["project"], r.get("mode"), r.get("case")) for r in result["results"]}
-        kept = [r for r in previous["results"]
-                if (r["project"], r.get("mode"), r.get("case")) not in measured]
-        result["results"] = kept + result["results"]
+    previous = json.loads(path.read_text()) if path.exists() else None
+    result = merge_previous(result, previous, limited=bool(getattr(args, "project", None)))
     path.write_text(json.dumps(result, indent=2) + "\n")
     print(f"wrote bench/results/{name}", file=sys.stderr)
 

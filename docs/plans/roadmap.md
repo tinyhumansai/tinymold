@@ -170,12 +170,16 @@ and 4.6 s on bat today.
     slower on bat;
   - Linux uses mold 3.x or wild when present.
 - An advisor for consolidating test binaries, with an opt-in codemod.
+- Affected work ([spec](../specs/test-cache.md), [plan](test-cache.md)):
+  `tinymold run-test` replays passing test runs keyed by the binary
+  digest, and `clippy-driver` calls are cached.
 
 **Exit criteria.**
 
 - A warm build of tests after the binary takes ≤ 1.5 s (ripgrep) and ≤ 2.0 s
   (bat).
 - A rebuild where files were only touched performs zero links.
+- A second `cargo test` with no edits runs zero test binaries.
 
 **Dependencies.** Phase 3.
 
@@ -183,8 +187,9 @@ and 4.6 s on bat today.
 
 **Status.** First experiments done. See [`edit-loop.md`](edit-loop.md).
 
-- Debug-info levels, `-Zthreads` and Cranelift do not speed up incremental
-  edits: code generation is about a fifth of one.
+- Debug-info levels, `-Zthreads` and Cranelift showed no consistent gain in
+  sequential runs, which are too noisy to rule a gain out; none was A/B
+  tested. Code generation is about a fifth of an edit.
 - `codegen-units = 64` makes every edit kind 13-21% faster on ripgrep and bat
   in interleaved A/B runs, and is recommended.
 - Early cutoff, prelinking and hot patching come next.
@@ -247,11 +252,14 @@ matters less here: no-op builds are already 70-100 ms.
 
 Each bet is a time-boxed spike that ends in an ADR:
 
-- RDR-lite interface hashing;
+- RDR-lite interface hashing (spiked: not on stable rustc, see
+  [ADR 0007](../adr/0007-no-interface-hashing-in-the-wrapper.md));
 - incremental linking contributed upstream to wild;
 - a proc-macro expansion cache;
 - a persistent `rustc_driver` worker;
-- chunked storage of rlib members and DWARF sections.
+- chunked storage of rlib members and DWARF sections;
+- test impact analysis: rerun only the tests in a changed binary that
+  executed changed code ([test-cache plan](test-cache.md), slice 6).
 
 Chunked storage is deferred by
 [ADR 0005](../adr/0005-trade-disk-for-time.md). The dedup probe found 92%

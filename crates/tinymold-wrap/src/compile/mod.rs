@@ -10,48 +10,80 @@
 //! 3. on a hit, place every output by reflink or copy, give it a fresh mtime,
 //!    replay rustc's output, and record the hit as the last use of its action
 //!    and pre-key records (`docs/specs/gc.md`);
-//! 4. with a remote tier, on a local miss, fetch the unit's input sets and
+//! 4. on a local miss, lock the compile this most likely is, so that other
+//!    builds wanting it wait; if another build holds the lock, wait for it
+//!    and look again ([`crate::flight`]);
+//! 5. with a remote tier, on a local miss, fetch the unit's input sets and
 //!    action from it and restore that (`docs/specs/remote.md`);
-//! 5. on a miss, run rustc with its output streamed through, then store the
+//! 6. on a miss, run rustc with its output streamed through, then store the
 //!    outputs, the action, and the input set, if the compile succeeded and no
 //!    input changed while it ran.
 
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
 use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
+use crate::clock::{filesystem_now, written_before};
 use crate::error::io;
 use crate::exec::{self, Captured};
+use crate::flight::{self, Claim};
+use crate::parallel;
+use crate::placed::{Placed, Placement};
 use crate::record::{
     self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
-use crate::stat::{self, nanos};
+use crate::stat;
 use crate::trace::Trace;
 use crate::{Error, Result};
 
-/// How a cacheable invocation was served.
+/// The fewest outputs a hit places on worker threads rather than in turn.
+///
+/// Most units have two to four outputs, and spawning a thread costs about as
+/// much as reflinking a small file, so those stay serial. An incremental
+/// compile with split debuginfo leaves dozens to hundreds of object files,
+/// and 16 is where every one of up to eight workers still gets a couple of
+/// files to amortize its spawn over.
+const PARALLEL_RESTORE_MIN: usize = 16;
+
+/// How long a miss waits for another build compiling the same unit before
+/// compiling it too.
+pub(crate) const LOCK_WAIT: Duration = Duration::from_secs(600);
+
+/// How a cacheable invocation was served. `waited` is how long it waited
+/// for another build compiling the same unit, when it did.
 #[derive(Debug)]
 pub(crate) enum Served {
     /// Restored from the local cache; rustc did not run.
-    Hit,
+    Hit { waited: Option<Duration> },
     /// Fetched from the remote tier, then restored; rustc did not run.
-    RemoteHit,
+    RemoteHit { waited: Option<Duration> },
     /// rustc ran and exited with `code`; `stored` says how long storing its
     /// outputs took, or why they were not stored.
     Miss {
         code: i32,
-        stored: std::result::Result<std::time::Duration, String>,
+        stored: std::result::Result<Duration, String>,
         /// Why the remote tier could not serve the unit, when it failed.
         remote: Option<String>,
+        waited: Option<Duration>,
     },
+}
+
+/// What a local lookup found.
+struct Lookup {
+    /// The matching action and the path of its record.
+    hit: Option<(Action, PathBuf)>,
+    /// The full key the newest recorded input set gives for today's files:
+    /// the compile a miss most likely is.
+    likely: Option<Digest>,
 }
 
 /// Everything about one invocation the steps share.
@@ -62,10 +94,16 @@ struct Unit<'a> {
     cwd: PathBuf,
     out_dir: PathBuf,
     roots: Roots,
+    /// The filesystem clock read before anything was hashed or run: the
+    /// moment input sets and stat entries are recorded as of, and the
+    /// moment an input must have been written before for the compile to be
+    /// stored.
+    now_ns: u64,
 }
 
 /// Serves `invocation` from the cache in `store_dir`, or by running
-/// `program`.
+/// `program`, waiting up to `lock_wait` for another build compiling the same
+/// unit.
 ///
 /// An error means rustc has not run and nothing was restored, so the caller
 /// can fall back to running rustc itself.
@@ -75,6 +113,7 @@ pub(crate) fn serve(
     program: &Path,
     args: &[OsString],
     invocation: &Invocation,
+    lock_wait: Duration,
     trace: &mut Trace,
 ) -> Result<Served> {
     let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
@@ -88,15 +127,30 @@ pub(crate) fn serve(
         out_dir: cwd.join(&invocation.out_dir),
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
+        now_ns: filesystem_now(&store_dir.join("stat"))?,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program))?;
-    if let Some((action, entry)) = trace.span("lookup", || unit.lookup(&pre))?
-        && trace.span("restore", || unit.restore(&action)).is_ok()
-    {
-        record::touch(&entry);
-        record::touch(&unit.prekey_path(&pre));
-        return Ok(Served::Hit);
+    let found = trace.span("lookup", || unit.lookup(&pre))?;
+    if unit.restore_hit(&pre, found.hit, trace) {
+        return Ok(Served::Hit { waited: None });
     }
+    // Held until the compile is stored, so that a build wanting the same
+    // unit waits for it rather than compiling it again.
+    let lock_key = found.likely.unwrap_or(pre);
+    let (_flight, waited) =
+        match trace.span("wait", || flight::claim(store_dir, &lock_key, lock_wait)) {
+            Claim::Held(flight) => (Some(flight), None),
+            Claim::Waited(flight, waited) => {
+                let again = trace.span("lookup", || unit.lookup(&pre))?;
+                if unit.restore_hit(&pre, again.hit, trace) {
+                    return Ok(Served::Hit {
+                        waited: Some(waited),
+                    });
+                }
+                (Some(flight), Some(waited))
+            }
+            Claim::Unlocked => (None, None),
+        };
     let mut remote_failure = None;
     if let Some(remote) = remote {
         match trace.span("remote", || unit.remote_lookup(remote, &pre)) {
@@ -104,19 +158,18 @@ pub(crate) fn serve(
                 if trace.span("restore", || unit.restore(&action)).is_ok() =>
             {
                 record::touch(&entry);
-                return Ok(Served::RemoteHit);
+                return Ok(Served::RemoteHit { waited });
             }
             Ok(_) => {}
             Err(error) => remote_failure = Some(error.to_string()),
         }
     }
 
-    let started = SystemTime::now();
     let captured = trace.span("rustc", || exec::run_captured(program, args))?;
     let stored = if captured.code == 0 {
         let ingesting = std::time::Instant::now();
         trace
-            .span("ingest", || unit.ingest(&pre, started, &captured))
+            .span("ingest", || unit.ingest(&pre, &captured))
             .map(|()| ingesting.elapsed())
             .map_err(|error| error.to_string())
     } else {
@@ -126,6 +179,7 @@ pub(crate) fn serve(
         code: captured.code,
         stored,
         remote: remote_failure,
+        waited,
     })
 }
 
@@ -161,7 +215,7 @@ impl Unit<'_> {
             .map(|ext| {
                 ext.path
                     .as_ref()
-                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path)))
+                    .map(|path| stat::digest(self.store_dir, &self.cwd.join(path), self.now_ns))
                     .transpose()
             })
             .collect::<Result<Vec<_>>>()?;
@@ -208,7 +262,8 @@ impl Unit<'_> {
                     .into_owned();
                 // Archives a build script rebuilt keep their digest when only
                 // their build stamps changed.
-                let digest = stat::digest_as(self.store_dir, &path, stat::Kind::Archive)?;
+                let digest =
+                    stat::digest_as(self.store_dir, &path, stat::Kind::Archive, self.now_ns)?;
                 files.push((name, digest));
             }
         }
@@ -229,22 +284,43 @@ impl Unit<'_> {
 
     /// The action of the first recorded input set that still matches, and
     /// the path of its record.
-    fn lookup(&self, pre: &Digest) -> Result<Option<(Action, PathBuf)>> {
+    fn lookup(&self, pre: &Digest) -> Result<Lookup> {
+        let mut found = Lookup {
+            hit: None,
+            likely: None,
+        };
         let path = self.prekey_path(pre);
         let Some(text) = record::read(&path)? else {
-            return Ok(None);
+            return Ok(found);
         };
         for set in decode_sets(&text, &path)? {
             let Some(key) = self.full_key_of(pre, &set) else {
                 continue;
             };
+            found.likely.get_or_insert(key);
             let entry = self.action_path(&key);
             if let Some(text) = record::read(&entry)? {
                 let action = Action::decode(&text, &entry)?;
-                return Ok(Some((action, entry)));
+                found.hit = Some((action, entry));
+                break;
             }
         }
-        Ok(None)
+        Ok(found)
+    }
+
+    /// Restores `hit`, when there is one, and records it as the last use of
+    /// its action and of the pre-key. False when there is nothing to restore
+    /// or restoring failed, so the unit must be compiled.
+    fn restore_hit(&self, pre: &Digest, hit: Option<(Action, PathBuf)>, trace: &mut Trace) -> bool {
+        let Some((action, entry)) = hit else {
+            return false;
+        };
+        if trace.span("restore", || self.restore(&action)).is_err() {
+            return false;
+        }
+        record::touch(&entry);
+        record::touch(&self.prekey_path(pre));
+        true
     }
 
     /// The first remote input set that matches the local files and whose
@@ -320,52 +396,103 @@ impl Unit<'_> {
         // before any output is touched.
         let stdout = self.expand_object(&action.stdout)?;
         let stderr = self.expand_object(&action.stderr)?;
-        // Clear every file of this unit first: a stale `.rmeta` from another
+        // Outputs the last hit or miss of this unit left here, unchanged
+        // since and with the digests this action wants, stay in place.
+        let record = self.placed_path();
+        let placed = Placed::load(&record)?;
+        let wanted: HashMap<&str, Digest> = action
+            .outputs
+            .iter()
+            .filter(|output| !output.text)
+            .map(|output| (output.name.as_str(), output.digest))
+            .collect();
+        // Clear every other file of this unit: a stale `.rmeta` from another
         // branch left beside a restored `.rlib` would have dependents compiled
         // against one version and linked against another.
-        for (_, path) in self.unit_files()? {
+        let mut kept = HashSet::new();
+        for (name, path) in self.unit_files()? {
+            let holds = wanted.get(name.as_str()).is_some_and(|digest| {
+                fs::symlink_metadata(&path).is_ok_and(|meta| {
+                    meta.is_file() && placed.holds(&name, stat::identity_of(&meta), *digest)
+                })
+            });
+            if holds {
+                kept.insert(name);
+                continue;
+            }
             match fs::remove_file(&path) {
                 Ok(()) => {}
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {}
                 Err(error) => return Err(io("replace", &path)(error)),
             }
         }
-        for output in &action.outputs {
-            let destination = self.out_dir.join(&output.name);
-            if output.text {
-                let text = self.expand_object(&output.digest)?;
-                fs::write(&destination, text).map_err(io("write", &destination))?;
-            } else {
-                // A reflink or a copy, never a hardlink: a linker may rewrite
-                // its output in place, and that must not be the store's inode.
-                if self
-                    .store
-                    .materialize(&output.digest, &destination, Strategy::Reflink)
-                    .is_err()
-                {
-                    self.store
-                        .materialize(&output.digest, &destination, Strategy::Copy)?;
-                }
+        let placements = if action.outputs.len() < PARALLEL_RESTORE_MIN {
+            action
+                .outputs
+                .iter()
+                .map(|output| self.place(output, kept.contains(&output.name)))
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            parallel::map(&action.outputs, "restoring outputs", |output| {
+                self.place(output, kept.contains(&output.name))
+            })?
+        };
+        let placements: Vec<Placement> = placements.into_iter().flatten().collect();
+        Placed::save(&record, &placements)?;
+        // Like rustc, report errors writing our own output only through the
+        // exit status of whoever reads it.
+        let _ = io::stdout().lock().write_all(stdout.as_bytes());
+        let _ = io::stderr().lock().write_all(stderr.as_bytes());
+        Ok(())
+    }
+
+    /// Places one output of a hit in the out-dir, freshly modified, unless
+    /// it is `in_place` already; returns a binary output as it now is.
+    fn place(&self, output: &Output, in_place: bool) -> Result<Option<Placement>> {
+        let destination = self.out_dir.join(&output.name);
+        if output.text {
+            let text = self.expand_object(&output.digest)?;
+            fs::write(&destination, text).map_err(io("write", &destination))?;
+        } else if !in_place {
+            // A reflink or a copy, never a hardlink: a linker may rewrite
+            // its output in place, and that must not be the store's inode.
+            if self
+                .store
+                .materialize(&output.digest, &destination, Strategy::Reflink)
+                .is_err()
+            {
+                self.store
+                    .materialize(&output.digest, &destination, Strategy::Copy)?;
             }
-            set_mode(&destination, output.executable)?;
+        }
+        set_mode(&destination, output.executable)?;
+        // Cargo compares the mtimes of a unit's outputs with its inputs', so
+        // every output looks freshly written. Objects kept in place are the
+        // exception: rustc itself leaves the objects it reuses with their old
+        // mtimes, and nothing compares them.
+        if !(in_place && is_object(&output.name)) {
             let file = fs::OpenOptions::new()
                 .write(true)
                 .open(&destination)
                 .map_err(io("open", &destination))?;
             file.set_modified(SystemTime::now())
                 .map_err(io("set the mtime of", &destination))?;
-            if !output.text
-                && let Ok(identity) = stat::identity(&destination)
-            {
-                // Dependents hash this file next; they need not read it.
-                let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
-            }
         }
-        // Like rustc, report errors writing our own output only through the
-        // exit status of whoever reads it.
-        let _ = io::stdout().lock().write_all(stdout.as_bytes());
-        let _ = io::stderr().lock().write_all(stderr.as_bytes());
-        Ok(())
+        if output.text {
+            return Ok(None);
+        }
+        let identity = stat::identity(&destination)?;
+        if is_library(&output.name) {
+            // Dependents hash this file next; they need not read it.
+            let _ = stat::remember(self.store_dir, &destination, identity, output.digest);
+        }
+        Ok(Some((output.name.clone(), identity, output.digest)))
+    }
+
+    /// Where this unit records the outputs it left in its out-dir.
+    fn placed_path(&self) -> PathBuf {
+        let [_, stem] = self.invocation.output_prefixes();
+        Placed::path(self.store_dir, &self.out_dir, &stem)
     }
 
     fn expand_object(&self, digest: &Digest) -> Result<String> {
@@ -374,15 +501,8 @@ impl Unit<'_> {
     }
 
     /// Stores what a successful compile produced.
-    fn ingest(
-        &self,
-        pre: &Digest,
-        started: SystemTime,
-        captured: &Captured,
-    ) -> std::result::Result<(), Unstorable> {
+    fn ingest(&self, pre: &Digest, captured: &Captured) -> std::result::Result<(), Unstorable> {
         let invocation = self.invocation;
-        let started_ns = nanos(started);
-        let recorded_ns = nanos(SystemTime::now());
         let stem = format!("{}{}", invocation.crate_name, invocation.extra_filename);
         let dep_info = self.out_dir.join(format!("{stem}.d"));
         let Some(text) = record::read(&dep_info)? else {
@@ -394,7 +514,10 @@ impl Unit<'_> {
         for written in &info.inputs {
             let path = self.cwd.join(written);
             let identity = stat::identity(&path)?;
-            if identity.mtime_ns >= started_ns {
+            // Inputs are hashed after the compile, so one written since
+            // the unit's clock reading, or within a tick before it, may not
+            // be what rustc read.
+            if !written_before(identity.mtime_ns, self.now_ns) {
                 return Err(Unstorable::Reason("an input changed during the compile"));
             }
             inputs.push(Input {
@@ -409,16 +532,17 @@ impl Unit<'_> {
             .collect();
         let key = full_key(pre, &key_inputs, &info.env);
 
-        let outputs = self.ingest_outputs()?;
+        let (outputs, placements) = self.ingest_outputs()?;
         let action = Action {
             stdout: self.store_text(&captured.stdout)?,
             stderr: self.store_text(&captured.stderr)?,
             outputs,
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
+        Placed::save(&self.placed_path(), &placements)?;
 
         let set = InputSet {
-            recorded_ns,
+            recorded_ns: self.now_ns,
             inputs,
             env: info.env.into_iter().map(|(name, _)| name).collect(),
         };
@@ -426,8 +550,9 @@ impl Unit<'_> {
         Ok(())
     }
 
-    /// Stores every output this compile wrote and describes them.
-    fn ingest_outputs(&self) -> std::result::Result<Vec<Output>, Unstorable> {
+    /// Stores every output this compile wrote and describes them, with the
+    /// binary outputs as they are on disk.
+    fn ingest_outputs(&self) -> std::result::Result<(Vec<Output>, Vec<Placement>), Unstorable> {
         // Every file with this unit's prefix, whatever its mtime: incremental
         // rustc hardlinks artifacts it reuses (objects, sometimes the .rmeta)
         // back into the out-dir with their old mtimes, and they are as much
@@ -454,54 +579,47 @@ impl Unit<'_> {
         // An incremental compile with split debuginfo writes hundreds of
         // object files; storing them one by one would hold cargo up for
         // longer than the compile's own link.
-        let workers = std::thread::available_parallelism().map_or(4, |n| n.get().min(8));
-        let chunk = found.len().div_ceil(workers);
-        let mut outputs = Vec::with_capacity(found.len());
-        std::thread::scope(|scope| {
-            let handles: Vec<_> = found
-                .chunks(chunk)
-                .map(|batch| scope.spawn(move || self.store_outputs(batch)))
-                .collect();
-            for handle in handles {
-                match handle.join() {
-                    Ok(batch) => outputs.extend(batch?),
-                    Err(_) => return Err(Unstorable::Reason("a storing thread panicked")),
-                }
-            }
-            Ok(())
-        })?;
+        let mut outputs = parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(outputs)
+        let identities: HashMap<&str, Identity> = found
+            .iter()
+            .map(|(name, _, meta)| (name.as_str(), stat::identity_of(meta)))
+            .collect();
+        let placements = outputs
+            .iter()
+            .filter(|output| !output.text)
+            .filter_map(|output| {
+                let identity = identities.get(output.name.as_str())?;
+                Some((output.name.clone(), *identity, output.digest))
+            })
+            .collect();
+        Ok((outputs, placements))
     }
 
-    /// Stores one batch of output files.
-    fn store_outputs(
+    /// Stores one output file.
+    fn store_output(
         &self,
-        batch: &[(String, PathBuf, fs::Metadata)],
-    ) -> std::result::Result<Vec<Output>, Unstorable> {
-        let mut outputs = Vec::with_capacity(batch.len());
-        for (name, path, meta) in batch {
-            let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
-            let text = extension == Some("d");
-            let digest = if text {
-                let content = fs::read(path).map_err(io("read", path))?;
-                self.store_text(&content)?
-            } else {
-                let digest = self.store.insert_file(path)?;
-                if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
-                    // A dependent hashes this file next; it need not read it.
-                    let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
-                }
-                digest
-            };
-            outputs.push(Output {
-                name: name.clone(),
-                digest,
-                executable: is_executable(meta),
-                text,
-            });
-        }
-        Ok(outputs)
+        (name, path, meta): &(String, PathBuf, fs::Metadata),
+    ) -> std::result::Result<Output, Unstorable> {
+        let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
+        let text = extension == Some("d");
+        let digest = if text {
+            let content = fs::read(path).map_err(io("read", path))?;
+            self.store_text(&content)?
+        } else {
+            let digest = self.store.insert_file(path)?;
+            if is_library(name) {
+                // A dependent hashes this file next; it need not read it.
+                let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
+            }
+            digest
+        };
+        Ok(Output {
+            name: name.clone(),
+            digest,
+            executable: is_executable(meta),
+            text,
+        })
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's
@@ -580,6 +698,19 @@ impl Unit<'_> {
         sets.truncate(MAX_SETS);
         write_atomically(&path, &encode_sets(&sets))
     }
+}
+
+/// Whether dependents read the output `name` as an `--extern`.
+fn is_library(name: &str) -> bool {
+    matches!(
+        Path::new(name).extension().and_then(|ext| ext.to_str()),
+        Some("rlib" | "rmeta" | "dylib" | "so" | "dll")
+    )
+}
+
+/// Whether `name` is an object file.
+fn is_object(name: &str) -> bool {
+    Path::new(name).extension().is_some_and(|ext| ext == "o")
 }
 
 #[cfg(unix)]

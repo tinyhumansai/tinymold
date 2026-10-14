@@ -120,23 +120,76 @@ miss in another worktree, and it does.
      against another version of it.
    - **The outputs the `--emit` kinds imply must be present:** `.d`,
      `.rmeta`, and a library's `.rlib`.
-3. stores the outputs in the CAS, then writes the ActionResult
-   (`entries/<crate>/<key>`, per ADR 0004), and records the input set under
-   the pre-key.
+3. stores the outputs in the CAS, spread over up to eight threads, then
+   writes the ActionResult (`entries/<crate>/<key>`, per ADR 0004), and
+   records the input set under the pre-key.
 
 **On a hit**, tinymold:
 
-1. removes every file in the out-dir with the unit's prefix, then places
-   every output by reflink, falling back to copy, and never by hardlink,
-   because linkers may rewrite outputs in place;
-2. sets each output's mtime to now, as if rustc had just written it;
-3. replays stdout and stderr, then exits 0.
+1. keeps every output already in the out-dir that the last hit or miss of
+   this unit there placed, unchanged since and with the digest the action
+   wants (see below);
+2. removes every other file in the out-dir with the unit's prefix, then
+   places the remaining outputs by reflink, falling back to copy, and never by
+   hardlink, because linkers may rewrite outputs in place;
+3. sets each output's mtime to now, as if rustc had just written it, except
+   for object files kept in place: rustc itself leaves the objects it reuses
+   with their old mtimes, and nothing compares them;
+4. replays stdout and stderr, then exits 0.
+
+Steps 2 and 3 run per output, in turn for a unit with fewer than 16
+outputs and spread over up to eight threads above that, since an
+incremental compile with split debuginfo leaves hundreds of object files.
+Either way, stdout and stderr are read before any file is removed, so a
+missing replay object fails the hit with the out-dir untouched, and any
+output that cannot be placed fails the whole hit, which then runs rustc.
+
+**Outputs kept in place.** After every hit and every stored miss, the
+wrapper records the identity (device, inode, size, mtime) and digest of each
+binary output it left, one record per unit and out-dir, under `stat/`. An
+output is kept when its identity still matches that record. As with the stat
+cache's entries for outputs, identity alone is trusted, because these are
+files whose writer has finished and which nothing rewrites without going
+through the wrapper again. A replaced file gets a new inode or mtime. Without
+this, a hit after early cutoff spent nearly all its time placing again the
+hundreds of objects already there: 63 ms for ripgrep's `grep_printer` and
+151 ms for `rg`, against under 1 ms for the lookup. A missing or unreadable
+record only means every output is placed again.
 
 **Text gets placeholders.** Dep-info, stdout and stderr name absolute paths,
 so they are stored with the out-dir, profile, current-directory and
 `CARGO_HOME` prefixes replaced by placeholders, and expanded on restore.
 Otherwise cargo would read the first worktree's paths and check the wrong
 files' mtimes. Binary outputs are restored as stored.
+
+**Concurrent builds of one unit compile it once.** Eight agents building one
+commit in eight worktrees ask for the same unit at about the same time, and
+each would miss and run rustc. After a local miss, and before the remote tier
+or rustc, the wrapper takes an exclusive lock (`flock`, or `LockFileEx` on
+Windows) on `locks/<key>` in the store. The key is the full key the newest
+recorded input set gives for today's files, the compile this one most likely
+is, or the pre-key when no input set is recorded yet. Locking on that full key
+rather than the pre-key keeps compiles with different sources, such as
+worktrees with different edits, from waiting on each other.
+
+- **Free:** the wrapper holds the lock until the compile is stored, so others
+  wait for it.
+- **Held:** it waits, polling, then looks the unit up again. A hit is
+  restored. A miss (the other compile failed, could not be stored, or was a
+  different compile) runs rustc while holding the lock.
+- **Bounded:** a wrapper waits at most ten minutes, then compiles without the
+  lock. A holder that dies releases its lock with its process.
+- **Never required:** a lock that cannot be opened or taken, such as on a
+  filesystem without locking, is skipped. Locking only saves work; a hit
+  never depends on it, and the log records how long a wrapper waited.
+
+This is Zig's build-cache locking
+([`docs/research/zig.md`](../research/zig.md)) without its shared lock for
+hits: a hit takes no lock, and GC already protects an ingest in progress
+([`gc.md`](gc.md)). A waiting wrapper keeps the cargo job slot it was started
+with, and its dependents start only when the whole unit has been stored,
+not at the earlier `.rmeta`, so waiting trades some pipelining for not
+running the same compile twice.
 
 **What is never cached:**
 
@@ -161,7 +214,16 @@ files' mtimes. Binary outputs are restored as stored.
   objects, through a rename, and pre-key records are written the same way.
 - **Digests may come from the stat cache.** An `--extern` file's digest is
   reused from `stat/` when its size, mtime and inode are unchanged and its
-  mtime is earlier than the cache entry (git's racily-clean rule).
+  mtime was written before the cache entry (git's racily-clean rule).
+- **Mtimes are compared in the filesystem's clock and tick.** "Now" is the
+  mtime of a probe file the wrapper writes in `stat/` once per call, not the
+  wall clock, which can run ahead of the coarse clock Linux stamps files
+  with. A file counts as written before that instant only if its mtime plus
+  one tick is not after it, where the tick is inferred from the mtime's
+  trailing decimal zeros: a whole second counts as two (FAT), so a file
+  rewritten within its second on HFS+ or ext3 is not trusted. The same rule
+  decides whether an input changed during the compile, and the probe's
+  reading is the time an input set is recorded as of.
 
 ## Acceptance criteria
 

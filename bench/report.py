@@ -210,7 +210,7 @@ def experiments_section(result: dict) -> list[str]:
         parts += [f"RUSTFLAGS {' '.join(settings['rustflags'])}"] if settings.get("rustflags") else []
         parts += [f"toolchain {settings['toolchain']}"] if settings.get("toolchain") else []
         lines.append(f"| {name} | " + "; ".join(f"`{part}`" for part in parts) + " |")
-    lines.append("")
+    lines += [""] + toolchain_lines(result)
     for project in dict.fromkeys(r["project"] for r in rows):
         mine = [r for r in rows if r["project"] == project]
         modes = list(dict.fromkeys(r["mode"] for r in mine))
@@ -227,8 +227,14 @@ def experiments_section(result: dict) -> list[str]:
                     cells.append("–")
                     continue
                 name = mode.partition("+")[2]
-                nightly = variants.get(name, {}).get("toolchain") == "nightly" and name != "nightly"
-                reference = found.get("baseline+nightly" if nightly else "baseline")
+                if name and name not in variants:
+                    # Without its settings there is no telling which
+                    # toolchain this column ran on, so no reference either.
+                    reference = None
+                else:
+                    settings = variants.get(name, {})
+                    nightly = settings.get("toolchain") == "nightly" and name != "nightly"
+                    reference = found.get("baseline+nightly" if nightly else "baseline")
                 cell = f"{r['wall']['median_s']:.2f}s"
                 if reference is not None and reference is not r:
                     change = r["wall"]["median_s"] / reference["wall"]["median_s"] - 1
@@ -239,6 +245,13 @@ def experiments_section(result: dict) -> list[str]:
     return lines
 
 
+def toolchain_lines(result: dict) -> list[str]:
+    """The exact compilers behind non-default toolchains, when recorded."""
+    found = result.get("toolchains") or {}
+    return [f"Toolchain `{name}`: {version}." for name, version in found.items()] + \
+        ([""] if found else [])
+
+
 def ab_section(result: dict) -> list[str]:
     """Interleaved A/B: the baseline against one variant, per edit kind."""
     variant = result["variant"]
@@ -246,17 +259,21 @@ def ab_section(result: dict) -> list[str]:
     parts = list(settings.get("config", []))
     parts += [f"RUSTFLAGS {' '.join(settings['rustflags'])}"] if settings.get("rustflags") else []
     parts += [f"toolchain {settings['toolchain']}"] if settings.get("toolchain") else []
-    lines = [f"### A/B: baseline vs `{variant}` ({describe(result)})", "",
+    # Nightly-only variants run against the `nightly` variant, not stable.
+    reference = result.get("reference")
+    base_label = f"baseline+{reference}" if reference else "baseline"
+    lines = [f"### A/B: {base_label} vs `{variant}` ({describe(result)})", "",
              f"`{variant}`: " + "; ".join(f"`{part}`" for part in parts) + ". Each edit is "
              "built by both sides back to back, in alternating order, each in its own "
              "target directory. Cells: median wall time (min–max).", "",
-             "| Project | Edit | baseline | " + variant + " | change |",
+             *toolchain_lines(result),
+             f"| Project | Edit | {base_label} | {variant} | change |",
              "| --- | --- | ---: | ---: | ---: |"]
     rows = result["results"]
     for project in dict.fromkeys(r["project"] for r in rows):
         for case in dict.fromkeys(r["case"] for r in rows if r["project"] == project):
             pair = {r["mode"]: r for r in rows if r["project"] == project and r["case"] == case}
-            base, other = pair["baseline"], pair[f"baseline+{variant}"]
+            base, other = pair[base_label], pair[f"baseline+{variant}"]
             cell = lambda r: (f"{r['wall']['median_s']:.3f}s "
                               f"({r['wall']['min_s']:.2f}–{r['wall']['max_s']:.2f})")
             change = other["wall"]["median_s"] / base["wall"]["median_s"] - 1
@@ -334,10 +351,49 @@ def openhuman_section(result: dict) -> list[str]:
     return docker_openhuman.tables(result).splitlines() + [""]
 
 
+def hit_section(result: dict) -> list[str]:
+    """Cache hits on many-output units: one tinymold revision against another."""
+    rows = result["results"]
+    lines = [f"### Cache hits on many-output units ({describe(result)})", "",
+             "Every source file touched, then rebuilt through the wrapper, so each "
+             "workspace unit is a cache hit. Incremental units with "
+             + ", ".join(f"`{value}`" for value in result["config"])
+             + " keep one object file per codegen unit, so a hit places hundreds of "
+             "files. Before is the `--against` revision, after is the checkout's; they "
+             "take alternate turns on the same store. Restore times come from "
+             "`TINYMOLD_TRACE`; cells are medians (min–max). A crate's row adds up all "
+             "of its units, such as a library and a binary of the same name.", "",
+             "| Project | What | before | after | change |",
+             "| --- | --- | ---: | ---: | ---: |"]
+
+    def cell(stats: dict, scale: float, unit: str, digits: int) -> str:
+        return (f"{stats['median_s'] * scale:.{digits}f}{unit} "
+                f"({stats['min_s'] * scale:.{digits}f}–{stats['max_s'] * scale:.{digits}f})")
+
+    for project in dict.fromkeys(r["project"] for r in rows):
+        mine = [r for r in rows if r["project"] == project]
+        before, after = mine[0], mine[-1]
+        name = f"{project} {before['rev']}<br>tinymold {before['tinymold']} → {after['tinymold']}"
+        measures = [("Build wall time", lambda r: r["wall"], 1, "s", 2),
+                    (f"All {before['hits']:.0f} restores, summed", lambda r: r["restore"],
+                     1000, " ms", 0)]
+        for unit in before["units"][:3]:
+            def pick(r: dict, crate: str = unit["crate"]) -> dict:
+                return next(u["restore"] for u in r["units"] if u["crate"] == crate)
+            measures.append((f"`{unit['crate']}` restore ({unit['files']} files)", pick,
+                             1000, " ms", 1))
+        for label, pick, scale, unit, digits in measures:
+            old, new = pick(before), pick(after)
+            change = f"{new['median_s'] / old['median_s'] - 1:+.0%}" if old["median_s"] else "–"
+            lines.append(f"| {name} | {label} | {cell(old, scale, unit, digits)} | "
+                         f"{cell(new, scale, unit, digits)} | {change} |")
+    return lines + [""]
+
+
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "openhuman": 6, "dedup": 7, "link": 8, "native": 9, "cas": 10}
+             "hit": 6, "openhuman": 7, "dedup": 8, "link": 9, "native": 10, "cas": 11}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -360,6 +416,8 @@ def main() -> None:
             sections += cas_section(result)
         elif result["benchmark"] == "ci":
             sections += ci_section(result)
+        elif result["benchmark"] == "hit":
+            sections += hit_section(result)
         elif result["benchmark"] == "openhuman-docker":
             sections += openhuman_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
