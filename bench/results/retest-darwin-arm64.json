@@ -1,0 +1,104 @@
+{
+  "benchmark": "retest",
+  "pins": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "linker": "cc, rustc's default, behind a timing wrapper",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "again",
+      "mode": "cargo",
+      "wall": {
+        "median_s": 0.9416,
+        "min_s": 0.9181,
+        "max_s": 1.0283,
+        "samples_s": [
+          1.0283,
+          0.9416,
+          0.9394,
+          0.9181,
+          0.9506
+        ]
+      },
+      "replayed": 0,
+      "ran": 0
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "again",
+      "mode": "run-test",
+      "wall": {
+        "median_s": 0.8307,
+        "min_s": 0.0625,
+        "max_s": 1.0377,
+        "samples_s": [
+          1.0377,
+          0.0625,
+          0.8307,
+          0.0767,
+          0.8307
+        ]
+      },
+      "replayed": 0,
+      "ran": 0
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "private_body",
+      "mode": "cargo",
+      "wall": {
+        "median_s": 4.2783,
+        "min_s": 4.0016,
+        "max_s": 4.4743,
+        "samples_s": [
+          4.1138,
+          4.2783,
+          4.0016,
+          4.4743,
+          4.3674
+        ]
+      },
+      "replayed": 0,
+      "ran": 0
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "private_body",
+      "mode": "run-test",
+      "wall": {
+        "median_s": 3.6221,
+        "min_s": 3.562,
+        "max_s": 4.0704,
+        "samples_s": [
+          4.0704,
+          3.5674,
+          3.562,
+          3.6221,
+          4.0091
+        ]
+      },
+      "replayed": 0,
+      "ran": 2
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-15",
+  "runs": 5
+}

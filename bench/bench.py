@@ -82,8 +82,8 @@ import shutil
 import socket
 import statistics
 import subprocess
-import tempfile
 import sys
+import tempfile
 import time
 from pathlib import Path
 
