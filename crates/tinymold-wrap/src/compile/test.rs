@@ -275,7 +275,14 @@ fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
     // survives next to a restored .rlib and dependents link mismatched crates.
     let unit = Crate::new("pub fn a() -> u32 { 1 }\npub fn b() -> u32 { 2 }\n");
     let incremental = format!("incremental={}", unit.root.join("incremental").display());
-    let flags = ["-C", incremental.as_str()];
+    let flags = [
+        "-C",
+        incremental.as_str(),
+        "-C",
+        "debuginfo=2",
+        "-C",
+        "split-debuginfo=unpacked",
+    ];
     assert_stored(&unit.serve(&flags).unwrap());
     std::thread::sleep(Duration::from_millis(1100));
 
