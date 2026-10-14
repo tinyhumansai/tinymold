@@ -33,6 +33,7 @@ mod error;
 mod exec;
 mod record;
 mod stat;
+mod trace;
 
 use std::ffi::OsString;
 use std::fs::OpenOptions;
@@ -44,6 +45,7 @@ use tinymold_key::{Classified, Invocation};
 
 use compile::Served;
 pub use error::{Error, Result};
+use trace::Trace;
 
 /// Where the wrapper keeps its cache and reports what it did.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +57,10 @@ pub struct Config {
     /// `error`, the crate, milliseconds, and details), for benchmarks and
     /// debugging.
     pub log: Option<PathBuf>,
+    /// A file to append one Chrome trace event per wrapper step to (hashing,
+    /// lookup, restore, rustc, storing), for profiling where a build's time
+    /// goes. See `bench/profile_build.py`.
+    pub trace: Option<PathBuf>,
 }
 
 impl Config {
@@ -64,6 +70,7 @@ impl Config {
         Self {
             store: store.into(),
             log: None,
+            trace: None,
         }
     }
 }
@@ -84,36 +91,58 @@ pub fn is_rustc(program: &Path) -> bool {
 #[must_use]
 pub fn run(config: &Config, program: &Path, args: &[OsString]) -> i32 {
     let started = Instant::now();
-    let classified = match utf8(args) {
+    let mut trace = Trace::start();
+    let (outcome, crate_name, code) = serve(config, program, args, started, &mut trace);
+    if let Some(path) = &config.trace {
+        trace.write(path, &crate_name, outcome);
+    }
+    code
+}
+
+/// Serves one invocation and returns how (`hit`, `miss`, `pass` or `error`),
+/// the crate it compiled, and the exit code.
+fn serve(
+    config: &Config,
+    program: &Path,
+    args: &[OsString],
+    started: Instant,
+    trace: &mut Trace,
+) -> (&'static str, String, i32) {
+    let classified = trace.span("classify", || match utf8(args) {
         Some(text) if is_rustc(program) => Invocation::parse(text),
         Some(_) => Classified::PassThrough("not rustc"),
         None => Classified::PassThrough("an argument is not UTF-8"),
-    };
+    });
     let invocation = match classified {
         Classified::Cacheable(invocation) => invocation,
         Classified::PassThrough(reason) => {
             log(config, started, "pass", "-", reason);
-            return pass_through(program, args);
+            let code = trace.span("pass_through", || pass_through(program, args));
+            return ("pass", "-".to_owned(), code);
         }
-        _ => return pass_through(program, args),
+        _ => {
+            let code = trace.span("pass_through", || pass_through(program, args));
+            return ("pass", "-".to_owned(), code);
+        }
     };
-    let crate_name = invocation.crate_name.as_str();
-    match compile::serve(&config.store, program, args, &invocation) {
+    let crate_name = invocation.crate_name.clone();
+    match compile::serve(&config.store, program, args, &invocation, trace) {
         Ok(Served::Hit) => {
-            log(config, started, "hit", crate_name, "");
-            0
+            log(config, started, "hit", &crate_name, "");
+            ("hit", crate_name, 0)
         }
         Ok(Served::Miss { code, stored }) => {
             let detail = match &stored {
                 Ok(took) => format!("stored in {:.1}ms", took.as_secs_f64() * 1000.0),
                 Err(reason) => format!("not stored: {reason}"),
             };
-            log(config, started, "miss", crate_name, &detail);
-            code
+            log(config, started, "miss", &crate_name, &detail);
+            ("miss", crate_name, code)
         }
         Err(error) => {
-            log(config, started, "error", crate_name, &error.to_string());
-            pass_through(program, args)
+            log(config, started, "error", &crate_name, &error.to_string());
+            let code = trace.span("pass_through", || pass_through(program, args));
+            ("error", crate_name, code)
         }
     }
 }
