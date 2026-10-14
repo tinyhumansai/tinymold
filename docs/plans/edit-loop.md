@@ -37,14 +37,17 @@ make LLVM faster cannot move the edit loop much, and they did not.
 
 Variants were run with `bench/bench.py scenarios --variants …`, results in
 [`bench/README.md`](../../bench/README.md), "Edit-loop experiments". These
-runs are sequential, so they are only indicative.
+runs are sequential on a shared machine, so load drift moves them by tens
+of percent in either direction: they found no setting worth an A/B run
+except `codegen-units`, but they do not show that the others have no effect.
+Only the interleaved `ab` runs below support a conclusion.
 
 | Variant | Result on the edit loop |
 |---|---|
-| `deps-nodebug`, `line-tables`, `nodebug` (debug-info levels) | No gain on any project; within noise or slower |
+| `deps-nodebug`, `line-tables`, `nodebug` (debug-info levels) | Inconclusive: no consistent gain across projects and edit kinds; not A/B tested |
 | `nightly` (1.98.0-nightly, 2026-06-29) | Slightly slower than stable 1.99 |
-| `threads-8` (`-Zthreads=8`, the parallel front end) | No gain; the front end is a small share of an edit |
-| `cranelift` (`-Zcodegen-backend=cranelift` for every crate) | No gain on edits. It **breaks bat's build**: indexmap's `autocfg` probe fails under Cranelift, indexmap loses `std`, and `plist` no longer compiles. If tried again, it should apply to workspace crates only |
+| `threads-8` (`-Zthreads=8`, the parallel front end) | Inconclusive against `nightly`: no consistent gain; not A/B tested. The front end is a small share of an edit |
+| `cranelift` (`-Zcodegen-backend=cranelift` for every crate) | Inconclusive on edits; not A/B tested. It **breaks bat's build**: indexmap's `autocfg` probe fails under Cranelift, indexmap loses `std`, and `plist` no longer compiles. If tried again, it should apply to workspace crates only |
 | `codegen-units` 16, 32, 64, 128 (default 256 with incremental) | Fewer units cut the session bookkeeping, but make each regenerated unit bigger; see below |
 
 The Cranelift component does ship for aarch64-apple-darwin (installed with
