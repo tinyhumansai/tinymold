@@ -206,6 +206,10 @@ python3 bench/bench.py cas --runs 5 --size-mb 512
 python3 bench/report.py                       # refresh the tables and charts
 ```
 
+To see where one build's time goes rather than how long it takes (critical
+path, idle job slots, build scripts, links, wrapper steps), use
+`bench/profile_build.py`; see [`PROFILING.md`](PROFILING.md).
+
 Every corpus build runs as **stock cargo**. Cargo reads `config.toml` from
 `CARGO_HOME` and every ancestor directory, so a developer's own tuning (a
 `rustc-wrapper` such as sccache, reduced debuginfo, a `jobs` limit, incremental
