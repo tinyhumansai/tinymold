@@ -38,7 +38,7 @@ crates/
     │       └── test.rs       # module-local unit tests
     ├── tests/          # integration tests against the public API only
     └── examples/       # runnable, compiled-in-CI usage examples
-action.yml, save/      # the GitHub Action (setup and save), scripts in action/
+action.yml, save/       # the GitHub Action (setup and save), scripts in action/
 deploy/                 # how to run the remote cache server (bazel-remote)
 bench/                  # benchmark harness, corpus, results, and results page
 docs/

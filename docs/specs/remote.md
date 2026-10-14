@@ -1,6 +1,6 @@
 # The remote tier
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Owner:** Steven Enamakel
 - **Date:** 2026-10-14
 - **Plan:** [`../plans/remote-and-ci.md`](../plans/remote-and-ci.md)
@@ -50,12 +50,14 @@ Two kinds of ActionCache entries, both holding ordinary REAPI
 `ActionResult`s:
 
 - **Action.** The AC key is the unit's full key. Its `output_files` are:
-  - every output object, named as in the out-dir;
-  - `.tinymold/action`, the tinymold action record.
+  - `.tinymold/action`, the tinymold action record;
+  - one entry per object the record references (outputs, stdout and
+    stderr), each with the object's BLAKE3 digest as its path and its
+    SHA-256 as its digest.
 
-  `stdout_digest` and `stderr_digest` name the replayed text. Listing the
-  objects makes servers that check AC dependencies (bazel-remote does) keep,
-  and vouch for, every blob the entry needs.
+  Names and modes stay in the record. Listing every object makes servers
+  that check AC dependencies (bazel-remote does) keep, and vouch for, every
+  blob the entry needs.
 - **Input sets.** The AC key is `BLAKE3(field "tinymold/remote/prekey/v1",
   pre-key)`. Its one output file, `.tinymold/prekey`, is the pre-key record
   text.
@@ -77,16 +79,19 @@ sharing a key.
    zeroed, which forces a rehash. Then try each set as the local lookup
    would.
 3. For the first full key the local store lacks, get the remote action:
-   1. fetch `.tinymold/action` and decode it;
-   2. fetch every object it names that the local store does not hold;
-   3. insert each into the local CAS, which re-derives its BLAKE3 digest;
-   4. check that every digest the record names is now in the store; if any
-      is missing, it is a miss.
+   1. fetch every listed object the local store does not hold, refusing a
+      blob whose SHA-256 is wrong;
+   2. insert each into the local CAS, which re-derives its BLAKE3 digest,
+      and refuse the entry when that digest is not the name it was listed
+      under;
+   3. fetch and decode `.tinymold/action`, and check that every digest it
+      names is now in the store; if any is missing, it is a miss.
 4. Write the local action and restore it, as a local hit would. The log
    outcome is `remote`.
 
 Calls go through ByteStream `Read` for blobs, so blob size is not limited
-by the gRPC message size. Each call has the configured timeout. **Any
+by the gRPC message size. Each call has the configured timeout, and blob
+transfers get one more second per 4 MiB. **Any
 error, timeout or verification failure is logged and becomes a miss**, and
 rustc runs.
 
@@ -107,9 +112,11 @@ tinymold remote push [--since <unix-seconds>]
 The command reports how many entries and bytes it uploaded. It fails, with
 exit 1, on the first rejected write, such as missing write credentials.
 
-`tinymold remote check` calls `GetCapabilities`. It reports the server's
-digest functions and whether the credential can write, and exits 1 when the
-server is unreachable or rejects the credential.
+`tinymold remote check` calls `GetCapabilities`, then uploads a small probe
+blob. It reports the server's digest functions and whether the client can
+write, and exits 1 when the server is unreachable or a configured credential
+is refused. The probe matters because a server that allows unauthenticated
+reads answers `GetCapabilities` whatever the credential.
 
 ## Trust
 

@@ -1,6 +1,6 @@
 # tinymold in GitHub Actions
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Owner:** Steven Enamakel
 - **Date:** 2026-10-14
 - **Plan:** [`../plans/remote-and-ci.md`](../plans/remote-and-ci.md)

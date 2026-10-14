@@ -199,7 +199,7 @@ and are configurable.
 | Hot | Pages of the current graph's `.rlib`/`.rmeta` for each active worktree, plus the last test binary | ≤ 25% of RAM (8 GB on a 32 GB box); one measured project's hot set is ~2.2 GB | Advisory only: `fcntl(F_RDADVISE)` on macOS, `madvise(MADV_WILLNEED)`/`posix_fadvise` on Linux, driven by active-worktree heartbeats. The kernel page cache is the RAM tier; there is no separate RAM store. |
 | Warm | Uncompressed CAS: every artifact of the last K builds per workspace and toolchain | 30 GB or 10% of free disk, whichever is smaller | LRU by last materialization, with a per-project quota and a floor that keeps each active workspace's latest complete graph |
 | Cold | zstd-compressed blobs evicted from warm, old toolchains | 20 GB compressed (~100 GB logical) | LRU plus age (14 days) |
-| Remote | CI-produced artifacts on a REAPI server | Server-side | Server LRU |
+| Remote | CI-produced artifacts on a REAPI server, bazel-remote by default ([`remote.md`](remote.md)) | Server-side `--max_size` | Server LRU by access |
 
 The warm tier stays uncompressed because rustc and the linker mmap `.rlib`
 and `.rmeta` files; compressing them would cost a decompression on every
