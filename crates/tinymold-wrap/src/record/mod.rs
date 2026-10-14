@@ -169,7 +169,7 @@ fn parse_output(line: &str) -> Option<Output> {
 /// Whether `name` is one plain file name, which restoring it joins to the
 /// output directory: a record from a remote must not name a path outside it.
 fn is_file_name(name: &str) -> bool {
-    !name.is_empty() && name != "." && name != ".." && !name.contains(['/', '\\'])
+    !name.is_empty() && name != "." && name != ".." && !name.contains(['/', '\\', ':'])
 }
 
 fn flag(text: &str) -> Option<bool> {

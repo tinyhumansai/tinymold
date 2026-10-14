@@ -113,6 +113,7 @@ fn an_output_name_that_leaves_the_output_directory_is_corrupt() {
         "sub/libdemo-1.rlib",
         "sub\\libdemo-1.rlib",
         "/abs/libdemo-1.rlib",
+        "C:libdemo-1.rlib",
         "..",
         ".",
     ] {
