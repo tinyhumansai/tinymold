@@ -203,14 +203,7 @@ def split_command(command: str, cwd: Path) -> tuple[list[str], Path]:
     CMake wraps links as `: && clang++ ... && :` and some generators prefix
     `cd dir &&`; the segments around the link are dropped, `cd`s are applied.
     """
-    tokens = shlex.split(command)
-    segments: list[list[str]] = [[]]
-    for token in tokens:
-        if token in ("&&", ";"):
-            segments.append([])
-        else:
-            segments[-1].append(token)
-    for segment in segments:
+    for segment in split_segments(command):
         if segment[:1] == ["cd"] and len(segment) == 2:
             cwd = (cwd / segment[1]).resolve()
         elif is_link(segment):
