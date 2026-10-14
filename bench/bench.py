@@ -64,6 +64,7 @@ into its own checkout's target/ directory.
 Usage:
   python3 bench/bench.py edits [--steps N] [--project NAME] [--modes M,..] [--commands C,..]
                                [--linkers L,..] [--churn-every N]
+  python3 bench/bench.py docker -- <benchmark> [args]   # the same, in the Linux image
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
                                    [--variants V,..]
   python3 bench/bench.py dedup [--project NAME]
@@ -170,6 +171,10 @@ def machine() -> dict:
         "python": platform.python_version(),
         "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, "
                           f"jobs={os.cpu_count()}, no RUSTFLAGS beyond the linker's",
+        # Set by `bench.py docker`, so a container's numbers are never read as
+        # a bare-metal Linux machine's.
+        **({"host": os.environ["TINYMOLD_BENCH_HOST"]}
+           if os.environ.get("TINYMOLD_BENCH_HOST") else {}),
     }
 
 
@@ -1408,6 +1413,40 @@ def pct(level: dict) -> str:
     return f"{100 * level['identical_bytes'] / max(1, level['bytes']):.0f}%"
 
 
+def run_in_docker(rest: list[str]) -> None:
+    """Runs `bench.py <rest>` in the Linux bench image (bench/docker), so a
+    macOS machine can measure mold and wild, which are ELF-only.
+
+    The repository is mounted at its own path, together with git's common
+    directory, so worktrees and revisions resolve as on the host. Corpus
+    checkouts, their target directories, tinymold's own build and cargo's
+    registry live on Docker volumes instead: a bind mount from macOS goes
+    through the VM's file sharing, which would dominate every build. Results
+    land in bench/results/ as usual, with the host recorded in the machine.
+    The tinymold corpus project adds a git worktree under the volume, which
+    the host later sees as prunable (`git worktree prune`).
+    """
+    docker = shutil.which("docker")
+    if docker is None:
+        raise SystemExit("bench.py docker needs docker on PATH")
+    context = BENCH / "docker"
+    tag = "tinymold-bench:" + hashlib.sha256((context / "Dockerfile").read_bytes()).hexdigest()[:12]
+    if subprocess.run([docker, "image", "inspect", tag], stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL).returncode != 0:
+        run([docker, "build", "--tag", tag, str(context)])
+    common = Path(output(["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute",
+                          "--git-common-dir"]))
+    mounts = ["--volume", f"{ROOT}:{ROOT}"]
+    if not common.is_relative_to(ROOT):
+        mounts += ["--volume", f"{common}:{common}"]
+    for volume, path in (("work", WORK), ("target", ROOT / "target"),
+                         ("registry", "/usr/local/cargo/registry")):
+        mounts += ["--volume", f"tinymold-bench-{volume}:{path}"]
+    host = f"docker on {platform.system().lower()} {platform.machine()}"
+    run([docker, "run", "--rm", "--workdir", str(ROOT), *mounts,
+         "--env", f"TINYMOLD_BENCH_HOST={host}", tag, "python3", "bench/bench.py", *rest])
+
+
 def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
     """Folds the rows a run did not measure back in from the previous file.
 
@@ -1431,6 +1470,10 @@ def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
 
 
 def main() -> None:
+    if sys.argv[1:2] == ["docker"]:
+        rest = sys.argv[2:]
+        run_in_docker(rest[1:] if rest[:1] == ["--"] else rest)
+        return
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="benchmark", required=True)
