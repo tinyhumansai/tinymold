@@ -371,6 +371,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinymold-key"
+version = "0.0.1"
+dependencies = [
+ "thiserror",
+ "tinymold-hash",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"

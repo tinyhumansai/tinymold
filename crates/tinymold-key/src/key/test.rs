@@ -1,0 +1,118 @@
+//! Unit tests for the pre-key and full key.
+
+#![allow(clippy::unwrap_used, clippy::panic)]
+
+use std::path::Path;
+
+use super::*;
+use crate::Classified;
+
+fn invocation(args: &[&str]) -> Invocation {
+    match Invocation::parse(args.iter().copied()) {
+        Classified::Cacheable(invocation) => invocation,
+        Classified::PassThrough(reason) => panic!("{reason}"),
+    }
+}
+
+/// A library compile in the worktree at `root`.
+fn compile(root: &str, extra: &[&str]) -> (Invocation, Roots) {
+    let out = format!("{root}/target/debug/deps");
+    let incremental = format!("-Cincremental={root}/target/debug/incremental");
+    let dependency = format!("dependency={out}");
+    let ext = format!("dep={out}/libdep-1.rmeta");
+    let native = format!("native={root}/target/debug/build/dep-2/out");
+    let mut args = vec![
+        "--crate-name", "demo", "src/lib.rs", "--crate-type", "lib", "--emit=dep-info,link",
+        "--out-dir", &out, &incremental, "-L", &dependency, "--extern", &ext, "-L", &native,
+    ];
+    args.extend_from_slice(extra);
+    let invocation = invocation(&args);
+    let roots = Roots::new(Path::new(root), &invocation.out_dir, None);
+    (invocation, roots)
+}
+
+fn key_of(invocation: &Invocation, roots: &Roots, extern_digest: &[u8]) -> Digest {
+    pre_key(&PreKeyInputs {
+        invocation,
+        roots,
+        rustc_version: "rustc 1.99.0",
+        env: &[("SDKROOT".into(), None)],
+        externs: &[Some(Digest::of_bytes(extern_digest))],
+        search_paths: &[vec![("libnative.a".into(), Digest::of_bytes(b"archive"))]],
+        linker: None,
+    })
+}
+
+#[test]
+fn the_pre_key_encoding_is_pinned() {
+    let (invocation, roots) = compile("/w/a", &[]);
+    // Changing the encoding orphans every cache entry ever written, so this
+    // value only changes together with the schema tag.
+    assert_eq!(
+        key_of(&invocation, &roots, b"rmeta").to_hex(),
+        PINNED_PRE_KEY
+    );
+    let full = full_key(
+        &Digest::of_bytes(b""),
+        &[("src/lib.rs".into(), Digest::of_bytes(b"fn f() {}"))],
+        &[("CARGO_PKG_VERSION".into(), Some("0.1.0".into()))],
+    );
+    assert_eq!(full.to_hex(), PINNED_FULL_KEY);
+}
+
+const PINNED_PRE_KEY: &str = "pending";
+const PINNED_FULL_KEY: &str = "pending";
+
+#[test]
+fn two_worktrees_of_one_compile_share_a_pre_key() {
+    let (a, roots_a) = compile("/w/a", &[]);
+    let (b, roots_b) = compile("/w/second-worktree", &[]);
+    assert_eq!(key_of(&a, &roots_a, b"rmeta"), key_of(&b, &roots_b, b"rmeta"));
+}
+
+#[test]
+fn every_input_moves_the_pre_key() {
+    let (base, roots) = compile("/w/a", &[]);
+    let reference = key_of(&base, &roots, b"rmeta");
+    assert_ne!(key_of(&base, &roots, b"other rmeta"), reference, "extern content");
+    let (flagged, roots_f) = compile("/w/a", &["-C", "opt-level=3"]);
+    assert_ne!(key_of(&flagged, &roots_f, b"rmeta"), reference, "a flag");
+
+    let with = |change: &dyn Fn(&mut PreKeyInputs<'_>)| {
+        let mut inputs = PreKeyInputs {
+            invocation: &base,
+            roots: &roots,
+            rustc_version: "rustc 1.99.0",
+            env: &[("SDKROOT".into(), None)],
+            externs: &[Some(Digest::of_bytes(b"rmeta"))],
+            search_paths: &[vec![("libnative.a".into(), Digest::of_bytes(b"archive"))]],
+            linker: None,
+        };
+        change(&mut inputs);
+        pre_key(&inputs)
+    };
+    assert_eq!(with(&|_| {}), reference);
+    assert_ne!(with(&|i| i.rustc_version = "rustc 1.100.0"), reference, "compiler");
+    let set = [("SDKROOT".to_owned(), Some("/sdk".to_owned()))];
+    assert_ne!(with(&|i| i.env = &set), reference, "env");
+    assert_ne!(with(&|i| i.externs = &[None]), reference, "missing extern");
+    let native = [vec![("libnative.a".to_owned(), Digest::of_bytes(b"changed"))]];
+    assert_ne!(with(&|i| i.search_paths = &native), reference, "native lib");
+    assert_ne!(with(&|i| i.search_paths = &[]), reference, "no search listing");
+    assert_ne!(with(&|i| i.linker = Some("cc 1")), reference, "linker");
+}
+
+#[test]
+fn every_input_moves_the_full_key() {
+    let pre = Digest::of_bytes(b"pre");
+    let inputs = [("src/lib.rs".to_owned(), Digest::of_bytes(b"a"))];
+    let env = [("V".to_owned(), Some("1".to_owned()))];
+    let reference = full_key(&pre, &inputs, &env);
+    assert_ne!(full_key(&Digest::of_bytes(b"x"), &inputs, &env), reference);
+    assert_ne!(
+        full_key(&pre, &[("src/lib.rs".to_owned(), Digest::of_bytes(b"b"))], &env),
+        reference
+    );
+    assert_ne!(full_key(&pre, &inputs, &[("V".to_owned(), None)]), reference);
+    assert_ne!(full_key(&pre, &[], &env), reference);
+}
