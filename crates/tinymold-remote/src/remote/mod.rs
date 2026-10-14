@@ -254,7 +254,7 @@ fn action_result(
     let references = tinymold_wrap::action_references(path).ok()?;
     let record = naming::blob(&text);
     let mut files = vec![output(ACTION_FILE, record.clone())];
-    blobs.insert(record, Source::Bytes(text));
+    let mut needed = vec![(record, Source::Bytes(text))];
     let mut seen = HashSet::new();
     for object in references {
         if !seen.insert(object) {
@@ -263,7 +263,11 @@ fn action_result(
         let bytes = store.read(&object).ok()?;
         let digest = naming::blob(&bytes);
         files.push(output(&object.to_hex(), digest.clone()));
-        blobs.entry(digest).or_insert(Source::Object(object));
+        needed.push((digest, Source::Object(object)));
+    }
+    // Only a complete action's blobs are uploaded.
+    for (digest, source) in needed {
+        blobs.entry(digest).or_insert(source);
     }
     Some(ActionResult {
         output_files: files,
