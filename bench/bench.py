@@ -713,7 +713,15 @@ def tinymold_binary() -> Path:
     if os.environ.get("TINYMOLD_BENCH_BIN"):
         return Path(os.environ["TINYMOLD_BENCH_BIN"]).resolve()
     run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=ROOT, env=STOCK_ENV)
-    return ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+    built = ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+    # A long run must not pick up a rebuild of target/ halfway through, so it
+    # runs a copy named by content.
+    data = built.read_bytes()
+    copy = WORK / "bin" / f"tinymold-{hashlib.sha256(data).hexdigest()[:12]}{built.suffix}"
+    if not copy.exists():
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(built, copy)
+    return copy
 
 
 class Session:
