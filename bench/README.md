@@ -124,6 +124,84 @@ Each cell: median wall time, then median link time, then units compiled (cargo's
 | Clean build | 199 MiB | 61 MiB | 0 MiB | 155 MiB | 46 MiB | 82 MiB | 9 MiB | 552 MiB |
 | cargo test --no-run | 220 MiB | 69 MiB | 0 MiB | 183 MiB | 91 MiB | 225 MiB | 9 MiB | 797 MiB |
 
+### A/B: baseline vs `cgu-128` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+
+`cgu-128`: `profile.dev.codegen-units=128`. Each edit is built by both sides back to back, in alternating order, each in its own target directory. Cells: median wall time (min–max).
+
+| Project | Edit | baseline | cgu-128 | change |
+| --- | --- | ---: | ---: | ---: |
+| ripgrep 14.1.1 | Comment edit | 0.639s (0.63–1.05) | 0.529s (0.47–0.54) | -17% |
+| ripgrep 14.1.1 | Private function body edit | 0.674s (0.65–1.09) | 0.625s (0.56–3.71) | -7% |
+| ripgrep 14.1.1 | Public signature edit | 0.869s (0.81–4.55) | 1.058s (0.57–3.93) | +22% |
+| bat v0.24.0 | Comment edit | 1.015s (0.93–1.09) | 0.767s (0.72–0.85) | -24% |
+| bat v0.24.0 | Private function body edit | 1.013s (0.95–1.10) | 0.802s (0.78–0.83) | -21% |
+| bat v0.24.0 | Public signature edit | 1.057s (1.02–1.13) | 0.850s (0.82–0.88) | -20% |
+
+### A/B: baseline vs `cgu-32` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+
+`cgu-32`: `profile.dev.codegen-units=32`. Each edit is built by both sides back to back, in alternating order, each in its own target directory. Cells: median wall time (min–max).
+
+| Project | Edit | baseline | cgu-32 | change |
+| --- | --- | ---: | ---: | ---: |
+| ripgrep 14.1.1 | Comment edit | 0.579s (0.56–0.72) | 0.451s (0.42–1.21) | -22% |
+| ripgrep 14.1.1 | Private function body edit | 0.620s (0.59–1.02) | 0.711s (0.68–0.81) | +15% |
+| ripgrep 14.1.1 | Public signature edit | 0.712s (0.69–0.76) | 0.487s (0.47–0.59) | -32% |
+| bat v0.24.0 | Comment edit | 0.878s (0.84–1.00) | 0.607s (0.59–0.65) | -31% |
+| bat v0.24.0 | Private function body edit | 0.903s (0.86–0.95) | 0.663s (0.64–0.70) | -27% |
+| bat v0.24.0 | Public signature edit | 0.941s (0.91–1.02) | 0.678s (0.67–0.71) | -28% |
+
+### A/B: baseline vs `cgu-64` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+
+`cgu-64`: `profile.dev.codegen-units=64`. Each edit is built by both sides back to back, in alternating order, each in its own target directory. Cells: median wall time (min–max).
+
+| Project | Edit | baseline | cgu-64 | change |
+| --- | --- | ---: | ---: | ---: |
+| ripgrep 14.1.1 | Comment edit | 0.598s (0.57–0.64) | 0.512s (0.44–0.69) | -14% |
+| ripgrep 14.1.1 | Private function body edit | 0.641s (0.61–0.66) | 0.558s (0.51–0.58) | -13% |
+| ripgrep 14.1.1 | Public signature edit | 0.640s (0.61–0.69) | 0.507s (0.49–0.56) | -21% |
+| bat v0.24.0 | Comment edit | 0.807s (0.77–1.07) | 0.680s (0.64–1.35) | -16% |
+| bat v0.24.0 | Private function body edit | 0.830s (0.82–0.86) | 0.688s (0.67–0.81) | -17% |
+| bat v0.24.0 | Public signature edit | 0.862s (0.85–1.07) | 0.736s (0.68–0.81) | -15% |
+| tinymold 3574dd6 | Comment edit | 0.166s (0.16–0.18) | 0.172s (0.17–0.18) | +4% |
+| tinymold 3574dd6 | Private function body edit | 0.327s (0.31–0.35) | 0.282s (0.27–0.30) | -14% |
+| tinymold 3574dd6 | Public signature edit | 0.631s (0.57–0.78) | 0.548s (0.47–0.64) | -13% |
+
+### Edit-loop experiments (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
+
+Each variant is layered on the baseline. Cells: median wall time, the change against the reference (the stable baseline, or `baseline+nightly` for nightly variants), and median link time.
+
+| Variant | Settings |
+| --- | --- |
+| cgu-32 | `profile.dev.codegen-units=32` |
+| cgu-64 | `profile.dev.codegen-units=64` |
+
+#### ripgrep 14.1.1
+
+| Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cranelift | baseline+cgu-32 | baseline+cgu-64 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| No-op rebuild | 0.06s · link 0.00s | 0.07s (+8%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.06s (-1%) · link 0.00s | 0.07s (+5%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+7%) · link 0.00s | – | – |
+| Comment edit | 0.66s · link 0.06s | 0.61s (-8%) · link 0.06s | 0.56s (-15%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.45s (-32%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.61s (-8%) · link 0.06s | 0.64s (-3%) · link 0.06s | 0.48s (-28%) · link 0.06s | 0.56s (-16%) · link 0.06s |
+| Private function body edit | 0.73s · link 0.06s | 0.62s (-14%) · link 0.06s | 0.60s (-18%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.88s (+20%) · link 0.05s | 0.64s (-12%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.64s (-12%) · link 0.06s | 0.80s (+10%) · link 0.06s | 0.57s (-22%) · link 0.06s |
+| Public signature edit | 0.96s · link 0.06s | 0.63s (-35%) · link 0.06s | 0.66s (-31%) · link 0.06s | 0.69s (-29%) · link 0.06s | 0.47s (-51%) · link 0.05s | 0.70s (-27%) · link 0.06s | 0.74s (-23%) · link 0.06s | 0.76s (-21%) · link 0.06s | 0.58s (-39%) · link 0.06s | 0.66s (-31%) · link 0.06s |
+
+#### bat v0.24.0
+
+| Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cgu-32 | baseline+cgu-64 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| No-op rebuild | 0.10s · link 0.00s | 0.10s (+4%) · link 0.00s | 0.10s (+5%) · link 0.00s | 0.11s (+11%) · link 0.00s | 0.09s (-5%) · link 0.00s | 0.10s (+0%) · link 0.00s | 0.11s (+14%) · link 0.00s | – | – |
+| Comment edit | 1.18s · link 0.07s | 1.04s (-11%) · link 0.07s | 1.06s (-10%) · link 0.07s | 1.23s (+4%) · link 0.08s | 0.72s (-39%) · link 0.07s | 0.97s (-18%) · link 0.07s | 1.06s (-10%) · link 0.08s | 1.09s (-8%) · link 0.08s | 1.02s (-13%) · link 0.09s |
+| Private function body edit | 1.28s · link 0.08s | 1.08s (-16%) · link 0.07s | 1.11s (-13%) · link 0.07s | 1.06s (-17%) · link 0.07s | 0.79s (-39%) · link 0.07s | 1.03s (-20%) · link 0.07s | 1.06s (-17%) · link 0.07s | 1.18s (-8%) · link 0.09s | 1.01s (-21%) · link 0.09s |
+| Public signature edit | 1.28s · link 0.08s | 1.09s (-15%) · link 0.07s | 1.14s (-11%) · link 0.07s | 0.98s (-23%) · link 0.07s | 0.81s (-37%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.09s (-15%) · link 0.08s | 1.02s (-20%) · link 0.08s |
+
+#### tinymold c79a959
+
+| Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cranelift | baseline+cgu-32 | baseline+cgu-64 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| No-op rebuild | 0.06s · link 0.00s | 0.06s (+2%) · link 0.00s | 0.06s (+3%) · link 0.00s | 0.07s (+15%) · link 0.00s | 0.06s (-2%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+6%) · link 0.00s | 0.07s (+5%) · link 0.00s | – | – |
+| Comment edit | 0.18s · link 0.05s | 0.17s (-6%) · link 0.04s | 0.17s (-2%) · link 0.04s | 0.20s (+12%) · link 0.04s | 0.16s (-8%) · link 0.04s | 0.18s (+2%) · link 0.04s | 0.20s (+11%) · link 0.04s | 0.19s (+10%) · link 0.04s | 0.18s (+4%) · link 0.05s | 0.18s (+2%) · link 0.04s |
+| Private function body edit | 0.36s · link 0.04s | 0.37s (+2%) · link 0.05s | 0.36s (-1%) · link 0.04s | 0.39s (+8%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.42s (+15%) · link 0.04s | 0.40s (+11%) · link 0.04s | 0.39s (+8%) · link 0.05s | 0.30s (-16%) · link 0.04s |
+| Public signature edit | 0.63s · link 0.05s | 0.61s (-3%) · link 0.04s | 0.65s (+3%) · link 0.04s | 0.66s (+5%) · link 0.04s | 0.44s (-29%) · link 0.04s | 0.72s (+15%) · link 0.04s | 0.80s (+27%) · link 0.04s | 0.81s (+29%) · link 0.04s | 0.50s (-20%) · link 0.05s | 0.55s (-12%) · link 0.05s |
+
 ### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
 What every tinymold phase is measured against. Times are wall clock; loops report the median.

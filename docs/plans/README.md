@@ -24,5 +24,6 @@ into the plan.
 | Plan | Covers |
 |---|---|
 | [`roadmap.md`](roadmap.md) | Phased delivery plan, Phase 0 (foundations) to Phase 7 (research bets). Each phase gets its own spec and plan before implementation |
+| [`edit-loop.md`](edit-loop.md) | Phase 5: where an edit's time goes, the edit-loop experiments, and the `codegen-units = 64` recommendation |
 | [`rustc-wrapper.md`](rustc-wrapper.md) | Phase 3: the unit cache behind `RUSTC_WRAPPER=tinymold`, its order of implementation, and measured results |
 | [`freshness.md`](freshness.md) | Phase 2: the spike, the implementation order, and the measured results for content freshness and target snapshots |
