@@ -365,10 +365,12 @@ impl Unit<'_> {
                 .map(|batch| scope.spawn(|| self.place_outputs(batch, &kept)))
                 .collect();
             for handle in handles {
-                match handle.join() {
-                    Ok(batch) => now_placed.extend(batch?),
-                    Err(_) => return Err(Error::Panicked),
-                }
+                // A panicking worker is a bug; it surfaces as it would have
+                // without the thread.
+                let batch = handle
+                    .join()
+                    .unwrap_or_else(|payload| std::panic::resume_unwind(payload));
+                now_placed.extend(batch?);
             }
             Ok(())
         })?;
@@ -546,11 +548,17 @@ impl Unit<'_> {
             Ok(())
         })?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
-        let placed = found
+        let identities: HashMap<&str, Identity> = found
             .iter()
-            .zip(&outputs)
-            .filter(|(_, output)| !output.text)
-            .map(|((name, _, meta), output)| (name.clone(), stat::identity_of(meta), output.digest))
+            .map(|(name, _, meta)| (name.as_str(), stat::identity_of(meta)))
+            .collect();
+        let placed = outputs
+            .iter()
+            .filter(|output| !output.text)
+            .filter_map(|output| {
+                let identity = identities.get(output.name.as_str())?;
+                Some((output.name.clone(), *identity, output.digest))
+            })
             .collect();
         Ok((outputs, placed))
     }
