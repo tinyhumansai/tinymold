@@ -48,7 +48,7 @@ Non-goals:
 
 ```yaml
 steps:
-  - uses: actions/checkout@v5
+  - uses: actions/checkout@v7
   - uses: dtolnay/rust-toolchain@stable
   - uses: tinyhumansai/tinymold@v0
   - run: cargo test --all-features
