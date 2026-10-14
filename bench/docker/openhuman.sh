@@ -60,6 +60,7 @@ PERL
 chmod +x "$TRACER"
 
 now() { date +%s.%N; }
+since() { awk -v a="$1" -v b="$(now)" 'BEGIN {printf "%.4f", b - a}'; }
 
 # build <config> <case> <run> <dir>
 build() {
@@ -75,7 +76,7 @@ build() {
     esac
     rm -f "$links" "$cachelog"
     rm -rf "$target/cargo-timings"
-    local start end
+    local start wall
     start=$(now)
     if ! (cd "$dir" && env "${env[@]}" cargo build --locked -v --timings -j "$JOBS" \
             --config "target.$TRIPLE.linker=\"$TRACER\"" --target-dir "$target" "${PACKAGE[@]}") \
@@ -84,7 +85,7 @@ build() {
         echo "build failed: $config $case $run" >&2
         exit 1
     fi
-    end=$(now)
+    wall=$(since "$start")
     cp "$(ls -t "$target"/cargo-timings/cargo-timing-*.html | head -1)" \
         "$OUT/timings/$config-$case-$run.html"
     local log="$OUT/logs/cargo-$config-$case-$run.log"
@@ -101,8 +102,8 @@ build() {
         hits=$(grep -c '^hit ' "$cachelog" || true)
         misses=$(grep -c '^miss ' "$cachelog" || true)
     fi
-    printf '{"config":"%s","case":"%s","run":%d,"wall":%.4f,"compiled":%d,"fresh":%d,"links":%d,"link":%s,"hits":%d,"misses":%d%s}\n' \
-        "$config" "$case" "$run" "$(echo "$end - $start" | bc)" "$compiled" "$fresh" \
+    printf '{"config":"%s","case":"%s","run":%d,"wall":%s,"compiled":%d,"fresh":%d,"links":%d,"link":%s,"hits":%d,"misses":%d%s}\n' \
+        "$config" "$case" "$run" "$wall" "$compiled" "$fresh" \
         "$link_n" "$link_s" "$hits" "$misses" "${EXTRA:-}" | tee -a "$OUT/results.jsonl"
 }
 
@@ -158,7 +159,7 @@ for config in $CONFIGS; do
         start=$(now)
         tinymold --store "$STORE" snapshot restore openhuman --workspace "$SECOND" \
             --target-dir "$SECOND/target/$config" > /dev/null
-        restore_s=$(echo "$(now) - $start" | bc)
+        restore_s=$(since "$start")
         EXTRA=",\"restore\":$restore_s" build "$config" snapshot "$run" "$SECOND"
     done
 done
