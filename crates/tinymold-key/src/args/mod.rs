@@ -80,6 +80,25 @@ impl Invocation {
                     .any(|kind| linked.contains(&kind.as_str())))
     }
 
+    /// Whether the compile is instrumented for coverage
+    /// (`-C instrument-coverage`, or `-Z instrument-coverage` on older
+    /// nightlies), unless it is explicitly turned off.
+    #[must_use]
+    pub fn instruments_coverage(&self) -> bool {
+        self.key_args.iter().any(|arg| {
+            let KeyArg::Text(text) = arg else {
+                return false;
+            };
+            let Some(setting) = text
+                .strip_prefix("-C instrument-coverage")
+                .or_else(|| text.strip_prefix("-Z instrument-coverage"))
+            else {
+                return false;
+            };
+            !matches!(setting, "=no" | "=n" | "=off" | "=false")
+        })
+    }
+
     /// The name prefixes every output of this invocation starts with:
     /// `<crate><extra>` and `lib<crate><extra>`. Cargo makes `extra` unique
     /// per unit, so a file in the out-dir with one of these prefixes belongs
