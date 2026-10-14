@@ -2,8 +2,8 @@
 name = "tinymold-link-elf"
 version.workspace = true
 edition.workspace = true
-# mold needs a newer compiler than the rest of the workspace (let chains and
-# other 1.95 features), and keeps its own MIT license; see FORK.md.
+# mold requires Rust 1.95, newer than the rest of the workspace, and keeps
+# its own MIT license; see crates/tinymold-link/FORK.md.
 rust-version = "1.95"
 license = "MIT"
 repository.workspace = true

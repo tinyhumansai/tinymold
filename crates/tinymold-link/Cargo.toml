@@ -1,19 +1,24 @@
 [package]
-name = "mold"
+name = "tinymold-link"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
-description = "A high-performance ELF linker, rewritten in Rust"
-license.workspace = true
+# mold requires Rust 1.95, newer than the rest of the workspace, and keeps
+# its own MIT license; see FORK.md.
+rust-version = "1.95"
+license = "MIT"
 repository.workspace = true
-readme = "../README.md"
-keywords = ["linker", "elf"]
+description = "A linker for Rust dev loops, forked from mold, that keeps state between links"
+readme = "README.md"
+keywords = ["linker", "elf", "mach-o"]
 categories = ["command-line-utilities", "development-tools::build-utils"]
 
 [[bin]]
-name = "mold"
+name = "tinymold-link"
 path = "main.rs"
 
+# mold's shell test suite, run against this binary. It drives real
+# compilers and binutils, and takes minutes, so it runs only when
+# TINYMOLD_LINK_SHELL_TESTS is set (see integration.rs).
 [[test]]
 name = "integration"
 path = "integration.rs"
@@ -23,60 +28,22 @@ harness = false
 mimalloc = { package = "mold-mimalloc", version = "0.1.52" }
 mold-elf.workspace = true
 mold-elf-x86_64 = { workspace = true, optional = true }
-mold-elf-i386 = { workspace = true, optional = true }
-mold-elf-arm32 = { workspace = true, optional = true }
-mold-elf-arm32be = { workspace = true, optional = true }
 mold-elf-arm64 = { workspace = true, optional = true }
-mold-elf-arm64be = { workspace = true, optional = true }
-mold-elf-riscv64 = { workspace = true, optional = true }
-mold-elf-riscv64be = { workspace = true, optional = true }
-mold-elf-riscv32 = { workspace = true, optional = true }
-mold-elf-riscv32be = { workspace = true, optional = true }
-mold-elf-ppc64v2 = { workspace = true, optional = true }
-mold-elf-ppc32 = { workspace = true, optional = true }
-mold-elf-ppc64v1 = { workspace = true, optional = true }
-mold-elf-s390x = { workspace = true, optional = true }
-mold-elf-sparc64 = { workspace = true, optional = true }
-mold-elf-m68k = { workspace = true, optional = true }
-mold-elf-sh4 = { workspace = true, optional = true }
-mold-elf-sh4be = { workspace = true, optional = true }
-mold-elf-loongarch64 = { workspace = true, optional = true }
-mold-elf-loongarch32 = { workspace = true, optional = true }
 mold-macho.workspace = true
 mold-macho-arm64 = { workspace = true, optional = true }
 mold-macho-x86_64 = { workspace = true, optional = true }
 
 [dev-dependencies]
-mold-tests = { path = "../tests" }
+mold-tests = { package = "tinymold-link-tests", path = "../tinymold-link-tests" }
 
-# One feature per target. All are built by default; a build for one
-# target alone (`--no-default-features --features x86_64`) is much faster.
+# One feature per target. The fork keeps the two targets Rust developers
+# link for most, ELF and Mach-O on x86_64 and arm64; mold's other eighteen
+# ELF targets stay upstream.
 [features]
-default = [
-    "x86_64", "i386", "arm32", "arm32be", "arm64", "arm64be", "riscv64", "riscv64be", "riscv32", "riscv32be",
-    "ppc64v2", "ppc32", "ppc64v1", "s390x", "sparc64", "m68k", "sh4", "sh4be", "loongarch64", "loongarch32",
-    "macho-arm64", "macho-x86_64",
-]
+default = ["x86_64", "arm64", "macho-arm64", "macho-x86_64"]
+# Use the system allocator instead of mimalloc.
 system-allocator = []
 x86_64 = ["dep:mold-elf-x86_64"]
-i386 = ["dep:mold-elf-i386"]
-arm32 = ["dep:mold-elf-arm32"]
-arm32be = ["dep:mold-elf-arm32be"]
 arm64 = ["dep:mold-elf-arm64"]
-arm64be = ["dep:mold-elf-arm64be"]
-riscv64 = ["dep:mold-elf-riscv64"]
-riscv64be = ["dep:mold-elf-riscv64be"]
-riscv32 = ["dep:mold-elf-riscv32"]
-riscv32be = ["dep:mold-elf-riscv32be"]
-ppc64v2 = ["dep:mold-elf-ppc64v2"]
-ppc32 = ["dep:mold-elf-ppc32"]
-ppc64v1 = ["dep:mold-elf-ppc64v1"]
-s390x = ["dep:mold-elf-s390x"]
-sparc64 = ["dep:mold-elf-sparc64"]
-m68k = ["dep:mold-elf-m68k"]
-sh4 = ["dep:mold-elf-sh4"]
-sh4be = ["dep:mold-elf-sh4be"]
-loongarch64 = ["dep:mold-elf-loongarch64"]
-loongarch32 = ["dep:mold-elf-loongarch32"]
 macho-arm64 = ["dep:mold-macho-arm64"]
 macho-x86_64 = ["dep:mold-macho-x86_64"]
