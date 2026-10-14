@@ -39,8 +39,7 @@ use tinymold_hash::Digest;
 use crate::tree::{io_error, set_modified};
 use crate::{Error, Result};
 
-pub(crate) use types::Manifest;
-use types::{Entry, Manifest as RecordedManifest};
+use types::{Entry, Manifest};
 pub use types::{RecordReport, Restore, RestoreReport};
 
 /// The directory inside a target directory where tinymold keeps its files.
@@ -116,7 +115,7 @@ pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
     }
     entries.sort_by(|a, b| a.path.cmp(&b.path));
 
-    let manifest = RecordedManifest {
+    let manifest = Manifest {
         recorded_ns,
         stamp_ns: stamp(target)?,
         entries,
@@ -171,10 +170,10 @@ pub fn restore(workspace: &Path, target: &Path) -> Result<Restore> {
 }
 
 /// Reads `target`'s manifest, or `None` when it has none.
-pub(crate) fn load(target: &Path) -> Result<Option<RecordedManifest>> {
+pub(crate) fn load(target: &Path) -> Result<Option<Manifest>> {
     let path = manifest_path(target);
     match fs::read_to_string(&path) {
-        Ok(text) => RecordedManifest::decode(&text, &path).map(Some),
+        Ok(text) => Manifest::decode(&text, &path).map(Some),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(Error::Io {
             action: "read",
