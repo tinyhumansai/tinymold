@@ -112,7 +112,7 @@ def prepare_blender(project: dict, home: Path) -> None:
     # make_update.py fetches them; --no-blender leaves the pinned tag alone.
     # The main repository keeps assets (startup.blend, icons) in git-lfs too,
     # and a clone made without a global `git lfs install` leaves pointers.
-    run(["git", "lfs", "install", "--local"], cwd=src)
+    # `git lfs pull` fetches and checks them out without installing hooks.
     run(["git", "lfs", "pull"], cwd=src)
     marker = home / ".libs-fetched"
     if not marker.exists():
