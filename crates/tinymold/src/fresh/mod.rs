@@ -194,14 +194,9 @@ pub(crate) fn apply(
         let same = if meta.len() != entry.size {
             false
         } else if let Some(digests) = verify.as_deref_mut() {
-            let digest = match digests.get(&entry.path) {
-                Some(known) => *known,
-                None => {
-                    let digest = Digest::of_file(&path).ok();
-                    digests.insert(entry.path.clone(), digest);
-                    digest
-                }
-            };
+            let digest = *digests
+                .entry(entry.path.clone())
+                .or_insert_with(|| Digest::of_file(&path).ok());
             digest == Some(entry.digest)
         } else if mtime_ns == entry.mtime_ns {
             true

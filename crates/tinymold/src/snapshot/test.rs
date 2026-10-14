@@ -139,7 +139,10 @@ fn a_snapshot_without_a_manifest_scores_zero() {
     let bare = snapshots_dir(&f.store).join("bare");
     fs::create_dir_all(&bare).unwrap();
     let (a, _) = f.worktree("a", "one");
-    assert_eq!(score(&bare, &a, &mut HashMap::new()).unwrap(), (0, 0));
+    assert_eq!(
+        score(&bare, &a, &mut fresh::Digests::new()).unwrap(),
+        (0, 0)
+    );
     assert_eq!(list(&f.store).unwrap()[0].files, 0);
 }
 
