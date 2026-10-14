@@ -47,6 +47,7 @@ into its own checkout's target/ directory.
 
 Usage:
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
+                                   [--variants V,..]
   python3 bench/bench.py dedup [--project NAME]
   python3 bench/bench.py cache [--runs N] [--project NAME]
   python3 bench/bench.py baseline [--runs N] [--project NAME]
@@ -893,10 +894,10 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
                 run([sccache, "--start-server"], env=session.env, stdout=subprocess.DEVNULL)
             try:
                 for case in cases:
-                    print(f"{project['name']} / {mode} / {case}", file=sys.stderr)
+                    print(f"{project['name']} / {session.label} / {case}", file=sys.stderr)
                     outcome = run_case(session, case, args.runs)
                     results.append({"project": project["name"], "rev": project["rev"],
-                                    "role": project.get("role", ""), "mode": mode,
+                                    "role": project.get("role", ""), "mode": session.label,
                                     "case": case, **outcome})
                     print(f"  wall {outcome['wall']['median_s']}s, "
                           f"link {outcome['link']['median_s']}s, "
@@ -1054,6 +1055,8 @@ def main() -> None:
     scenarios.add_argument("--modes", default="baseline,sccache",
                            help=f"comma-separated, from: {', '.join(MODES)}")
     scenarios.add_argument("--cases", help=f"comma-separated subset of: {', '.join(CASES)}")
+    scenarios.add_argument("--variants", help="edit-loop experiments on top of the baseline, "
+                           f"comma-separated, from: {', '.join(VARIANTS)}")
     dedup = sub.add_parser("dedup", help="byte-identical share of two worktrees' target/")
     dedup.add_argument("--project", help="only this corpus project")
     cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
