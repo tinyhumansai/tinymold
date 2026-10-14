@@ -152,7 +152,9 @@ files' mtimes. Binary outputs are restored as stored.
 - **A hit is only served when every input matches.** Every input file named
   by the recorded dep-info matches by content, and every recorded env-dep
   value matches. Absolute workspace paths never enter the key except through
-  env values, which then make the key path-specific.
+  env values, which then make the key path-specific, and for compiles
+  instrumented with `-C instrument-coverage`, whose coverage mappings embed
+  the workspace path, so their pre-key includes the current directory.
 - **The store is never written in place.** Restored files are private
   reflinks or copies.
 - **Nothing is half-visible.** The ActionResult is written after all of its
