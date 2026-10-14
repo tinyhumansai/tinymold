@@ -1,11 +1,13 @@
 [package]
-name = "mold-elf-arm64"
+name = "tinymold-link-elf-arm64"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
-description = "An internal crate of the mold linker, which instantiates its ELF linker for arm64"
-license.workspace = true
+# mold needs a newer compiler than the rest of the workspace (let chains and
+# other 1.95 features), and keeps its own MIT license; see FORK.md.
+rust-version = "1.95"
+license = "MIT"
 repository.workspace = true
+description = "tinymold-link's ELF linker instantiated for arm64"
 
 [lib]
 path = "lib.rs"
