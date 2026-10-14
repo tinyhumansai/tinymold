@@ -121,3 +121,21 @@ fn a_private_copy_never_shares_the_source_inode() {
     fs::write(&destination, b"rewritten").unwrap();
     assert_eq!(fs::read(&source).unwrap(), b"artifact");
 }
+
+#[test]
+fn restores_owner_write_access_to_a_read_only_file() {
+    // Exercised directly because the reflink path that calls it only runs on
+    // filesystems that clone (APFS, btrfs, XFS), not on ext4 or tmpfs.
+    let dir = tempfile::tempdir().unwrap();
+    let file = source_file(dir.path());
+    assert!(fs::metadata(&file).unwrap().permissions().readonly());
+
+    make_owner_writable(&file).unwrap();
+    assert!(!fs::metadata(&file).unwrap().permissions().readonly());
+}
+
+#[test]
+fn making_a_missing_file_writable_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(make_owner_writable(&dir.path().join("missing")).is_err());
+}
