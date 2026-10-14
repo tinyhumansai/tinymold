@@ -183,8 +183,9 @@ and 4.6 s on bat today.
 
 **Status.** First experiments done. See [`edit-loop.md`](edit-loop.md).
 
-- Debug-info levels, `-Zthreads` and Cranelift do not speed up incremental
-  edits: code generation is about a fifth of one.
+- Debug-info levels, `-Zthreads` and Cranelift showed no consistent gain in
+  sequential runs, which are too noisy to rule a gain out; none was A/B
+  tested. Code generation is about a fifth of an edit.
 - `codegen-units = 64` makes every edit kind 13-21% faster on ripgrep and bat
   in interleaved A/B runs, and is recommended.
 - Early cutoff, prelinking and hot patching come next.

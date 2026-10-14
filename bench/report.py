@@ -209,7 +209,7 @@ def experiments_section(result: dict) -> list[str]:
         parts += [f"RUSTFLAGS {' '.join(settings['rustflags'])}"] if settings.get("rustflags") else []
         parts += [f"toolchain {settings['toolchain']}"] if settings.get("toolchain") else []
         lines.append(f"| {name} | " + "; ".join(f"`{part}`" for part in parts) + " |")
-    lines.append("")
+    lines += [""] + toolchain_lines(result)
     for project in dict.fromkeys(r["project"] for r in rows):
         mine = [r for r in rows if r["project"] == project]
         modes = list(dict.fromkeys(r["mode"] for r in mine))
@@ -226,8 +226,14 @@ def experiments_section(result: dict) -> list[str]:
                     cells.append("–")
                     continue
                 name = mode.partition("+")[2]
-                nightly = variants.get(name, {}).get("toolchain") == "nightly" and name != "nightly"
-                reference = found.get("baseline+nightly" if nightly else "baseline")
+                if name and name not in variants:
+                    # Without its settings there is no telling which
+                    # toolchain this column ran on, so no reference either.
+                    reference = None
+                else:
+                    settings = variants.get(name, {})
+                    nightly = settings.get("toolchain") == "nightly" and name != "nightly"
+                    reference = found.get("baseline+nightly" if nightly else "baseline")
                 cell = f"{r['wall']['median_s']:.2f}s"
                 if reference is not None and reference is not r:
                     change = r["wall"]["median_s"] / reference["wall"]["median_s"] - 1
@@ -238,6 +244,13 @@ def experiments_section(result: dict) -> list[str]:
     return lines
 
 
+def toolchain_lines(result: dict) -> list[str]:
+    """The exact compilers behind non-default toolchains, when recorded."""
+    found = result.get("toolchains") or {}
+    return [f"Toolchain `{name}`: {version}." for name, version in found.items()] + \
+        ([""] if found else [])
+
+
 def ab_section(result: dict) -> list[str]:
     """Interleaved A/B: the baseline against one variant, per edit kind."""
     variant = result["variant"]
@@ -245,17 +258,21 @@ def ab_section(result: dict) -> list[str]:
     parts = list(settings.get("config", []))
     parts += [f"RUSTFLAGS {' '.join(settings['rustflags'])}"] if settings.get("rustflags") else []
     parts += [f"toolchain {settings['toolchain']}"] if settings.get("toolchain") else []
-    lines = [f"### A/B: baseline vs `{variant}` ({describe(result)})", "",
+    # Nightly-only variants run against the `nightly` variant, not stable.
+    reference = result.get("reference")
+    base_label = f"baseline+{reference}" if reference else "baseline"
+    lines = [f"### A/B: {base_label} vs `{variant}` ({describe(result)})", "",
              f"`{variant}`: " + "; ".join(f"`{part}`" for part in parts) + ". Each edit is "
              "built by both sides back to back, in alternating order, each in its own "
              "target directory. Cells: median wall time (min–max).", "",
-             "| Project | Edit | baseline | " + variant + " | change |",
+             *toolchain_lines(result),
+             f"| Project | Edit | {base_label} | {variant} | change |",
              "| --- | --- | ---: | ---: | ---: |"]
     rows = result["results"]
     for project in dict.fromkeys(r["project"] for r in rows):
         for case in dict.fromkeys(r["case"] for r in rows if r["project"] == project):
             pair = {r["mode"]: r for r in rows if r["project"] == project and r["case"] == case}
-            base, other = pair["baseline"], pair[f"baseline+{variant}"]
+            base, other = pair[base_label], pair[f"baseline+{variant}"]
             cell = lambda r: (f"{r['wall']['median_s']:.3f}s "
                               f"({r['wall']['min_s']:.2f}–{r['wall']['max_s']:.2f})")
             change = other["wall"]["median_s"] / base["wall"]["median_s"] - 1
