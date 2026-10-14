@@ -108,9 +108,10 @@ impl FromStr for Digest {
         }
 
         let mut bytes = [0_u8; Self::LEN];
-        for (byte, pair) in bytes.iter_mut().zip(text.as_bytes().chunks_exact(2)) {
-            let high = hex_value(pair[0]).ok_or_else(invalid)?;
-            let low = hex_value(pair[1]).ok_or_else(invalid)?;
+        let (pairs, _) = text.as_bytes().as_chunks::<2>();
+        for (byte, &[high, low]) in bytes.iter_mut().zip(pairs) {
+            let high = hex_value(high).ok_or_else(invalid)?;
+            let low = hex_value(low).ok_or_else(invalid)?;
             *byte = (high << 4) | low;
         }
         Ok(Self(bytes))
