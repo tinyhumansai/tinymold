@@ -1,0 +1,8 @@
+# The image needs the workspace sources and the benchmark script, not the
+# corpus checkouts, build output, or worktrees under them.
+target/
+worktrees/
+bench/.work/
+bench/results/
+**/__pycache__/
+.git/
