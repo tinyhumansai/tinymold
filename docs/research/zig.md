@@ -8,9 +8,8 @@ data-oriented design, `--watch`) is covered in
 [compilers-2026 §6](compilers-2026.md#6-bun-and-its-zig-fork); this report
 does not repeat them.
 
-Zig is worth a third look because it solves tinymold's problem in a small,
-readable codebase: a content-checked cache shared by many concurrent
-processes, with no daemon, no database and no GC. Most of what follows was
+Zig solves tinymold's problem in a small, readable codebase: a cache shared
+by many concurrent processes, with no daemon, no database and no GC. Most of what follows was
 read in the source at Codeberg master
 [`ea7667f`](https://codeberg.org/ziglang/zig/src/commit/ea7667f5a5b44d548c398b2f40ffa239b1a1fb6d)
 (14 October 2026) and in the release notes for 0.14.0 to 0.17.0. Source
@@ -314,8 +313,7 @@ Zig's numbers show the ceiling: once patched in place, linking costs ~3 ms.
 
 ## 7. What tinymold already does the same way
 
-These are convergent designs, not borrowed ones; Zig is a second witness that
-they are right.
+Convergent designs, not borrowed ones; Zig is a second witness.
 
 | Zig | tinymold |
 |---|---|
@@ -488,15 +486,9 @@ the cases are driven from `build.zig` and `test/tests.zig`.)
 
 ## 11. Sources
 
-Source code at Codeberg commit `ea7667f5a5b44d548c398b2f40ffa239b1a1fb6d`
-(prefix
-`https://codeberg.org/ziglang/zig/src/commit/ea7667f5a5b44d548c398b2f40ffa239b1a1fb6d/`):
-`lib/std/Build/Cache.zig`, `lib/std/Build/Step.zig`, `lib/std/zig.zig`,
-`lib/std/zig/Server.zig`, `lib/compiler/Maker.zig`,
-`lib/compiler/Maker/Fetch.zig`, `lib/compiler/Maker/Step/Run.zig`,
-`lib/compiler/Maker/Watch.zig`, `src/Compilation.zig`,
-`src/Compilation/Config.zig`, `src/InternPool.zig`, `src/link/MappedFile.zig`,
-`src/libs/glibc.zig`, `test/incremental/`.
+Source code: the Codeberg commit
+[`ea7667f`](https://codeberg.org/ziglang/zig/src/commit/ea7667f5a5b44d548c398b2f40ffa239b1a1fb6d),
+files as linked inline.
 
 Release notes:
 [0.14.0](https://ziglang.org/download/0.14.0/release-notes.html),
