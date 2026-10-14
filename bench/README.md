@@ -209,9 +209,10 @@ A comment edit appends a comment. A private body edit inserts
 recompiles but its interface doesn't change. A public signature edit adds a
 `pub fn` to a library that other crates depend on, so every dependent rebuilds.
 
-Phase 1 of the [roadmap](../docs/plans/roadmap.md) may still add a `-sys`-heavy workspace, and tinymold itself. Add a
-project by appending to `corpus.json` with a tag or commit, the package and
-binary to build, and a file whose edit forces a relink.
+Phase 1 of the [roadmap](../docs/plans/roadmap.md) may still add a
+`-sys`-heavy workspace. Add a project by appending to `corpus.json` with a tag
+or commit, the package and what to build (`bin`, `example`, or a library with
+optional `features`), and an `edits` entry for each edit kind.
 
 ## Methodology
 
