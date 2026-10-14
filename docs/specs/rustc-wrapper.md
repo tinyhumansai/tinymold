@@ -102,8 +102,8 @@ earlier compile with this pre-key (two-phase lookup, as in `cache-key.md`):
 
 **Env values are raw unless proven path-only.** A crate that writes
 `const HOME: &str = env!("CARGO_MANIFEST_DIR")` bakes an absolute path into
-its output. It must miss in another worktree, and it does. But most
-path-valued env-deps are `OUT_DIR`, read to
+its output. It must miss in another worktree, and it does. But the
+common path-valued env-dep is `OUT_DIR`, read to
 `include!(concat!(env!("OUT_DIR"), "/generated.rs"))`: the path decides only
 which file is read, and the file is already keyed by content. Keyed raw, such
 a crate, and every crate built on it, misses in every new worktree. Measured
@@ -124,10 +124,9 @@ constant, and also an `include!` under a root tinymold does not remap.
 
 **What the scan cannot see.** A value transformed before it reaches the
 output, such as only its length or a hash of it, passes the scan. That is the
-accepted residual risk of this rule. In practice
-`CARGO_MANIFEST_DIR` read for a workspace crate stays raw, because its
-source paths under `${CWD}` are not remapped and so appear in its
-`.rmeta`.
+accepted residual risk of this rule. A workspace crate that reads
+`CARGO_MANIFEST_DIR` to include a file is expected to stay raw as well: its
+source paths under `${CWD}` are not remapped, so they appear in its `.rmeta`.
 
 **The profile directory is remapped on every miss.** Without it the `include!`
 case fails condition 2: rustc records the included file's absolute path in the
