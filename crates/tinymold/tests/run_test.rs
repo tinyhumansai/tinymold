@@ -136,8 +136,12 @@ fn cargo_test_reruns_exactly_the_binaries_an_edit_reaches() {
     assert_eq!(stdout.matches("test result: ok. 1 passed").count(), 3, "{stdout}");
 
     // Edit alpha's logic: alpha and beta, which links it, run again; gamma
-    // is replayed.
-    write(&root.join("alpha/src/lib.rs"), &alpha_source("2 - 1"));
+    // is replayed. (An edit rustc folds away, such as `2 - 1`, can leave
+    // beta's binary byte-identical, and then beta is rightly replayed too.)
+    write(
+        &root.join("alpha/src/lib.rs"),
+        &alpha_source("\"1\".parse().unwrap()"),
+    );
     let (third, lines) = cargo_test(&root, &store);
     assert!(third.status.success(), "{third:?}");
     assert_eq!(crates(&lines, "test-miss"), set(&["alpha", "beta"]));
