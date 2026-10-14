@@ -86,7 +86,9 @@ fn every_keyed_field_moves_the_key() {
     let reference = Case::new().key();
     let changes: Vec<(&str, fn(&mut Case))> = vec![
         ("binary", |case| case.binary = Digest::of_bytes(b"other")),
-        ("via", |case| case.via = Some("qemu-aarch64 0123".to_owned())),
+        ("via", |case| {
+            case.via = Some("qemu-aarch64 0123".to_owned())
+        }),
         ("args", |case| case.args.push("--exact".to_owned())),
         ("arg order", |case| case.args.reverse()),
         ("host", |case| case.host = "linux x86_64 6.8.0".to_owned()),
@@ -115,21 +117,32 @@ fn every_keyed_field_moves_the_key() {
 fn color_and_ignored_env_vars_leave_the_key_alone() {
     let reference = Case::new().key();
     let changes: Vec<(&str, fn(&mut Case))> = vec![
-        ("--color=", |case| case.args.insert(0, "--color=always".to_owned())),
+        ("--color=", |case| {
+            case.args.insert(0, "--color=always".to_owned())
+        }),
         ("--color value", |case| {
             case.args.extend(strings(&["--color", "never"]));
         }),
         ("env order", |case| case.env.reverse()),
-        ("TERM", |case| case.env.push(("TERM".to_owned(), "xterm".to_owned()))),
-        ("PWD", |case| case.env.push(("PWD".to_owned(), "/w/b".to_owned()))),
+        ("TERM", |case| {
+            case.env.push(("TERM".to_owned(), "xterm".to_owned()))
+        }),
+        ("PWD", |case| {
+            case.env.push(("PWD".to_owned(), "/w/b".to_owned()))
+        }),
         ("SSH_ prefix", |case| {
-            case.env.push(("SSH_AUTH_SOCK".to_owned(), "/tmp/s".to_owned()));
+            case.env
+                .push(("SSH_AUTH_SOCK".to_owned(), "/tmp/s".to_owned()));
         }),
         ("TINYMOLD_ prefix", |case| {
-            case.env.push(("TINYMOLD_LOG".to_owned(), "/tmp/l".to_owned()));
+            case.env
+                .push(("TINYMOLD_LOG".to_owned(), "/tmp/l".to_owned()));
         }),
         ("CARGO_MAKEFLAGS", |case| {
-            case.env.push(("CARGO_MAKEFLAGS".to_owned(), "-j --jobserver-fds=3,4".to_owned()));
+            case.env.push((
+                "CARGO_MAKEFLAGS".to_owned(),
+                "-j --jobserver-fds=3,4".to_owned(),
+            ));
         }),
     ];
     for (name, change) in changes {
@@ -172,7 +185,10 @@ fn a_tree_digest_does_not_depend_on_listing_order() {
     );
     // A renamed file, or a moved digest, is a different tree.
     let renamed = ("c".to_owned(), Digest::of_bytes(b"2"));
-    assert_ne!(tree_digest(&[a.clone(), b.clone()]), tree_digest(&[a.clone(), renamed]));
+    assert_ne!(
+        tree_digest(&[a.clone(), b.clone()]),
+        tree_digest(&[a.clone(), renamed])
+    );
     let swapped = [("a".to_owned(), b.1), ("b".to_owned(), a.1)];
     assert_ne!(tree_digest(&[a, b]), tree_digest(&swapped));
 }

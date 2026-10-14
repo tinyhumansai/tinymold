@@ -58,7 +58,10 @@ pub struct TestKeyInputs<'a> {
     /// The arguments after the binary, in order.
     pub args: &'a [String],
     /// The roots of the run: the working directory (the package root), the
-    /// binary's directory and `CARGO_HOME`, for normalizing paths.
+    /// binary's directory and `CARGO_HOME`, for normalizing paths in
+    /// arguments and env values. The working directory itself is not keyed:
+    /// normalized, it is always `${CWD}`, and its contents are the package
+    /// tree.
     pub roots: &'a Roots,
     /// The host the test runs on: OS, architecture and kernel release.
     pub host: &'a str,
@@ -86,9 +89,10 @@ pub fn test_key(inputs: &TestKeyInputs<'_>) -> Digest {
     for arg in args {
         hasher.field(roots.normalize(arg).as_bytes());
     }
-    hasher.field(roots.expand("${CWD}").as_str().pipe(|cwd| roots.normalize(cwd)).as_bytes());
     hasher.field(inputs.host.as_bytes());
-    hasher.digest(inputs.package_tree).digest(inputs.declared_inputs);
+    hasher
+        .digest(inputs.package_tree)
+        .digest(inputs.declared_inputs);
 
     let mut env: Vec<(&str, String)> = inputs
         .env
@@ -111,7 +115,9 @@ pub fn tree_digest(files: &[(String, Digest)]) -> Digest {
     let mut files: Vec<&(String, Digest)> = files.iter().collect();
     files.sort();
     let mut hasher = Hasher::new();
-    hasher.field(b"tree").field(&(files.len() as u64).to_le_bytes());
+    hasher
+        .field(b"tree")
+        .field(&(files.len() as u64).to_le_bytes());
     for (path, digest) in files {
         hasher.field(path.as_bytes()).digest(digest);
     }
