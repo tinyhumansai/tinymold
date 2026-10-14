@@ -73,7 +73,7 @@ fn the_pre_key_encoding_is_pinned() {
     assert_eq!(full.to_hex(), PINNED_FULL_KEY);
 }
 
-const PINNED_PRE_KEY: &str = "0d7cf5f0dd570a68d8d27b4c0c7e8fb0bf1a5013dc0d4d78d27c8d358f65f96a";
+const PINNED_PRE_KEY: &str = "6fd753f1a3045931f7e770536ce6fe2c590995b86ad724828709c3ed13ebbedb";
 const PINNED_FULL_KEY: &str = "0928ee02526ad8465c56c90f19c168211dee5e0f8467911165ac6c580def0de6";
 
 #[test]
@@ -210,66 +210,4 @@ fn an_instrumented_compile_is_keyed_by_its_workspace_path() {
         key_of(&plain_a, &plain_roots_a, b"dep"),
         key_of(&plain_b, &plain_roots_b, b"dep")
     );
-}
-
-/// Every spelling of a lint-level flag cargo or `RUSTFLAGS` can pass.
-const LINT_FLAGS: &[&str] = &[
-    "-D",
-    "warnings",
-    "-Wunused",
-    "-A",
-    "dead_code",
-    "-Funsafe_code",
-    "--deny=missing_docs",
-    "--warn",
-    "unreachable_pub",
-    "--allow=unused_imports",
-    "--forbid",
-    "unsafe_op_in_unsafe_fn",
-];
-
-fn key_with(extra: &[&str]) -> Digest {
-    let (invocation, roots) = compile("/w/a", extra);
-    key_of(&invocation, &roots, b"rmeta")
-}
-
-#[test]
-fn lint_flags_do_not_change_the_key_of_a_capped_dependency() {
-    let capped = ["--cap-lints", "allow"];
-    let with_lints = [&capped[..], LINT_FLAGS].concat();
-    assert_eq!(key_with(&capped), key_with(&with_lints));
-
-    // Before or after the cap, in either spelling of the cap.
-    let before = [LINT_FLAGS, &["--cap-lints=allow"][..]].concat();
-    assert_eq!(key_with(&["--cap-lints=allow"]), key_with(&before));
-}
-
-#[test]
-fn lint_flags_change_the_key_of_an_uncapped_crate() {
-    assert_ne!(key_with(&[]), key_with(&["-D", "warnings"]));
-    assert_ne!(key_with(&[]), key_with(&["--deny=warnings"]));
-}
-
-#[test]
-fn lint_flags_change_the_key_under_a_cap_other_than_allow() {
-    let capped = ["--cap-lints", "warn"];
-    let with_lints = [&capped[..], &["-D", "warnings"][..]].concat();
-    assert_ne!(key_with(&capped), key_with(&with_lints));
-
-    // A second cap that is not `allow` keeps them in, whichever wins.
-    let both = ["--cap-lints", "allow", "--cap-lints", "warn"];
-    let both_with_lints = [&both[..], &["-D", "warnings"][..]].concat();
-    assert_ne!(key_with(&both), key_with(&both_with_lints));
-}
-
-#[test]
-fn force_warn_changes_the_key_even_when_capped() {
-    let capped = ["--cap-lints", "allow"];
-    let forced = [&capped[..], &["--force-warn", "unused"][..]].concat();
-    assert_ne!(key_with(&capped), key_with(&forced));
-}
-
-#[test]
-fn the_cap_itself_stays_in_the_key() {
-    assert_ne!(key_with(&[]), key_with(&["--cap-lints", "allow"]));
 }

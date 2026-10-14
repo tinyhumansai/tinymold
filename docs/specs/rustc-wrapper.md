@@ -65,18 +65,12 @@ program: a path containing a separator, or a file named `rustc` or
 **The pre-key** is known before rustc runs. It is the BLAKE3 digest of these
 fields, in order, each length-prefixed (`tinymold_hash::Hasher`):
 
-1. **Schema tag:** `tinymold/rustc/v3`.
+1. **Schema tag:** `tinymold/rustc/v1`.
 2. **The compiler:** `rustc -vV` output. It is cached per rustc path, size
    and mtime, so it runs once per toolchain.
 3. **The arguments, normalized in order:**
    - **Dropped, because they say where outputs go rather than what they
      are:** `--out-dir`, `-C incremental=`, and `-L dependency=`.
-   - **Dropped when every `--cap-lints` says `allow`:** lint-level flags,
-     `-A`, `-W`, `-D`, `-F` and their long forms. Cargo caps every non-path
-     dependency this way, and rustc then ignores them, so
-     `RUSTFLAGS="-D warnings"` does not re-key dependencies. `--force-warn`
-     is not capped and stays
-     ([test-cache spec](test-cache.md#flag-scoping)).
    - **Each `--extern name=path` becomes `name=<digest of the file>`.**
      That covers `.rlib`, `.rmeta` and proc-macro dylibs alike, so an
      upstream rebuild that produces identical bytes keeps the dependent's

@@ -24,8 +24,7 @@ use crate::{Invocation, Roots};
 /// The schema tag of every pre-key.
 // v2: actions record every file with the unit's prefix, including artifacts
 // incremental rustc reuses with old mtimes, which v1 entries may lack.
-// v3: lint-level flags leave the key of a compile with `--cap-lints allow`.
-const SCHEMA: &str = "tinymold/rustc/v3";
+const SCHEMA: &str = "tinymold/rustc/v2";
 
 /// Environment variables rustc reads without recording them in dep-info.
 pub const KEY_ENV: &[&str] = &[
@@ -70,9 +69,8 @@ pub fn pre_key(inputs: &PreKeyInputs<'_>) -> Digest {
     let source = invocation.source.to_string_lossy();
     hasher.field(roots.normalize(&source).as_bytes());
 
-    let args = invocation.keyed_args();
-    hasher.field(&(args.len() as u64).to_le_bytes());
-    for arg in args {
+    hasher.field(&(invocation.key_args.len() as u64).to_le_bytes());
+    for arg in &invocation.key_args {
         match arg {
             KeyArg::Text(text) => {
                 hasher.field(b"t").field(roots.normalize(text).as_bytes());

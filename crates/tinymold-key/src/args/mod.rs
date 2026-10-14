@@ -99,31 +99,6 @@ impl Invocation {
             .is_some_and(|setting| !matches!(setting, "=no" | "=n" | "=off" | "=false"))
     }
 
-    /// The arguments the key covers: every key argument, minus lint-level
-    /// flags when rustc ignores them. Under `--cap-lints allow`, which cargo
-    /// passes to every non-path dependency, `-A`, `-W`, `-D` and `-F` change
-    /// neither the outputs nor the diagnostics, so `RUSTFLAGS="-D warnings"`
-    /// must not re-key every dependency. `--force-warn` is not capped and
-    /// stays.
-    pub(crate) fn keyed_args(&self) -> Vec<&KeyArg> {
-        let capped = self.caps_lints_at_allow();
-        self.key_args
-            .iter()
-            .filter(|arg| !(capped && matches!(arg, KeyArg::Text(text) if is_lint_level(text))))
-            .collect()
-    }
-
-    /// Whether lints are capped at `allow`. Every `--cap-lints` must say
-    /// `allow`, so the answer does not depend on which one rustc honours.
-    fn caps_lints_at_allow(&self) -> bool {
-        let mut caps = self.key_args.iter().filter_map(|arg| match arg {
-            KeyArg::Text(text) => text.strip_prefix("--cap-lints="),
-            _ => None,
-        });
-        caps.next()
-            .is_some_and(|first| first == "allow" && caps.all(|cap| cap == "allow"))
-    }
-
     /// The name prefixes every output of this invocation starts with:
     /// `<crate><extra>` and `lib<crate><extra>`. Cargo makes `extra` unique
     /// per unit, so a file in the out-dir with one of these prefixes belongs
@@ -133,23 +108,6 @@ impl Invocation {
         let stem = format!("{}{}", self.crate_name, self.extra_filename);
         [format!("lib{stem}"), stem]
     }
-}
-
-/// Whether a key argument, in its canonical spelling, sets a lint level that
-/// `--cap-lints` caps.
-fn is_lint_level(text: &str) -> bool {
-    [
-        "-A ",
-        "-W ",
-        "-D ",
-        "-F ",
-        "--allow=",
-        "--warn=",
-        "--deny=",
-        "--forbid=",
-    ]
-    .iter()
-    .any(|prefix| text.starts_with(prefix))
 }
 
 #[derive(Default)]

@@ -63,18 +63,6 @@ fn a_compile_misses_then_hits_and_says_so() {
 }
 
 #[test]
-fn a_capped_dependency_hits_across_lint_flags() {
-    let dir = tempfile::tempdir().unwrap();
-    let config = config(dir.path());
-    let capped = compile_args(dir.path(), &["--cap-lints", "allow"]);
-    let denied = compile_args(dir.path(), &["--cap-lints", "allow", "-D", "warnings"]);
-    assert_eq!(run(&config, &rustc(), &capped), 0);
-    assert_eq!(run(&config, &rustc(), &denied), 0);
-    let lines = log_lines(dir.path());
-    assert!(lines[1].starts_with("hit demo "), "{lines:?}");
-}
-
-#[test]
 fn a_failed_compile_reports_rustc_exit_code() {
     let dir = tempfile::tempdir().unwrap();
     let config = config(dir.path());
