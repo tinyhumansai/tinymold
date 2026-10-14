@@ -68,7 +68,20 @@ impl Crate {
         self.serve_with(None, extra)
     }
 
+    fn serve_waiting(&self, wait: Duration, extra: &[&str]) -> Result<Served> {
+        self.serve_full(None, wait, extra)
+    }
+
     fn serve_with(&self, remote: Option<&dyn Remote>, extra: &[&str]) -> Result<Served> {
+        self.serve_full(remote, LOCK_WAIT, extra)
+    }
+
+    fn serve_full(
+        &self,
+        remote: Option<&dyn Remote>,
+        wait: Duration,
+        extra: &[&str],
+    ) -> Result<Served> {
         let args = self.args(extra);
         let text: Vec<String> = args
             .iter()
@@ -83,6 +96,7 @@ impl Crate {
             &rustc(),
             &args,
             &invocation,
+            wait,
             &mut Trace::start(),
         )
     }
@@ -126,7 +140,7 @@ fn a_miss_is_stored_and_the_same_compile_then_hits_with_identical_outputs() {
     assert_eq!(names, ["demo-1.d", "libdemo-1.rlib", "libdemo-1.rmeta"]);
 
     unit.clear_outputs();
-    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
     assert_eq!(unit.outputs(), built);
 }
 
@@ -149,7 +163,7 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
         "pub fn answer() -> u32 { 1 }\n",
     )
     .unwrap();
-    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
     assert_eq!(unit.outputs(), first);
 }
 
@@ -161,7 +175,7 @@ fn a_failed_compile_is_not_stored() {
             assert_ne!(code, 0);
             assert_eq!(stored.unwrap_err(), "rustc failed");
         }
-        Served::Hit | Served::RemoteHit => panic!("a failing compile cannot hit"),
+        Served::Hit { .. } | Served::RemoteHit { .. } => panic!("a failing compile cannot hit"),
     }
 }
 
@@ -255,7 +269,7 @@ fn native_libraries_are_part_of_the_key() {
     fs::write(native.join("libthing.a"), b"one").unwrap();
     let flag = format!("native={}", native.display());
     assert_stored(&unit.serve(&["-L", &flag]).unwrap());
-    assert!(matches!(unit.serve(&["-L", &flag]).unwrap(), Served::Hit));
+    assert!(matches!(unit.serve(&["-L", &flag]).unwrap(), Served::Hit { .. }));
 
     fs::write(native.join("libthing.a"), b"two").unwrap();
     assert_stored(&unit.serve(&["-L", &flag]).unwrap());
@@ -288,6 +302,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &rustc(),
             &args,
             &invocation,
+            wait,
             &mut Trace::start(),
         )
         .unwrap(),
@@ -304,7 +319,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &mut Trace::start()
         )
         .unwrap(),
-        Served::Hit
+        Served::Hit { .. }
     ));
     let binary = unit.out().join("demo-1");
     let meta = fs::metadata(&binary).unwrap();
@@ -343,7 +358,7 @@ fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
     let built: Vec<String> = unit.outputs().into_iter().map(|(name, _)| name).collect();
 
     unit.clear_outputs();
-    assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit));
+    assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit { .. }));
     let restored: Vec<String> = unit.outputs().into_iter().map(|(name, _)| name).collect();
     assert_eq!(restored, built);
 }
@@ -358,7 +373,7 @@ fn a_hit_removes_stale_outputs_of_the_same_unit() {
     )
     .unwrap();
     fs::write(unit.out().join("libdemo-1.rmeta"), b"from another branch").unwrap();
-    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
     assert!(!unit.out().join("demo-1.stale.rcgu.o").exists());
     assert_ne!(
         fs::read(unit.out().join("libdemo-1.rmeta")).unwrap(),
@@ -403,7 +418,7 @@ fn a_hit_records_its_last_use_on_the_action_and_pre_key() {
     }
 
     unit.clear_outputs();
-    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
     for dir in &records {
         for path in files_under(dir) {
             let modified = fs::metadata(&path).unwrap().modified().unwrap();
@@ -501,13 +516,13 @@ fn a_local_miss_is_served_from_the_remote_and_then_hits_locally() {
 
     assert!(matches!(
         second.serve_with(Some(&remote), &[]).unwrap(),
-        Served::RemoteHit
+        Served::RemoteHit { .. }
     ));
     let names: Vec<_> = second.outputs().into_iter().map(|(name, _)| name).collect();
     assert_eq!(names, ["demo-1.d", "libdemo-1.rlib", "libdemo-1.rmeta"]);
 
     second.clear_outputs();
-    assert!(matches!(second.serve(&[]).unwrap(), Served::Hit));
+    assert!(matches!(second.serve(&[]).unwrap(), Served::Hit { .. }));
 }
 
 #[test]
@@ -595,4 +610,110 @@ fn a_remote_input_set_whose_files_differ_here_is_not_used() {
         second.serve_with(Some(&remote), &[]).unwrap(),
         Served::Miss { remote: None, .. }
     ));
+}
+
+/// The one action stored for `unit`: its path and text.
+fn only_action(unit: &Crate) -> (PathBuf, String) {
+    let dir = unit.store.join("entries/demo");
+    let entries: Vec<_> = fs::read_dir(&dir).unwrap().collect();
+    assert_eq!(entries.len(), 1);
+    let path = entries.into_iter().next().unwrap().unwrap().path();
+    let text = fs::read_to_string(&path).unwrap();
+    (path, text)
+}
+
+/// Another build's lock on `key`, as the wrapper takes it.
+fn hold_lock(unit: &Crate, key: &str) -> fs::File {
+    let dir = unit.store.join("locks");
+    fs::create_dir_all(&dir).unwrap();
+    let file = fs::File::create(dir.join(key)).unwrap();
+    file.lock().unwrap();
+    file
+}
+
+#[test]
+fn a_compile_another_build_is_running_is_waited_for_then_restored() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    // Another build is compiling the same unit: its action is not written
+    // yet, and it holds the lock on the full key.
+    let (action, text) = only_action(&unit);
+    fs::remove_file(&action).unwrap();
+    unit.clear_outputs();
+    let key = action.file_name().unwrap().to_str().unwrap().to_owned();
+    let lock = hold_lock(&unit, &key);
+
+    std::thread::scope(|scope| {
+        let waiter = scope.spawn(|| unit.serve(&[]).unwrap());
+        std::thread::sleep(Duration::from_millis(200));
+        fs::write(&action, &text).unwrap();
+        drop(lock);
+        match waiter.join().unwrap() {
+            Served::Hit { waited: Some(_) } => {}
+            other => panic!("expected a hit after waiting, got {other:?}"),
+        }
+    });
+    assert_eq!(unit.outputs().len(), 3);
+}
+
+#[test]
+fn a_compile_whose_twin_stored_nothing_runs_after_the_wait() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let (action, _) = only_action(&unit);
+    fs::remove_file(&action).unwrap();
+    let key = action.file_name().unwrap().to_str().unwrap().to_owned();
+    let lock = hold_lock(&unit, &key);
+
+    std::thread::scope(|scope| {
+        let waiter = scope.spawn(|| unit.serve(&[]).unwrap());
+        std::thread::sleep(Duration::from_millis(200));
+        drop(lock);
+        match waiter.join().unwrap() {
+            Served::Miss {
+                code: 0,
+                stored: Ok(_),
+                waited: Some(_),
+                ..
+            } => {}
+            other => panic!("expected a stored miss after waiting, got {other:?}"),
+        }
+    });
+}
+
+#[test]
+fn a_compile_with_other_sources_does_not_wait() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let (action, _) = only_action(&unit);
+    let key = action.file_name().unwrap().to_str().unwrap().to_owned();
+    let _lock = hold_lock(&unit, &key);
+    fs::write(unit.root.join("src/lib.rs"), "pub fn g() {}\n").unwrap();
+
+    match unit.serve(&[]).unwrap() {
+        Served::Miss {
+            code: 0, waited, ..
+        } => assert_eq!(waited, None),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_held_lock_is_waited_for_only_until_the_limit() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let (action, _) = only_action(&unit);
+    fs::remove_file(&action).unwrap();
+    let key = action.file_name().unwrap().to_str().unwrap().to_owned();
+    let _lock = hold_lock(&unit, &key);
+
+    match unit.serve_waiting(Duration::from_millis(50), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            waited: None,
+            ..
+        } => {}
+        other => panic!("expected a miss that gave up waiting, got {other:?}"),
+    }
 }
