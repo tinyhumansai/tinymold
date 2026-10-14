@@ -115,6 +115,13 @@ impl Action {
         text
     }
 
+    /// Every object restoring this action reads.
+    pub(crate) fn references(&self) -> Vec<Digest> {
+        let mut digests = vec![self.stdout, self.stderr];
+        digests.extend(self.outputs.iter().map(|output| output.digest));
+        digests
+    }
+
     pub(crate) fn decode(text: &str, path: &Path) -> Result<Self> {
         let corrupt = |line: usize| Error::CorruptRecord {
             path: path.to_path_buf(),

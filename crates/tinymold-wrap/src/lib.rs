@@ -8,7 +8,8 @@
 //!
 //! The cache lives in the same store as `tinymold cas`: objects under
 //! `objects/`, actions under `entries/<crate>/`, input sets under
-//! `prekeys/`, and the digest cache under `stat/`.
+//! `prekeys/`, and the digest cache under `stat/`. [`records`] lists them,
+//! with each one's last use, for `tinymold gc`.
 //!
 //! # Example
 //!
@@ -28,6 +29,7 @@
 //! `tinymold-cas`. This crate is the process glue between them and rustc:
 //! hashing files, running rustc, and moving outputs in and out of the store.
 
+mod catalog;
 mod compile;
 mod error;
 mod exec;
@@ -42,6 +44,7 @@ use std::time::Instant;
 
 use tinymold_key::{Classified, Invocation};
 
+pub use catalog::{RecordFile, RecordKind, action_references, records};
 use compile::Served;
 pub use error::{Error, Result};
 
