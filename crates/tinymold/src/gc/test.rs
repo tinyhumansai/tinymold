@@ -2,6 +2,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use super::*;
@@ -41,7 +42,7 @@ impl Fixture {
         let empty = self.object(b"", 2 * DAY);
         let mut text = format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\n");
         for (index, digest) in outputs.iter().enumerate() {
-            text.push_str(&format!("output {digest} 0 0 out{index}\n"));
+            writeln!(text, "output {digest} 0 0 out{index}").unwrap();
         }
         let path = self
             .root

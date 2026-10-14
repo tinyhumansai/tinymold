@@ -197,7 +197,7 @@ fn fit_budget(
         return Ok(references);
     };
     // Newest first, so the oldest can be popped off the end.
-    actions.sort_by(|a, b| b.record.last_used.cmp(&a.record.last_used));
+    actions.sort_by_key(|action| std::cmp::Reverse(action.record.last_used));
     while total > budget {
         let Some(oldest) = actions.pop() else {
             break;
