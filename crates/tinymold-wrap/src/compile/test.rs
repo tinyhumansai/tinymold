@@ -6,6 +6,8 @@ use std::time::Duration;
 
 use tinymold_key::Classified;
 
+use crate::remote::{Remote, RemoteError};
+
 use super::*;
 
 /// The rustc cargo is testing with.
@@ -63,6 +65,10 @@ impl Crate {
     }
 
     fn serve(&self, extra: &[&str]) -> Result<Served> {
+        self.serve_with(None, extra)
+    }
+
+    fn serve_with(&self, remote: Option<&dyn Remote>, extra: &[&str]) -> Result<Served> {
         let args = self.args(extra);
         let text: Vec<String> = args
             .iter()
@@ -73,6 +79,7 @@ impl Crate {
         };
         serve(
             &self.store,
+            remote,
             &rustc(),
             &args,
             &invocation,
@@ -104,6 +111,7 @@ fn assert_stored(served: &Served) {
         Served::Miss {
             code: 0,
             stored: Ok(_),
+            ..
         } => {}
         other => panic!("expected a stored miss, got {other:?}"),
     }
@@ -149,11 +157,11 @@ fn a_changed_source_misses_and_both_versions_then_hit() {
 fn a_failed_compile_is_not_stored() {
     let unit = Crate::new("pub fn broken( {\n");
     match unit.serve(&[]).unwrap() {
-        Served::Miss { code, stored } => {
+        Served::Miss { code, stored, .. } => {
             assert_ne!(code, 0);
             assert_eq!(stored.unwrap_err(), "rustc failed");
         }
-        Served::Hit => panic!("a failing compile cannot hit"),
+        Served::Hit | Served::RemoteHit => panic!("a failing compile cannot hit"),
     }
 }
 
@@ -172,6 +180,7 @@ fn a_compile_without_dep_info_is_not_stored() {
     let args: Vec<OsString> = text.into_iter().map(OsString::from).collect();
     match serve(
         &unit.store,
+        None,
         &rustc(),
         &args,
         &invocation,
@@ -179,7 +188,9 @@ fn a_compile_without_dep_info_is_not_stored() {
     )
     .unwrap()
     {
-        Served::Miss { code: 0, stored } => assert_eq!(stored.unwrap_err(), "no dep-info"),
+        Served::Miss {
+            code: 0, stored, ..
+        } => assert_eq!(stored.unwrap_err(), "no dep-info"),
         other => panic!("{other:?}"),
     }
 }
@@ -195,7 +206,9 @@ fn an_input_modified_during_the_compile_is_not_stored() {
         .set_modified(future)
         .unwrap();
     match unit.serve(&[]).unwrap() {
-        Served::Miss { code: 0, stored } => {
+        Served::Miss {
+            code: 0, stored, ..
+        } => {
             assert_eq!(stored.unwrap_err(), "an input changed during the compile");
         }
         other => panic!("{other:?}"),
@@ -207,7 +220,9 @@ fn an_output_that_is_a_directory_is_not_stored() {
     let unit = Crate::new("pub fn f() {}\n");
     fs::create_dir_all(unit.out().join("demo-1.dSYM")).unwrap();
     match unit.serve(&[]).unwrap() {
-        Served::Miss { code: 0, stored } => {
+        Served::Miss {
+            code: 0, stored, ..
+        } => {
             assert_eq!(stored.unwrap_err(), "an output is not a regular file");
         }
         other => panic!("{other:?}"),
@@ -269,6 +284,7 @@ fn a_restored_binary_is_executable_and_fresh() {
     assert_stored(
         &serve(
             &unit.store,
+            None,
             &rustc(),
             &args,
             &invocation,
@@ -281,6 +297,7 @@ fn a_restored_binary_is_executable_and_fresh() {
     assert!(matches!(
         serve(
             &unit.store,
+            None,
             &rustc(),
             &args,
             &invocation,
@@ -347,4 +364,235 @@ fn a_hit_removes_stale_outputs_of_the_same_unit() {
         fs::read(unit.out().join("libdemo-1.rmeta")).unwrap(),
         b"from another branch"
     );
+}
+
+/// Every file under `dir`, recursively.
+fn files_under(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            found.extend(files_under(&path));
+        } else {
+            found.push(path);
+        }
+    }
+    found
+}
+
+/// Sets the mtime of every file under `dir` to `when`.
+fn backdate(dir: &Path, when: SystemTime) {
+    for path in files_under(dir) {
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(when)
+            .unwrap();
+    }
+}
+
+#[test]
+fn a_hit_records_its_last_use_on_the_action_and_pre_key() {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let long_ago = SystemTime::now() - Duration::from_secs(30 * 24 * 3600);
+    let records = [unit.store.join("entries"), unit.store.join("prekeys")];
+    for dir in &records {
+        backdate(dir, long_ago);
+    }
+
+    unit.clear_outputs();
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    for dir in &records {
+        for path in files_under(dir) {
+            let modified = fs::metadata(&path).unwrap().modified().unwrap();
+            assert!(
+                modified > long_ago + Duration::from_secs(3600),
+                "{} still says it was last used long ago",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn a_miss_leaves_the_last_use_of_other_actions_alone() {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let long_ago = SystemTime::now() - Duration::from_secs(30 * 24 * 3600);
+    backdate(&unit.store.join("entries"), long_ago);
+    let before = files_under(&unit.store.join("entries"));
+
+    fs::write(
+        unit.root.join("src/lib.rs"),
+        "pub fn answer() -> u32 { 7 }\n",
+    )
+    .unwrap();
+    assert_stored(&unit.serve(&[]).unwrap());
+    for path in before {
+        assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), long_ago);
+    }
+}
+
+/// A remote tier backed by another machine's store directory.
+struct StoreRemote {
+    store: PathBuf,
+    /// Leave this object out when fetching, as a remote with a hole would.
+    withhold: Option<Digest>,
+    /// Fail every call with this message.
+    fail: Option<&'static str>,
+}
+
+impl StoreRemote {
+    fn new(store: &Path) -> Self {
+        Self {
+            store: store.to_path_buf(),
+            withhold: None,
+            fail: None,
+        }
+    }
+}
+
+impl Remote for StoreRemote {
+    fn input_sets(&self, pre: &Digest) -> std::result::Result<Option<String>, RemoteError> {
+        if let Some(message) = self.fail {
+            return Err(message.into());
+        }
+        Ok(record::read(
+            &self.store.join("prekeys").join(pre.to_hex()),
+        )?)
+    }
+
+    fn fetch_action(
+        &self,
+        key: &Digest,
+        store: &Store,
+    ) -> std::result::Result<Option<String>, RemoteError> {
+        let path = self.store.join("entries/demo").join(key.to_hex());
+        let Some(text) = record::read(&path)? else {
+            return Ok(None);
+        };
+        let source = Store::open(&self.store)?;
+        for digest in Action::decode(&text, &path)?.references() {
+            if Some(digest) != self.withhold {
+                store.insert_bytes(&source.read(&digest)?)?;
+            }
+        }
+        Ok(Some(text))
+    }
+}
+
+/// A unit compiled once, whose store is then moved aside to serve as the
+/// remote of the now empty local store, as on a fresh machine.
+fn remote_pair() -> (Crate, PathBuf) {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let remote = unit.root.join("remote-store");
+    fs::rename(&unit.store, &remote).unwrap();
+    unit.clear_outputs();
+    (unit, remote)
+}
+
+#[test]
+fn a_local_miss_is_served_from_the_remote_and_then_hits_locally() {
+    let (second, remote) = remote_pair();
+    let remote = StoreRemote::new(&remote);
+
+    assert!(matches!(
+        second.serve_with(Some(&remote), &[]).unwrap(),
+        Served::RemoteHit
+    ));
+    let names: Vec<_> = second.outputs().into_iter().map(|(name, _)| name).collect();
+    assert_eq!(names, ["demo-1.d", "libdemo-1.rlib", "libdemo-1.rmeta"]);
+
+    second.clear_outputs();
+    assert!(matches!(second.serve(&[]).unwrap(), Served::Hit));
+}
+
+#[test]
+fn a_remote_action_missing_an_object_is_a_miss_with_the_reason() {
+    let (second, remote) = remote_pair();
+    let entry = files_under(&remote.join("entries")).pop().unwrap();
+    let text = fs::read_to_string(&entry).unwrap();
+    let action = Action::decode(&text, &entry).unwrap();
+    let remote = StoreRemote {
+        withhold: Some(action.outputs[1].digest),
+        ..StoreRemote::new(&remote)
+    };
+
+    match second.serve_with(Some(&remote), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            remote: Some(reason),
+        } => assert!(reason.contains("does not provide object"), "{reason}"),
+        other => panic!("expected a miss, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_remote_action_naming_a_file_outside_the_output_directory_is_not_restored() {
+    let (second, remote) = remote_pair();
+    let entry = files_under(&remote.join("entries")).pop().unwrap();
+    let text = fs::read_to_string(&entry).unwrap();
+    fs::write(
+        &entry,
+        text.replace(" libdemo-1.rlib", " ../../escape.rlib"),
+    )
+    .unwrap();
+    let remote = StoreRemote::new(&remote);
+
+    assert!(matches!(
+        second.serve_with(Some(&remote), &[]).unwrap(),
+        Served::Miss { code: 0, .. }
+    ));
+    assert!(!second.root.join("target/escape.rlib").exists());
+}
+
+#[test]
+fn a_failing_remote_only_makes_the_unit_compile() {
+    let (second, remote) = remote_pair();
+    let remote = StoreRemote {
+        fail: Some("connection refused"),
+        ..StoreRemote::new(&remote)
+    };
+    match second.serve_with(Some(&remote), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            remote: Some(reason),
+        } => assert_eq!(reason, "connection refused"),
+        other => panic!("expected a miss, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_remote_without_the_unit_is_a_plain_miss() {
+    let empty = tempfile::tempdir().unwrap();
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    let remote = StoreRemote::new(empty.path());
+    match unit.serve_with(Some(&remote), &[]).unwrap() {
+        Served::Miss {
+            code: 0,
+            stored: Ok(_),
+            remote: None,
+        } => {}
+        other => panic!("expected a plain miss, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_remote_input_set_whose_files_differ_here_is_not_used() {
+    let (second, remote) = remote_pair();
+    fs::write(
+        second.root.join("src/lib.rs"),
+        "pub fn answer() -> u32 { 7 }\n",
+    )
+    .unwrap();
+    let remote = StoreRemote::new(&remote);
+    assert!(matches!(
+        second.serve_with(Some(&remote), &[]).unwrap(),
+        Served::Miss { remote: None, .. }
+    ));
 }

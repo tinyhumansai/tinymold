@@ -190,3 +190,24 @@ fn every_input_moves_the_full_key() {
     );
     assert_ne!(full_key(&pre, &[], &env), reference);
 }
+
+#[test]
+fn an_instrumented_compile_is_keyed_by_its_workspace_path() {
+    let coverage = ["-C", "instrument-coverage"];
+    let (a, roots_a) = compile("/work/a", &coverage);
+    let (b, roots_b) = compile("/work/b", &coverage);
+    assert_ne!(key_of(&a, &roots_a, b"dep"), key_of(&b, &roots_b, b"dep"));
+
+    // The same path keys the same, and plain compiles still share across paths.
+    let (again, roots_again) = compile("/work/a", &coverage);
+    assert_eq!(
+        key_of(&a, &roots_a, b"dep"),
+        key_of(&again, &roots_again, b"dep")
+    );
+    let (plain_a, plain_roots_a) = compile("/work/a", &[]);
+    let (plain_b, plain_roots_b) = compile("/work/b", &[]);
+    assert_eq!(
+        key_of(&plain_a, &plain_roots_a, b"dep"),
+        key_of(&plain_b, &plain_roots_b, b"dep")
+    );
+}

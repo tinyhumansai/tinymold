@@ -84,6 +84,41 @@ The store defaults to `$TINYMOLD_STORE`, then `$XDG_CACHE_HOME/tinymold`, then
 `~/.cache/tinymold`. Keep it on the same filesystem as your checkouts: that is
 what lets a restore be a reflink or hardlink instead of a copy.
 
+```sh
+tinymold stats --log "$TINYMOLD_LOG"   # hit rate and time, from the wrapper log
+tinymold gc --max-age 14d --max-size 20G   # drop entries unused for two weeks,
+                                           # then the least recently used
+```
+
+Every hit records when an entry was last used, and `gc` expires by that
+([`docs/specs/gc.md`](docs/specs/gc.md)).
+
+## In GitHub Actions
+
+```yaml
+steps:
+  - uses: actions/checkout@v7
+  - uses: dtolnay/rust-toolchain@stable
+  - uses: tinyhumansai/tinymold@v0          # RUSTC_WRAPPER + restore the store
+  - run: cargo test --all-features
+  - run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+  - uses: tinyhumansai/tinymold/save@v0     # gc, hit-rate summary, save
+    if: always()
+```
+
+By default the store travels in GitHub's own cache, so no server is needed.
+For many repositories or runners, run a shared
+[bazel-remote](deploy/bazel-remote/README.md) and use the action's `remote`
+backend (`remote-url`, plus `remote-auth` from a secret). Every local miss
+then asks the server first, and the job pushes what it built at the end.
+Inputs, cache keys and self-hosted runners are covered in
+[`docs/specs/github-actions.md`](docs/specs/github-actions.md), and the remote
+tier in [`docs/specs/remote.md`](docs/specs/remote.md).
+
+The cache never links for you. A binary that depends on the crate you edited
+is still relinked in full, while unchanged crates, binaries and test
+executables are restored without compiling or linking.
+
 ## Why it can be fast
 
 One object, many worktrees. tinymold stores each artifact once, named by its
@@ -144,6 +179,9 @@ The full design is in [`docs/specs/architecture.md`](docs/specs/architecture.md)
 | [`tinymold`](crates/tinymold) | The `tinymold` binary and its library half |
 | [`tinymold-cas`](crates/tinymold-cas) | Local content-addressed store: atomic insert, read-only objects, reflink → hardlink → copy restore |
 | [`tinymold-hash`](crates/tinymold-hash) | The BLAKE3-256 `Digest` type, streaming file hashing, and a field hasher for cache keys |
+| [`tinymold-key`](crates/tinymold-key) | rustc argument parsing, path roots, dep-info, and the two cache keys |
+| [`tinymold-wrap`](crates/tinymold-wrap) | The `RUSTC_WRAPPER`: lookup, restore, run and store, plus the record catalog GC uses |
+| [`tinymold-remote`](crates/tinymold-remote) | The remote tier: a hand-written REAPI v2 client for bazel-remote and other caches |
 
 All crates release together under one version and are published to
 [crates.io](https://crates.io/crates/tinymold).

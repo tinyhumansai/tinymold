@@ -14,6 +14,8 @@ use tinymold_hash::Digest;
 
 use crate::doctor::Report;
 use crate::fresh::{self, Restore};
+use crate::gc::{self, Age, ByteSize};
+use crate::stats::Stats;
 use crate::{Error, Result, default_store, snapshot};
 
 /// The `tinymold` command line.
@@ -53,6 +55,64 @@ pub enum Command {
     /// branch switch starts warm.
     #[command(subcommand)]
     Snapshot(SnapshotCommand),
+    /// Remove cache entries unused for a while or beyond a size budget, and
+    /// objects nothing references any more.
+    Gc(GcArgs),
+    /// Summarize the wrapper log: hits, misses, and time spent.
+    Stats(StatsArgs),
+    /// Share the cache through a remote REAPI server (`TINYMOLD_REMOTE_URL`).
+    #[command(subcommand)]
+    Remote(RemoteCommand),
+}
+
+/// Remote cache commands.
+#[derive(Debug, Subcommand)]
+#[non_exhaustive]
+pub enum RemoteCommand {
+    /// Upload the actions and input sets used since `--since` (all without
+    /// it), with every object the server lacks.
+    Push {
+        /// Only records used at or after this time, in Unix seconds, such as
+        /// the start of the CI job.
+        #[arg(long, value_name = "UNIX_SECONDS")]
+        since: Option<u64>,
+    },
+    /// Check that the server is reachable and accepts the credential, and
+    /// print what it supports.
+    Check,
+}
+
+/// What `tinymold stats` reads and how it reports.
+#[derive(Debug, Clone, Args)]
+pub struct StatsArgs {
+    /// The wrapper log. Defaults to `TINYMOLD_LOG`; a log that does not
+    /// exist yet counts as empty.
+    #[arg(long, value_name = "FILE")]
+    pub log: Option<PathBuf>,
+    /// Print a Markdown table, for a CI job summary.
+    #[arg(long)]
+    pub markdown: bool,
+    /// Exit 1 when fewer than this percentage of cacheable compiles hit.
+    #[arg(long, value_name = "PERCENT")]
+    pub min_hit_rate: Option<f64>,
+}
+
+/// The limits of `tinymold gc`.
+#[derive(Debug, Clone, Args)]
+pub struct GcArgs {
+    /// Remove entries not used for this long, such as `14d` or `36h`.
+    #[arg(long, value_name = "AGE")]
+    pub max_age: Option<Age>,
+    /// Evict the least recently used entries while the store is larger than
+    /// this, such as `10G`.
+    #[arg(long, value_name = "SIZE")]
+    pub max_size: Option<ByteSize>,
+    /// Remove `target/` snapshots saved longer ago than this.
+    #[arg(long, value_name = "AGE")]
+    pub snapshots_max_age: Option<Age>,
+    /// Report what would be removed without removing it.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 /// Freshness commands.
@@ -219,13 +279,120 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         Command::Cas(command) => return run_cas(command, &open_store(cli)?, out),
         Command::Doctor => {
             let path = std::env::var_os("PATH");
-            let report = Report::gather(path.as_deref(), Path::new("rustc"), store_dir(cli));
+            let mut report = Report::gather(path.as_deref(), Path::new("rustc"), store_dir(cli));
+            report.remote = remote_summary(env);
             write!(out, "{report}").map_err(Error::Output)?;
         }
         Command::Fresh(command) => return run_fresh(command, out),
         Command::Snapshot(command) => return run_snapshot(cli, command, out),
+        Command::Gc(args) => {
+            let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
+            let policy = gc::Policy {
+                max_age: args.max_age.map(|age| age.0),
+                max_size: args.max_size.map(|size| size.0),
+                snapshots_max_age: args.snapshots_max_age.map(|age| age.0),
+                dry_run: args.dry_run,
+                ..gc::Policy::garbage_only()
+            };
+            let report = gc::collect(&store, &policy)?;
+            line(out, format_args!("{report}"))?;
+        }
+        Command::Stats(args) => return run_stats(args, out),
+        Command::Remote(command) => return run_remote(cli, command, env, out),
     }
     Ok(Outcome::Success)
+}
+
+fn run_stats(args: &StatsArgs, out: &mut impl Write) -> Result<Outcome> {
+    let log = args
+        .log
+        .clone()
+        .or_else(|| {
+            env("TINYMOLD_LOG")
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+        })
+        .ok_or(Error::NoLogLocation)?;
+    let text = match std::fs::read_to_string(&log) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(source) => {
+            return Err(Error::Io {
+                action: "read",
+                path: log,
+                source,
+            });
+        }
+    };
+    let stats = Stats::parse(&text);
+    if args.markdown {
+        write!(out, "{}", stats.markdown()).map_err(Error::Output)?;
+    } else {
+        line(out, format_args!("{stats}"))?;
+    }
+    let enough = args
+        .min_hit_rate
+        .is_none_or(|min| stats.hit_rate().is_some_and(|rate| rate >= min));
+    Ok(if enough {
+        Outcome::Success
+    } else {
+        Outcome::Absent
+    })
+}
+
+/// What `doctor` says about the remote tier: its URL, or why it is unusable.
+fn remote_summary(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<String> {
+    let url = lookup("TINYMOLD_REMOTE_URL").filter(|v| !v.is_empty())?;
+    let url = url.to_string_lossy().into_owned();
+    #[cfg(feature = "remote")]
+    let summary = match tinymold_remote::RemoteConfig::from_env(lookup) {
+        Ok(Some(config)) if config.authorization.is_some() => format!("{url} (with credential)"),
+        Ok(_) => format!("{url} (anonymous)"),
+        Err(error) => format!("{url} ({error})"),
+    };
+    #[cfg(not(feature = "remote"))]
+    let summary = format!("{url} (ignored: built without the remote feature)");
+    Some(summary)
+}
+
+/// Runs a remote command against the server the `TINYMOLD_REMOTE_*`
+/// variables, read through `lookup`, name.
+#[cfg(feature = "remote")]
+fn run_remote(
+    cli: &Cli,
+    command: &RemoteCommand,
+    lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
+    out: &mut impl Write,
+) -> Result<Outcome> {
+    let config = tinymold_remote::RemoteConfig::from_env(lookup)?.ok_or(Error::NoRemote)?;
+    let remote = tinymold_remote::RemoteCache::new(&config)?;
+    match command {
+        RemoteCommand::Push { since } => {
+            let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
+            let since = since
+                .map(|seconds| std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds));
+            let report = remote.push(&store, since)?;
+            line(out, format_args!("remote: {report}"))?;
+        }
+        RemoteCommand::Check => {
+            let capabilities = remote.check()?;
+            line(
+                out,
+                format_args!("remote: {} reachable; {capabilities}", config.endpoint),
+            )?;
+        }
+    }
+    Ok(Outcome::Success)
+}
+
+#[cfg(not(feature = "remote"))]
+fn run_remote(
+    _cli: &Cli,
+    _command: &RemoteCommand,
+    _lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
+    _out: &mut impl Write,
+) -> Result<Outcome> {
+    Err(Error::NoRemote)
 }
 
 fn env(name: &str) -> Option<std::ffi::OsString> {

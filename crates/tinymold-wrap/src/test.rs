@@ -171,3 +171,75 @@ fn a_trace_records_a_pass_through() {
     assert_eq!(names, ["invocation", "classify", "pass_through"]);
     assert!(steps.iter().all(|(_, outcome)| outcome == "pass"));
 }
+
+/// A remote that serves every unit from another store directory, or fails.
+struct DirRemote {
+    store: PathBuf,
+    fail: bool,
+}
+
+impl Remote for DirRemote {
+    fn input_sets(
+        &self,
+        pre: &tinymold_hash::Digest,
+    ) -> std::result::Result<Option<String>, RemoteError> {
+        if self.fail {
+            return Err("unreachable".into());
+        }
+        Ok(fs::read_to_string(self.store.join("prekeys").join(pre.to_hex())).ok())
+    }
+
+    fn fetch_action(
+        &self,
+        key: &tinymold_hash::Digest,
+        store: &tinymold_cas::Store,
+    ) -> std::result::Result<Option<String>, RemoteError> {
+        let path = self.store.join("entries/demo").join(key.to_hex());
+        let Ok(text) = fs::read_to_string(&path) else {
+            return Ok(None);
+        };
+        let source = tinymold_cas::Store::open(&self.store)?;
+        for digest in action_references(&path)? {
+            store.insert_bytes(&source.read(&digest)?)?;
+        }
+        Ok(Some(text))
+    }
+}
+
+#[test]
+fn a_unit_served_by_the_remote_is_logged_as_remote() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = config(dir.path());
+    let args = compile_args(dir.path(), &[]);
+    assert_eq!(run(&config, &rustc(), &args), 0);
+    let remote_store = dir.path().join("remote-store");
+    fs::rename(&config.store, &remote_store).unwrap();
+
+    let remote = DirRemote {
+        store: remote_store,
+        fail: false,
+    };
+    assert_eq!(run_with_remote(&config, Some(&remote), &rustc(), &args), 0);
+    assert!(
+        log_lines(dir.path())[1].starts_with("remote demo "),
+        "{:?}",
+        log_lines(dir.path())
+    );
+}
+
+#[test]
+fn a_failing_remote_is_noted_on_the_miss() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = config(dir.path());
+    let args = compile_args(dir.path(), &[]);
+    let remote = DirRemote {
+        store: dir.path().join("nowhere"),
+        fail: true,
+    };
+    assert_eq!(run_with_remote(&config, Some(&remote), &rustc(), &args), 0);
+    let lines = log_lines(dir.path());
+    assert!(
+        lines[0].starts_with("miss demo ") && lines[0].ends_with("; remote: unreachable"),
+        "{lines:?}"
+    );
+}

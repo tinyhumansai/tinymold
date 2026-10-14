@@ -1,0 +1,43 @@
+# Push, summarize and save tinymold's cache at the end of a job. Run it with
+# `if: always()` after `tinyhumansai/tinymold`, which it reads its settings
+# from. See docs/specs/github-actions.md.
+name: tinymold save
+description: Push new tinymold cache entries, report the hit rate, collect garbage and save the GitHub cache.
+author: tinyhumansai
+branding:
+  icon: save
+  color: orange
+
+inputs:
+  max-age:
+    description: Remove entries not used for this long before saving (tinymold gc --max-age).
+    default: 7d
+  max-size:
+    description: Evict the least recently used entries beyond this size before saving (tinymold gc --max-size).
+    default: 4G
+  push:
+    description: "`auto` pushes to the remote when a credential was given; `true` or `false` force the choice."
+    default: auto
+  save-cache:
+    description: Whether the github and both backends save the store to GitHub's cache.
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - id: save
+      shell: bash
+      env:
+        INPUT_MAX_AGE: ${{ inputs.max-age }}
+        INPUT_MAX_SIZE: ${{ inputs.max-size }}
+        INPUT_PUSH: ${{ inputs.push }}
+        INPUT_SAVE_CACHE: ${{ inputs.save-cache }}
+      run: |
+        set -euo pipefail
+        "${GITHUB_ACTION_PATH}/../action/save.sh"
+
+    - if: steps.save.outputs.save-cache == 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ env.TINYMOLD_STORE }}
+        key: ${{ env.TINYMOLD_CACHE_KEY }}

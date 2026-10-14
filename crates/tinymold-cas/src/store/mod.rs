@@ -20,9 +20,14 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use tinymold_hash::Digest;
+
+mod types;
+
+pub use types::{ObjectInfo, StagingFile};
 
 use crate::materialize::{self, Method, Strategy};
 
@@ -81,6 +86,7 @@ impl Store {
     pub fn insert_bytes(&self, bytes: &[u8]) -> Result<Digest> {
         let digest = Digest::of_bytes(bytes);
         if self.contains(&digest) {
+            touch(&self.object_path(&digest));
             return Ok(digest);
         }
 
@@ -187,6 +193,97 @@ impl Store {
         materialize::place(&object, destination, strategy)
     }
 
+    /// Lists every object in the store, in no particular order.
+    ///
+    /// Files under `objects/` whose path is not a digest are skipped: they
+    /// are not objects, whoever put them there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the objects directory or a shard cannot be
+    /// read.
+    pub fn objects(&self) -> Result<Vec<ObjectInfo>> {
+        let dir = self.objects_dir();
+        let mut objects = Vec::new();
+        for shard in read_dir(&dir)? {
+            let Some(prefix) = shard.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let shard_path = shard.path();
+            if prefix.len() != 2 || !shard_path.is_dir() {
+                continue;
+            }
+            for entry in read_dir(&shard_path)? {
+                let Some(rest) = entry.file_name().to_str().map(str::to_owned) else {
+                    continue;
+                };
+                let Ok(digest) = Digest::from_str(&format!("{prefix}{rest}")) else {
+                    continue;
+                };
+                // Removed by someone else since the directory was read.
+                let Ok(meta) = entry.metadata() else {
+                    continue;
+                };
+                if meta.is_file() {
+                    objects.push(ObjectInfo {
+                        digest,
+                        size: meta.len(),
+                        modified: meta
+                            .modified()
+                            .map_err(io_error("inspect", &entry.path()))?,
+                    });
+                }
+            }
+        }
+        Ok(objects)
+    }
+
+    /// Removes the object named `digest`, and reports whether it was there.
+    ///
+    /// Removing an object an action still names makes that action's next
+    /// restore fail; deciding what is safe to remove is the caller's job.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the object exists but cannot be removed.
+    pub fn remove(&self, digest: &Digest) -> Result<bool> {
+        remove_if_present(&self.object_path(digest))
+    }
+
+    /// Lists the files in the staging directory.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the staging directory cannot be read.
+    pub fn staging_files(&self) -> Result<Vec<StagingFile>> {
+        let mut files = Vec::new();
+        for entry in read_dir(&self.tmp_dir())? {
+            let Ok(meta) = entry.metadata() else {
+                continue;
+            };
+            if meta.is_file() {
+                files.push(StagingFile {
+                    path: entry.path(),
+                    size: meta.len(),
+                    modified: meta
+                        .modified()
+                        .map_err(io_error("inspect", &entry.path()))?,
+                });
+            }
+        }
+        Ok(files)
+    }
+
+    /// Removes a staging file [`Store::staging_files`] listed, and reports
+    /// whether it was still there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the file exists but cannot be removed.
+    pub fn remove_staging(&self, file: &StagingFile) -> Result<bool> {
+        remove_if_present(&file.path)
+    }
+
     fn objects_dir(&self) -> PathBuf {
         self.root.join("objects")
     }
@@ -216,7 +313,8 @@ impl Store {
     fn commit(&self, staging: &Path, digest: Digest) -> Result<()> {
         let object = self.object_path(&digest);
         if object.is_file() {
-            // Another writer got there first with the same bytes.
+            // Already stored, perhaps by another writer just now.
+            touch(&object);
             return remove(staging);
         }
 
@@ -233,7 +331,10 @@ impl Store {
             Ok(()) => Ok(()),
             // Some platforms refuse to rename over an existing read-only
             // file. If the object appeared meanwhile, the race was benign.
-            Err(_) if object.is_file() => remove(staging),
+            Err(_) if object.is_file() => {
+                touch(&object);
+                remove(staging)
+            }
             Err(source) => Err(Error::Io {
                 action: "rename into place",
                 path: object,
@@ -249,6 +350,79 @@ fn create_new(path: &Path) -> Result<File> {
         .create_new(true)
         .open(path)
         .map_err(io_error("create", path))
+}
+
+/// The entries of `dir`, skipping ones that cannot be read; empty when `dir`
+/// does not exist.
+fn read_dir(dir: &Path) -> Result<Vec<fs::DirEntry>> {
+    match fs::read_dir(dir) {
+        Ok(entries) => Ok(entries.filter_map(std::result::Result::ok).collect()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(source) => Err(Error::Io {
+            action: "read",
+            path: dir.to_path_buf(),
+            source,
+        }),
+    }
+}
+
+fn remove_if_present(path: &Path) -> Result<bool> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(true),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        // Windows refuses to delete a read-only file, and objects are sealed.
+        Err(_) if unseal(path) => fs::remove_file(path).map(|()| true).map_err(|source| {
+            // Still there, so seal it again: an object must never be left
+            // writable.
+            set_readonly(path, true);
+            io_error("remove", path)(source)
+        }),
+        Err(source) => Err(Error::Io {
+            action: "remove",
+            path: path.to_path_buf(),
+            source,
+        }),
+    }
+}
+
+/// Sets an existing object's mtime to now, best effort. An object's mtime
+/// is when it was last stored, which is what keeps one an ingest is about to
+/// reference inside `tinymold gc`'s grace period.
+fn touch(path: &Path) {
+    let mut options = fs::OpenOptions::new();
+    // Objects are read-only. Unix sets times through any descriptor of a
+    // file the caller owns; Windows needs a handle with write-attributes
+    // access.
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_WRITE_ATTRIBUTES: u32 = 0x100;
+        options.access_mode(FILE_WRITE_ATTRIBUTES);
+    }
+    #[cfg(not(windows))]
+    options.read(true);
+    if let Ok(file) = options.open(path) {
+        let _ = file.set_modified(std::time::SystemTime::now());
+    }
+}
+
+/// Clears the read-only flag on `path`, and reports whether it did.
+fn unseal(path: &Path) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    meta.permissions().readonly() && set_readonly(path, false)
+}
+
+/// Sets or clears the read-only flag on `path`, and reports whether it did.
+fn set_readonly(path: &Path, readonly: bool) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    let mut permissions = meta.permissions();
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(readonly);
+    fs::set_permissions(path, permissions).is_ok()
 }
 
 fn remove(path: &Path) -> Result<()> {

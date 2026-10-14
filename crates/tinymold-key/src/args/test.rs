@@ -235,3 +235,43 @@ fn unknown_and_non_ascii_flags_are_kept_as_text() {
             .contains(&KeyArg::Text("--verbose".into()))
     );
 }
+
+#[test]
+fn coverage_instrumentation_is_recognized_in_every_spelling() {
+    let base = [
+        "--crate-name",
+        "demo",
+        "src/lib.rs",
+        "--emit=link",
+        "--out-dir",
+        "target",
+    ];
+    let with = |extra: &[&str]| {
+        let mut args = base.to_vec();
+        args.extend_from_slice(extra);
+        match Invocation::parse(args) {
+            Classified::Cacheable(invocation) => invocation.instruments_coverage(),
+            Classified::PassThrough(reason) => panic!("{reason}"),
+        }
+    };
+    assert!(with(&["-C", "instrument-coverage"]));
+    assert!(with(&["-Cinstrument-coverage=all"]));
+    assert!(with(&["--codegen", "instrument-coverage=yes"]));
+    assert!(with(&["-Z", "instrument-coverage"]));
+    assert!(!with(&["-C", "instrument-coverage=off"]));
+    assert!(!with(&["-C", "instrument-coverage=no"]));
+    // rustc takes the last setting of a `-C` option.
+    assert!(!with(&[
+        "-C",
+        "instrument-coverage",
+        "-C",
+        "instrument-coverage=no"
+    ]));
+    assert!(with(&[
+        "-C",
+        "instrument-coverage=no",
+        "-C",
+        "instrument-coverage"
+    ]));
+    assert!(!with(&[]));
+}

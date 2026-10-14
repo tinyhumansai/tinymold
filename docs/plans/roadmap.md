@@ -228,7 +228,10 @@ matters less here: no-op builds are already 70-100 ms.
 - Prewarm: every `main` commit publishes cache entries and a `target/`
   snapshot.
 - `tinymold-remote`: a REAPI v2 client, with remote writes only from trusted
-  CI.
+  CI. **Landed ahead of the server**
+  ([`remote-and-ci.md`](remote-and-ci.md)), together with last-use GC and
+  the GitHub Action, because CI runners gain nothing from a per-machine
+  daemon.
 
 **Exit criteria.**
 

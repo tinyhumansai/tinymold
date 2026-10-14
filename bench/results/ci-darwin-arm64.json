@@ -1,0 +1,240 @@
+{
+  "benchmark": "ci",
+  "command": "cargo test --no-run --locked --package <package>",
+  "remote_server": "buchgr/bazel-remote-cache:v2.6.2",
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "cold": {
+        "time": {
+          "median_s": 3.8711,
+          "min_s": 3.5164,
+          "max_s": 5.8169,
+          "samples_s": [
+            5.8169,
+            3.5164,
+            3.8711
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 0,
+          "miss": 0
+        }
+      },
+      "target_archive_bytes": 271131136,
+      "target_cache": {
+        "time": {
+          "median_s": 1.7857,
+          "min_s": 1.7672,
+          "max_s": 1.8741,
+          "samples_s": [
+            1.7857,
+            1.7672,
+            1.8741
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 0,
+          "miss": 0
+        }
+      },
+      "store_archive_bytes": 252600832,
+      "tinymold_github": {
+        "time": {
+          "median_s": 1.9065,
+          "min_s": 1.8788,
+          "max_s": 2.266,
+          "samples_s": [
+            1.8788,
+            2.266,
+            1.9065
+          ]
+        },
+        "stats": {
+          "hit": 47,
+          "remote": 0,
+          "miss": 2
+        }
+      },
+      "tinymold_remote": {
+        "time": {
+          "median_s": 1.3501,
+          "min_s": 1.3403,
+          "max_s": 1.4027,
+          "samples_s": [
+            1.3403,
+            1.4027,
+            1.3501
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 47,
+          "miss": 2
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "cold": {
+        "time": {
+          "median_s": 9.8972,
+          "min_s": 8.3981,
+          "max_s": 16.8346,
+          "samples_s": [
+            16.8346,
+            9.8972,
+            8.3981
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 0,
+          "miss": 0
+        }
+      },
+      "target_archive_bytes": 731864064,
+      "target_cache": {
+        "time": {
+          "median_s": 3.3235,
+          "min_s": 3.1129,
+          "max_s": 3.3249,
+          "samples_s": [
+            3.3235,
+            3.3249,
+            3.1129
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 0,
+          "miss": 0
+        }
+      },
+      "store_archive_bytes": 620423680,
+      "tinymold_github": {
+        "time": {
+          "median_s": 6.7062,
+          "min_s": 6.3414,
+          "max_s": 6.9581,
+          "samples_s": [
+            6.7062,
+            6.3414,
+            6.9581
+          ]
+        },
+        "stats": {
+          "hit": 177,
+          "remote": 0,
+          "miss": 1
+        }
+      },
+      "tinymold_remote": {
+        "time": {
+          "median_s": 7.085,
+          "min_s": 7.0336,
+          "max_s": 7.227,
+          "samples_s": [
+            7.0336,
+            7.227,
+            7.085
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 175,
+          "miss": 3
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "f3767e1",
+      "cold": {
+        "time": {
+          "median_s": 7.6004,
+          "min_s": 7.2335,
+          "max_s": 12.4058,
+          "samples_s": [
+            12.4058,
+            7.2335,
+            7.6004
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 0,
+          "miss": 0
+        }
+      },
+      "target_archive_bytes": 585764352,
+      "target_cache": {
+        "time": {
+          "median_s": 3.28,
+          "min_s": 2.9814,
+          "max_s": 3.3419,
+          "samples_s": [
+            3.28,
+            3.3419,
+            2.9814
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 0,
+          "miss": 0
+        }
+      },
+      "store_archive_bytes": 552964608,
+      "tinymold_github": {
+        "time": {
+          "median_s": 3.8451,
+          "min_s": 3.1731,
+          "max_s": 4.0623,
+          "samples_s": [
+            3.8451,
+            4.0623,
+            3.1731
+          ]
+        },
+        "stats": {
+          "hit": 129,
+          "remote": 0,
+          "miss": 3
+        }
+      },
+      "tinymold_remote": {
+        "time": {
+          "median_s": 2.9487,
+          "min_s": 2.9194,
+          "max_s": 2.9547,
+          "samples_s": [
+            2.9487,
+            2.9194,
+            2.9547
+          ]
+        },
+        "stats": {
+          "hit": 0,
+          "remote": 129,
+          "miss": 3
+        }
+      }
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 3
+}

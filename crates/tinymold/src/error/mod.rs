@@ -17,10 +17,37 @@ pub enum Error {
     #[error(transparent)]
     Cas(#[from] tinymold_cas::Error),
 
+    /// A cache record operation of the rustc wrapper failed.
+    #[error(transparent)]
+    Wrap(#[from] tinymold_wrap::Error),
+
+    /// A duration such as `--max-age` is not a whole number followed by
+    /// `s`, `m`, `h` or `d`.
+    #[error("invalid duration {0:?}: use a whole number and s, m, h or d, such as 14d")]
+    InvalidDuration(String),
+
+    /// A size such as `--max-size` is not a whole number with an optional
+    /// `K`, `M`, `G` or `T` suffix.
+    #[error("invalid size {0:?}: use a whole number of bytes, or K, M, G or T, such as 10G")]
+    InvalidSize(String),
+
     /// No store directory was given and none could be derived from the
     /// environment.
     #[error("no store location: pass --store or set TINYMOLD_STORE")]
     NoStoreLocation,
+
+    /// The remote cache tier failed.
+    #[cfg(feature = "remote")]
+    #[error(transparent)]
+    Remote(#[from] tinymold_remote::Error),
+
+    /// A remote command was run without a remote configured.
+    #[error("no remote cache: set TINYMOLD_REMOTE_URL")]
+    NoRemote,
+
+    /// `tinymold stats` was given no log and `TINYMOLD_LOG` is not set.
+    #[error("no wrapper log: pass --log or set TINYMOLD_LOG")]
+    NoLogLocation,
 
     /// Writing command output failed, for example because stdout was closed.
     #[error("failed to write output")]

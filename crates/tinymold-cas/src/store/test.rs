@@ -175,3 +175,123 @@ fn opening_fails_when_the_root_is_a_file() {
         })
     ));
 }
+
+#[test]
+fn objects_lists_every_object_with_its_size() {
+    let (_dir, store) = store();
+    let small = store.insert_bytes(b"a").unwrap();
+    let large = store.insert_bytes(b"bigger").unwrap();
+
+    let mut listed: Vec<_> = store
+        .objects()
+        .unwrap()
+        .into_iter()
+        .map(|object| (object.digest, object.size))
+        .collect();
+    listed.sort();
+    let mut expected = vec![(small, 1), (large, 6)];
+    expected.sort();
+    assert_eq!(listed, expected);
+}
+
+#[test]
+fn objects_skips_files_that_are_not_objects() {
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"a").unwrap();
+    let shard = store.object_path(&digest).parent().unwrap().to_path_buf();
+    fs::write(shard.join("not-a-digest"), b"x").unwrap();
+    fs::write(store.root().join("objects").join("stray"), b"x").unwrap();
+
+    let listed = store.objects().unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].digest, digest);
+}
+
+#[test]
+fn objects_of_an_empty_store_is_empty() {
+    let (_dir, store) = store();
+    assert_eq!(store.objects().unwrap(), Vec::new());
+}
+
+#[test]
+fn remove_deletes_a_sealed_object_and_reports_whether_it_was_there() {
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"a").unwrap();
+
+    assert!(store.remove(&digest).unwrap());
+    assert!(!store.contains(&digest));
+    assert!(!store.remove(&digest).unwrap());
+}
+
+#[test]
+fn staging_files_lists_leftovers_and_remove_staging_deletes_them() {
+    let (_dir, store) = store();
+    let leftover = store.root().join("tmp").join("123-0.tmp");
+    fs::write(&leftover, b"half").unwrap();
+
+    let staged = store.staging_files().unwrap();
+    assert_eq!(staged.len(), 1);
+    assert_eq!(staged[0].path, leftover);
+    assert_eq!(staged[0].size, 4);
+
+    store.remove_staging(&staged[0]).unwrap();
+    assert_eq!(store.staging_files().unwrap(), Vec::new());
+}
+
+#[test]
+fn listing_a_store_whose_objects_directory_is_a_file_fails() {
+    let (_dir, store) = store();
+    fs::remove_dir_all(store.root().join("objects")).unwrap();
+    fs::write(store.root().join("objects"), b"x").unwrap();
+    assert!(matches!(store.objects(), Err(Error::Io { .. })));
+}
+
+#[cfg(unix)]
+#[test]
+fn remove_reports_an_object_it_cannot_delete() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"a").unwrap();
+    let shard = store.object_path(&digest).parent().unwrap().to_path_buf();
+    fs::set_permissions(&shard, fs::Permissions::from_mode(0o555)).unwrap();
+
+    let removed = store.remove(&digest);
+    fs::set_permissions(&shard, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(matches!(
+        removed,
+        Err(Error::Io {
+            action: "remove",
+            ..
+        })
+    ));
+    assert!(store.contains(&digest));
+    // The failed attempt must not leave the object writable.
+    assert!(
+        fs::metadata(store.object_path(&digest))
+            .unwrap()
+            .permissions()
+            .readonly()
+    );
+}
+
+#[test]
+fn storing_bytes_already_present_refreshes_the_objects_time() {
+    use std::time::{Duration, SystemTime};
+
+    let (dir, store) = store();
+    let digest = store.insert_bytes(b"shared").unwrap();
+    let old = SystemTime::now() - Duration::from_secs(7 * 24 * 3600);
+    let path = store.object_path(&digest);
+    fs::File::open(&path).unwrap().set_modified(old).unwrap();
+
+    store.insert_bytes(b"shared").unwrap();
+    let modified = |store: &Store| store.objects().unwrap()[0].modified;
+    assert!(modified(&store) > old + Duration::from_secs(3600));
+
+    fs::File::open(&path).unwrap().set_modified(old).unwrap();
+    let source = dir.path().join("shared.bin");
+    fs::write(&source, b"shared").unwrap();
+    store.insert_file(&source).unwrap();
+    assert!(modified(&store) > old + Duration::from_secs(3600));
+}

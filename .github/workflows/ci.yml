@@ -133,6 +133,121 @@ jobs:
       - name: Build with the declared MSRV
         run: cargo build --all-targets --all-features
 
+  # The GitHub Action in this repository (action.yml, save/action.yml), run on
+  # this repository with its stateless backend: the store travels in GitHub's
+  # cache. The second job starts on a fresh runner and must be served almost
+  # entirely from what the first stored.
+  action-fill:
+    name: Action (GitHub cache, fill)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          cache-key: self-test
+
+      - name: Build and test
+        run: |
+          cargo build --locked --all-targets --all-features
+          cargo test --locked --all-features --no-run
+
+      - uses: ./save
+        if: always()
+
+  action-reuse:
+    name: Action (GitHub cache, reuse)
+    needs: action-fill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          cache-key: self-test
+
+      - name: Build and test from the restored store
+        run: |
+          cargo build --locked --all-targets --all-features
+          cargo test --locked --all-features --no-run
+
+      - name: Require a warm build
+        run: tinymold stats --min-hit-rate 90
+
+      - uses: ./save
+        if: always()
+
+  # The remote tier against a real bazel-remote, the reference server of
+  # docs/adr/0006-remote-tier-reapi-bazel-remote.md: build and push, wipe every
+  # local trace, then build again from the remote alone.
+  remote-e2e:
+    name: Remote cache (bazel-remote)
+    runs-on: ubuntu-latest
+    env:
+      # A throwaway credential for the container below, not a secret.
+      REMOTE_AUTH: ci:ci-password
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Start bazel-remote
+        run: |
+          set -euo pipefail
+          config="${RUNNER_TEMP}/bazel-remote"
+          mkdir -p "${config}"
+          echo "ci:$(openssl passwd -apr1 ci-password)" > "${config}/htpasswd"
+          docker run -d --name bazel-remote -p 9092:9092 \
+            -v "${config}:/etc/bazel-remote:ro" \
+            buchgr/bazel-remote-cache:v2.6.2 \
+            --dir=/tmp/cache --max_size=5 \
+            --htpasswd_file=/etc/bazel-remote/htpasswd --allow_unauthenticated_reads
+          for _ in $(seq 30); do
+            if nc -z 127.0.0.1 9092; then exit 0; fi
+            sleep 1
+          done
+          docker logs bazel-remote
+          exit 1
+
+      - uses: ./
+        with:
+          install: source
+          backend: remote
+          remote-url: grpc://127.0.0.1:9092
+          remote-auth: ${{ env.REMOTE_AUTH }}
+
+      - name: Check the server and the credential
+        run: tinymold remote check
+
+      - name: Build and push
+        run: |
+          cargo build --locked --all-targets --all-features
+          tinymold remote push --since "${TINYMOLD_SAVE_START}"
+
+      - name: Build again from the remote alone
+        run: |
+          set -euo pipefail
+          rm -rf target "${TINYMOLD_STORE}" "${TINYMOLD_LOG}"
+          cargo build --locked --all-targets --all-features
+          tinymold stats --min-hit-rate 90
+
+      - uses: ./save
+        if: always()
+        with:
+          push: "false"
+
   supply-chain:
     name: Supply chain
     runs-on: ubuntu-latest

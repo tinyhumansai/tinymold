@@ -345,3 +345,160 @@ fn snapshot_commands_need_a_store() {
         assert!(matches!(result, Err(Error::NoStoreLocation)));
     }
 }
+
+#[test]
+fn gc_reports_what_it_removed_from_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    Store::open(&store).unwrap();
+
+    let (result, out) = exec(&[
+        "--store",
+        s(&store),
+        "gc",
+        "--max-age",
+        "14d",
+        "--max-size",
+        "10G",
+        "--snapshots-max-age",
+        "30d",
+        "--dry-run",
+    ]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("gc: would remove 0 actions"), "{out}");
+    assert!(out.contains("gc: kept 0 actions, 0 objects, 0 B"), "{out}");
+}
+
+#[test]
+fn gc_rejects_an_unparsable_age_or_size() {
+    let parse = |args: &[&str]| {
+        Cli::try_parse_from(std::iter::once("tinymold").chain(args.iter().copied()))
+            .map(|_| ())
+            .unwrap_err()
+            .to_string()
+    };
+    assert!(parse(&["gc", "--max-age", "2w"]).contains("invalid duration"));
+    assert!(parse(&["gc", "--max-size", "lots"]).contains("invalid size"));
+}
+
+#[test]
+fn stats_summarizes_a_log_and_checks_the_hit_rate() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = dir.path().join("log");
+    fs::write(&log, "hit a 1.0ms \nmiss b 900.0ms stored in 1.0ms\n").unwrap();
+
+    let (result, out) = exec(&["stats", "--log", s(&log)]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("50.0% hit rate"), "{out}");
+
+    let (result, out) = exec(&[
+        "stats",
+        "--log",
+        s(&log),
+        "--markdown",
+        "--min-hit-rate",
+        "50",
+    ]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("### tinymold"), "{out}");
+
+    let (result, _) = exec(&["stats", "--log", s(&log), "--min-hit-rate", "90"]);
+    assert_eq!(result.unwrap(), Outcome::Absent);
+}
+
+#[test]
+fn stats_of_a_log_not_written_yet_has_no_hit_rate() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = dir.path().join("none");
+    let (result, out) = exec(&["stats", "--log", s(&log)]);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("no cacheable compiles"), "{out}");
+    let (result, _) = exec(&["stats", "--log", s(&log), "--min-hit-rate", "1"]);
+    assert_eq!(result.unwrap(), Outcome::Absent);
+}
+
+#[test]
+fn stats_fails_on_a_log_it_cannot_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let (result, _) = exec(&["stats", "--log", s(dir.path())]);
+    assert!(matches!(result, Err(Error::Io { action: "read", .. })));
+}
+
+fn vars(pairs: &[(&'static str, &'static str)]) -> impl Fn(&str) -> Option<std::ffi::OsString> {
+    let pairs = pairs.to_vec();
+    move |name| {
+        pairs
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| std::ffi::OsString::from(value))
+    }
+}
+
+#[test]
+fn doctor_describes_the_remote_without_its_credential() {
+    assert_eq!(remote_summary(vars(&[])), None);
+    let anonymous = remote_summary(vars(&[("TINYMOLD_REMOTE_URL", "grpc://cache:9092")])).unwrap();
+    let with_auth = remote_summary(vars(&[
+        ("TINYMOLD_REMOTE_URL", "grpc://cache:9092"),
+        ("TINYMOLD_REMOTE_AUTH", "ci:s3cret"),
+    ]))
+    .unwrap();
+    let broken = remote_summary(vars(&[("TINYMOLD_REMOTE_URL", "cache")])).unwrap();
+    if cfg!(feature = "remote") {
+        assert_eq!(anonymous, "grpc://cache:9092 (anonymous)");
+        assert_eq!(with_auth, "grpc://cache:9092 (with credential)");
+        assert!(broken.starts_with("cache (invalid remote URL"), "{broken}");
+    } else {
+        assert!(anonymous.ends_with("(ignored: built without the remote feature)"));
+    }
+    assert!(!with_auth.contains("s3cret"));
+}
+
+/// Runs `tinymold remote <args>` with the remote variables `pairs`.
+fn remote(
+    store: &Path,
+    args: &[&str],
+    pairs: &[(&'static str, &'static str)],
+) -> (Result<Outcome>, String) {
+    let cli = Cli::try_parse_from(
+        ["tinymold", "--store", s(store), "remote"]
+            .into_iter()
+            .chain(args.iter().copied()),
+    )
+    .unwrap();
+    let Command::Remote(command) = &cli.command else {
+        panic!("not a remote command");
+    };
+    let mut out = Vec::new();
+    let result = run_remote(&cli, command, vars(pairs), &mut out);
+    (result, String::from_utf8(out).unwrap())
+}
+
+#[test]
+fn remote_commands_need_a_remote() {
+    let dir = tempfile::tempdir().unwrap();
+    for args in [&["check"][..], &["push", "--since", "0"]] {
+        let (result, _) = remote(dir.path(), args, &[]);
+        assert!(matches!(result, Err(Error::NoRemote)), "{result:?}");
+    }
+}
+
+#[cfg(feature = "remote")]
+#[test]
+fn remote_push_of_an_empty_store_sends_nothing_and_check_needs_a_server() {
+    let dir = tempfile::tempdir().unwrap();
+    // A port nothing listens on, with a short timeout.
+    let closed = [
+        ("TINYMOLD_REMOTE_URL", "grpc://127.0.0.1:9"),
+        ("TINYMOLD_REMOTE_TIMEOUT", "200ms"),
+    ];
+    let (result, out) = remote(dir.path(), &["push", "--since", "0"], &closed);
+    assert_eq!(result.unwrap(), Outcome::Success);
+    assert!(out.starts_with("remote: pushed 0 actions"), "{out}");
+
+    let (result, _) = remote(dir.path(), &["check"], &closed);
+    assert!(matches!(result, Err(Error::Remote(_))), "{result:?}");
+
+    let (result, _) = remote(dir.path(), &["check"], &[("TINYMOLD_REMOTE_URL", "nope")]);
+    assert!(matches!(result, Err(Error::Remote(_))), "{result:?}");
+}

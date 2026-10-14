@@ -115,6 +115,13 @@ impl Action {
         text
     }
 
+    /// Every object restoring this action reads.
+    pub(crate) fn references(&self) -> Vec<Digest> {
+        let mut digests = vec![self.stdout, self.stderr];
+        digests.extend(self.outputs.iter().map(|output| output.digest));
+        digests
+    }
+
     pub(crate) fn decode(text: &str, path: &Path) -> Result<Self> {
         let corrupt = |line: usize| Error::CorruptRecord {
             path: path.to_path_buf(),
@@ -150,13 +157,19 @@ fn parse_output(line: &str) -> Option<Output> {
     let digest = Digest::from_str(parts.next()?).ok()?;
     let executable = flag(parts.next()?)?;
     let text = flag(parts.next()?)?;
-    let name = parts.next().filter(|name| !name.is_empty())?.to_owned();
+    let name = parts.next().filter(|name| is_file_name(name))?.to_owned();
     Some(Output {
         name,
         digest,
         executable,
         text,
     })
+}
+
+/// Whether `name` is one plain file name, which restoring it joins to the
+/// output directory: a record from a remote must not name a path outside it.
+fn is_file_name(name: &str) -> bool {
+    !name.is_empty() && name != "." && name != ".." && !name.contains(['/', '\\', ':'])
 }
 
 fn flag(text: &str) -> Option<bool> {
@@ -246,6 +259,15 @@ pub(crate) fn read(path: &Path) -> Result<Option<String>> {
         Ok(text) => Ok(Some(text)),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(io("read", path)(error)),
+    }
+}
+
+/// Records that the record at `path` was just used, by setting its mtime to
+/// now: the last-use time `tinymold gc` expires by. Best effort, since a
+/// failure only makes the record look older than it is.
+pub(crate) fn touch(path: &Path) {
+    if let Ok(file) = fs::File::open(path) {
+        let _ = file.set_modified(std::time::SystemTime::now());
     }
 }
 

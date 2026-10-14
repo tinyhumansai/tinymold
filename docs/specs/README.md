@@ -28,3 +28,6 @@ the contract; production code still belongs under `src/`.
 | [`cache-key.md`](cache-key.md) | Draft | The rustc ActionKey and ActionResult schema, two-phase lookup, and what breaks reuse |
 | [`rustc-wrapper.md`](rustc-wrapper.md) | Accepted | `RUSTC_WRAPPER=tinymold`: the unit cache's key, lookup, hits, misses and invariants |
 | [`freshness.md`](freshness.md) | Implemented | `tinymold fresh` and `tinymold snapshot`: undoing mtime-only changes and warm `target/` snapshots for worktrees and branch switches |
+| [`gc.md`](gc.md) | Implemented | Last-use tracking and `tinymold gc`: expiry by age, an LRU size budget, and safe sweeps |
+| [`remote.md`](remote.md) | Implemented | The remote tier: REAPI v2 against bazel-remote, lookups on local miss, batch push |
+| [`github-actions.md`](github-actions.md) | Implemented | The setup and save actions: the stateless GitHub-cache backend, the remote backend, coverage |

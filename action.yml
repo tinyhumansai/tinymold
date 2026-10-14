@@ -1,0 +1,90 @@
+# Set up tinymold as cargo's RUSTC_WRAPPER and restore its cache.
+#
+# Pair it with `tinyhumansai/tinymold/save` at the end of the job (with
+# `if: always()`), which pushes to the remote, prints the hit rate, collects
+# garbage and saves the GitHub cache. See docs/specs/github-actions.md.
+name: tinymold
+description: Content-addressed rustc caching for cargo, kept in GitHub's cache or a shared REAPI server.
+author: tinyhumansai
+branding:
+  icon: zap
+  color: orange
+
+inputs:
+  version:
+    description: Release tag to install, such as v0.1.0, or `latest`.
+    default: latest
+  install:
+    description: "`release` downloads the binary and checks SHA256SUMS; `source` runs cargo install from `source-path`; `none` expects tinymold on PATH."
+    default: release
+  source-path:
+    description: "With `install: source`, the path of a tinymold checkout."
+    default: .
+  backend:
+    description: "Where the cache lives between jobs: `github` (GitHub's cache, no server), `remote` (a REAPI server), `both`, or `none` (a persistent local store, for self-hosted runners)."
+    default: github
+  store:
+    description: The store directory; defaults to ~/.cache/tinymold.
+    default: ""
+  cache-key:
+    description: Extra text in the GitHub cache key, to keep jobs that build different things apart.
+    default: ""
+  remote-url:
+    description: The REAPI server, as grpc://host:port or grpcs://host[:port].
+    default: ""
+  remote-auth:
+    description: The server credential as user:password; pass it from a secret.
+    default: ""
+  remote-instance:
+    description: The REAPI instance name.
+    default: ""
+
+outputs:
+  store:
+    description: The store directory.
+    value: ${{ steps.setup.outputs.store }}
+  cache-hit:
+    description: Whether a GitHub cache entry was restored.
+    value: ${{ steps.restore.outputs.cache-matched-key != '' }}
+
+runs:
+  using: composite
+  steps:
+    - id: setup
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_INSTALL: ${{ inputs.install }}
+        INPUT_SOURCE_PATH: ${{ inputs.source-path }}
+        INPUT_BACKEND: ${{ inputs.backend }}
+        INPUT_STORE: ${{ inputs.store }}
+        INPUT_CACHE_KEY: ${{ inputs.cache-key }}
+        INPUT_REMOTE_URL: ${{ inputs.remote-url }}
+        INPUT_REMOTE_AUTH: ${{ inputs.remote-auth }}
+        INPUT_REMOTE_INSTANCE: ${{ inputs.remote-instance }}
+        ACTION_REPOSITORY: tinyhumansai/tinymold
+      run: |
+        set -euo pipefail
+        "${GITHUB_ACTION_PATH}/action/setup.sh"
+
+    - id: restore
+      if: inputs.backend == 'github' || inputs.backend == 'both'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.setup.outputs.store }}
+        key: ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-
+          ${{ steps.setup.outputs.key-prefix }}-
+
+    - shell: bash
+      env:
+        CACHE_KEY: ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
+      run: |
+        set -euo pipefail
+        echo "TINYMOLD_CACHE_KEY=${CACHE_KEY}" >> "$GITHUB_ENV"
+        if [[ -n "${MATCHED}" ]]; then
+          echo "tinymold: restored the store from ${MATCHED}"
+        fi
+        tinymold doctor

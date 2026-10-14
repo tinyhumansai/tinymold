@@ -46,6 +46,19 @@ store alone, so together they are the baseline every later phase has to beat:
 - **`cas`**: the cost of a cache hit. Restore one large artifact into a fresh
   path: a plain byte copy against `tinymold cas get` by reflink, hardlink, and
   copy. A hit only beats a rebuild if restoring doesn't copy bytes.
+- **`ci`**: a fresh CI runner at the same path, running
+  `cargo test --no-run`. It compares four setups:
+  - a cold build;
+  - `target/` restored from an archive with every source touched, as a
+    `target/` cache such as Swatinem/rust-cache does;
+  - tinymold's store restored from an archive (the GitHub Action's default
+    backend);
+  - tinymold fed only by a local bazel-remote container (the remote backend).
+
+  Downloading an archive from GitHub is not timed, so its size is listed
+  instead. On bat the tinymold modes trail the `target/` cache. Cargo re-runs
+  every build script in an empty `target/`, and bat's compile C code, which
+  `RUSTC_WRAPPER` never sees.
 
 ## Results
 
@@ -232,6 +245,19 @@ Cache: sccache 0.17.0, private directory and port. Each cell is the median clean
 | Second worktree hit rate | 32/32 hits | 349/349 hits |
 | Not cacheable (bins, proc-macros, incremental, …) | 0 | 0 |
 | Cache size on disk | 36 MiB | 128 MiB |
+
+### A fresh CI runner (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3 runs, 2026-10-14)
+
+`cargo test --no-run --locked --package <package>` on a fresh checkout at the same path, with nothing on disk but what the job restores. Each cell is the median of restore plus build; downloading an archive from GitHub's cache is not included, so archive sizes are listed for that estimate.
+
+| Mode | ripgrep 14.1.1 | bat v0.24.0 | tinymold f3767e1 |
+| --- | ---: | ---: | ---: |
+| Cold, no cache | 3.9s | 9.9s | 7.6s |
+| `target/` restored, sources touched | 1.8s | 3.3s | 3.3s |
+| tinymold store restored (GitHub backend) | 1.9s (47/49 hits) | 6.7s (177/178 hits) | 3.8s (129/132 hits) |
+| tinymold from bazel-remote only (remote backend) | 1.4s (47/49 hits) | 7.1s (175/178 hits) | 2.9s (129/132 hits) |
+| `target/` archive | 259 MiB | 698 MiB | 559 MiB |
+| tinymold store archive | 241 MiB | 592 MiB | 527 MiB |
 
 ### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 

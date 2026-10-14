@@ -74,3 +74,49 @@ fn freshness_and_snapshot_errors_say_what_went_wrong() {
         assert_eq!(error.to_string(), message);
     }
 }
+
+#[test]
+fn invalid_limits_say_what_is_accepted() {
+    assert_eq!(
+        Error::InvalidDuration("2w".into()).to_string(),
+        "invalid duration \"2w\": use a whole number and s, m, h or d, such as 14d"
+    );
+    assert_eq!(
+        Error::InvalidSize("lots".into()).to_string(),
+        "invalid size \"lots\": use a whole number of bytes, or K, M, G or T, such as 10G"
+    );
+}
+
+#[test]
+fn wrapper_errors_convert_transparently() {
+    let wrap = tinymold_wrap::Error::CorruptRecord {
+        path: "entry".into(),
+        line: 3,
+    };
+    let expected = wrap.to_string();
+    assert_eq!(Error::from(wrap).to_string(), expected);
+}
+
+#[test]
+fn a_missing_log_location_says_how_to_give_one() {
+    assert_eq!(
+        Error::NoLogLocation.to_string(),
+        "no wrapper log: pass --log or set TINYMOLD_LOG"
+    );
+}
+
+#[test]
+fn a_missing_remote_says_how_to_configure_one() {
+    assert_eq!(
+        Error::NoRemote.to_string(),
+        "no remote cache: set TINYMOLD_REMOTE_URL"
+    );
+}
+
+#[cfg(feature = "remote")]
+#[test]
+fn remote_errors_convert_transparently() {
+    let remote = tinymold_remote::Error::InvalidAuth;
+    let expected = remote.to_string();
+    assert_eq!(Error::from(remote).to_string(), expected);
+}

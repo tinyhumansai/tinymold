@@ -7,6 +7,10 @@
 //! compile actually read, which only an earlier compile's dep-info can say:
 //! every input file's content and every `env!` variable's value.
 //!
+//! Absolute workspace paths are normalized away, so the same unit hits from
+//! any worktree, with one exception: a compile instrumented for coverage
+//! keeps its workspace path, because its coverage mappings embed it.
+//!
 //! Every field goes through [`Hasher::field`], which length-prefixes it, and
 //! every list is preceded by its length, so no two different inputs encode to
 //! the same bytes. The schema tag starts every key; changing anything here
@@ -101,6 +105,13 @@ pub fn pre_key(inputs: &PreKeyInputs<'_>) -> Digest {
 
     hash_env(&mut hasher, inputs.env);
     hasher.field(inputs.linker.unwrap_or("").as_bytes());
+    if invocation.instruments_coverage() {
+        // Coverage mappings name source files by absolute path, so a hit from
+        // another workspace would report coverage of that workspace's files.
+        hasher
+            .field(b"coverage-cwd")
+            .field(roots.expand("${CWD}").as_bytes());
+    }
     hasher.finish()
 }
 

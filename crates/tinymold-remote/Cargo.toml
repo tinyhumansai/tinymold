@@ -1,0 +1,38 @@
+[package]
+name = "tinymold-remote"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "tinymold's remote cache tier: a REAPI v2 client that shares unit-cache entries between machines."
+readme = "../../README.md"
+keywords = ["build", "cache", "reapi", "bazel-remote", "cargo"]
+categories = ["development-tools::build-utils"]
+
+[dependencies]
+tinymold-hash = { workspace = true }
+tinymold-cas = { workspace = true }
+tinymold-wrap = { workspace = true }
+http = { workspace = true }
+prost = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# The in-process REAPI server the tests run against (`src/fake/`): tonic's
+# server half, a multi-threaded runtime to host it, and `service_fn` to turn
+# closures into gRPC handlers.
+tonic = { workspace = true, features = ["server"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
+tokio-stream = { workspace = true, features = ["net"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tower-service = "0.3"
+
+[lints]
+workspace = true

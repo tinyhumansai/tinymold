@@ -14,10 +14,14 @@ use tinymold::Cli;
 fn main() -> ExitCode {
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
     if let Some((program, rest)) = tinymold::wrapper_call(&args) {
-        // `RUSTC_WRAPPER=tinymold`: serve the compile, or run it uncached when
-        // no store can be found.
+        // `RUSTC_WRAPPER=tinymold`: serve the compile, from the remote tier on
+        // a local miss when one is configured, or run it uncached when no
+        // store can be found.
         let code = match tinymold::wrapper_config(|name| std::env::var_os(name)) {
-            Some(config) => tinymold_wrap::run(&config, program, rest),
+            Some(config) => {
+                let remote = tinymold::wrapper_remote(|name| std::env::var_os(name));
+                tinymold_wrap::run_with_remote(&config, remote.as_deref(), program, rest)
+            }
             None => tinymold_wrap::run_uncached(program, rest),
         };
         return ExitCode::from(u8::try_from(code).unwrap_or(1));

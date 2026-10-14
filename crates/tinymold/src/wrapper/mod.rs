@@ -52,5 +52,26 @@ pub fn wrapper_config(lookup: impl Fn(&str) -> Option<OsString>) -> Option<Confi
     Some(config)
 }
 
+/// The remote cache tier the wrapper consults on a local miss, from the
+/// `TINYMOLD_REMOTE_*` variables. `None` when none is configured, when the
+/// configuration is malformed (`tinymold remote check` reports why), or when
+/// the binary was built without the `remote` feature.
+#[must_use]
+pub fn wrapper_remote(
+    lookup: impl Fn(&str) -> Option<OsString>,
+) -> Option<Box<dyn tinymold_wrap::Remote>> {
+    #[cfg(feature = "remote")]
+    {
+        let config = tinymold_remote::RemoteConfig::from_env(lookup).ok()??;
+        let remote = tinymold_remote::RemoteCache::new(&config).ok()?;
+        Some(Box::new(remote))
+    }
+    #[cfg(not(feature = "remote"))]
+    {
+        let _ = lookup;
+        None
+    }
+}
+
 #[cfg(test)]
 mod test;

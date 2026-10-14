@@ -8,7 +8,8 @@
 //!
 //! The cache lives in the same store as `tinymold cas`: objects under
 //! `objects/`, actions under `entries/<crate>/`, input sets under
-//! `prekeys/`, and the digest cache under `stat/`.
+//! `prekeys/`, and the digest cache under `stat/`. [`records`] lists them,
+//! with each one's last use, for `tinymold gc`.
 //!
 //! # Example
 //!
@@ -28,10 +29,12 @@
 //! `tinymold-cas`. This crate is the process glue between them and rustc:
 //! hashing files, running rustc, and moving outputs in and out of the store.
 
+mod catalog;
 mod compile;
 mod error;
 mod exec;
 mod record;
+mod remote;
 mod stat;
 mod trace;
 
@@ -43,8 +46,10 @@ use std::time::Instant;
 
 use tinymold_key::{Classified, Invocation};
 
+pub use catalog::{RecordFile, RecordKind, action_references, records};
 use compile::Served;
 pub use error::{Error, Result};
+pub use remote::{Remote, RemoteError};
 use trace::Trace;
 
 /// Where the wrapper keeps its cache and reports what it did.
@@ -53,9 +58,9 @@ use trace::Trace;
 pub struct Config {
     /// The store directory.
     pub store: PathBuf,
-    /// A file to append one line per invocation to (`hit`, `miss`, `pass` or
-    /// `error`, the crate, milliseconds, and details), for benchmarks and
-    /// debugging.
+    /// A file to append one line per invocation to (`hit`, `remote`, `miss`,
+    /// `pass` or `error`, the crate, milliseconds, and details), for
+    /// benchmarks, `tinymold stats` and debugging.
     pub log: Option<PathBuf>,
     /// A file to append one Chrome trace event per wrapper step to (hashing,
     /// lookup, restore, rustc, storing), for profiling where a build's time
@@ -90,19 +95,33 @@ pub fn is_rustc(program: &Path) -> bool {
 /// with exit code 1.
 #[must_use]
 pub fn run(config: &Config, program: &Path, args: &[OsString]) -> i32 {
+    run_with_remote(config, None, program, args)
+}
+
+/// [`run`], consulting `remote` on a local miss before compiling.
+///
+/// A remote failure is logged with the miss and never fails the build.
+#[must_use]
+pub fn run_with_remote(
+    config: &Config,
+    remote: Option<&dyn Remote>,
+    program: &Path,
+    args: &[OsString],
+) -> i32 {
     let started = Instant::now();
     let mut trace = Trace::start();
-    let (outcome, crate_name, code) = serve(config, program, args, started, &mut trace);
+    let (outcome, crate_name, code) = serve(config, remote, program, args, started, &mut trace);
     if let Some(path) = &config.trace {
         trace.write(path, &crate_name, outcome);
     }
     code
 }
 
-/// Serves one invocation and returns how (`hit`, `miss`, `pass` or `error`),
-/// the crate it compiled, and the exit code.
+/// Serves one invocation and returns how (`hit`, `remote`, `miss`, `pass` or
+/// `error`), the crate it compiled, and the exit code.
 fn serve(
     config: &Config,
+    remote: Option<&dyn Remote>,
     program: &Path,
     args: &[OsString],
     started: Instant,
@@ -126,16 +145,28 @@ fn serve(
         }
     };
     let crate_name = invocation.crate_name.clone();
-    match compile::serve(&config.store, program, args, &invocation, trace) {
+    match compile::serve(&config.store, remote, program, args, &invocation, trace) {
         Ok(Served::Hit) => {
             log(config, started, "hit", &crate_name, "");
             ("hit", crate_name, 0)
         }
-        Ok(Served::Miss { code, stored }) => {
-            let detail = match &stored {
+        Ok(Served::RemoteHit) => {
+            log(config, started, "remote", &crate_name, "");
+            ("remote", crate_name, 0)
+        }
+        Ok(Served::Miss {
+            code,
+            stored,
+            remote,
+        }) => {
+            let mut detail = match &stored {
                 Ok(took) => format!("stored in {:.1}ms", took.as_secs_f64() * 1000.0),
                 Err(reason) => format!("not stored: {reason}"),
             };
+            if let Some(failure) = remote {
+                detail.push_str("; remote: ");
+                detail.push_str(&failure);
+            }
             log(config, started, "miss", &crate_name, &detail);
             ("miss", crate_name, code)
         }

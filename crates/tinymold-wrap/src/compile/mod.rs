@@ -8,8 +8,11 @@
 //!    inputs (reusing digests of unchanged files), compute the full key, and
 //!    look for an action under it;
 //! 3. on a hit, place every output by reflink or copy, give it a fresh mtime,
-//!    and replay rustc's output;
-//! 4. on a miss, run rustc with its output streamed through, then store the
+//!    replay rustc's output, and record the hit as the last use of its action
+//!    and pre-key records (`docs/specs/gc.md`);
+//! 4. with a remote tier, on a local miss, fetch the unit's input sets and
+//!    action from it and restore that (`docs/specs/remote.md`);
+//! 5. on a miss, run rustc with its output streamed through, then store the
 //!    outputs, the action, and the input set, if the compile succeeded and no
 //!    input changed while it ran.
 
@@ -26,8 +29,10 @@ use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, 
 use crate::error::io;
 use crate::exec::{self, Captured};
 use crate::record::{
-    self, Action, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets, write_atomically,
+    self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
+    write_atomically,
 };
+use crate::remote::{Remote, RemoteError};
 use crate::stat::{self, nanos};
 use crate::trace::Trace;
 use crate::{Error, Result};
@@ -35,13 +40,17 @@ use crate::{Error, Result};
 /// How a cacheable invocation was served.
 #[derive(Debug)]
 pub(crate) enum Served {
-    /// Restored from the cache; rustc did not run.
+    /// Restored from the local cache; rustc did not run.
     Hit,
+    /// Fetched from the remote tier, then restored; rustc did not run.
+    RemoteHit,
     /// rustc ran and exited with `code`; `stored` says how long storing its
     /// outputs took, or why they were not stored.
     Miss {
         code: i32,
         stored: std::result::Result<std::time::Duration, String>,
+        /// Why the remote tier could not serve the unit, when it failed.
+        remote: Option<String>,
     },
 }
 
@@ -62,6 +71,7 @@ struct Unit<'a> {
 /// can fall back to running rustc itself.
 pub(crate) fn serve(
     store_dir: &Path,
+    remote: Option<&dyn Remote>,
     program: &Path,
     args: &[OsString],
     invocation: &Invocation,
@@ -80,10 +90,25 @@ pub(crate) fn serve(
         cwd,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program))?;
-    if let Some(action) = trace.span("lookup", || unit.lookup(&pre))?
+    if let Some((action, entry)) = trace.span("lookup", || unit.lookup(&pre))?
         && trace.span("restore", || unit.restore(&action)).is_ok()
     {
+        record::touch(&entry);
+        record::touch(&unit.prekey_path(&pre));
         return Ok(Served::Hit);
+    }
+    let mut remote_failure = None;
+    if let Some(remote) = remote {
+        match trace.span("remote", || unit.remote_lookup(remote, &pre)) {
+            Ok(Some((action, entry)))
+                if trace.span("restore", || unit.restore(&action)).is_ok() =>
+            {
+                record::touch(&entry);
+                return Ok(Served::RemoteHit);
+            }
+            Ok(_) => {}
+            Err(error) => remote_failure = Some(error.to_string()),
+        }
     }
 
     let started = SystemTime::now();
@@ -100,6 +125,7 @@ pub(crate) fn serve(
     Ok(Served::Miss {
         code: captured.code,
         stored,
+        remote: remote_failure,
     })
 }
 
@@ -201,8 +227,9 @@ impl Unit<'_> {
             .join(key.to_hex())
     }
 
-    /// The action of the first recorded input set that still matches.
-    fn lookup(&self, pre: &Digest) -> Result<Option<Action>> {
+    /// The action of the first recorded input set that still matches, and
+    /// the path of its record.
+    fn lookup(&self, pre: &Digest) -> Result<Option<(Action, PathBuf)>> {
         let path = self.prekey_path(pre);
         let Some(text) = record::read(&path)? else {
             return Ok(None);
@@ -213,8 +240,54 @@ impl Unit<'_> {
             };
             let entry = self.action_path(&key);
             if let Some(text) = record::read(&entry)? {
-                return Ok(Some(Action::decode(&text, &entry)?));
+                let action = Action::decode(&text, &entry)?;
+                return Ok(Some((action, entry)));
             }
+        }
+        Ok(None)
+    }
+
+    /// The first remote input set that matches the local files and whose
+    /// action the remote can provide, written into the local cache.
+    fn remote_lookup(
+        &self,
+        remote: &dyn Remote,
+        pre: &Digest,
+    ) -> std::result::Result<Option<(Action, PathBuf)>, RemoteError> {
+        let Some(text) = remote.input_sets(pre)? else {
+            return Ok(None);
+        };
+        let mut sets = decode_sets(&text, &self.prekey_path(pre))?;
+        for set in &mut sets {
+            // Another machine's inode numbers and mtimes say nothing here:
+            // every input is hashed again.
+            for input in &mut set.inputs {
+                input.identity = Identity::default();
+            }
+        }
+        for set in sets {
+            let Some(key) = self.full_key_of(pre, &set) else {
+                continue;
+            };
+            let entry = self.action_path(&key);
+            let text = match record::read(&entry)? {
+                Some(text) => text,
+                None => match remote.fetch_action(&key, &self.store)? {
+                    Some(text) => text,
+                    None => continue,
+                },
+            };
+            let action = Action::decode(&text, &entry)?;
+            if let Some(missing) = action
+                .references()
+                .into_iter()
+                .find(|digest| !self.store.contains(digest))
+            {
+                return Err(format!("the remote action does not provide object {missing}").into());
+            }
+            write_atomically(&entry, &text)?;
+            self.remember_set(pre, set)?;
+            return Ok(Some((action, entry)));
         }
         Ok(None)
     }
