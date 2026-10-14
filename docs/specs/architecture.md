@@ -226,8 +226,9 @@ requester's `target/`
 
 - **Stat cache.** Maps (dev, inode, size, mtime_ns, ctime_ns) to a digest.
   A file is only rehashed when that tuple changes. Git's racily-clean rule
-  applies: a file whose mtime is not older than the entry's write time is not
-  trusted.
+  applies: a file whose mtime, plus one inferred timestamp tick, is not
+  before the entry's write time is not trusted, with "now" read from the
+  filesystem's clock ([rustc-wrapper spec](rustc-wrapper.md#invariants)).
 - **Dirty set.** FSEvents (macOS) and inotify (Linux) watchers per active
   worktree turn "what changed" into an O(changes) query. On a watcher queue
   overflow or restart the server falls back to a full stat walk.

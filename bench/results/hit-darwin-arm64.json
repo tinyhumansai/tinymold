@@ -1,0 +1,891 @@
+{
+  "benchmark": "hit",
+  "config": [
+    "profile.dev.split-debuginfo=\"unpacked\""
+  ],
+  "pins": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "linker": "cc, rustc's default, behind a timing wrapper",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "tinymold": "b99e8c9",
+      "wall": {
+        "median_s": 0.3885,
+        "min_s": 0.3392,
+        "max_s": 0.8411,
+        "samples_s": [
+          0.3392,
+          0.4219,
+          0.8411,
+          0.4444,
+          0.3459,
+          0.3885,
+          0.3702
+        ]
+      },
+      "restore": {
+        "median_s": 0.5136,
+        "min_s": 0.4281,
+        "max_s": 0.615,
+        "samples_s": [
+          0.4499,
+          0.615,
+          0.4281,
+          0.5928,
+          0.5136,
+          0.4963,
+          0.5506
+        ]
+      },
+      "hits": 10,
+      "units": [
+        {
+          "crate": "rg",
+          "files": 258,
+          "restore": {
+            "median_s": 0.1008,
+            "min_s": 0.0812,
+            "max_s": 0.1134,
+            "samples_s": [
+              0.0812,
+              0.0829,
+              0.0844,
+              0.1011,
+              0.1008,
+              0.1134,
+              0.1057
+            ]
+          }
+        },
+        {
+          "crate": "ignore",
+          "files": 212,
+          "restore": {
+            "median_s": 0.0962,
+            "min_s": 0.0874,
+            "max_s": 0.1243,
+            "samples_s": [
+              0.0874,
+              0.1243,
+              0.0943,
+              0.122,
+              0.0962,
+              0.089,
+              0.1016
+            ]
+          }
+        },
+        {
+          "crate": "globset",
+          "files": 132,
+          "restore": {
+            "median_s": 0.0922,
+            "min_s": 0.0703,
+            "max_s": 0.1202,
+            "samples_s": [
+              0.0821,
+              0.1202,
+              0.0703,
+              0.1106,
+              0.0922,
+              0.0861,
+              0.1043
+            ]
+          }
+        },
+        {
+          "crate": "grep_cli",
+          "files": 111,
+          "restore": {
+            "median_s": 0.0576,
+            "min_s": 0.0512,
+            "max_s": 0.0668,
+            "samples_s": [
+              0.0512,
+              0.0664,
+              0.0562,
+              0.0653,
+              0.0576,
+              0.0561,
+              0.0668
+            ]
+          }
+        },
+        {
+          "crate": "grep_regex",
+          "files": 83,
+          "restore": {
+            "median_s": 0.0644,
+            "min_s": 0.0495,
+            "max_s": 0.0865,
+            "samples_s": [
+              0.0614,
+              0.0865,
+              0.0495,
+              0.0702,
+              0.0687,
+              0.0644,
+              0.0581
+            ]
+          }
+        },
+        {
+          "crate": "grep_printer",
+          "files": 80,
+          "restore": {
+            "median_s": 0.0531,
+            "min_s": 0.0369,
+            "max_s": 0.0734,
+            "samples_s": [
+              0.0369,
+              0.0622,
+              0.0384,
+              0.0478,
+              0.062,
+              0.0531,
+              0.0734
+            ]
+          }
+        },
+        {
+          "crate": "grep_searcher",
+          "files": 45,
+          "restore": {
+            "median_s": 0.033,
+            "min_s": 0.0275,
+            "max_s": 0.0623,
+            "samples_s": [
+              0.0425,
+              0.0623,
+              0.0283,
+              0.0386,
+              0.0285,
+              0.0275,
+              0.033
+            ]
+          }
+        },
+        {
+          "crate": "grep_matcher",
+          "files": 9,
+          "restore": {
+            "median_s": 0.0044,
+            "min_s": 0.0037,
+            "max_s": 0.0221,
+            "samples_s": [
+              0.0038,
+              0.0047,
+              0.0037,
+              0.0221,
+              0.0044,
+              0.0042,
+              0.0048
+            ]
+          }
+        },
+        {
+          "crate": "grep",
+          "files": 4,
+          "restore": {
+            "median_s": 0.0025,
+            "min_s": 0.0019,
+            "max_s": 0.0046,
+            "samples_s": [
+              0.0025,
+              0.0046,
+              0.0025,
+              0.0032,
+              0.0023,
+              0.0019,
+              0.0022
+            ]
+          }
+        },
+        {
+          "crate": "build_script_build",
+          "files": 0,
+          "restore": {
+            "median_s": 0.0008,
+            "min_s": 0.0006,
+            "max_s": 0.012,
+            "samples_s": [
+              0.0006,
+              0.0009,
+              0.0006,
+              0.012,
+              0.0009,
+              0.0006,
+              0.0008
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "tinymold": "771d401",
+      "wall": {
+        "median_s": 0.3426,
+        "min_s": 0.2772,
+        "max_s": 1.1045,
+        "samples_s": [
+          0.2826,
+          0.3065,
+          0.3809,
+          0.3426,
+          0.3594,
+          0.2772,
+          1.1045
+        ]
+      },
+      "restore": {
+        "median_s": 0.3242,
+        "min_s": 0.3057,
+        "max_s": 0.4549,
+        "samples_s": [
+          0.3095,
+          0.4549,
+          0.3331,
+          0.3242,
+          0.3057,
+          0.3108,
+          0.3422
+        ]
+      },
+      "hits": 10,
+      "units": [
+        {
+          "crate": "rg",
+          "files": 258,
+          "restore": {
+            "median_s": 0.0491,
+            "min_s": 0.0442,
+            "max_s": 0.0773,
+            "samples_s": [
+              0.0487,
+              0.0773,
+              0.0497,
+              0.052,
+              0.0462,
+              0.0442,
+              0.0491
+            ]
+          }
+        },
+        {
+          "crate": "ignore",
+          "files": 212,
+          "restore": {
+            "median_s": 0.0707,
+            "min_s": 0.0663,
+            "max_s": 0.0881,
+            "samples_s": [
+              0.0663,
+              0.0881,
+              0.071,
+              0.0702,
+              0.0672,
+              0.0707,
+              0.0773
+            ]
+          }
+        },
+        {
+          "crate": "globset",
+          "files": 132,
+          "restore": {
+            "median_s": 0.0468,
+            "min_s": 0.046,
+            "max_s": 0.0674,
+            "samples_s": [
+              0.0468,
+              0.0674,
+              0.0477,
+              0.046,
+              0.0462,
+              0.0467,
+              0.0489
+            ]
+          }
+        },
+        {
+          "crate": "grep_cli",
+          "files": 111,
+          "restore": {
+            "median_s": 0.0421,
+            "min_s": 0.0395,
+            "max_s": 0.0545,
+            "samples_s": [
+              0.0413,
+              0.0545,
+              0.0421,
+              0.0429,
+              0.0395,
+              0.04,
+              0.046
+            ]
+          }
+        },
+        {
+          "crate": "grep_regex",
+          "files": 83,
+          "restore": {
+            "median_s": 0.0433,
+            "min_s": 0.0423,
+            "max_s": 0.0496,
+            "samples_s": [
+              0.0427,
+              0.0496,
+              0.046,
+              0.0433,
+              0.0423,
+              0.043,
+              0.0452
+            ]
+          }
+        },
+        {
+          "crate": "grep_printer",
+          "files": 80,
+          "restore": {
+            "median_s": 0.0251,
+            "min_s": 0.0231,
+            "max_s": 0.0384,
+            "samples_s": [
+              0.0231,
+              0.0384,
+              0.0338,
+              0.0251,
+              0.0231,
+              0.0245,
+              0.0306
+            ]
+          }
+        },
+        {
+          "crate": "grep_searcher",
+          "files": 45,
+          "restore": {
+            "median_s": 0.0305,
+            "min_s": 0.0282,
+            "max_s": 0.0341,
+            "samples_s": [
+              0.0282,
+              0.0341,
+              0.0308,
+              0.0332,
+              0.0296,
+              0.0293,
+              0.0305
+            ]
+          }
+        },
+        {
+          "crate": "grep_matcher",
+          "files": 9,
+          "restore": {
+            "median_s": 0.0039,
+            "min_s": 0.0035,
+            "max_s": 0.022,
+            "samples_s": [
+              0.0039,
+              0.022,
+              0.0045,
+              0.0035,
+              0.0036,
+              0.0039,
+              0.0057
+            ]
+          }
+        },
+        {
+          "crate": "grep",
+          "files": 4,
+          "restore": {
+            "median_s": 0.0074,
+            "min_s": 0.007,
+            "max_s": 0.0081,
+            "samples_s": [
+              0.0073,
+              0.0081,
+              0.007,
+              0.0074,
+              0.0073,
+              0.0079,
+              0.008
+            ]
+          }
+        },
+        {
+          "crate": "build_script_build",
+          "files": 0,
+          "restore": {
+            "median_s": 0.0007,
+            "min_s": 0.0006,
+            "max_s": 0.0155,
+            "samples_s": [
+              0.001,
+              0.0155,
+              0.0007,
+              0.0007,
+              0.0006,
+              0.0006,
+              0.0009
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "tinymold": "b99e8c9",
+      "wall": {
+        "median_s": 0.9163,
+        "min_s": 0.7057,
+        "max_s": 1.2966,
+        "samples_s": [
+          0.7679,
+          0.9758,
+          0.8246,
+          1.035,
+          1.2966,
+          0.9163,
+          0.7057
+        ]
+      },
+      "restore": {
+        "median_s": 0.1131,
+        "min_s": 0.0826,
+        "max_s": 0.1634,
+        "samples_s": [
+          0.092,
+          0.1079,
+          0.124,
+          0.1131,
+          0.1249,
+          0.1634,
+          0.0826
+        ]
+      },
+      "hits": 2,
+      "units": [
+        {
+          "crate": "bat",
+          "files": 2901,
+          "restore": {
+            "median_s": 0.1122,
+            "min_s": 0.082,
+            "max_s": 0.1629,
+            "samples_s": [
+              0.0912,
+              0.1073,
+              0.1228,
+              0.1122,
+              0.1243,
+              0.1629,
+              0.082
+            ]
+          }
+        },
+        {
+          "crate": "build_script_build",
+          "files": 0,
+          "restore": {
+            "median_s": 0.0006,
+            "min_s": 0.0005,
+            "max_s": 0.0011,
+            "samples_s": [
+              0.0008,
+              0.0006,
+              0.0011,
+              0.0008,
+              0.0006,
+              0.0005,
+              0.0006
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "tinymold": "2326f40",
+      "wall": {
+        "median_s": 0.6889,
+        "min_s": 0.6272,
+        "max_s": 0.7587,
+        "samples_s": [
+          0.6889,
+          0.7025,
+          0.6891,
+          0.6554,
+          0.6855,
+          0.6272,
+          0.7587
+        ]
+      },
+      "restore": {
+        "median_s": 0.0538,
+        "min_s": 0.0488,
+        "max_s": 0.0575,
+        "samples_s": [
+          0.0575,
+          0.0554,
+          0.0488,
+          0.0528,
+          0.0525,
+          0.0538,
+          0.0541
+        ]
+      },
+      "hits": 2,
+      "units": [
+        {
+          "crate": "bat",
+          "files": 2901,
+          "restore": {
+            "median_s": 0.0532,
+            "min_s": 0.0482,
+            "max_s": 0.0569,
+            "samples_s": [
+              0.0569,
+              0.0546,
+              0.0482,
+              0.0523,
+              0.0519,
+              0.0532,
+              0.0536
+            ]
+          }
+        },
+        {
+          "crate": "build_script_build",
+          "files": 0,
+          "restore": {
+            "median_s": 0.0006,
+            "min_s": 0.0005,
+            "max_s": 0.0008,
+            "samples_s": [
+              0.0006,
+              0.0008,
+              0.0006,
+              0.0005,
+              0.0006,
+              0.0005,
+              0.0005
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "tinymold",
+      "rev": "2326f40",
+      "tinymold": "b99e8c9",
+      "wall": {
+        "median_s": 0.4272,
+        "min_s": 0.3156,
+        "max_s": 0.7423,
+        "samples_s": [
+          0.7423,
+          0.4272,
+          0.3568,
+          0.4269,
+          0.3156,
+          0.5664,
+          0.4338
+        ]
+      },
+      "restore": {
+        "median_s": 0.3134,
+        "min_s": 0.2519,
+        "max_s": 0.5443,
+        "samples_s": [
+          0.5443,
+          0.3134,
+          0.2718,
+          0.3104,
+          0.2519,
+          0.377,
+          0.3563
+        ]
+      },
+      "hits": 6,
+      "units": [
+        {
+          "crate": "tinymold",
+          "files": 211,
+          "restore": {
+            "median_s": 0.0843,
+            "min_s": 0.0672,
+            "max_s": 0.1244,
+            "samples_s": [
+              0.1244,
+              0.0904,
+              0.0689,
+              0.0716,
+              0.0672,
+              0.0894,
+              0.0843
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_remote",
+          "files": 192,
+          "restore": {
+            "median_s": 0.0804,
+            "min_s": 0.059,
+            "max_s": 0.1223,
+            "samples_s": [
+              0.1223,
+              0.0706,
+              0.0629,
+              0.0804,
+              0.059,
+              0.085,
+              0.0835
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_wrap",
+          "files": 138,
+          "restore": {
+            "median_s": 0.0611,
+            "min_s": 0.0441,
+            "max_s": 0.1043,
+            "samples_s": [
+              0.1043,
+              0.0511,
+              0.0496,
+              0.0643,
+              0.0441,
+              0.0611,
+              0.0645
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_key",
+          "files": 102,
+          "restore": {
+            "median_s": 0.0496,
+            "min_s": 0.0409,
+            "max_s": 0.0858,
+            "samples_s": [
+              0.0858,
+              0.0496,
+              0.0443,
+              0.0474,
+              0.0409,
+              0.0697,
+              0.055
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_cas",
+          "files": 58,
+          "restore": {
+            "median_s": 0.0341,
+            "min_s": 0.0266,
+            "max_s": 0.0664,
+            "samples_s": [
+              0.0664,
+              0.0341,
+              0.0292,
+              0.0298,
+              0.0266,
+              0.0518,
+              0.0383
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_hash",
+          "files": 43,
+          "restore": {
+            "median_s": 0.0177,
+            "min_s": 0.0141,
+            "max_s": 0.041,
+            "samples_s": [
+              0.041,
+              0.0177,
+              0.0169,
+              0.0169,
+              0.0141,
+              0.0201,
+              0.0306
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "tinymold",
+      "rev": "2326f40",
+      "tinymold": "2326f40",
+      "wall": {
+        "median_s": 0.3051,
+        "min_s": 0.234,
+        "max_s": 0.3451,
+        "samples_s": [
+          0.3289,
+          0.3118,
+          0.3039,
+          0.234,
+          0.2988,
+          0.3051,
+          0.3451
+        ]
+      },
+      "restore": {
+        "median_s": 0.1687,
+        "min_s": 0.156,
+        "max_s": 0.2065,
+        "samples_s": [
+          0.1686,
+          0.1878,
+          0.1687,
+          0.156,
+          0.1687,
+          0.1907,
+          0.2065
+        ]
+      },
+      "hits": 6,
+      "units": [
+        {
+          "crate": "tinymold",
+          "files": 211,
+          "restore": {
+            "median_s": 0.0425,
+            "min_s": 0.0399,
+            "max_s": 0.0547,
+            "samples_s": [
+              0.0409,
+              0.0476,
+              0.0417,
+              0.0425,
+              0.0399,
+              0.0547,
+              0.0479
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_remote",
+          "files": 192,
+          "restore": {
+            "median_s": 0.0394,
+            "min_s": 0.0346,
+            "max_s": 0.0624,
+            "samples_s": [
+              0.038,
+              0.0417,
+              0.0394,
+              0.0346,
+              0.0378,
+              0.0401,
+              0.0624
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_wrap",
+          "files": 138,
+          "restore": {
+            "median_s": 0.0293,
+            "min_s": 0.0237,
+            "max_s": 0.033,
+            "samples_s": [
+              0.0286,
+              0.03,
+              0.028,
+              0.0237,
+              0.0318,
+              0.033,
+              0.0293
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_key",
+          "files": 102,
+          "restore": {
+            "median_s": 0.031,
+            "min_s": 0.0284,
+            "max_s": 0.0384,
+            "samples_s": [
+              0.031,
+              0.0337,
+              0.0302,
+              0.0284,
+              0.03,
+              0.0384,
+              0.0331
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_cas",
+          "files": 58,
+          "restore": {
+            "median_s": 0.0205,
+            "min_s": 0.0148,
+            "max_s": 0.0234,
+            "samples_s": [
+              0.021,
+              0.0234,
+              0.0205,
+              0.0179,
+              0.0193,
+              0.0148,
+              0.0233
+            ]
+          }
+        },
+        {
+          "crate": "tinymold_hash",
+          "files": 43,
+          "restore": {
+            "median_s": 0.0097,
+            "min_s": 0.0088,
+            "max_s": 0.0113,
+            "samples_s": [
+              0.0091,
+              0.0113,
+              0.0088,
+              0.0089,
+              0.0098,
+              0.0097,
+              0.0106
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-14",
+  "runs": 7
+}

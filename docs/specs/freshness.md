@@ -59,7 +59,10 @@ workspace file, plus two values that describe the target directory:
   directory with its own `.git` (submodules and worktrees).
 - **Digest reuse.** A file whose size and mtime match the previous manifest
   reuses its digest. The exception is a file modified at or after the
-  previous record, which is hashed again (git's racily-clean rule).
+  previous record, or within one timestamp tick before it, which is hashed
+  again (git's racily-clean rule). The record's time is read from the
+  filesystem's clock, as the wrapper does
+  ([rustc-wrapper spec](rustc-wrapper.md#invariants)).
 - **Skipped paths.** Paths that cannot be written as one line, because they
   are not UTF-8 or contain a newline, are skipped and counted.
 

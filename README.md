@@ -68,7 +68,8 @@ tinymold snapshot restore --replace # after a branch switch
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In
 interleaved A/B runs it made every edit kind 13-21% faster on ripgrep and bat
-than cargo's incremental default of 256, with clean builds unchanged
+than cargo's incremental default of 256, and clean builds moved by only
+−6% (ripgrep) and +2% (bat)
 ([details](docs/plans/edit-loop.md)).
 
 The wrapper is specified in

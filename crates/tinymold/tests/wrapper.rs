@@ -6,16 +6,27 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{Duration, SystemTime};
 
 fn rustc() -> PathBuf {
     std::env::var_os("RUSTC").map_or_else(|| PathBuf::from("rustc"), PathBuf::from)
 }
 
-/// A worktree at `root` holding `source` as `src/lib.rs`.
+/// A worktree at `root` holding `source` as `src/lib.rs`, saved before the
+/// build: its mtime is pushed back past any filesystem tick, since the
+/// wrapper does not store a compile whose input may have changed while it
+/// ran.
 fn worktree(root: &Path, source: &str) {
     fs::create_dir_all(root.join("src")).unwrap();
     fs::create_dir_all(root.join("target/debug/deps")).unwrap();
-    fs::write(root.join("src/lib.rs"), source).unwrap();
+    let path = root.join("src/lib.rs");
+    fs::write(&path, source).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(10))
+        .unwrap();
 }
 
 /// Compiles the worktree at `root` through the wrapper, the way cargo would,

@@ -28,6 +28,14 @@ fn log_lines(dir: &Path) -> Vec<String> {
 fn compile_args(dir: &Path, extra: &[&str]) -> Vec<OsString> {
     fs::create_dir_all(dir.join("out")).unwrap();
     fs::write(dir.join("lib.rs"), "pub fn f() {}\n").unwrap();
+    // Saved before the build, past any filesystem tick, so the compile that
+    // reads it may be stored.
+    fs::File::options()
+        .write(true)
+        .open(dir.join("lib.rs"))
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(10))
+        .unwrap();
     let mut args: Vec<OsString> = ["--crate-name", "demo", "--crate-type", "lib"]
         .iter()
         .map(OsString::from)

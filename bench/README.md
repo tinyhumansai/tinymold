@@ -46,6 +46,13 @@ store alone, so together they are the baseline every later phase has to beat:
 - **`cas`**: the cost of a cache hit. Restore one large artifact into a fresh
   path: a plain byte copy against `tinymold cas get` by reflink, hardlink, and
   copy. A hit only beats a rebuild if restoring doesn't copy bytes.
+- **`hit`**: the cost of a cache hit on units with many outputs. Every
+  source file is touched and the project rebuilt through the wrapper, so each
+  workspace unit is a hit. Incremental units with unpacked split debuginfo
+  keep one object file per codegen unit, so restoring one places hundreds of
+  files. `--against <rev>` builds another revision's tinymold and alternates
+  the two on the same store; `TINYMOLD_TRACE` times each restore apart from
+  cargo.
 - **`ci`**: a fresh CI runner at the same path, running
   `cargo test --no-run`. It compares four setups:
   - a cold build;
@@ -163,7 +170,7 @@ Each cell: median wall time, then median link time, then units compiled (cargo's
 | bat v0.24.0 | Private function body edit | 0.903s (0.86–0.95) | 0.663s (0.64–0.70) | -27% |
 | bat v0.24.0 | Public signature edit | 0.941s (0.91–1.02) | 0.678s (0.67–0.71) | -28% |
 
-### A/B: baseline vs `cgu-64` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+### A/B: baseline vs `cgu-64` (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-15)
 
 `cgu-64`: `profile.dev.codegen-units=64`. Each edit is built by both sides back to back, in alternating order, each in its own target directory. Cells: median wall time (min–max).
 
@@ -172,9 +179,11 @@ Each cell: median wall time, then median link time, then units compiled (cargo's
 | ripgrep 14.1.1 | Comment edit | 0.598s (0.57–0.64) | 0.512s (0.44–0.69) | -14% |
 | ripgrep 14.1.1 | Private function body edit | 0.641s (0.61–0.66) | 0.558s (0.51–0.58) | -13% |
 | ripgrep 14.1.1 | Public signature edit | 0.640s (0.61–0.69) | 0.507s (0.49–0.56) | -21% |
+| ripgrep 14.1.1 | Clean build | 3.969s (3.85–9.14) | 3.723s (3.55–6.02) | -6% |
 | bat v0.24.0 | Comment edit | 0.807s (0.77–1.07) | 0.680s (0.64–1.35) | -16% |
 | bat v0.24.0 | Private function body edit | 0.830s (0.82–0.86) | 0.688s (0.67–0.81) | -17% |
 | bat v0.24.0 | Public signature edit | 0.862s (0.85–1.07) | 0.736s (0.68–0.81) | -15% |
+| bat v0.24.0 | Clean build | 7.835s (7.62–19.52) | 8.006s (7.72–13.47) | +2% |
 | tinymold 3574dd6 | Comment edit | 0.166s (0.16–0.18) | 0.172s (0.17–0.18) | +4% |
 | tinymold 3574dd6 | Private function body edit | 0.327s (0.31–0.35) | 0.282s (0.27–0.30) | -14% |
 | tinymold 3574dd6 | Public signature edit | 0.631s (0.57–0.78) | 0.548s (0.47–0.64) | -13% |
@@ -185,35 +194,42 @@ Each variant is layered on the baseline. Cells: median wall time, the change aga
 
 | Variant | Settings |
 | --- | --- |
+| cgu-16 | `profile.dev.codegen-units=16` |
 | cgu-32 | `profile.dev.codegen-units=32` |
 | cgu-64 | `profile.dev.codegen-units=64` |
+| cranelift | `RUSTFLAGS -Zcodegen-backend=cranelift`; `toolchain nightly` |
+| deps-nodebug | `profile.dev.package."*".debug=false` |
+| line-tables | `profile.dev.debug="line-tables-only"`; `profile.dev.package."*".debug=false` |
+| nightly | `toolchain nightly` |
+| nodebug | `profile.dev.debug=false`; `profile.dev.package."*".debug=false` |
+| threads-8 | `RUSTFLAGS -Zthreads=8`; `toolchain nightly` |
 
 #### ripgrep 14.1.1
 
 | Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cranelift | baseline+cgu-32 | baseline+cgu-64 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| No-op rebuild | 0.06s · link 0.00s | 0.07s (+8%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.06s (-1%) · link 0.00s | 0.07s (+5%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+7%) · link 0.00s | – | – |
-| Comment edit | 0.66s · link 0.06s | 0.61s (-8%) · link 0.06s | 0.56s (-15%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.45s (-32%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.61s (-8%) · link 0.06s | 0.64s (-3%) · link 0.06s | 0.48s (-28%) · link 0.06s | 0.56s (-16%) · link 0.06s |
-| Private function body edit | 0.73s · link 0.06s | 0.62s (-14%) · link 0.06s | 0.60s (-18%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.88s (+20%) · link 0.05s | 0.64s (-12%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.64s (-12%) · link 0.06s | 0.80s (+10%) · link 0.06s | 0.57s (-22%) · link 0.06s |
-| Public signature edit | 0.96s · link 0.06s | 0.63s (-35%) · link 0.06s | 0.66s (-31%) · link 0.06s | 0.69s (-29%) · link 0.06s | 0.47s (-51%) · link 0.05s | 0.70s (-27%) · link 0.06s | 0.74s (-23%) · link 0.06s | 0.76s (-21%) · link 0.06s | 0.58s (-39%) · link 0.06s | 0.66s (-31%) · link 0.06s |
+| No-op rebuild | 0.06s · link 0.00s | 0.07s (+8%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.06s (-1%) · link 0.00s | 0.07s (+5%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (-0%) · link 0.00s | 0.07s (+3%) · link 0.00s | – | – |
+| Comment edit | 0.66s · link 0.06s | 0.61s (-8%) · link 0.06s | 0.56s (-15%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.45s (-32%) · link 0.06s | 0.62s (-6%) · link 0.06s | 0.61s (-2%) · link 0.06s | 0.64s (+3%) · link 0.06s | 0.48s (-28%) · link 0.06s | 0.56s (-16%) · link 0.06s |
+| Private function body edit | 0.73s · link 0.06s | 0.62s (-14%) · link 0.06s | 0.60s (-18%) · link 0.06s | 0.65s (-10%) · link 0.06s | 0.88s (+20%) · link 0.05s | 0.64s (-12%) · link 0.06s | 0.65s (+2%) · link 0.06s | 0.64s (-0%) · link 0.06s | 0.80s (+10%) · link 0.06s | 0.57s (-22%) · link 0.06s |
+| Public signature edit | 0.96s · link 0.06s | 0.63s (-35%) · link 0.06s | 0.66s (-31%) · link 0.06s | 0.69s (-29%) · link 0.06s | 0.47s (-51%) · link 0.05s | 0.70s (-27%) · link 0.06s | 0.74s (+6%) · link 0.06s | 0.76s (+9%) · link 0.06s | 0.58s (-39%) · link 0.06s | 0.66s (-31%) · link 0.06s |
 
 #### bat v0.24.0
 
 | Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cgu-32 | baseline+cgu-64 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | No-op rebuild | 0.10s · link 0.00s | 0.10s (+4%) · link 0.00s | 0.10s (+5%) · link 0.00s | 0.11s (+11%) · link 0.00s | 0.09s (-5%) · link 0.00s | 0.10s (+0%) · link 0.00s | 0.11s (+14%) · link 0.00s | – | – |
-| Comment edit | 1.18s · link 0.07s | 1.04s (-11%) · link 0.07s | 1.06s (-10%) · link 0.07s | 1.23s (+4%) · link 0.08s | 0.72s (-39%) · link 0.07s | 0.97s (-18%) · link 0.07s | 1.06s (-10%) · link 0.08s | 1.09s (-8%) · link 0.08s | 1.02s (-13%) · link 0.09s |
-| Private function body edit | 1.28s · link 0.08s | 1.08s (-16%) · link 0.07s | 1.11s (-13%) · link 0.07s | 1.06s (-17%) · link 0.07s | 0.79s (-39%) · link 0.07s | 1.03s (-20%) · link 0.07s | 1.06s (-17%) · link 0.07s | 1.18s (-8%) · link 0.09s | 1.01s (-21%) · link 0.09s |
-| Public signature edit | 1.28s · link 0.08s | 1.09s (-15%) · link 0.07s | 1.14s (-11%) · link 0.07s | 0.98s (-23%) · link 0.07s | 0.81s (-37%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.09s (-15%) · link 0.08s | 1.02s (-20%) · link 0.08s |
+| Comment edit | 1.18s · link 0.07s | 1.04s (-11%) · link 0.07s | 1.06s (-10%) · link 0.07s | 1.23s (+4%) · link 0.08s | 0.72s (-39%) · link 0.07s | 0.97s (-18%) · link 0.07s | 1.06s (+9%) · link 0.08s | 1.09s (-8%) · link 0.08s | 1.02s (-13%) · link 0.09s |
+| Private function body edit | 1.28s · link 0.08s | 1.08s (-16%) · link 0.07s | 1.11s (-13%) · link 0.07s | 1.06s (-17%) · link 0.07s | 0.79s (-39%) · link 0.07s | 1.03s (-20%) · link 0.07s | 1.06s (+3%) · link 0.07s | 1.18s (-8%) · link 0.09s | 1.01s (-21%) · link 0.09s |
+| Public signature edit | 1.28s · link 0.08s | 1.09s (-15%) · link 0.07s | 1.14s (-11%) · link 0.07s | 0.98s (-23%) · link 0.07s | 0.81s (-37%) · link 0.07s | 1.16s (-9%) · link 0.07s | 1.16s (+0%) · link 0.07s | 1.09s (-15%) · link 0.08s | 1.02s (-20%) · link 0.08s |
 
 #### tinymold c79a959
 
 | Case | baseline | baseline+deps-nodebug | baseline+line-tables | baseline+nodebug | baseline+cgu-16 | baseline+nightly | baseline+threads-8 | baseline+cranelift | baseline+cgu-32 | baseline+cgu-64 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| No-op rebuild | 0.06s · link 0.00s | 0.06s (+2%) · link 0.00s | 0.06s (+3%) · link 0.00s | 0.07s (+15%) · link 0.00s | 0.06s (-2%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+6%) · link 0.00s | 0.07s (+5%) · link 0.00s | – | – |
-| Comment edit | 0.18s · link 0.05s | 0.17s (-6%) · link 0.04s | 0.17s (-2%) · link 0.04s | 0.20s (+12%) · link 0.04s | 0.16s (-8%) · link 0.04s | 0.18s (+2%) · link 0.04s | 0.20s (+11%) · link 0.04s | 0.19s (+10%) · link 0.04s | 0.18s (+4%) · link 0.05s | 0.18s (+2%) · link 0.04s |
-| Private function body edit | 0.36s · link 0.04s | 0.37s (+2%) · link 0.05s | 0.36s (-1%) · link 0.04s | 0.39s (+8%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.42s (+15%) · link 0.04s | 0.40s (+11%) · link 0.04s | 0.39s (+8%) · link 0.05s | 0.30s (-16%) · link 0.04s |
-| Public signature edit | 0.63s · link 0.05s | 0.61s (-3%) · link 0.04s | 0.65s (+3%) · link 0.04s | 0.66s (+5%) · link 0.04s | 0.44s (-29%) · link 0.04s | 0.72s (+15%) · link 0.04s | 0.80s (+27%) · link 0.04s | 0.81s (+29%) · link 0.04s | 0.50s (-20%) · link 0.05s | 0.55s (-12%) · link 0.05s |
+| No-op rebuild | 0.06s · link 0.00s | 0.06s (+2%) · link 0.00s | 0.06s (+3%) · link 0.00s | 0.07s (+15%) · link 0.00s | 0.06s (-2%) · link 0.00s | 0.07s (+3%) · link 0.00s | 0.07s (+2%) · link 0.00s | 0.07s (+2%) · link 0.00s | – | – |
+| Comment edit | 0.18s · link 0.05s | 0.17s (-6%) · link 0.04s | 0.17s (-2%) · link 0.04s | 0.20s (+12%) · link 0.04s | 0.16s (-8%) · link 0.04s | 0.18s (+2%) · link 0.04s | 0.20s (+9%) · link 0.04s | 0.19s (+7%) · link 0.04s | 0.18s (+4%) · link 0.05s | 0.18s (+2%) · link 0.04s |
+| Private function body edit | 0.36s · link 0.04s | 0.37s (+2%) · link 0.05s | 0.36s (-1%) · link 0.04s | 0.39s (+8%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.40s (+10%) · link 0.04s | 0.42s (+5%) · link 0.04s | 0.40s (+1%) · link 0.04s | 0.39s (+8%) · link 0.05s | 0.30s (-16%) · link 0.04s |
+| Public signature edit | 0.63s · link 0.05s | 0.61s (-3%) · link 0.04s | 0.65s (+3%) · link 0.04s | 0.66s (+5%) · link 0.04s | 0.44s (-29%) · link 0.04s | 0.72s (+15%) · link 0.04s | 0.80s (+11%) · link 0.04s | 0.81s (+12%) · link 0.04s | 0.50s (-20%) · link 0.05s | 0.55s (-12%) · link 0.05s |
 
 ### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
@@ -258,6 +274,27 @@ Cache: sccache 0.17.0, private directory and port. Each cell is the median clean
 | tinymold from bazel-remote only (remote backend) | 1.4s (47/49 hits) | 7.1s (175/178 hits) | 2.9s (129/132 hits) |
 | `target/` archive | 259 MiB | 698 MiB | 559 MiB |
 | tinymold store archive | 241 MiB | 592 MiB | 527 MiB |
+
+### Cache hits on many-output units (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 7 runs, 2026-10-14)
+
+Every source file touched, then rebuilt through the wrapper, so each workspace unit is a cache hit. Incremental units with `profile.dev.split-debuginfo="unpacked"` keep one object file per codegen unit, so a hit places hundreds of files. Before is the `--against` revision, after is the checkout's; they take alternate turns on the same store. Restore times come from `TINYMOLD_TRACE`; cells are medians (min–max). A crate's row adds up all of its units, such as a library and a binary of the same name.
+
+| Project | What | before | after | change |
+| --- | --- | ---: | ---: | ---: |
+| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | Build wall time | 0.39s (0.34–0.84) | 0.34s (0.28–1.10) | -12% |
+| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | All 10 restores, summed | 514 ms (428–615) | 324 ms (306–455) | -37% |
+| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | `rg` restore (258 files) | 100.8 ms (81.2–113.4) | 49.1 ms (44.2–77.3) | -51% |
+| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | `ignore` restore (212 files) | 96.2 ms (87.4–124.3) | 70.7 ms (66.3–88.1) | -27% |
+| ripgrep 14.1.1<br>tinymold b99e8c9 → 771d401 | `globset` restore (132 files) | 92.2 ms (70.3–120.2) | 46.8 ms (46.0–67.4) | -49% |
+| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | Build wall time | 0.92s (0.71–1.30) | 0.69s (0.63–0.76) | -25% |
+| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | All 2 restores, summed | 113 ms (83–163) | 54 ms (49–58) | -52% |
+| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | `bat` restore (2901 files) | 112.2 ms (82.0–162.9) | 53.2 ms (48.2–56.9) | -53% |
+| bat v0.24.0<br>tinymold b99e8c9 → 2326f40 | `build_script_build` restore (0 files) | 0.6 ms (0.5–1.1) | 0.6 ms (0.5–0.8) | +0% |
+| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | Build wall time | 0.43s (0.32–0.74) | 0.31s (0.23–0.35) | -29% |
+| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | All 6 restores, summed | 313 ms (252–544) | 169 ms (156–206) | -46% |
+| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | `tinymold` restore (211 files) | 84.3 ms (67.2–124.4) | 42.5 ms (39.9–54.7) | -50% |
+| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | `tinymold_remote` restore (192 files) | 80.4 ms (59.0–122.3) | 39.4 ms (34.6–62.4) | -51% |
+| tinymold 2326f40<br>tinymold b99e8c9 → 2326f40 | `tinymold_wrap` restore (138 files) | 61.1 ms (44.1–104.3) | 29.3 ms (23.7–33.0) | -52% |
 
 ### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 
