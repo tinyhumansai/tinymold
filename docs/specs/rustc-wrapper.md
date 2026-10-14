@@ -123,10 +123,10 @@ A value that is embedded fails the scan and stays raw. That covers a string
 constant, and also an `include!` under a root tinymold does not remap.
 
 **What the scan cannot see.** A value transformed before it reaches the
-output, such as only its length or a hash of it, passes the scan. No crate in
-the corpus does this. It is the accepted residual risk of this rule, and
-`CARGO_MANIFEST_DIR` read for a workspace crate stays raw in practice,
-because its source paths under `${CWD}` are not remapped and so appear in its
+output, such as only its length or a hash of it, passes the scan. That is the
+accepted residual risk of this rule. In practice
+`CARGO_MANIFEST_DIR` read for a workspace crate stays raw, because its
+source paths under `${CWD}` are not remapped and so appear in its
 `.rmeta`.
 
 **The profile directory is remapped on every miss.** Without it the `include!`
@@ -138,8 +138,9 @@ command line already has a `--remap-path-prefix` of its own (cargo's
 includes generated files builds byte-identical outputs in every worktree, so
 its dependents hit as well. Dep-info keeps real paths, because rustc does not
 remap them and cargo reads them. The remap changes only where generated files
-appear to live, in diagnostics and debuginfo: `${PROFILE}/build/...`. A hit
-expands the placeholder back to the worktree's path in replayed diagnostics.
+appear to live, in diagnostics and debuginfo: `${PROFILE}/build/...`. The
+miss's own diagnostics show the placeholder; a hit expands it back to the
+worktree's path when it replays them.
 The flag is not in the key, since it is a function of the roots.
 
 ## Outputs, hits and misses
