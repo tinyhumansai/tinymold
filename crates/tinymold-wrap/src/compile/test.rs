@@ -318,3 +318,68 @@ fn a_hit_removes_stale_outputs_of_the_same_unit() {
         b"from another branch"
     );
 }
+
+/// Every file under `dir`, recursively.
+fn files_under(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            found.extend(files_under(&path));
+        } else {
+            found.push(path);
+        }
+    }
+    found
+}
+
+/// Sets the mtime of every file under `dir` to `when`.
+fn backdate(dir: &Path, when: SystemTime) {
+    for path in files_under(dir) {
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(when)
+            .unwrap();
+    }
+}
+
+#[test]
+fn a_hit_records_its_last_use_on_the_action_and_pre_key() {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let long_ago = SystemTime::now() - Duration::from_secs(30 * 24 * 3600);
+    let records = [unit.store.join("entries"), unit.store.join("prekeys")];
+    for dir in &records {
+        backdate(dir, long_ago);
+    }
+
+    unit.clear_outputs();
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    for dir in &records {
+        for path in files_under(dir) {
+            let modified = fs::metadata(&path).unwrap().modified().unwrap();
+            assert!(
+                modified > long_ago + Duration::from_secs(3600),
+                "{} still says it was last used long ago",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn a_miss_leaves_the_last_use_of_other_actions_alone() {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    let long_ago = SystemTime::now() - Duration::from_secs(30 * 24 * 3600);
+    backdate(&unit.store.join("entries"), long_ago);
+    let before = files_under(&unit.store.join("entries"));
+
+    fs::write(unit.root.join("src/lib.rs"), "pub fn answer() -> u32 { 7 }\n").unwrap();
+    assert_stored(&unit.serve(&[]).unwrap());
+    for path in before {
+        assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), long_ago);
+    }
+}
