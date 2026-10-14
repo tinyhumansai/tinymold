@@ -135,9 +135,9 @@ pub(crate) fn store(
     })
 }
 
-/// Restores `session` when the directory it came from is `crate_dir`'s
-/// parent's and does not exist yet. Returns whether it did; a failure leaves
-/// no partial session behind.
+/// Restores `session` when it came from a crate directory in `incremental`
+/// that does not exist now. Returns whether it did; a failure leaves no
+/// partial session behind.
 pub(crate) fn restore(store: &Store, session: &SessionRecord, incremental: &Path) -> bool {
     let crate_dir = PathBuf::from(&session.dir);
     if crate_dir.parent() != Some(incremental) || crate_dir.exists() {
@@ -177,6 +177,14 @@ fn place(store: &Store, session: &SessionRecord, crate_dir: &Path) -> Result<()>
 }
 
 /// Store objects are read-only; rustc rewrites a session's files.
+#[cfg(unix)]
+fn make_writable(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o644))
+        .map_err(io("set the mode of", path))
+}
+
+#[cfg(not(unix))]
 fn make_writable(path: &Path) -> Result<()> {
     let mut permissions = fs::metadata(path).map_err(io("read", path))?.permissions();
     #[allow(clippy::permissions_set_readonly_false)]

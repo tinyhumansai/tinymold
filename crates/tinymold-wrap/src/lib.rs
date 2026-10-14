@@ -40,6 +40,7 @@ mod parallel;
 mod placed;
 mod record;
 mod remote;
+mod session;
 mod stat;
 mod trace;
 
