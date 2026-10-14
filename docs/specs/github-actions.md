@@ -124,8 +124,9 @@ remote without the credential.
 2. Summarize the wrapper log into `$GITHUB_STEP_SUMMARY` with
    `tinymold stats --markdown`: hits, remote hits, misses, pass-throughs,
    errors, and wrapper time.
-3. For `github`, `both` and `none`, run `tinymold gc` with `max-age` and
-   `max-size`.
+3. Run `tinymold gc` with `max-age` and `max-size`, for every backend: a
+   self-hosted runner keeps its store between jobs whichever backend it
+   uses.
 4. For `github` and `both`, save the store with `actions/cache/save` under
    the setup step's exact key, but only when the job stored something new.
    A job that only hit would upload the same store it restored.

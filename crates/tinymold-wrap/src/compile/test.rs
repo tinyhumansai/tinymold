@@ -536,7 +536,11 @@ fn a_remote_action_naming_a_file_outside_the_output_directory_is_not_restored() 
     let (second, remote) = remote_pair();
     let entry = files_under(&remote.join("entries")).pop().unwrap();
     let text = fs::read_to_string(&entry).unwrap();
-    fs::write(&entry, text.replace(" libdemo-1.rlib", " ../../escape.rlib")).unwrap();
+    fs::write(
+        &entry,
+        text.replace(" libdemo-1.rlib", " ../../escape.rlib"),
+    )
+    .unwrap();
     let remote = StoreRemote::new(&remote);
 
     assert!(matches!(

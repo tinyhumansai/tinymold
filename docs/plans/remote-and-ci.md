@@ -52,7 +52,8 @@ green.
    - `TINYMOLD_REMOTE_*` read by `tinymold`;
    - `tinymold remote push|check`.
 9. **The actions**: `action.yml` and `save/action.yml`, the CI jobs
-   `tinymold-cache` and `remote-e2e`, and `deploy/bazel-remote/`.
+   `action-fill`, `action-reuse` and `remote-e2e`, and
+   `deploy/bazel-remote/`.
 10. **README and bench**: a "Use in GitHub Actions" section, and a `ci`
     scenario in `bench/bench.py` with committed results.
 
