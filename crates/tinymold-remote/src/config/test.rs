@@ -24,8 +24,14 @@ fn no_url_means_no_remote() {
 fn grpc_urls_become_channel_uris() {
     let uri = |url: &str| RemoteConfig::new(url).unwrap().endpoint;
     assert_eq!(uri("grpc://cache:9092"), "http://cache:9092");
-    assert_eq!(uri("grpcs://cache.example.com"), "https://cache.example.com:443");
-    assert_eq!(uri("grpcs://cache.example.com:8443/"), "https://cache.example.com:8443");
+    assert_eq!(
+        uri("grpcs://cache.example.com"),
+        "https://cache.example.com:443"
+    );
+    assert_eq!(
+        uri("grpcs://cache.example.com:8443/"),
+        "https://cache.example.com:8443"
+    );
     assert_eq!(uri("http://127.0.0.1:9092"), "http://127.0.0.1:9092");
     assert!(RemoteConfig::new("grpcs://cache").unwrap().uses_tls());
     assert!(!RemoteConfig::new("grpc://cache:1").unwrap().uses_tls());
@@ -78,7 +84,10 @@ fn the_credential_is_never_printed() {
     .unwrap()
     .unwrap();
     let debug = format!("{config:?}");
-    assert!(!debug.contains("s3cret") && !debug.contains("Y2k6"), "{debug}");
+    assert!(
+        !debug.contains("s3cret") && !debug.contains("Y2k6"),
+        "{debug}"
+    );
 }
 
 #[test]

@@ -32,7 +32,12 @@ fn capabilities_report_sha256_and_whether_updates_are_allowed() {
     let capabilities = runtime.block_on(client.capabilities()).unwrap();
     let cache = capabilities.cache_capabilities.unwrap();
     assert_eq!(cache.digest_functions, [DIGEST_SHA256]);
-    assert!(cache.action_cache_update_capabilities.unwrap().update_enabled);
+    assert!(
+        cache
+            .action_cache_update_capabilities
+            .unwrap()
+            .update_enabled
+    );
 }
 
 #[test]
@@ -53,7 +58,10 @@ fn an_action_result_round_trips_and_a_missing_one_is_none() {
 
     runtime.block_on(async {
         assert_eq!(client.get_action_result(key.clone()).await.unwrap(), None);
-        assert_eq!(client.find_missing(vec![blob.clone()]).await.unwrap(), [blob.clone()]);
+        assert_eq!(
+            client.find_missing(vec![blob.clone()]).await.unwrap(),
+            std::slice::from_ref(&blob)
+        );
         client.write(&blob, b"bytes".to_vec()).await.unwrap();
         assert_eq!(client.find_missing(vec![blob.clone()]).await.unwrap(), []);
         client
@@ -69,7 +77,9 @@ fn large_and_empty_blobs_survive_chunked_transfers() {
     let server = Server::start();
     let runtime = runtime();
     let client = client(&runtime, &config(&server));
-    let large: Vec<u8> = (0..(CHUNK * 2 + 17)).map(|i| (i % 251) as u8).collect();
+    let large: Vec<u8> = (0..(CHUNK * 2 + 17))
+        .map(|i| u8::try_from(i % 251).unwrap())
+        .collect();
     for data in [large, Vec::new()] {
         let digest = naming::blob(&data);
         runtime.block_on(async {
@@ -85,7 +95,9 @@ fn a_blob_whose_content_does_not_match_is_rejected() {
     let runtime = runtime();
     let client = client(&runtime, &config(&server));
     let digest = naming::blob(b"real");
-    runtime.block_on(client.write(&digest, b"real".to_vec())).unwrap();
+    runtime
+        .block_on(client.write(&digest, b"real".to_vec()))
+        .unwrap();
     server.with(|state| state.corrupt.insert(digest.hash.clone()));
 
     let result = runtime.block_on(client.read(&digest));
@@ -142,7 +154,13 @@ fn a_read_only_server_refuses_writes() {
     );
     let update = runtime.block_on(client.update_action_result(digest, ActionResult::default()));
     assert!(
-        matches!(&update, Err(Error::Status { call: "UpdateActionResult", .. })),
+        matches!(
+            &update,
+            Err(Error::Status {
+                call: "UpdateActionResult",
+                ..
+            })
+        ),
         "{update:?}"
     );
 }
@@ -156,7 +174,10 @@ fn a_server_that_stalls_times_out() {
     quick.timeout = Duration::from_millis(100);
     let client = client(&runtime, &quick);
     let result = runtime.block_on(client.capabilities());
-    assert!(matches!(result, Err(Error::Timeout("GetCapabilities"))), "{result:?}");
+    assert!(
+        matches!(result, Err(Error::Timeout("GetCapabilities"))),
+        "{result:?}"
+    );
     let read = runtime.block_on(client.read(&naming::blob(b"x")));
     assert!(matches!(read, Err(Error::Timeout("Read"))), "{read:?}");
 }
@@ -199,5 +220,8 @@ fn transfers_get_time_in_proportion_to_their_size() {
         size_bytes: 40 << 20,
     };
     assert_eq!(client.allowance(&small), DEFAULT_TIMEOUT);
-    assert_eq!(client.allowance(&large), DEFAULT_TIMEOUT + Duration::from_secs(10));
+    assert_eq!(
+        client.allowance(&large),
+        DEFAULT_TIMEOUT + Duration::from_secs(10)
+    );
 }

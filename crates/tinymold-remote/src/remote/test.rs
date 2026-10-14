@@ -76,7 +76,11 @@ fn a_pushed_action_is_fetched_into_an_empty_store() {
     assert_eq!(report.skipped, 0);
     // The action record, the pre-key record, and two objects.
     assert_eq!(report.blobs, 4);
-    assert!(report.to_string().starts_with("pushed 1 actions and 1 pre-keys"));
+    assert!(
+        report
+            .to_string()
+            .starts_with("pushed 1 actions and 1 pre-keys")
+    );
 
     let elsewhere = tempfile::tempdir().unwrap();
     let fresh = Store::open(elsewhere.path()).unwrap();
@@ -207,7 +211,13 @@ fn fetch_error(files: Vec<(String, Vec<u8>)>) -> Error {
 #[test]
 fn entries_tinymold_did_not_write_are_refused() {
     let no_record = fetch_error(vec![]);
-    assert!(matches!(no_record, Error::Malformed { reason: "it has no tinymold record", .. }));
+    assert!(matches!(
+        no_record,
+        Error::Malformed {
+            reason: "it has no tinymold record",
+            ..
+        }
+    ));
 
     let unnamed = fetch_error(vec![
         (ACTION_FILE.to_owned(), b"record".to_vec()),
@@ -215,7 +225,10 @@ fn entries_tinymold_did_not_write_are_refused() {
     ]);
     assert!(matches!(
         unnamed,
-        Error::Malformed { reason: "an output is not named by its digest", .. }
+        Error::Malformed {
+            reason: "an output is not named by its digest",
+            ..
+        }
     ));
 
     let misnamed = fetch_error(vec![
@@ -224,13 +237,19 @@ fn entries_tinymold_did_not_write_are_refused() {
     ]);
     assert!(matches!(
         misnamed,
-        Error::Malformed { reason: "an output does not match its name", .. }
+        Error::Malformed {
+            reason: "an output does not match its name",
+            ..
+        }
     ));
 
     let binary = fetch_error(vec![(ACTION_FILE.to_owned(), vec![0xff, 0xfe])]);
     assert!(matches!(
         binary,
-        Error::Malformed { reason: "its action record is not text", .. }
+        Error::Malformed {
+            reason: "its action record is not text",
+            ..
+        }
     ));
 }
 
@@ -238,9 +257,16 @@ fn entries_tinymold_did_not_write_are_refused() {
 fn an_output_without_a_digest_is_refused() {
     let server = Server::start();
     let key = Digest::of_bytes(b"planted");
-    plant(&server, &key, vec![(ACTION_FILE.to_owned(), b"record".to_vec())]);
+    plant(
+        &server,
+        &key,
+        vec![(ACTION_FILE.to_owned(), b"record".to_vec())],
+    );
     server.with(|state| {
-        let result = state.actions.get_mut(&naming::action_key(&key).hash).unwrap();
+        let result = state
+            .actions
+            .get_mut(&naming::action_key(&key).hash)
+            .unwrap();
         result.output_files.push(OutputFile {
             path: Digest::of_bytes(b"x").to_hex(),
             digest: None,
@@ -250,7 +276,13 @@ fn an_output_without_a_digest_is_refused() {
     let empty = tempfile::tempdir().unwrap();
     let store = Store::open(empty.path()).unwrap();
     let error = remote(&server).fetch_action_into(&key, &store).unwrap_err();
-    assert!(matches!(error, Error::Malformed { reason: "an output has no digest", .. }));
+    assert!(matches!(
+        error,
+        Error::Malformed {
+            reason: "an output has no digest",
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -272,7 +304,10 @@ fn a_pre_key_record_that_is_not_text_is_refused() {
     let error = remote(&server).input_sets_of(&pre).unwrap_err();
     assert!(matches!(
         error,
-        Error::Malformed { reason: "its pre-key record is not text", .. }
+        Error::Malformed {
+            reason: "its pre-key record is not text",
+            ..
+        }
     ));
 }
 

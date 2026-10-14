@@ -122,7 +122,7 @@ impl RemoteCache {
             }
             match record.kind {
                 RecordKind::Action { key, .. } => {
-                    match action_result(&store, &record.path, &mut blobs)? {
+                    match action_result(&store, &record.path, &mut blobs) {
                         Some(result) => actions.push((naming::action_key(&key), result)),
                         None => report.skipped += 1,
                     }
@@ -179,10 +179,12 @@ impl RemoteCache {
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
             let bytes = self.client.read(&digest).await?;
-            String::from_utf8(bytes).map(Some).map_err(|_| Error::Malformed {
-                key: key.hash,
-                reason: "its pre-key record is not text",
-            })
+            String::from_utf8(bytes)
+                .map(Some)
+                .map_err(|_| Error::Malformed {
+                    key: key.hash,
+                    reason: "its pre-key record is not text",
+                })
         })
     }
 
@@ -216,10 +218,12 @@ impl RemoteCache {
                 }
             }
             let text = self.client.read(&record).await?;
-            String::from_utf8(text).map(Some).map_err(|_| Error::Malformed {
-                key: key.hash,
-                reason: "its action record is not text",
-            })
+            String::from_utf8(text)
+                .map(Some)
+                .map_err(|_| Error::Malformed {
+                    key: key.hash,
+                    reason: "its action record is not text",
+                })
         })
     }
 }
@@ -259,17 +263,15 @@ fn action_result(
         if !seen.insert(object) {
             continue;
         }
-        let Ok(bytes) = store.read(&object) else {
-            return Ok(None);
-        };
+        let bytes = store.read(&object).ok()?;
         let digest = naming::blob(&bytes);
         files.push(output(&object.to_hex(), digest.clone()));
         blobs.entry(digest).or_insert(Source::Object(object));
     }
-    Ok(Some(ActionResult {
+    Some(ActionResult {
         output_files: files,
         exit_code: 0,
-    }))
+    })
 }
 
 fn output(path: &str, digest: proto::Digest) -> OutputFile {

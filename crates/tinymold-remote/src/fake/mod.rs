@@ -163,135 +163,173 @@ impl tonic::server::NamedService for Service {
 
 async fn route(state: Arc<Mutex<State>>, request: http::Request<Body>) -> http::Response<Body> {
     let path = request.uri().path().to_owned();
-    let state = Arc::clone(&state);
     match path.as_str() {
         "/build.bazel.remote.execution.v2.Capabilities/GetCapabilities" => {
-            let service = tower::service_fn(move |_: Request<GetCapabilitiesRequest>| {
-                let read_only = state.lock().unwrap().read_only;
-                ready(Ok::<_, Status>(Response::new(ServerCapabilities {
-                    cache_capabilities: Some(CacheCapabilities {
-                        digest_functions: vec![DIGEST_SHA256],
-                        action_cache_update_capabilities: Some(ActionCacheUpdateCapabilities {
-                            update_enabled: !read_only,
-                        }),
-                    }),
-                })))
-            });
-            Grpc::new(ProstCodec::<ServerCapabilities, GetCapabilitiesRequest>::default())
-                .unary(service, request)
-                .await
+            capabilities(state, request).await
         }
         "/build.bazel.remote.execution.v2.ActionCache/GetActionResult" => {
-            let service = tower::service_fn(move |call: Request<GetActionResultRequest>| {
-                let key = call.into_inner().action_digest.unwrap_or_default().hash;
-                let found = state.lock().unwrap().actions.get(&key).cloned();
-                ready(found.map(Response::new).ok_or_else(|| Status::not_found(key)))
-            });
-            Grpc::new(ProstCodec::<ActionResult, GetActionResultRequest>::default())
-                .unary(service, request)
-                .await
+            get_action_result(state, request).await
         }
         "/build.bazel.remote.execution.v2.ActionCache/UpdateActionResult" => {
-            let service = tower::service_fn(move |call: Request<UpdateActionResultRequest>| {
-                let call = call.into_inner();
-                let mut state = state.lock().unwrap();
-                if state.read_only {
-                    return ready(Err(Status::permission_denied("read only")));
-                }
-                let result = call.action_result.unwrap_or_default();
-                let missing = result.output_files.iter().any(|file| {
-                    !state
-                        .blobs
-                        .contains_key(&file.digest.clone().unwrap_or_default().hash)
-                });
-                if missing {
-                    return ready(Err(Status::failed_precondition("missing blobs")));
-                }
-                let key = call.action_digest.unwrap_or_default().hash;
-                state.actions.insert(key, result.clone());
-                ready(Ok(Response::new(result)))
-            });
-            Grpc::new(ProstCodec::<ActionResult, UpdateActionResultRequest>::default())
-                .unary(service, request)
-                .await
+            update_action_result(state, request).await
         }
         "/build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs" => {
-            let service = tower::service_fn(move |call: Request<FindMissingBlobsRequest>| {
-                let state = state.lock().unwrap();
-                let missing = call
-                    .into_inner()
-                    .blob_digests
-                    .into_iter()
-                    .filter(|digest| !state.blobs.contains_key(&digest.hash))
-                    .collect();
-                ready(Ok::<_, Status>(Response::new(FindMissingBlobsResponse {
-                    missing_blob_digests: missing,
-                })))
-            });
-            Grpc::new(ProstCodec::<FindMissingBlobsResponse, FindMissingBlobsRequest>::default())
-                .unary(service, request)
-                .await
+            find_missing_blobs(state, request).await
         }
-        "/google.bytestream.ByteStream/Read" => {
-            let service = tower::service_fn(move |call: Request<ReadRequest>| {
-                let resource = call.into_inner().resource_name;
-                let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
-                let state = state.lock().unwrap();
-                let Some(mut data) = state.blobs.get(&hash).cloned() else {
-                    return ready(Err(Status::not_found(hash)));
-                };
-                if state.corrupt.contains(&hash) {
-                    data.push(b'!');
-                }
-                // Two chunks, so the client has to put a stream together.
-                let middle = data.len() / 2;
-                let chunks = vec![
-                    Ok(ReadResponse {
-                        data: data[..middle].to_vec(),
-                    }),
-                    Ok(ReadResponse {
-                        data: data[middle..].to_vec(),
-                    }),
-                ];
-                ready(Ok(Response::new(tokio_stream::iter(chunks))))
-            });
-            Grpc::new(ProstCodec::<ReadResponse, ReadRequest>::default())
-                .server_streaming(service, request)
-                .await
-        }
-        "/google.bytestream.ByteStream/Write" => {
-            let service = tower::service_fn(move |call: Request<Streaming<WriteRequest>>| {
-                let state = Arc::clone(&state);
-                async move {
-                    let mut stream = call.into_inner();
-                    let mut resource = String::new();
-                    let mut data = Vec::new();
-                    while let Some(chunk) = stream.message().await? {
-                        if resource.is_empty() {
-                            resource = chunk.resource_name;
-                        }
-                        data.extend_from_slice(&chunk.data);
-                    }
-                    let mut state = state.lock().unwrap();
-                    if state.read_only {
-                        return Err(Status::permission_denied("read only"));
-                    }
-                    let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
-                    if naming::blob(&data).hash != hash {
-                        return Err(Status::invalid_argument("digest mismatch"));
-                    }
-                    let size = i64::try_from(data.len()).unwrap();
-                    state.blobs.insert(hash, data);
-                    state.writes += 1;
-                    Ok(Response::new(WriteResponse {
-                        committed_size: size,
-                    }))
-                }
-            });
-            Grpc::new(ProstCodec::<WriteResponse, WriteRequest>::default())
-                .client_streaming(service, request)
-                .await
-        }
+        "/google.bytestream.ByteStream/Read" => read(state, request).await,
+        "/google.bytestream.ByteStream/Write" => write(state, request).await,
         _ => Status::unimplemented(path).into_http(),
     }
+}
+
+async fn capabilities(
+    state: Arc<Mutex<State>>,
+    request: http::Request<Body>,
+) -> http::Response<Body> {
+    let service = tower::service_fn(move |_: Request<GetCapabilitiesRequest>| {
+        let read_only = state.lock().unwrap().read_only;
+        ready(Ok::<_, Status>(Response::new(ServerCapabilities {
+            cache_capabilities: Some(CacheCapabilities {
+                digest_functions: vec![DIGEST_SHA256],
+                action_cache_update_capabilities: Some(ActionCacheUpdateCapabilities {
+                    update_enabled: !read_only,
+                }),
+            }),
+        })))
+    });
+    Grpc::new(ProstCodec::<ServerCapabilities, GetCapabilitiesRequest>::default())
+        .unary(service, request)
+        .await
+}
+
+async fn get_action_result(
+    state: Arc<Mutex<State>>,
+    request: http::Request<Body>,
+) -> http::Response<Body> {
+    let service = tower::service_fn(move |call: Request<GetActionResultRequest>| {
+        let key = call.into_inner().action_digest.unwrap_or_default().hash;
+        let found = state.lock().unwrap().actions.get(&key).cloned();
+        ready(
+            found
+                .map(Response::new)
+                .ok_or_else(|| Status::not_found(key)),
+        )
+    });
+    Grpc::new(ProstCodec::<ActionResult, GetActionResultRequest>::default())
+        .unary(service, request)
+        .await
+}
+
+async fn update_action_result(
+    state: Arc<Mutex<State>>,
+    request: http::Request<Body>,
+) -> http::Response<Body> {
+    let service = tower::service_fn(move |call: Request<UpdateActionResultRequest>| {
+        let call = call.into_inner();
+        let mut state = state.lock().unwrap();
+        if state.read_only {
+            return ready(Err(Status::permission_denied("read only")));
+        }
+        let result = call.action_result.unwrap_or_default();
+        let missing = result.output_files.iter().any(|file| {
+            !state
+                .blobs
+                .contains_key(&file.digest.clone().unwrap_or_default().hash)
+        });
+        if missing {
+            return ready(Err(Status::failed_precondition("missing blobs")));
+        }
+        let key = call.action_digest.unwrap_or_default().hash;
+        state.actions.insert(key, result.clone());
+        ready(Ok(Response::new(result)))
+    });
+    Grpc::new(ProstCodec::<ActionResult, UpdateActionResultRequest>::default())
+        .unary(service, request)
+        .await
+}
+
+async fn find_missing_blobs(
+    state: Arc<Mutex<State>>,
+    request: http::Request<Body>,
+) -> http::Response<Body> {
+    let service = tower::service_fn(move |call: Request<FindMissingBlobsRequest>| {
+        let state = state.lock().unwrap();
+        let missing = call
+            .into_inner()
+            .blob_digests
+            .into_iter()
+            .filter(|digest| !state.blobs.contains_key(&digest.hash))
+            .collect();
+        ready(Ok::<_, Status>(Response::new(FindMissingBlobsResponse {
+            missing_blob_digests: missing,
+        })))
+    });
+    Grpc::new(ProstCodec::<
+        FindMissingBlobsResponse,
+        FindMissingBlobsRequest,
+    >::default())
+    .unary(service, request)
+    .await
+}
+
+async fn read(state: Arc<Mutex<State>>, request: http::Request<Body>) -> http::Response<Body> {
+    let service = tower::service_fn(move |call: Request<ReadRequest>| {
+        let resource = call.into_inner().resource_name;
+        let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
+        let state = state.lock().unwrap();
+        let Some(mut data) = state.blobs.get(&hash).cloned() else {
+            return ready(Err(Status::not_found(hash)));
+        };
+        if state.corrupt.contains(&hash) {
+            data.push(b'!');
+        }
+        // Two chunks, so the client has to put a stream together.
+        let middle = data.len() / 2;
+        let chunks = vec![
+            Ok(ReadResponse {
+                data: data[..middle].to_vec(),
+            }),
+            Ok(ReadResponse {
+                data: data[middle..].to_vec(),
+            }),
+        ];
+        ready(Ok(Response::new(tokio_stream::iter(chunks))))
+    });
+    Grpc::new(ProstCodec::<ReadResponse, ReadRequest>::default())
+        .server_streaming(service, request)
+        .await
+}
+
+async fn write(state: Arc<Mutex<State>>, request: http::Request<Body>) -> http::Response<Body> {
+    let service = tower::service_fn(move |call: Request<Streaming<WriteRequest>>| {
+        let state = Arc::clone(&state);
+        async move {
+            let mut stream = call.into_inner();
+            let mut resource = String::new();
+            let mut data = Vec::new();
+            while let Some(chunk) = stream.message().await? {
+                if resource.is_empty() {
+                    resource = chunk.resource_name;
+                }
+                data.extend_from_slice(&chunk.data);
+            }
+            let mut state = state.lock().unwrap();
+            if state.read_only {
+                return Err(Status::permission_denied("read only"));
+            }
+            let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
+            if naming::blob(&data).hash != hash {
+                return Err(Status::invalid_argument("digest mismatch"));
+            }
+            let size = i64::try_from(data.len()).unwrap();
+            state.blobs.insert(hash, data);
+            state.writes += 1;
+            Ok(Response::new(WriteResponse {
+                committed_size: size,
+            }))
+        }
+    });
+    Grpc::new(ProstCodec::<WriteResponse, WriteRequest>::default())
+        .client_streaming(service, request)
+        .await
 }

@@ -26,7 +26,11 @@ fn call_errors_name_the_call() {
         call: "Read",
         status: Box::new(tonic::Status::not_found("blob")),
     };
-    assert!(status.to_string().starts_with("the remote cache refused Read: "));
+    assert!(
+        status
+            .to_string()
+            .starts_with("the remote cache refused Read: ")
+    );
     assert!(std::error::Error::source(&status).is_some());
     assert_eq!(
         Error::Timeout("Write").to_string(),
@@ -52,12 +56,17 @@ fn call_errors_name_the_call() {
 #[test]
 fn setup_and_local_errors_render() {
     let runtime = Error::Runtime(std::io::Error::other("no threads"));
-    assert_eq!(runtime.to_string(), "cannot start the remote client's runtime");
+    assert_eq!(
+        runtime.to_string(),
+        "cannot start the remote client's runtime"
+    );
     let connect = Error::Connect(
         tonic::transport::Endpoint::from_shared("not a uri\n".to_owned()).unwrap_err(),
     );
     assert_eq!(connect.to_string(), "cannot connect to the remote cache");
-    let cas = Error::from(tinymold_cas::Error::NotFound(tinymold_hash::Digest::of_bytes(b"")));
+    let cas = Error::from(tinymold_cas::Error::NotFound(
+        tinymold_hash::Digest::of_bytes(b""),
+    ));
     assert!(cas.to_string().ends_with("is not in the store"));
     let wrap = Error::from(tinymold_wrap::Error::CorruptRecord {
         path: "r".into(),

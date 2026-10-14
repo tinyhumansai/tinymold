@@ -17,7 +17,10 @@ fn digest(hash: &str, size: i64) -> Digest {
 
 #[test]
 fn a_digest_is_hash_one_and_size_two() {
-    assert_eq!(digest("ab", 3).encode_to_vec(), [0x0a, 2, b'a', b'b', 0x10, 3]);
+    assert_eq!(
+        digest("ab", 3).encode_to_vec(),
+        [0x0a, 2, b'a', b'b', 0x10, 3]
+    );
 }
 
 #[test]
@@ -32,7 +35,7 @@ fn an_action_result_lists_files_at_two_and_the_exit_code_at_four() {
     };
     // OutputFile: path=1, digest=2, is_executable=4.
     let file = [0x0a, 1, b'p', 0x12, 5, 0x0a, 1, b'h', 0x10, 1, 0x20, 1];
-    let mut expected = vec![0x12, file.len() as u8];
+    let mut expected = vec![0x12, u8::try_from(file.len()).unwrap()];
     expected.extend_from_slice(&file);
     expected.extend_from_slice(&[0x20, 1]);
     assert_eq!(result.encode_to_vec(), expected);
@@ -83,13 +86,16 @@ fn capabilities_decode_digest_functions_and_whether_updates_are_enabled() {
     // ServerCapabilities { cache_capabilities (1): { digest_functions (1):
     // [SHA256, BLAKE3] packed, action_cache_update_capabilities (2):
     // { update_enabled (1): true } } }, plus an unknown field (3) to skip.
-    let bytes = [
-        0x0a, 8, 0x0a, 2, 1, 9, 0x12, 2, 0x08, 1, 0x1a, 0,
-    ];
+    let bytes = [0x0a, 8, 0x0a, 2, 1, 9, 0x12, 2, 0x08, 1, 0x1a, 0];
     let capabilities = ServerCapabilities::decode(&bytes[..]).unwrap();
     let cache = capabilities.cache_capabilities.unwrap();
     assert_eq!(cache.digest_functions, [DIGEST_SHA256, DIGEST_BLAKE3]);
-    assert!(cache.action_cache_update_capabilities.unwrap().update_enabled);
+    assert!(
+        cache
+            .action_cache_update_capabilities
+            .unwrap()
+            .update_enabled
+    );
     assert_eq!(
         GetCapabilitiesRequest {
             instance_name: "i".to_owned()
@@ -121,7 +127,9 @@ fn byte_stream_messages_carry_data_at_ten() {
         [0x0a, 1, b'r', 0x10, 1, 0x18, 1, 0x52, 1, b'x']
     );
     assert_eq!(
-        WriteResponse::decode(&[0x08, 5][..]).unwrap().committed_size,
+        WriteResponse::decode(&[0x08, 5][..])
+            .unwrap()
+            .committed_size,
         5
     );
 }

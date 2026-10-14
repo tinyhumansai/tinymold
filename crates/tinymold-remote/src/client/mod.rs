@@ -10,8 +10,8 @@
 
 use std::time::Duration;
 
-use tonic::client::Grpc;
 use http::uri::PathAndQuery;
+use tonic::client::Grpc;
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
 use tonic::{Code, Request};
@@ -21,8 +21,8 @@ use crate::config::RemoteConfig;
 use crate::naming;
 use crate::proto::{
     ActionResult, DIGEST_SHA256, Digest, FindMissingBlobsRequest, FindMissingBlobsResponse,
-    GetActionResultRequest, GetCapabilitiesRequest, ReadRequest, ReadResponse,
-    ServerCapabilities, UpdateActionResultRequest, WriteRequest, WriteResponse,
+    GetActionResultRequest, GetCapabilitiesRequest, ReadRequest, ReadResponse, ServerCapabilities,
+    UpdateActionResultRequest, WriteRequest, WriteResponse,
 };
 use crate::{Error, Result};
 
@@ -105,7 +105,11 @@ impl Client {
     }
 
     /// Stores `result` under `key`.
-    pub(crate) async fn update_action_result(&self, key: Digest, result: ActionResult) -> Result<()> {
+    pub(crate) async fn update_action_result(
+        &self,
+        key: Digest,
+        result: ActionResult,
+    ) -> Result<()> {
         let request = UpdateActionResultRequest {
             instance_name: self.instance.clone(),
             action_digest: Some(key),
@@ -212,7 +216,12 @@ impl Client {
         Ok(())
     }
 
-    async fn unary<Req, Resp>(&self, call: &'static str, path: &'static str, message: Req) -> Result<Resp>
+    async fn unary<Req, Resp>(
+        &self,
+        call: &'static str,
+        path: &'static str,
+        message: Req,
+    ) -> Result<Resp>
     where
         Req: prost::Message + Send + Sync + 'static,
         Resp: prost::Message + Default + Send + Sync + 'static,
