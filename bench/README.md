@@ -51,23 +51,45 @@ What every tinymold phase is measured against. Times are wall clock; loops repor
 | Second worktree `deps/` artifacts | 195 MiB | 434 MiB |
 | …of which byte-identical to the first worktree's | 120 MiB (61%) | 360 MiB (83%) |
 
-### Edit-rebuild loop (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
+### Clean builds: no cache, dry run, cached run (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3 runs, 2026-10-14)
+
+Cache: sccache 0.17.0, private directory and port. Each cell is the median clean build; hits and misses count rustc invocations.
+
+| Scenario | ripgrep 14.1.1 | bat v0.24.0 |
+| --- | ---: | ---: |
+| No cache | 3.3s | 7.5s |
+| Empty cache (dry run, fills it) | 4.2s | 11.2s |
+| Warm cache (cached run) | 1.9s | 6.5s |
+| Warm cache, second worktree at another path | 1.8s | 8.9s |
+| Cached run hit rate | 32/32 hits | 349/349 hits |
+| Second worktree hit rate | 32/32 hits | 349/349 hits |
+| Not cacheable (bins, proc-macros, incremental, …) | 0 | 0 |
+| Cache size on disk | 36 MiB | 128 MiB |
+
+### Edit-rebuild loop (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
 ![ripgrep edit-rebuild by linker](results/link-darwin-arm64-ripgrep.svg)
 
 | Project | Linker | Edit → rebuilt binary (median) | min–max | Full build | Binary | target/ |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| ripgrep 14.1.1 | default | 0.84s | 0.82–0.86s | 8.1s | 11 MiB | 112 MiB |
-| ripgrep 14.1.1 | rust-lld | 0.88s | 0.87–0.92s | 7.0s | 11 MiB | 111 MiB |
+| ripgrep 14.1.1 | default | 0.91s | 0.87–0.98s | 9.3s | 15 MiB | 451 MiB |
+| ripgrep 14.1.1 | rust-lld | 0.94s | 0.89–1.12s | 9.0s | 14 MiB | 450 MiB |
 
-### Restoring a 512 MiB artifact (darwin arm64, 18 CPUs, rustc 1.96.1 (31fca3adb 2026-06-26), 5 runs, 2026-10-14)
+![bat edit-rebuild by linker](results/link-darwin-arm64-bat.svg)
+
+| Project | Linker | Edit → rebuilt binary (median) | min–max | Full build | Binary | target/ |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| bat v0.24.0 | default | 1.07s | 0.84–5.51s | 20.5s | 19 MiB | 693 MiB |
+| bat v0.24.0 | rust-lld | 3.50s | 2.57–3.72s | 29.8s | 18 MiB | 689 MiB |
+
+### Restoring a 512 MiB artifact (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
 | Method | Median | min–max |
 | --- | ---: | ---: |
-| python byte copy (baseline) | 223.4 ms | 213.3–246.8 ms |
-| tinymold cas get --strategy reflink | 3.5 ms | 3.2–6.2 ms |
-| tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.4 ms |
-| tinymold cas get --strategy copy | 288.5 ms | 279.4–291.4 ms |
+| python byte copy (baseline) | 221.0 ms | 214.4–232.3 ms |
+| tinymold cas get --strategy reflink | 2.8 ms | 2.4–5.8 ms |
+| tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.1 ms |
+| tinymold cas get --strategy copy | 325.6 ms | 311.6–443.3 ms |
 
 <!-- results:end -->
 
