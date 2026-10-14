@@ -54,7 +54,10 @@ fn raw_bytes_round_trip() {
 
 #[test]
 fn debug_shows_the_hex_form() {
-    assert_eq!(format!("{:?}", Digest::of_bytes(b"")), format!("Digest({EMPTY})"));
+    assert_eq!(
+        format!("{:?}", Digest::of_bytes(b"")),
+        format!("Digest({EMPTY})")
+    );
 }
 
 #[test]

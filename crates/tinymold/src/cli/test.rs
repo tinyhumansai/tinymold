@@ -29,7 +29,11 @@ fn hash_prints_digest_and_path_like_b3sum() {
     assert_eq!(result.unwrap(), Outcome::Success);
     assert_eq!(
         out,
-        format!("{}  {}\n", Digest::of_bytes(b"fn main() {}"), file.display())
+        format!(
+            "{}  {}\n",
+            Digest::of_bytes(b"fn main() {}"),
+            file.display()
+        )
     );
 }
 

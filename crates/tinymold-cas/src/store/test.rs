@@ -95,7 +95,13 @@ fn insert_bytes_reports_an_unwritable_staging_area() {
     fs::remove_dir(store.tmp_dir()).unwrap();
 
     let error = store.insert_bytes(b"x").unwrap_err();
-    assert!(matches!(error, Error::Io { action: "create", .. }));
+    assert!(matches!(
+        error,
+        Error::Io {
+            action: "create",
+            ..
+        }
+    ));
 }
 
 #[test]

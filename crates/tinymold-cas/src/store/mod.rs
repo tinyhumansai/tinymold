@@ -86,8 +86,7 @@ impl Store {
 
         let staging = self.staging_path();
         let mut file = create_new(&staging)?;
-        file.write_all(bytes)
-            .map_err(io_error("write", &staging))?;
+        file.write_all(bytes).map_err(io_error("write", &staging))?;
         drop(file);
         self.commit(&staging, digest)?;
         Ok(digest)

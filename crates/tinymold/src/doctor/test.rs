@@ -37,7 +37,11 @@ fn reports_every_searched_tool_with_its_location() {
         .collect();
     assert_eq!(found, ["wild", "sccache"]);
     assert_eq!(report.tools.len(), TOOLS.len());
-    assert!(report.to_string().contains(&dir.path().display().to_string()));
+    assert!(
+        report
+            .to_string()
+            .contains(&dir.path().display().to_string())
+    );
 }
 
 #[test]

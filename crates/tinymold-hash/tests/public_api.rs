@@ -21,5 +21,8 @@ fn hasher_and_parse_errors_are_public() {
     let digest = Hasher::new().field(b"key").finish();
 
     assert_eq!(digest.to_hex().len(), 64);
-    assert!(matches!("".parse::<Digest>(), Err(Error::InvalidHex { .. })));
+    assert!(matches!(
+        "".parse::<Digest>(),
+        Err(Error::InvalidHex { .. })
+    ));
 }

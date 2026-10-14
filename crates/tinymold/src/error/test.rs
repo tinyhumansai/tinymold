@@ -19,7 +19,10 @@ fn library_errors_convert_and_render_transparently() {
     assert_eq!(Error::from(hash).to_string(), expected);
 
     let cas = tinymold_cas::Error::DestinationExists("out".into());
-    assert_eq!(Error::from(cas).to_string(), "destination out already exists");
+    assert_eq!(
+        Error::from(cas).to_string(),
+        "destination out already exists"
+    );
 }
 
 #[test]
