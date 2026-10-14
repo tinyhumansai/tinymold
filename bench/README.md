@@ -46,6 +46,13 @@ store alone, so together they are the baseline every later phase has to beat:
 - **`cas`**: the cost of a cache hit. Restore one large artifact into a fresh
   path: a plain byte copy against `tinymold cas get` by reflink, hardlink, and
   copy. A hit only beats a rebuild if restoring doesn't copy bytes.
+- **`hit`**: the cost of a cache hit on units with many outputs. Every
+  source file is touched and the project rebuilt through the wrapper, so each
+  workspace unit is a hit. Incremental units with unpacked split debuginfo
+  keep one object file per codegen unit, so restoring one places hundreds of
+  files. `--against <rev>` builds another revision's tinymold and alternates
+  the two on the same store; `TINYMOLD_TRACE` times each restore apart from
+  cargo.
 - **`ci`**: a fresh CI runner at the same path, running
   `cargo test --no-run`. It compares four setups:
   - a cold build;
