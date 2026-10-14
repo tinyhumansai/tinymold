@@ -145,6 +145,7 @@ fn a_trace_records_each_step_of_a_miss_and_a_hit() {
             "classify",
             "pre_key",
             "lookup",
+            "wait",
             "rustc",
             "ingest"
         ]
