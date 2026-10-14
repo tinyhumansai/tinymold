@@ -188,7 +188,10 @@ fn check_tells_a_refused_credential_from_an_anonymous_read_only_client() {
     let mut config = RemoteConfig::new(&server.url()).unwrap();
     config.authorization = Some("Basic d3Jvbmc=".to_owned());
     let refused = RemoteCache::new(&config).unwrap().check();
-    assert!(matches!(refused, Err(Error::Status { call: "Write", .. })), "{refused:?}");
+    assert!(
+        matches!(refused, Err(Error::Status { call: "Write", .. })),
+        "{refused:?}"
+    );
 }
 
 /// Puts `result` under the action key of `key` on `server`, with every
