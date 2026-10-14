@@ -200,11 +200,7 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
 
 /// Evicts, of each unit's `actions`, all but the
 /// [`Policy::keep_generations`] most recently used.
-fn keep_generations(
-    actions: &mut Vec<Action>,
-    policy: &Policy,
-    report: &mut Report,
-) -> Result<()> {
+fn keep_generations(actions: &mut Vec<Action>, policy: &Policy, report: &mut Report) -> Result<()> {
     let Some(keep) = policy.keep_generations else {
         return Ok(());
     };

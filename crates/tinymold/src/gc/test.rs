@@ -478,7 +478,12 @@ fn each_unit_keeps_only_its_most_recent_generations() {
     let third = fixture.object(b"third edit", 3 * DAY);
     let carried = fixture.object(b"carried over", 3 * DAY);
     let oldest = fixture.unit_action("1", "demo-1.d", &[first, carried], Duration::from_secs(300));
-    let middle = fixture.unit_action("2", "demo-1.d", &[second, carried], Duration::from_secs(200));
+    let middle = fixture.unit_action(
+        "2",
+        "demo-1.d",
+        &[second, carried],
+        Duration::from_secs(200),
+    );
     let newest = fixture.unit_action("3", "demo-1.d", &[third, carried], Duration::from_secs(100));
     // Another unit of the same crate, and an action naming no unit: neither
     // is a generation of `demo-1`.
