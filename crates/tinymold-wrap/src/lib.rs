@@ -151,3 +151,6 @@ fn log(config: &Config, started: Instant, outcome: &str, crate_name: &str, detai
         let _ = file.write_all(line.as_bytes());
     }
 }
+
+#[cfg(test)]
+mod test;
