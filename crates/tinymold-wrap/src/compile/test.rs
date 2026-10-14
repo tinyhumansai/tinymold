@@ -703,6 +703,7 @@ fn many_output_action(store: &Store, count: usize) -> Action {
         stdout: empty,
         stderr: empty,
         outputs,
+        session: None,
     }
 }
 

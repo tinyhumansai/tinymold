@@ -1,6 +1,6 @@
 //! Unit tests for the action and pre-key record encodings.
 
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 
 use super::*;
 
@@ -27,6 +27,52 @@ fn the_action_encoding_is_pinned() {
     );
     assert_eq!(action.encode(), expected);
     assert_eq!(Action::decode(&expected, Path::new("a")).unwrap(), action);
+}
+
+#[test]
+fn the_session_section_encoding_is_pinned() {
+    let empty = Digest::of_bytes(b"");
+    let action = Action {
+        stdout: empty,
+        stderr: empty,
+        outputs: vec![],
+        session: Some(SessionRecord {
+            dir: "/w/target/debug/incremental/demo-1abc".into(),
+            name: "s-hn7o-12wy-c5d1".into(),
+            files: vec![("dep-graph.bin".into(), digest("graph"))],
+        }),
+    };
+    let expected = format!(
+        "tinymold-action 1\nstdout {empty}\nstderr {empty}\n\
+         session s-hn7o-12wy-c5d1 /w/target/debug/incremental/demo-1abc\n\
+         sfile {} dep-graph.bin\n",
+        digest("graph")
+    );
+    assert_eq!(action.encode(), expected);
+    assert_eq!(Action::decode(&expected, Path::new("a")).unwrap(), action);
+    assert!(action.references().contains(&digest("graph")));
+}
+
+#[test]
+fn a_session_section_out_of_place_or_naming_a_path_is_corrupt() {
+    let empty = Digest::of_bytes(b"");
+    let head = format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\n");
+    let session = "session s-a-b-c /w/incremental/demo-1\n";
+    let output = format!("output {empty} 0 0 libdemo-1.rlib\n");
+    let file = format!("sfile {empty} query-cache.bin\n");
+    for (body, line) in [
+        (file.clone(), 4),
+        (format!("{session}{output}"), 5),
+        (format!("{session}{session}"), 5),
+        ("session s-a-b-c relative/dir\n".to_owned(), 4),
+        ("session ../s-a-b-c /w/incremental/demo-1\n".to_owned(), 4),
+        (format!("{session}sfile {empty} ../escape\n"), 5),
+    ] {
+        match Action::decode(&format!("{head}{body}"), Path::new("a")) {
+            Err(Error::CorruptRecord { line: got, .. }) => assert_eq!(got, line, "{body}"),
+            other => panic!("{body:?} decoded as {other:?}"),
+        }
+    }
 }
 
 #[test]
