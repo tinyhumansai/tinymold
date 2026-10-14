@@ -1,26 +1,22 @@
 # Roadmap
 
-Replace this file with the real plan for the crate generated from this
-template, or delete it if the project does not need a public roadmap.
+The phased plan lives in [`docs/plans/roadmap.md`](docs/plans/roadmap.md), next
+to the specs it delivers. In short:
 
-Keep it short and honest: what exists, what is next, and what is deliberately
-out of scope. A roadmap that lists everything is a roadmap nobody trusts.
+| Phase | Goal |
+| --- | --- |
+| 0. Foundations | BLAKE3 digests, the local content-addressed store, `tinymold doctor`, the research and design docs, and 0.0.1 on crates.io |
+| 1. Measure | Diagnose where a build's time and bytes go, and a benchmark harness that can prove a speed-up |
+| 2. Cache core | A rustc wrapper with path-normalized keys, so no unit compiles twice on one machine |
+| 3. Hot server | A per-machine daemon: stat cache, file watching, single-flight across worktrees, tiered storage with quotas |
+| 4. Linking | Fastest linker per platform, link-skip, one link for all tests, a shared dev dylib for dependencies |
+| 5. Early cutoff and remote | Skip dependents when a crate's interface is unchanged; a LAN/remote tier over the Remote Execution API |
+| 6. Research bets | Relink-don't-rebuild, incremental linking with wild, proc-macro expansion caching |
 
-## Shipped
+## Out of scope
 
-- module layout, crate-wide error type, and the public re-export surface
-- lint configuration in `[lints]`, enforced identically locally and in CI
-- CI: format, clippy, build, test, per-file coverage, rustdoc, MSRV, and
-  supply-chain checks
-- a manual release workflow that versions, tags, publishes to crates.io, and
-  creates a GitHub release with crate and TinyBus runtime/module assets
-
-## Next
-
-- the first real feature area, replacing the placeholder `greeting` module
-- module-level `README.md` and `docs/spec/` entries as modules grow
-
-## Out Of Scope
-
-- anything that cannot be tested deterministically
-- convenience wrappers that hide the crate's error taxonomy from callers
+- Writing a new linker from scratch: tinymold contributes to wild and mold
+  instead.
+- Forking rustc or replacing cargo: tinymold wraps them.
+- Anything that trades correctness for speed: when a cache cannot prove a hit
+  is right, it misses.

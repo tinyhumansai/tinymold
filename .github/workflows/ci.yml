@@ -68,6 +68,11 @@ jobs:
       - name: Package every crate for crates.io
         run: cargo package --workspace --locked
 
+      # The benchmark harness is plain-stdlib Python that CI cannot afford to
+      # run on every push; at least make sure it still parses.
+      - name: Check the benchmark scripts compile
+        run: python3 -m py_compile bench/bench.py bench/report.py
+
       - name: Require 90% line coverage in every source file
         run: .github/scripts/check-file-coverage.sh 90 coverage.json
 

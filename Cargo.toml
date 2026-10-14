@@ -11,8 +11,8 @@ members = ["crates/*"]
 exclude = ["worktrees"]
 
 # Shared package metadata. A member inherits a field with `field.workspace =
-# true`, so the version the release workflow bumps is written in exactly one
-# place and every crate moves together.
+# true`, so every crate releases under the one version the release workflow
+# bumps here (together with the internal requirements below).
 [workspace.package]
 version = "0.0.1"
 edition = "2024"

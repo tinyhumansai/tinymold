@@ -26,3 +26,4 @@ worktrees/*
 
 # Benchmark corpus checkouts and scratch files
 /bench/.work/
+__pycache__/
