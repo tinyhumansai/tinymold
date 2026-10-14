@@ -532,6 +532,21 @@ fn a_remote_action_missing_an_object_is_a_miss_with_the_reason() {
 }
 
 #[test]
+fn a_remote_action_naming_a_file_outside_the_output_directory_is_not_restored() {
+    let (second, remote) = remote_pair();
+    let entry = files_under(&remote.join("entries")).pop().unwrap();
+    let text = fs::read_to_string(&entry).unwrap();
+    fs::write(&entry, text.replace(" libdemo-1.rlib", " ../../escape.rlib")).unwrap();
+    let remote = StoreRemote::new(&remote);
+
+    assert!(matches!(
+        second.serve_with(Some(&remote), &[]).unwrap(),
+        Served::Miss { code: 0, .. }
+    ));
+    assert!(!second.root.join("target/escape.rlib").exists());
+}
+
+#[test]
 fn a_failing_remote_only_makes_the_unit_compile() {
     let (second, remote) = remote_pair();
     let remote = StoreRemote {

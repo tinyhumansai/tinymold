@@ -106,6 +106,26 @@ fn corrupt_records_name_the_bad_line() {
 }
 
 #[test]
+fn an_output_name_that_leaves_the_output_directory_is_corrupt() {
+    let d = digest("x");
+    for name in [
+        "../escape.rlib",
+        "sub/libdemo-1.rlib",
+        "sub\\libdemo-1.rlib",
+        "/abs/libdemo-1.rlib",
+        "..",
+        ".",
+    ] {
+        let text = format!("tinymold-action 1\nstdout {d}\nstderr {d}\noutput {d} 0 0 {name}\n");
+        let error = Action::decode(&text, Path::new("a")).unwrap_err();
+        assert!(
+            matches!(error, Error::CorruptRecord { line: 4, .. }),
+            "{name:?}"
+        );
+    }
+}
+
+#[test]
 fn records_are_written_whole_and_read_back() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nested/record");
