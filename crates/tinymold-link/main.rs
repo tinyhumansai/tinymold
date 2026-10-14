@@ -71,7 +71,9 @@ fn main() {
     }
 
     let Some(&(initial_target, _)) = ELF_TARGETS.first() else {
-        eprintln!("tinymold-link: no targets enabled; rebuild tinymold-link with the appropriate target support");
+        eprintln!(
+            "tinymold-link: no targets enabled; rebuild tinymold-link with the appropriate target support"
+        );
         std::process::exit(1);
     };
     let link = |target: &str, cmdline| link_fn(ELF_TARGETS, target)(cmdline);

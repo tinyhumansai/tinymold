@@ -13,7 +13,9 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     if std::env::var_os("TINYMOLD_LINK_SHELL_TESTS").is_none() {
-        eprintln!("tinymold-link: shell tests skipped; set TINYMOLD_LINK_SHELL_TESTS=1 to run them");
+        eprintln!(
+            "tinymold-link: shell tests skipped; set TINYMOLD_LINK_SHELL_TESTS=1 to run them"
+        );
         return ExitCode::SUCCESS;
     }
 
