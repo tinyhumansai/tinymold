@@ -33,7 +33,8 @@ use crate::record::{
     write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
-use crate::stat::{self, nanos};
+use crate::clock::{filesystem_now, written_before};
+use crate::stat;
 use crate::trace::Trace;
 use crate::{Error, Result};
 
@@ -62,6 +63,11 @@ struct Unit<'a> {
     cwd: PathBuf,
     out_dir: PathBuf,
     roots: Roots,
+    /// The filesystem clock read before anything was hashed or run: the
+    /// moment input sets and stat entries are recorded as of, and the
+    /// moment an input must have been written before for the compile to be
+    /// stored.
+    now_ns: u64,
 }
 
 /// Serves `invocation` from the cache in `store_dir`, or by running
@@ -88,6 +94,7 @@ pub(crate) fn serve(
         out_dir: cwd.join(&invocation.out_dir),
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
+        now_ns: filesystem_now(&store_dir.join("stat"))?,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program))?;
     if let Some((action, entry)) = trace.span("lookup", || unit.lookup(&pre))?
@@ -111,12 +118,11 @@ pub(crate) fn serve(
         }
     }
 
-    let started = SystemTime::now();
     let captured = trace.span("rustc", || exec::run_captured(program, args))?;
     let stored = if captured.code == 0 {
         let ingesting = std::time::Instant::now();
         trace
-            .span("ingest", || unit.ingest(&pre, started, &captured))
+            .span("ingest", || unit.ingest(&pre, &captured))
             .map(|()| ingesting.elapsed())
             .map_err(|error| error.to_string())
     } else {

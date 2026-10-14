@@ -30,6 +30,7 @@
 //! hashing files, running rustc, and moving outputs in and out of the store.
 
 mod catalog;
+mod clock;
 mod compile;
 mod error;
 mod exec;
@@ -47,6 +48,7 @@ use std::time::Instant;
 use tinymold_key::{Classified, Invocation};
 
 pub use catalog::{RecordFile, RecordKind, action_references, records};
+pub use clock::{filesystem_now, written_before};
 use compile::Served;
 pub use error::{Error, Result};
 pub use remote::{Remote, RemoteError};
