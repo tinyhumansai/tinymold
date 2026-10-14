@@ -17,7 +17,11 @@ volume's free space, the only one that sees blocks shared by reflinks.
 
 Every `--churn-every` steps, a churn step flips the project's feature set
 (corpus key `churn`), so artifacts of an older configuration are left behind
-the way a feature or dependency change leaves them in real use.
+the way a feature or dependency change leaves them in real use. Every
+`--fresh-every` steps, a fresh step deletes the target directory but keeps the
+store: a new worktree, a `cargo clean` or a CI runner. Under tinymold that
+build is served from the store, so the edit after it shows what a cache hit
+leaves for rustc's incremental state.
 
 All sessions see the same edits: each step edits the checkout once and then
 runs every session's commands, each session in its own target directory
@@ -77,15 +81,18 @@ def pin_cargo_config() -> Path:
     return path
 
 
-def schedule(steps: int, churn_every: int, has_churn: bool) -> list[str]:
+def schedule(steps: int, churn_every: int, has_churn: bool, fresh_every: int = 0) -> list[str]:
     """The edit applied at each step: the three edit kinds in turn, with a
-    churn step every `churn_every` steps when the project defines one."""
+    churn step every `churn_every` steps when the project defines one, and a
+    fresh step every `fresh_every` steps, which wins when both fall due."""
     plan: list[str] = []
     for step in range(1, steps + 1):
-        if has_churn and churn_every and step % churn_every == 0:
+        if fresh_every and step % fresh_every == 0:
+            plan.append("fresh")
+        elif has_churn and churn_every and step % churn_every == 0:
             plan.append("churn")
         else:
-            plan.append(KINDS[sum(kind != "churn" for kind in plan) % len(KINDS)])
+            plan.append(KINDS[sum(kind in KINDS for kind in plan) % len(KINDS)])
     return plan
 
 
@@ -215,7 +222,7 @@ class EditSession:
             return [("test_build", ["cargo", "test", *base, "--no-run"], False),
                     ("test_run", ["cargo", "test", *base, "--no-fail-fast"], True)]
         if name == "coverage":
-            return [("coverage", ["cargo", "llvm-cov", "--locked", *self.package_args(),
+            return [("coverage", ["cargo", "llvm-cov", "--locked", "-v", *self.package_args(),
                                   "--summary-only", "--ignore-run-fail"], True)]
         raise SystemExit(f"unknown command {name!r}; choose from {', '.join(COMMANDS)}")
 
@@ -251,6 +258,9 @@ def apply_edit(edits: bench.Edits, kind: str, step: int, sessions: list[EditSess
     if kind == "churn":
         for session in sessions:
             session.churned = not session.churned
+    elif kind == "fresh":
+        for session in sessions:
+            shutil.rmtree(session.target, ignore_errors=True)
     else:
         edits.apply(kind, step)
 
@@ -296,7 +306,7 @@ def bench_edits(args: argparse.Namespace) -> dict:
         sessions = [EditSession(project, src, mode, linker, available[linker], tinymold, sccache)
                     for linker in linkers for mode in modes]
         rows: dict[str, list[dict]] = {s.label: [] for s in sessions}
-        plan = schedule(args.steps, args.churn_every, "churn" in project)
+        plan = schedule(args.steps, args.churn_every, "churn" in project, args.fresh_every)
         edits = bench.Edits(src, project["edits"], cumulative=True)
         servers = [s for s in sessions if s.mode == "sccache"]
         try:
@@ -330,7 +340,8 @@ def bench_edits(args: argparse.Namespace) -> dict:
             session.reset()
     return {"benchmark": "edits", "pins": {**bench.pins(), "linker": "per row"},
             "commands": commands, "schedule": "comment, private_body, public_signature in turn; "
-            f"churn every {args.churn_every} steps", "results": results}
+            f"churn every {args.churn_every} steps; fresh target every {args.fresh_every} steps",
+            "results": results}
 
 
 def add_parser(sub) -> None:
@@ -338,6 +349,8 @@ def add_parser(sub) -> None:
                            "tests and coverage after each, with disk and RAM")
     edits.add_argument("--steps", type=int, default=30)
     edits.add_argument("--churn-every", type=int, default=10)
+    edits.add_argument("--fresh-every", type=int, default=15,
+                       help="delete the target dir every N steps, keeping the store")
     edits.add_argument("--project", help="only this corpus project")
     edits.add_argument("--modes", default="baseline,tinymold",
                        help=f"comma-separated, from: {', '.join(EDIT_MODES)}")

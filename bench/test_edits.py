@@ -21,6 +21,13 @@ class Schedule(unittest.TestCase):
                                 "churn", "private_body", "public_signature", "comment",
                                 "private_body", "churn"])
 
+    def test_a_fresh_step_wins_over_churn(self):
+        plan = edits.schedule(30, churn_every=10, has_churn=True, fresh_every=15)
+        self.assertEqual([i + 1 for i, kind in enumerate(plan) if kind != "comment"
+                          and kind not in edits.KINDS], [10, 15, 20, 30])
+        self.assertEqual(plan[14], "fresh")
+        self.assertEqual(plan[29], "fresh")
+
     def test_a_project_without_churn_only_edits(self):
         self.assertNotIn("churn", edits.schedule(20, churn_every=5, has_churn=False))
         self.assertNotIn("churn", edits.schedule(20, churn_every=0, has_churn=True))
