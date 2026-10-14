@@ -28,6 +28,8 @@ Goals:
   - `uses: tinyhumansai/tinymold@v0` sets tinymold up and restores the
     cache;
   - `uses: tinyhumansai/tinymold/save@v0` with `if: always()` saves it.
+  - `v0` is a moving tag that the release workflow points at the newest
+    0.x release; pin a full tag such as `v0.1.0` to stay put.
 - A stateless default that needs no server: the store travels in GitHub's
   own cache.
 - An optional shared remote server ([`remote.md`](remote.md)), for many
