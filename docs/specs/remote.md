@@ -63,7 +63,8 @@ Two kinds of ActionCache entries, both holding ordinary REAPI
 **Digests.**
 - **CAS blobs** use SHA-256, computed by the client when it uploads.
 - **AC keys** are tinymold's 32-byte BLAKE3 digests, sent with
-  `size_bytes = 0`, which servers treat as opaque.
+  `size_bytes = 32`. Servers treat them as opaque, but bazel-remote refuses
+  a size of 0 for any hash but the empty blob's.
 
 The salt on the pre-key entries keeps the two kinds of entry from ever
 sharing a key.

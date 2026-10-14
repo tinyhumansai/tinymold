@@ -49,10 +49,15 @@ pub(crate) fn prekey_key(pre: &Digest) -> proto::Digest {
     opaque(&hasher.finish())
 }
 
+/// The size sent with every `ActionCache` key: the key's own length in bytes.
+/// Servers treat a key as opaque, but bazel-remote refuses a size of 0 for
+/// anything but the empty blob's hash.
+pub(crate) const KEY_SIZE: i64 = 32;
+
 fn opaque(digest: &Digest) -> proto::Digest {
     proto::Digest {
         hash: digest.to_hex(),
-        size_bytes: 0,
+        size_bytes: KEY_SIZE,
     }
 }
 

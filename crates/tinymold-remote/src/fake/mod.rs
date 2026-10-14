@@ -2,8 +2,8 @@
 //! in memory, served over real gRPC on a local port.
 //!
 //! It answers the calls the client makes the way bazel-remote does: missing
-//! entries are `NOT_FOUND`, and blobs are checked against their SHA-256 on
-//! upload. Switches on [`State`] make it require a credential, refuse
+//! entries are `NOT_FOUND`, blobs are checked against their SHA-256 on
+//! upload, and a digest of size 0 is refused unless it is the empty blob's. Switches on [`State`] make it require a credential, refuse
 //! writes, corrupt a blob, or stall, so the failure paths can be tested.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -115,6 +115,15 @@ impl Drop for Server {
             let _ = thread.join();
         }
     }
+}
+
+/// bazel-remote's `validateHash`: size 0 is only valid for the empty blob.
+fn valid(digest: &crate::proto::Digest) -> Result<(), Status> {
+    const EMPTY: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    if digest.size_bytes == 0 && digest.hash != EMPTY {
+        return Err(Status::invalid_argument("Invalid zero-length SHA256 hash"));
+    }
+    Ok(())
 }
 
 #[derive(Clone)]

@@ -24,7 +24,8 @@ fn blobs_are_named_by_sha256_and_size() {
 fn action_keys_are_the_full_key_and_pre_keys_are_salted() {
     let key = Digest::of_bytes(b"key");
     assert_eq!(action_key(&key).hash, key.to_hex());
-    assert_eq!(action_key(&key).size_bytes, 0);
+    assert_eq!(action_key(&key).size_bytes, 32);
+    assert_eq!(prekey_key(&key).size_bytes, 32);
     assert_ne!(prekey_key(&key).hash, key.to_hex());
     assert_eq!(
         prekey_key(&Digest::of_bytes(b"")).hash,
