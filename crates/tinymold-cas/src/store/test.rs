@@ -245,3 +245,19 @@ fn listing_a_store_whose_objects_directory_is_a_file_fails() {
     fs::write(store.root().join("objects"), b"x").unwrap();
     assert!(matches!(store.objects(), Err(Error::Io { .. })));
 }
+
+#[cfg(unix)]
+#[test]
+fn remove_reports_an_object_it_cannot_delete() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"a").unwrap();
+    let shard = store.object_path(&digest).parent().unwrap().to_path_buf();
+    fs::set_permissions(&shard, fs::Permissions::from_mode(0o555)).unwrap();
+
+    let removed = store.remove(&digest);
+    fs::set_permissions(&shard, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(matches!(removed, Err(Error::Io { action: "remove", .. })));
+    assert!(store.contains(&digest));
+}
