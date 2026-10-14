@@ -266,3 +266,41 @@ fn a_restored_binary_is_executable_and_fresh() {
     let output = std::process::Command::new(&binary).output().unwrap();
     assert_eq!(output.stdout, b"hi\n");
 }
+
+#[test]
+fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
+    // Incremental rustc hardlinks unchanged artifacts (objects, and sometimes
+    // the .rmeta) back into the out-dir with their old mtimes. A hit must
+    // still restore every one of them, or a stale .rmeta from another branch
+    // survives next to a restored .rlib and dependents link mismatched crates.
+    let unit = Crate::new("pub fn a() -> u32 { 1 }\npub fn b() -> u32 { 2 }\n");
+    let incremental = format!("incremental={}", unit.root.join("incremental").display());
+    let flags = ["-C", incremental.as_str()];
+    assert_stored(&unit.serve(&flags).unwrap());
+    std::thread::sleep(Duration::from_millis(1100));
+
+    // A comment-only edit: rustc reuses most of the previous session.
+    fs::write(
+        unit.root.join("src/lib.rs"),
+        "pub fn a() -> u32 { 1 }\n// edited\npub fn b() -> u32 { 2 }\n",
+    )
+    .unwrap();
+    assert_stored(&unit.serve(&flags).unwrap());
+    let built: Vec<String> = unit.outputs().into_iter().map(|(name, _)| name).collect();
+
+    unit.clear_outputs();
+    assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit));
+    let restored: Vec<String> = unit.outputs().into_iter().map(|(name, _)| name).collect();
+    assert_eq!(restored, built);
+}
+
+#[test]
+fn a_hit_removes_stale_outputs_of_the_same_unit() {
+    let unit = Crate::new("pub fn f() {}\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    fs::write(unit.out().join("demo-1.stale.rcgu.o"), b"from another branch").unwrap();
+    fs::write(unit.out().join("libdemo-1.rmeta"), b"from another branch").unwrap();
+    assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit));
+    assert!(!unit.out().join("demo-1.stale.rcgu.o").exists());
+    assert_ne!(fs::read(unit.out().join("libdemo-1.rmeta")).unwrap(), b"from another branch");
+}
