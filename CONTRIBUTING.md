@@ -27,7 +27,7 @@ installing `cargo-llvm-cov`, run the same gate locally:
 The bundled example should also run:
 
 ```sh
-cargo run --example basic
+cargo run -p tinymold --example basic
 ```
 
 ## Making A Change
