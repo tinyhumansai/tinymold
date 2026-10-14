@@ -243,18 +243,15 @@ impl tinymold_wrap::Remote for RemoteCache {
 }
 
 /// The `ActionResult` for the action recorded at `path`, adding every blob it
-/// needs to `blobs`; `None` when an object it names is gone.
+/// needs to `blobs`; `None` when the record is unreadable or an object it
+/// names is gone.
 fn action_result(
     store: &Store,
     path: &Path,
     blobs: &mut HashMap<proto::Digest, Source>,
-) -> Result<Option<ActionResult>> {
-    let Ok(text) = fs::read(path) else {
-        return Ok(None);
-    };
-    let Ok(references) = tinymold_wrap::action_references(path) else {
-        return Ok(None);
-    };
+) -> Option<ActionResult> {
+    let text = fs::read(path).ok()?;
+    let references = tinymold_wrap::action_references(path).ok()?;
     let record = naming::blob(&text);
     let mut files = vec![output(ACTION_FILE, record.clone())];
     blobs.insert(record, Source::Bytes(text));
