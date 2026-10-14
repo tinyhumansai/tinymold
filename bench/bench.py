@@ -82,6 +82,7 @@ import shutil
 import socket
 import statistics
 import subprocess
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -1302,9 +1303,10 @@ def bench_retest(args: argparse.Namespace) -> dict:
                  if not (name.startswith("CARGO_TARGET_") and name.endswith("_RUNNER"))}
         # Tests such as ripgrep's share fixed directories under TMPDIR, which
         # another run on the machine can disturb; each project gets its own,
-        # emptied before every measurement. Its path stays the same, since
-        # the runner keys on the environment.
-        tmp = WORK / f"retest-tmp-{project['name']}"
+        # emptied before every measurement. It sits outside any git checkout,
+        # since some tests need that, and its path stays the same for the
+        # whole run, since the runner keys on the environment.
+        tmp = Path(tempfile.mkdtemp(prefix=f"tinymold-retest-{project['name']}-"))
         plain.update(RUSTC_WRAPPER=str(tinymold), TINYMOLD_STORE=str(store),
                      TINYMOLD_LOG=str(log), TMPDIR=str(tmp))
         sides = {"cargo": plain, "run-test": dict(plain, **runner_env(tinymold))}
@@ -1350,6 +1352,7 @@ def bench_retest(args: argparse.Namespace) -> dict:
                   f"replayed {results[-1]['replayed']:.0f}, ran {results[-1]['ran']:.0f}",
                   file=sys.stderr)
         shutil.rmtree(store, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
     return {"benchmark": "retest", "pins": pins(), "results": results}
 
 
