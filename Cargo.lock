@@ -829,6 +829,7 @@ dependencies = [
 name = "tinymold-remote"
 version = "0.0.1"
 dependencies = [
+ "http",
  "prost",
  "sha2",
  "tempfile",
