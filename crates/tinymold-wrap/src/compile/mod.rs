@@ -579,7 +579,10 @@ impl Unit<'_> {
         // An incremental compile with split debuginfo writes hundreds of
         // object files; storing them one by one would hold cargo up for
         // longer than the compile's own link.
-        let mut outputs = parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
+        let placed = Placed::load(&self.placed_path()).unwrap_or_default();
+        let mut outputs = parallel::map(&found, "storing outputs", |file| {
+            self.store_output(file, &placed)
+        })?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
         let identities: HashMap<&str, Identity> = found
             .iter()
@@ -596,16 +599,20 @@ impl Unit<'_> {
         Ok((outputs, placements))
     }
 
-    /// Stores one output file.
+    /// Stores one output file, unless `placed` shows it is one the store
+    /// already holds and rustc left untouched.
     fn store_output(
         &self,
         (name, path, meta): &(String, PathBuf, fs::Metadata),
+        placed: &Placed,
     ) -> std::result::Result<Output, Unstorable> {
         let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
         let text = extension == Some("d");
         let digest = if text {
             let content = fs::read(path).map_err(io("read", path))?;
             self.store_text(&content)?
+        } else if let Some(digest) = self.carried_over(name, meta, placed) {
+            digest
         } else {
             let digest = self.store.insert_file(path)?;
             if is_library(name) {
@@ -620,6 +627,24 @@ impl Unit<'_> {
             executable: is_executable(meta),
             text,
         })
+    }
+
+    /// The digest of an output this compile did not write: one the last hit
+    /// or miss placed, with the recorded identity, an mtime from before the
+    /// compile's clock reading, and its object still in the store. Incremental
+    /// rustc carries most objects over this way, and hashing them again
+    /// would cost an edit more than compiling the ones that changed.
+    fn carried_over(&self, name: &str, meta: &fs::Metadata, placed: &Placed) -> Option<Digest> {
+        let identity = stat::identity_of(meta);
+        // A file rustc rewrote during the compile may keep its size, and on a
+        // coarse clock its mtime; only one written before the compile began
+        // is known to be the recorded file.
+        if !written_before(identity.mtime_ns, self.now_ns) {
+            return None;
+        }
+        placed
+            .digest_of(name, identity)
+            .filter(|digest| self.store.contains(digest))
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's
