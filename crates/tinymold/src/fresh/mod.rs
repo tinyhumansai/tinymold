@@ -146,18 +146,36 @@ pub fn record(workspace: &Path, target: &Path) -> Result<RecordReport> {
 /// Puts back the recorded mtime of every workspace file whose content still
 /// matches `target`'s manifest.
 ///
+/// A file whose content differs from the manifest but whose mtime is not
+/// newer than the target's outputs gets a new mtime, so cargo cannot mistake
+/// outputs built from other content for current ones.
+///
 /// # Errors
 ///
 /// Returns [`Error::CorruptManifest`] when the manifest cannot be parsed,
 /// [`Error::Io`] when the target cannot be read or an mtime cannot be set,
 /// and [`Error::Hash`] when a file cannot be hashed.
 pub fn restore(workspace: &Path, target: &Path) -> Result<Restore> {
+    apply(workspace, target, None)
+}
+
+/// Digests of workspace files by manifest path, `None` for a file that could
+/// not be hashed. Shared between snapshot scoring and the restore after it.
+pub(crate) type Digests = HashMap<String, Option<Digest>>;
+
+/// [`restore`], optionally verifying every file by content.
+///
+/// With `verify`, a file whose size and mtime match the manifest is still
+/// hashed (memoized in the map), which is what a target cloned in from
+/// another workspace needs: equal mtimes there say nothing about content.
+pub(crate) fn apply(workspace: &Path, target: &Path, verify: Option<&mut Digests>) -> Result<Restore> {
     let Some(manifest) = load(target)? else {
         return Ok(Restore::NoManifest);
     };
     if stamp(target)? != manifest.stamp_ns {
         return Ok(Restore::TargetChanged);
     }
+    let mut verify = verify;
     let mut report = RestoreReport::default();
     for entry in &manifest.entries {
         let path = workspace.join(&entry.path);
@@ -169,16 +187,36 @@ pub fn restore(workspace: &Path, target: &Path) -> Result<Restore> {
             }
         };
         let mtime_ns = nanos(meta.modified().map_err(io_error("read", &path))?);
-        if meta.len() != entry.size {
+        let same = if meta.len() != entry.size {
+            false
+        } else if let Some(digests) = verify.as_deref_mut() {
+            let digest = match digests.get(&entry.path) {
+                Some(known) => *known,
+                None => {
+                    let digest = Digest::of_file(&path).ok();
+                    digests.insert(entry.path.clone(), digest);
+                    digest
+                }
+            };
+            digest == Some(entry.digest)
+        } else if mtime_ns == entry.mtime_ns {
+            true
+        } else {
+            Digest::of_file(&path)? == entry.digest
+        };
+        if !same {
             report.changed += 1;
+            if mtime_ns <= manifest.stamp_ns {
+                // Older than the outputs, so cargo would call them current.
+                let newer = nanos(SystemTime::now()).max(manifest.stamp_ns + 1_000_000_000);
+                set_modified(&path, from_nanos(newer)).map_err(io_error("set the mtime of", &path))?;
+            }
         } else if mtime_ns == entry.mtime_ns {
             report.unchanged += 1;
-        } else if Digest::of_file(&path)? == entry.digest {
+        } else {
             set_modified(&path, from_nanos(entry.mtime_ns))
                 .map_err(io_error("set the mtime of", &path))?;
             report.restored += 1;
-        } else {
-            report.changed += 1;
         }
     }
     Ok(Restore::Applied(report))
