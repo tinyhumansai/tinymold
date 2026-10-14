@@ -138,9 +138,10 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   caches no linked output, plus every build script. But a core edit then
   takes 139s instead of 16.4s, because the core recompiles from scratch.
   tinymold keeps both: 4.5s warm and 19.1s per core edit.
-- **Neither cache makes a new path warm.** sccache's first build at a new
-  path took 193s (incremental on) and 187s (incremental off, 121 of 430
-  missing), against tinymold's 165s. All three are close to a cold build.
+- **sccache does not make a new path warm.** Its first build at a new path
+  took 193s (incremental on) and 187s (incremental off, 121 of 430
+  missing), close to a cold build. tinymold took 165s before the fix above
+  and 5.2s after it.
 - **Storing and restoring by copy costs the edit loop.** Without reflinks,
   storing the rebuilt binary costs about 0.7s on every edit, so a leaf edit
   takes 2.1s under tinymold against 1.1s with mold alone. A core edit takes
