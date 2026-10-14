@@ -120,7 +120,9 @@ def aggregate(rows: list[dict]) -> dict:
     cells = {}
     for (config, case), samples in groups.items():
         walls = [s["wall"] for s in samples]
-        cell = {"runs": len(samples), "wall": statistics.median(walls), "min": min(walls),
+        samples.sort(key=lambda s: s["run"])
+        cell = {"runs": len(samples), "wall": statistics.median(walls), "first": walls[0],
+                "min": min(walls),
                 "max": max(walls), "link": statistics.median(s["link"] for s in samples),
                 "links": max(s["links"] for s in samples),
                 "compiled": max(s["compiled"] for s in samples),
@@ -141,6 +143,8 @@ def cell_text(cell: dict | None) -> str:
         text += f" · {cell['hits']}/{cell['hits'] + cell['misses']} hits"
     if "restore" in cell:
         text += f" · restore {cell['restore']:.1f}s"
+    if cell["runs"] > 1 and cell["first"] > 2 * cell["wall"]:
+        text += f" · **first run {cell['first']:.1f}s**"
     return text
 
 
@@ -155,7 +159,9 @@ def tables(result: dict) -> str:
              f"{machine['ld']}; host: {result['host']}). Each cell: median wall time of "
              f"{result['runs']} runs (one for a cold build), link time, units compiled, and "
              "tinymold cache hits. `ld` and `mold` have no cache, so their warm and "
-             "second-checkout builds would be their cold build.", "",
+             "second-checkout builds would be their cold build. A second checkout's repeat runs "
+             "reuse what its first run stored at that path, so the first run is shown when "
+             "it differs.", "",
              "| Case | " + " | ".join(configs) + " |",
              "| --- | " + " | ".join("---:" for _ in configs) + " |"]
     for case in CASES:
@@ -169,9 +175,16 @@ def tables(result: dict) -> str:
     for case in CASES:
         base = mold.get("cold") if case in ("warm", "second_path", "snapshot") else mold.get(case)
         if base and case in tm:
-            speedups.append(f"{LABELS[case].lower()}: {base['wall'] / tm[case]['wall']:.1f}x")
+            cell = tm[case]
+            restore = cell.get("restore", 0.0)
+            text = f"{LABELS[case].lower()}: {base['wall'] / (cell['wall'] + restore):.1f}x"
+            if cell["runs"] > 1 and cell["first"] > 2 * cell["wall"]:
+                text += (f" (first run at a new path "
+                         f"{base['wall'] / (cell['first'] + restore):.1f}x)")
+            speedups.append(text)
     if speedups:
-        lines += ["", "tinymold+mold against plain mold (the cold mold build for cached cases): "
+        lines += ["", "tinymold+mold against plain mold, by median wall time plus any snapshot "
+                  "restore; cached cases compare against the cold mold build: "
                   + "; ".join(speedups) + "."]
     if ld and mold:
         ratios = [f"{LABELS[c].lower()}: {ld[c]['link'] / mold[c]['link']:.1f}x"
