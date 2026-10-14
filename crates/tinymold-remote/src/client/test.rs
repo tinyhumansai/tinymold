@@ -246,3 +246,51 @@ fn a_key_sent_without_a_size_is_refused_as_bazel_remote_refuses_it() {
         None
     );
 }
+
+#[test]
+fn a_blob_declared_too_large_or_negative_is_refused_before_reading() {
+    let server = Server::start();
+    let runtime = runtime();
+    let client = client(&runtime, &config(&server));
+    for size_bytes in [i64::MAX, -1] {
+        let poisoned = Digest {
+            hash: naming::blob(b"real").hash,
+            size_bytes,
+        };
+        let result = runtime.block_on(client.read(&poisoned));
+        assert!(
+            matches!(&result, Err(Error::BlobSize { size, .. }) if *size == size_bytes),
+            "{result:?}"
+        );
+        assert_eq!(client.allowance(&poisoned), DEFAULT_TIMEOUT);
+    }
+}
+
+#[test]
+fn a_stream_longer_than_its_declared_size_is_cut_off() {
+    let server = Server::start();
+    let runtime = runtime();
+    let client = client(&runtime, &config(&server));
+    let digest = naming::blob(b"twelve bytes");
+    runtime
+        .block_on(client.write(&digest, b"twelve bytes".to_vec()))
+        .unwrap();
+    let understated = Digest {
+        hash: digest.hash.clone(),
+        size_bytes: 4,
+    };
+    let result = runtime.block_on(client.read(&understated));
+    assert!(
+        matches!(&result, Err(Error::BlobSize { size: 4, .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn the_credential_is_kept_out_of_debug_output() {
+    let runtime = runtime();
+    let mut config = RemoteConfig::new("grpc://cache:1").unwrap();
+    config.authorization = Some("Basic c2VjcmV0".to_owned());
+    let client = client(&runtime, &config);
+    assert!(!format!("{client:?}").contains("c2VjcmV0"));
+}
