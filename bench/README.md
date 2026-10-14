@@ -276,6 +276,9 @@ packages are needed.
 ```sh
 python3 bench/bench.py scenarios --runs 3     # clones the corpus into bench/.work/
 python3 bench/bench.py scenarios --project ripgrep --modes baseline --cases clean,comment
+python3 bench/bench.py scenarios --project ripgrep --modes baseline \
+    --variants line-tables,cgu-64 --cases comment,private_body   # edit-loop experiments
+python3 bench/bench.py ab --variant cgu-64 --runs 7              # interleaved A/B
 python3 bench/bench.py dedup
 python3 bench/bench.py baseline --runs 5
 python3 bench/bench.py cache --runs 3         # needs sccache on PATH
@@ -283,6 +286,10 @@ python3 bench/bench.py link --runs 5
 python3 bench/bench.py cas --runs 5 --size-mb 512
 python3 bench/report.py                       # refresh the tables and charts
 ```
+
+Use `ab` for any claim about a setting. `scenarios --variants` runs each side
+to completion before the next, so load drift on a shared machine biases it;
+`ab` builds every edit with both sides back to back, in alternating order.
 
 Every corpus build runs as **stock cargo**. Cargo reads `config.toml` from
 `CARGO_HOME` and every ancestor directory, so a developer's own tuning (a
