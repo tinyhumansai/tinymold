@@ -315,7 +315,9 @@ python3 bench/report.py                       # refresh the tables and charts
 
 To see where one build's time goes rather than how long it takes (critical
 path, idle job slots, build scripts, links, wrapper steps), use
-`bench/profile_build.py`; see [`PROFILING.md`](PROFILING.md).
+`bench/profile_build.py`; see [`PROFILING.md`](PROFILING.md). For a large
+real project, [`DOCKER.md`](DOCKER.md) builds OpenHuman on Linux in Docker with
+GNU ld, mold, and tinymold, cold, warm, and in the edit loop.
 Use `ab` for any claim about a setting. `scenarios --variants` runs each side
 to completion before the next, so load drift on a shared machine biases it;
 `ab` builds every edit with both sides back to back, in alternating order.
