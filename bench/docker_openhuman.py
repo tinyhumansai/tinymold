@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark OpenHuman's build in Linux Docker: GNU ld, mold, and tinymold.
+"""Benchmark OpenHuman's build in Linux Docker: GNU ld, mold, tinymold, sccache.
 
 OpenHuman (github.com/tinyhumansai/openhuman) is a large workspace: about a
 thousand packages, a dozen vendored submodules, and one big core library
@@ -43,7 +43,7 @@ VOLUME = "tinymold-openhuman"
 CONTAINER = "tinymold-oh-bench"
 SOURCE = bench.WORK / "openhuman"
 OUT = bench.WORK / "openhuman-docker"
-CONFIGS = ("ld", "mold", "tinymold")
+CONFIGS = ("ld", "mold", "tinymold", "sccache")
 CASES = ("cold", "noop", "edit_leaf", "edit_core", "warm", "second_path", "snapshot")
 LABELS = {
     "cold": "Clean build, empty cache",
