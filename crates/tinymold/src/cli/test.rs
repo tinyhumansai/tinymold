@@ -85,7 +85,7 @@ fn has_reports_absence_through_the_outcome() {
 
     let (result, out) = exec(&["--store", s(dir.path()), "cas", "has", &digest]);
     assert_eq!(result.unwrap(), Outcome::Absent);
-    assert!(out.is_empty());
+    assert_eq!(out, "");
 }
 
 #[test]
