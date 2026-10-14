@@ -57,7 +57,9 @@ TRIPLE=$(rustc -vV | sed -n 's/^host: //p')
 TRACER=/opt/bench/link-tracer
 
 mkdir -p "$OUT/timings" "$OUT/logs"
-[[ -n $ONLY ]] || : > "$OUT/results.jsonl"
+# APPEND keeps the results already there: docker_openhuman.py seeds them with
+# the committed samples of the configurations a partial run leaves out.
+[[ -n $ONLY || -n ${APPEND:-} ]] || : > "$OUT/results.jsonl"
 want() { [[ -z $ONLY || " $ONLY " == *" $1 "* ]]; }
 
 # Times every link and logs it, like bench/profile_build.py's link tracer.

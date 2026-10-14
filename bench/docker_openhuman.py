@@ -103,18 +103,40 @@ def docker_info() -> dict:
             "tinymold_link": probe[5]}
 
 
+def result_path(arch: str) -> Path:
+    return bench.RESULTS / f"openhuman-docker-linux-{arch}.json"
+
+
+def kept_samples(configs: list[str], rev: str) -> list[dict]:
+    """The committed samples of every configuration this run leaves out, so
+    that running a few configurations adds to the result instead of replacing
+    it. They are comparable only on the same OpenHuman commit."""
+    path = result_path(bench.output(["docker", "run", "--rm", IMAGE, "uname", "-m"]))
+    if not path.exists():
+        return []
+    previous = json.loads(path.read_text())
+    kept = [row for row in previous["samples"] if row["config"] not in configs]
+    if kept and previous["rev"] != rev:
+        sys.exit(f"{path} is for OpenHuman {previous['rev']}, this run for {rev}: pass "
+                 f"--rev {previous['rev']}, or --fresh to discard the other configurations")
+    return kept
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     rev = checkout(args.rev)
     subprocess.run(["docker", "build", "-q", "-f", "bench/docker/Dockerfile", "-t", IMAGE, "."],
                    cwd=bench.ROOT, check=True, stdout=subprocess.DEVNULL)
     load_volume()
     OUT.mkdir(parents=True, exist_ok=True)
+    configs = args.configs.split(",")
+    kept = [] if args.fresh else kept_samples(configs, rev)
+    (OUT / "results.jsonl").write_text("".join(json.dumps(row) + "\n" for row in kept))
     (OUT / "meta.json").write_text(json.dumps({"rev": rev, "runs": args.runs,
                                                "configs": args.configs}))
     subprocess.run(["docker", "rm", "-f", CONTAINER], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL)
     subprocess.run(["docker", "run", "--name", CONTAINER, "-v", f"{VOLUME}:/work",
-                    "-v", f"{OUT}:/out", "-e", f"RUNS={args.runs}",
+                    "-v", f"{OUT}:/out", "-e", f"RUNS={args.runs}", "-e", "APPEND=1",
                     "-e", f"CONFIGS={args.configs.replace(',', ' ')}", IMAGE,
                     "/opt/bench/openhuman.sh"], check=True)
     cmd_report(args)
@@ -181,7 +203,9 @@ def tables(result: dict) -> str:
         row = [cell_text(cells[c].get(case), case) for c in configs]
         lines.append(f"| {LABELS[case]} | " + " | ".join(row) + " |")
     mold, ld = cells.get("mold", {}), cells.get("ld", {})
-    for cached in ("tinymold", "sccache", "sccache-noinc"):
+    names = {"tinymold": "tinymold+mold", "sccache": "sccache+mold",
+             "sccache-noinc": "sccache-noinc+mold", "tinymold-full": "tinymold+tinymold-link"}
+    for cached in ("tinymold", "sccache", "sccache-noinc", "tinymold-full"):
         speedups, tm = [], cells.get(cached, {})
         for case in CASES:
             base = mold.get("cold") if case in NEW_PATH + ("warm",) else mold.get(case)
@@ -194,9 +218,18 @@ def tables(result: dict) -> str:
                              f"{base['wall'] / (cell['first'] + restore):.1f}x)")
                 speedups.append(text)
         if speedups:
-            lines += ["", f"{cached}+mold against plain mold, by median wall time plus any "
+            lines += ["", f"{names[cached]} against plain mold, by median wall time plus any "
                       "snapshot restore; cached cases compare against the cold mold build: "
                       + "; ".join(speedups) + "."]
+    for config, name in (("tinymold-link", "tinymold-link"),
+                         ("tinymold-full", "tinymold+tinymold-link")):
+        other = cells.get(config, {})
+        ratios = [f"{LABELS[c].lower()}: {other[c]['link']:.2f}s against {mold[c]['link']:.2f}s"
+                  for c in ("cold", "edit_leaf", "edit_core")
+                  if c in other and c in mold and mold[c]["link"] > 0]
+        if ratios:
+            lines += ["", f"Link time, {name} against mold (median of the summed link "
+                      "times per build): " + "; ".join(ratios) + "."]
     if ld and mold:
         ratios = [f"{LABELS[c].lower()}: {ld[c]['link'] / mold[c]['link']:.1f}x"
                   for c in ("cold", "edit_leaf", "edit_core")
@@ -212,7 +245,8 @@ def critical_paths(jobs: int) -> str:
     lines = []
     for name in ("mold-cold-1", "tinymold-cold-1", "sccache-cold-1", "tinymold-warm-1",
                  "sccache-warm-1", "sccache-noinc-warm-1", "mold-edit_core-1",
-                 "tinymold-edit_core-1", "sccache-edit_core-1", "sccache-noinc-edit_core-1"):
+                 "tinymold-edit_core-1", "sccache-edit_core-1", "sccache-noinc-edit_core-1",
+                 "tinymold-link-edit_core-1", "tinymold-full-edit_core-1"):
         html = OUT / "timings" / f"{name}.html"
         if not html.exists():
             continue
@@ -244,7 +278,7 @@ def cmd_report(_args: argparse.Namespace) -> None:
               "host": f"{platform.system().lower()} {platform.machine()}, "
                       f"{bench.os.cpu_count()} CPUs",
               "machine": machine, "cells": aggregate(rows), "samples": rows}
-    path = bench.RESULTS / f"openhuman-docker-{machine['os']}-{machine['arch']}.json"
+    path = result_path(machine["arch"])
     path.write_text(json.dumps(result, indent=2) + "\n")
     print(tables(result) + critical_paths(machine["cpus"] or 1))
     print(f"Wrote {path}")
@@ -258,6 +292,8 @@ def main() -> None:
     run.add_argument("--rev", help="OpenHuman commit or branch (default: the checkout's HEAD)")
     run.add_argument("--runs", type=int, default=3)
     run.add_argument("--configs", default=",".join(CONFIGS))
+    run.add_argument("--fresh", action="store_true",
+                     help="discard the committed results of configurations not run")
     sub.add_parser("report")
     args = parser.parse_args()
     {"run": cmd_run, "report": cmd_report}[args.command](args)
