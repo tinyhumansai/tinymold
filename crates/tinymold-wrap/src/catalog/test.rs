@@ -86,7 +86,10 @@ fn records_reports_size_and_last_use() {
 #[test]
 fn records_fails_when_a_directory_cannot_be_read() {
     let dir = tempfile::tempdir().unwrap();
-    write(&dir.path().join("prekeys"), "a file where a directory belongs");
+    write(
+        &dir.path().join("prekeys"),
+        "a file where a directory belongs",
+    );
     assert!(matches!(
         records(dir.path()),
         Err(crate::Error::Io { action: "read", .. })

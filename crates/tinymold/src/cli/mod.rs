@@ -307,7 +307,11 @@ fn run_stats(args: &StatsArgs, out: &mut impl Write) -> Result<Outcome> {
     let log = args
         .log
         .clone()
-        .or_else(|| env("TINYMOLD_LOG").filter(|v| !v.is_empty()).map(PathBuf::from))
+        .or_else(|| {
+            env("TINYMOLD_LOG")
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+        })
         .ok_or(Error::NoLogLocation)?;
     let text = match std::fs::read_to_string(&log) {
         Ok(text) => text,
@@ -358,9 +362,8 @@ fn run_remote(cli: &Cli, command: &RemoteCommand, out: &mut impl Write) -> Resul
     match command {
         RemoteCommand::Push { since } => {
             let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
-            let since = since.map(|seconds| {
-                std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds)
-            });
+            let since = since
+                .map(|seconds| std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds));
             let report = remote.push(&store, since)?;
             line(out, format_args!("remote: {report}"))?;
         }

@@ -391,7 +391,14 @@ fn stats_summarizes_a_log_and_checks_the_hit_rate() {
     assert_eq!(result.unwrap(), Outcome::Success);
     assert!(out.starts_with("50.0% hit rate"), "{out}");
 
-    let (result, out) = exec(&["stats", "--log", s(&log), "--markdown", "--min-hit-rate", "50"]);
+    let (result, out) = exec(&[
+        "stats",
+        "--log",
+        s(&log),
+        "--markdown",
+        "--min-hit-rate",
+        "50",
+    ]);
     assert_eq!(result.unwrap(), Outcome::Success);
     assert!(out.starts_with("### tinymold"), "{out}");
 
@@ -415,4 +422,45 @@ fn stats_fails_on_a_log_it_cannot_read() {
     let dir = tempfile::tempdir().unwrap();
     let (result, _) = exec(&["stats", "--log", s(dir.path())]);
     assert!(matches!(result, Err(Error::Io { action: "read", .. })));
+}
+
+fn vars(pairs: &[(&'static str, &'static str)]) -> impl Fn(&str) -> Option<std::ffi::OsString> {
+    let pairs = pairs.to_vec();
+    move |name| {
+        pairs
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| std::ffi::OsString::from(value))
+    }
+}
+
+#[test]
+fn doctor_describes_the_remote_without_its_credential() {
+    assert_eq!(remote_summary(vars(&[])), None);
+    let anonymous = remote_summary(vars(&[("TINYMOLD_REMOTE_URL", "grpc://cache:9092")])).unwrap();
+    let with_auth = remote_summary(vars(&[
+        ("TINYMOLD_REMOTE_URL", "grpc://cache:9092"),
+        ("TINYMOLD_REMOTE_AUTH", "ci:s3cret"),
+    ]))
+    .unwrap();
+    let broken = remote_summary(vars(&[("TINYMOLD_REMOTE_URL", "cache")])).unwrap();
+    if cfg!(feature = "remote") {
+        assert_eq!(anonymous, "grpc://cache:9092 (anonymous)");
+        assert_eq!(with_auth, "grpc://cache:9092 (with credential)");
+        assert!(broken.starts_with("cache (invalid remote URL"), "{broken}");
+    } else {
+        assert!(anonymous.ends_with("(ignored: built without the remote feature)"));
+    }
+    assert!(!with_auth.contains("s3cret"));
+}
+
+#[test]
+fn remote_commands_need_a_remote() {
+    // The test environment configures no remote.
+    if std::env::var_os("TINYMOLD_REMOTE_URL").is_none() {
+        let (result, _) = exec(&["remote", "check"]);
+        assert!(matches!(result, Err(Error::NoRemote)));
+        let (result, _) = exec(&["remote", "push", "--since", "0"]);
+        assert!(matches!(result, Err(Error::NoRemote)));
+    }
 }

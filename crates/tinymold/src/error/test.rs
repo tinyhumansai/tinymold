@@ -104,3 +104,19 @@ fn a_missing_log_location_says_how_to_give_one() {
         "no wrapper log: pass --log or set TINYMOLD_LOG"
     );
 }
+
+#[test]
+fn a_missing_remote_says_how_to_configure_one() {
+    assert_eq!(
+        Error::NoRemote.to_string(),
+        "no remote cache: set TINYMOLD_REMOTE_URL"
+    );
+}
+
+#[cfg(feature = "remote")]
+#[test]
+fn remote_errors_convert_transparently() {
+    let remote = tinymold_remote::Error::InvalidAuth;
+    let expected = remote.to_string();
+    assert_eq!(Error::from(remote).to_string(), expected);
+}

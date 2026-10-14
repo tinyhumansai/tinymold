@@ -56,8 +56,7 @@ fn a_remote_is_configured_only_by_a_well_formed_url() {
     assert!(wrapper_remote(none).is_none());
     let malformed = |name: &str| (name == "TINYMOLD_REMOTE_URL").then(|| OsString::from("nope"));
     assert!(wrapper_remote(malformed).is_none());
-    let valid = |name: &str| {
-        (name == "TINYMOLD_REMOTE_URL").then(|| OsString::from("grpc://127.0.0.1:1"))
-    };
+    let valid =
+        |name: &str| (name == "TINYMOLD_REMOTE_URL").then(|| OsString::from("grpc://127.0.0.1:1"));
     assert_eq!(wrapper_remote(valid).is_some(), cfg!(feature = "remote"));
 }

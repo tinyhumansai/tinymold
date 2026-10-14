@@ -258,6 +258,12 @@ fn remove_reports_an_object_it_cannot_delete() {
 
     let removed = store.remove(&digest);
     fs::set_permissions(&shard, fs::Permissions::from_mode(0o755)).unwrap();
-    assert!(matches!(removed, Err(Error::Io { action: "remove", .. })));
+    assert!(matches!(
+        removed,
+        Err(Error::Io {
+            action: "remove",
+            ..
+        })
+    ));
     assert!(store.contains(&digest));
 }

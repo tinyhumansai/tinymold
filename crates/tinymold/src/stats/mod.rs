@@ -129,7 +129,11 @@ impl Stats {
         let rows = [
             ("Local hits", self.hits, None),
             ("Remote hits", self.remote_hits, None),
-            ("Hits, total", self.hits + self.remote_hits, Some(self.hit_millis)),
+            (
+                "Hits, total",
+                self.hits + self.remote_hits,
+                Some(self.hit_millis),
+            ),
             ("Misses (compiled)", self.misses, Some(self.miss_millis)),
             ("Not cacheable", self.passes, None),
             ("Cache errors", self.errors, None),

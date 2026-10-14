@@ -74,7 +74,10 @@ fn backdate(path: &Path, when: SystemTime) {
 fn ages_parse_with_every_unit_and_reject_anything_else() {
     assert_eq!("90s".parse::<Age>().unwrap().0, Duration::from_secs(90));
     assert_eq!("30m".parse::<Age>().unwrap().0, Duration::from_secs(1800));
-    assert_eq!("36h".parse::<Age>().unwrap().0, Duration::from_secs(129_600));
+    assert_eq!(
+        "36h".parse::<Age>().unwrap().0,
+        Duration::from_secs(129_600)
+    );
     assert_eq!("14d".parse::<Age>().unwrap().0, 14 * DAY);
     for bad in ["", "14", "d", "14w", "-1d", "1.5d", "99999999999999999999d"] {
         assert!(
@@ -359,7 +362,11 @@ fn snapshot_expiry_without_a_snapshots_directory_removes_nothing() {
 #[test]
 fn an_unreadable_snapshots_path_is_an_error() {
     let fixture = Fixture::new();
-    write(&snapshot::snapshots_dir(&fixture.root), "a file", fixture.now);
+    write(
+        &snapshot::snapshots_dir(&fixture.root),
+        "a file",
+        fixture.now,
+    );
     let result = collect(
         &fixture.root,
         &Policy {
@@ -389,7 +396,13 @@ fn a_record_that_cannot_be_removed_is_an_error() {
         },
     );
     fs::set_permissions(&crate_dir, fs::Permissions::from_mode(0o755)).unwrap();
-    assert!(matches!(result, Err(Error::Io { action: "remove", .. })));
+    assert!(matches!(
+        result,
+        Err(Error::Io {
+            action: "remove",
+            ..
+        })
+    ));
 }
 
 #[test]

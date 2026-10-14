@@ -42,7 +42,11 @@ fn the_hit_rate_counts_cacheable_invocations_only() {
 fn keeps_the_slowest_misses_slowest_first() {
     let log: String = (1..=7).map(|n| format!("miss c{n} {n}00.0ms\n")).collect();
     let stats = Stats::parse(&log);
-    let names: Vec<_> = stats.slowest.iter().map(|m| m.crate_name.as_str()).collect();
+    let names: Vec<_> = stats
+        .slowest
+        .iter()
+        .map(|m| m.crate_name.as_str())
+        .collect();
     assert_eq!(names, ["c7", "c6", "c5", "c4", "c3"]);
 }
 
@@ -56,9 +60,15 @@ fn renders_text_and_markdown() {
          time on hits 0.04s, on misses 1.50s"
     );
     let markdown = stats.markdown();
-    assert!(markdown.starts_with("### tinymold\n\n40.0% hit rate"), "{markdown}");
+    assert!(
+        markdown.starts_with("### tinymold\n\n40.0% hit rate"),
+        "{markdown}"
+    );
     assert!(markdown.contains("| Remote hits | 1 |  |"), "{markdown}");
-    assert!(markdown.contains("| Misses (compiled) | 2 | 1.50s |"), "{markdown}");
+    assert!(
+        markdown.contains("| Misses (compiled) | 2 | 1.50s |"),
+        "{markdown}"
+    );
     assert!(
         markdown.contains("Slowest misses: `demo` 1.20s, `build_script_build` 0.30s"),
         "{markdown}"

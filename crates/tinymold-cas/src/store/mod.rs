@@ -227,7 +227,9 @@ impl Store {
                     objects.push(ObjectInfo {
                         digest,
                         size: meta.len(),
-                        modified: meta.modified().map_err(io_error("inspect", &entry.path()))?,
+                        modified: meta
+                            .modified()
+                            .map_err(io_error("inspect", &entry.path()))?,
                     });
                 }
             }
@@ -262,7 +264,9 @@ impl Store {
                 files.push(StagingFile {
                     path: entry.path(),
                     size: meta.len(),
-                    modified: meta.modified().map_err(io_error("inspect", &entry.path()))?,
+                    modified: meta
+                        .modified()
+                        .map_err(io_error("inspect", &entry.path()))?,
                 });
             }
         }

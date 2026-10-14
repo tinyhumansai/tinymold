@@ -58,10 +58,7 @@ impl FromStr for ByteSize {
             "T" => 40,
             _ => return Err(invalid()),
         };
-        number
-            .checked_mul(1 << shift)
-            .map(Self)
-            .ok_or_else(invalid)
+        number.checked_mul(1 << shift).map(Self).ok_or_else(invalid)
     }
 }
 
@@ -122,7 +119,11 @@ pub struct Report {
 
 impl fmt::Display for Report {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let verb = if self.dry_run { "would remove" } else { "removed" };
+        let verb = if self.dry_run {
+            "would remove"
+        } else {
+            "removed"
+        };
         writeln!(
             f,
             "gc: {verb} {} actions, {} pre-keys, {} cache files, {} snapshots, {}",
