@@ -58,7 +58,7 @@ pub fn write_sdk_imports<E: Target>(ctx: &Context<E>) {
         "version": 1,
         "output": output,
         "arch": E::NAME,
-        "linker": concat!("mold-", env!("CARGO_PKG_VERSION")),
+        "linker": format!("mold-{}", mold_common::MOLD_VERSION),
         "apiListVersion": api_list.map_or(0, |list| list.version),
         "platform": platform_name(ctx.args.platform),
         "deploymentVersion": format_version(ctx.args.platform_minos),
