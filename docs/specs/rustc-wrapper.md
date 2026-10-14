@@ -123,6 +123,14 @@ miss in another worktree, and it does.
 3. stores the outputs in the CAS, spread over up to eight threads, then
    writes the ActionResult (`entries/<crate>/<key>`, per ADR 0004), and
    records the input set under the pre-key.
+   - **Outputs rustc did not write are not stored again.** An output whose
+     identity still matches this unit's placement record (see "Outputs kept
+     in place" below) and whose mtime is from before the compile's clock
+     reading takes its recorded digest, provided the store still holds that
+     object. Its mtime is then refreshed, as a re-insert would do, for gc's
+     grace period. Incremental rustc carries most objects over from its last
+     session this way, so a miss after a small edit only hashes and stores
+     the objects it regenerated, not all several hundred.
 
 **On a hit**, tinymold:
 
