@@ -42,6 +42,7 @@ use crate::record::{
 };
 use crate::remote::{Remote, RemoteError};
 use crate::stat;
+use crate::test_record::TestBinary;
 use crate::trace::Trace;
 use crate::{Error, Result};
 
@@ -158,6 +159,7 @@ pub(crate) fn serve(
                 if trace.span("restore", || unit.restore(&action)).is_ok() =>
             {
                 record::touch(&entry);
+                unit.note_test_binary(&action.outputs);
                 return Ok(Served::RemoteHit { waited });
             }
             Ok(_) => {}
@@ -319,6 +321,7 @@ impl Unit<'_> {
             return false;
         }
         record::touch(&entry);
+        self.note_test_binary(&action.outputs);
         record::touch(&self.prekey_path(pre));
         true
     }
@@ -489,6 +492,53 @@ impl Unit<'_> {
         Ok(Some((output.name.clone(), identity, output.digest)))
     }
 
+    /// Records that this unit's executable is a test binary the runner may
+    /// cache (`docs/specs/test-cache.md`), and remembers its digest so the
+    /// runner need not read it. Only for `--test` units that link `std`
+    /// statically and whose dynamic-library externs, which the binary loads
+    /// at run time, sit beside it. Best effort: without a record, the
+    /// binary's runs are not cached.
+    fn note_test_binary(&self, outputs: &[Output]) {
+        let invocation = self.invocation;
+        if !invocation.test || !invocation.links() || invocation.prefers_dynamic() {
+            return;
+        }
+        let [_, stem] = invocation.output_prefixes();
+        let exe = format!("{stem}.exe");
+        let Some(binary) = outputs
+            .iter()
+            .find(|output| output.name == stem || output.name == exe)
+        else {
+            return;
+        };
+        let mut dylibs = Vec::new();
+        for path in invocation.externs.iter().filter_map(|ext| ext.path.as_ref()) {
+            if !is_dylib(path) {
+                continue;
+            }
+            let path = self.cwd.join(path);
+            match path.file_name().and_then(|name| name.to_str()) {
+                Some(name) if path.parent() == Some(self.out_dir.as_path()) => {
+                    dylibs.push(name.to_owned());
+                }
+                // Loaded from somewhere the runner would not look.
+                _ => return,
+            }
+        }
+        let record = TestBinary {
+            crate_name: invocation.crate_name.clone(),
+            dylibs,
+        };
+        let path = self.out_dir.join(&binary.name);
+        if let Ok(identity) = stat::identity(&path) {
+            let _ = stat::remember(self.store_dir, &path, identity, binary.digest);
+        }
+        let _ = write_atomically(
+            &TestBinary::path(self.store_dir, &binary.digest),
+            &record.encode(),
+        );
+    }
+
     /// Where this unit records the outputs it left in its out-dir.
     fn placed_path(&self) -> PathBuf {
         let [_, stem] = self.invocation.output_prefixes();
@@ -540,6 +590,7 @@ impl Unit<'_> {
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
         Placed::save(&self.placed_path(), &placements)?;
+        self.note_test_binary(&action.outputs);
 
         let set = InputSet {
             recorded_ns: self.now_ns,
@@ -705,6 +756,14 @@ fn is_library(name: &str) -> bool {
     matches!(
         Path::new(name).extension().and_then(|ext| ext.to_str()),
         Some("rlib" | "rmeta" | "dylib" | "so" | "dll")
+    )
+}
+
+/// Whether `path` is a dynamic library: a proc macro, or a `dylib` crate.
+fn is_dylib(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("dylib" | "so" | "dll")
     )
 }
 
