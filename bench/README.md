@@ -4,9 +4,29 @@ tinymold exists to make Rust builds faster and smaller, so every claim it makes
 has to come with a number anyone can reproduce. This directory holds the
 harness, the corpus it builds, and the results it has produced.
 
-Four benchmarks exist today. All of them measure plain cargo or the store
-alone, so together they are the baseline every later phase has to beat:
+Six benchmarks exist today. All of them measure plain cargo, sccache, or the
+store alone, so together they are the baseline every later phase has to beat:
 
+- **`scenarios`**: the full edit-loop matrix, and the main scoreboard. For
+  every corpus project and every mode (`baseline`, `sccache`, and `tinymold`
+  once its rustc wrapper exists), it runs eight cases:
+  - a clean build;
+  - a no-op rebuild;
+  - a comment edit;
+  - a private function body edit;
+  - a public signature edit;
+  - a second worktree of the same commit;
+  - a branch switch A→B→A;
+  - `cargo test --no-run`.
+
+  For each case it records wall time (median, min, max), link time from a tiny
+  timing linker wrapper the harness installs, units compiled versus fresh (from
+  `cargo build -v`), `target/` bytes split by kind, and cache hits.
+- **`dedup`**: builds two worktrees of each project and reports how much of the
+  second's `target/` is byte-identical to the first's at three levels: whole
+  files, rlib members, and DWARF sections split out of object files. The gap
+  between levels is what chunk-level storage could save beyond whole-file
+  dedup.
 - **`baseline`**: plain cargo, default linker, no cache. Per corpus project: a
   clean build, a no-op rebuild, a one-line edit, an mtime-only change to every
   source file (what a branch switch or a cache restore does to cargo), building
@@ -34,6 +54,32 @@ Each heading lists the machine and toolchain the numbers came from. A number
 without its machine is not a result.
 
 <!-- results:start -->
+
+### Edit-loop scenarios (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
+
+Pinned: cargo build jobs: 18; target filesystem: apfs; linker: cc, rustc's default, behind a timing wrapper; linker threads: linker default; the platform cc linker takes no thread flag; output reuse: rustc default: each link writes a fresh output; incremental: on for baseline; off under sccache, which refuses it.
+
+Each cell: median wall time, then median link time, then units compiled. Under sccache, `hits` counts rustc invocations served from the cache across all runs.
+
+#### tinymold 85f8ef5 (this repository, as a small workspace)
+
+| Case | baseline | sccache |
+| --- | ---: | ---: |
+| Clean build | 6.21s · link 0.33s · 30 compiled | 3.85s · link 0.29s · 30 compiled · 0/31 hits · first (cold) run 3.85s |
+| No-op rebuild | 0.07s · link 0.00s · 0 compiled | 0.04s · link 0.00s · 0 compiled |
+| Comment edit | 0.16s · link 0.04s · 1 compiled | 0.14s · link 0.04s · 1 compiled |
+| Private function body edit | 0.27s · link 0.04s · 1 compiled | 0.32s · link 0.04s · 1 compiled · 0/1 hits |
+| Public signature edit | 0.37s · link 0.04s · 3 compiled | 0.55s · link 0.04s · 3 compiled · 0/3 hits |
+| Second worktree, same commit | 4.30s · link 0.26s · 30 compiled | 3.28s · link 0.26s · 30 compiled · 26/31 hits |
+| Branch switch A→B→A | 0.72s · link 0.08s · 6 compiled | 0.48s · link 0.07s · 6 compiled · 6/6 hits |
+| cargo test --no-run | 3.82s · link 0.25s · 9 compiled | 1.96s · link 0.28s · 9 compiled · 0/8 hits |
+
+`target/` by kind (baseline):
+
+| After | rlib | rmeta | debuginfo | objects | incremental | executables | other | total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Clean build | 45 MiB | 8 MiB | 0 MiB | 46 MiB | 11 MiB | 24 MiB | 0 MiB | 134 MiB |
+| cargo test --no-run | 54 MiB | 14 MiB | 0 MiB | 55 MiB | 23 MiB | 37 MiB | 0 MiB | 183 MiB |
 
 ### Baseline: plain cargo, default linker (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
@@ -65,6 +111,14 @@ Cache: sccache 0.17.0, private directory and port. Each cell is the median clean
 | Second worktree hit rate | 32/32 hits | 349/349 hits |
 | Not cacheable (bins, proc-macros, incremental, …) | 0 | 0 |
 | Cache size on disk | 36 MiB | 128 MiB |
+
+### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
+
+Share of the second worktree's `target/` bytes that are byte-identical to something in the first's, at three granularities. Incremental state is excluded.
+
+| Project | Files | rlib members | DWARF sections |
+| --- | ---: | ---: | ---: |
+| tinymold 9db903e | 79% of 116 MiB | 92% of 43 MiB | 92% of 30 MiB |
 
 ### Edit-rebuild loop (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-14)
 
@@ -99,7 +153,10 @@ Requirements: a Rust toolchain, `git`, and Python 3.9 or newer. No Python
 packages are needed.
 
 ```sh
-python3 bench/bench.py baseline --runs 5      # clones the corpus into bench/.work/
+python3 bench/bench.py scenarios --runs 3     # clones the corpus into bench/.work/
+python3 bench/bench.py scenarios --project ripgrep --modes baseline --cases clean,comment
+python3 bench/bench.py dedup
+python3 bench/bench.py baseline --runs 5
 python3 bench/bench.py cache --runs 3         # needs sccache on PATH
 python3 bench/bench.py link --runs 5
 python3 bench/bench.py cas --runs 5 --size-mb 512
@@ -112,8 +169,16 @@ Every corpus build runs as **stock cargo**. Cargo reads `config.toml` from
 off) would otherwise leak into the numbers. The harness disables any rustc
 wrapper, turns incremental on, forces full debuginfo, sets `jobs` to the CPU
 count through `--config` (which outranks every config file), and records
-those settings in each result. The `cache` benchmark then adds sccache back
-explicitly, on a private port and directory.
+those settings in each result. The `cache` benchmark and the `sccache` mode
+then add sccache back explicitly, on a private port and directory. sccache
+refuses to run while `CARGO_INCREMENTAL=1` is set, so under sccache workspace
+crates build with cargo's default incremental setting and are reported as not
+cacheable.
+
+The `scenarios` benchmark also pins and records the filesystem type of the
+build directory, the linker and its thread setting, and output reuse.
+Single-project runs (`--project`) replace that project's rows in the results
+file and keep the rest.
 
 `link` measures every linker it finds: the default, the `rust-lld` bundled with
 the toolchain, and on Linux `mold` and `wild` when they're on `PATH`. Install
@@ -130,17 +195,24 @@ architecture, so results from different machines sit side by side.
 
 [`corpus.json`](corpus.json) pins each project to an exact tag:
 
-| Project | Revision | Edited file |
-| --- | --- | --- |
-| [ripgrep](https://github.com/BurntSushi/ripgrep) | 14.1.1 | `crates/core/main.rs` |
-| [bat](https://github.com/sharkdp/bat) | v0.24.0 | `src/bin/bat/main.rs` |
+| Project | Revision | Role | Public-signature edit |
+| --- | --- | --- | --- |
+| [ripgrep](https://github.com/BurntSushi/ripgrep) | 14.1.1 | small, link-bound binary | `crates/searcher/src/lib.rs` |
+| [bat](https://github.com/sharkdp/bat) | v0.24.0 | build scripts and C dependencies | `src/lib.rs` |
+| tinymold | this repository's `HEAD` | small workspace | `crates/tinymold-hash/src/lib.rs` |
+| [tokio](https://github.com/tokio-rs/tokio) | tokio-1.53.3 | test-heavy library, 173 integration test files | `tokio/src/lib.rs` |
+| [Bevy](https://github.com/bevyengine/bevy) | v0.19.1 | deep graph, link-bound `3d_scene` example | `crates/bevy_utils/src/lib.rs` |
 
-ripgrep is a small, link-bound binary; bat pulls in a larger dependency graph
-with build scripts and C code. Phase 1 of the
-[roadmap](../docs/plans/roadmap.md) grows the corpus to a Bevy app, a
-test-heavy workspace, a `-sys`-heavy workspace, and tinymold itself. Add a
-project by appending to `corpus.json` with a tag or commit, the package and
-binary to build, and a file whose edit forces a relink.
+Each project names a file and anchor for every edit kind in `corpus.json`.
+A comment edit appends a comment. A private body edit inserts
+`std::hint::black_box(n);` after a function's opening line, so the crate
+recompiles but its interface doesn't change. A public signature edit adds a
+`pub fn` to a library that other crates depend on, so every dependent rebuilds.
+
+Phase 1 of the [roadmap](../docs/plans/roadmap.md) may still add a
+`-sys`-heavy workspace. Add a project by appending to `corpus.json` with a tag
+or commit, the package and what to build (`bin`, `example`, or a library with
+optional `features`), and an `edits` entry for each edit kind.
 
 ## Methodology
 

@@ -130,6 +130,82 @@ def cache_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+CASE_LABELS = {
+    "clean": "Clean build",
+    "noop": "No-op rebuild",
+    "comment": "Comment edit",
+    "private_body": "Private function body edit",
+    "public_signature": "Public signature edit",
+    "second_worktree": "Second worktree, same commit",
+    "branch_switch": "Branch switch A→B→A",
+    "test_no_run": "cargo test --no-run",
+}
+KINDS = ("rlib", "rmeta", "debuginfo", "objects", "incremental", "executables", "other")
+
+
+def scenarios_section(result: dict) -> list[str]:
+    rows = result["results"]
+    pins = result.get("pins", {})
+    lines = [f"### Edit-loop scenarios ({describe(result)})", "",
+             "Pinned: " + "; ".join(f"{k.replace('_', ' ')}: {v}" for k, v in pins.items()) + ".",
+             "", "Each cell: median wall time, then median link time, then units "
+             "compiled. Under sccache, `hits` counts rustc invocations served from the "
+             "cache across all runs.", ""]
+    for project in dict.fromkeys(r["project"] for r in rows):
+        mine = [r for r in rows if r["project"] == project]
+        modes = list(dict.fromkeys(r["mode"] for r in mine))
+        first = mine[0]
+        lines += [f"#### {project} {first['rev']}" + (f" ({first['role']})" if first["role"] else ""),
+                  "", "| Case | " + " | ".join(modes) + " |", "| --- |" + " ---: |" * len(modes)]
+        for case, label in CASE_LABELS.items():
+            cells = []
+            for mode in modes:
+                found = [r for r in mine if r["mode"] == mode and r["case"] == case]
+                if not found:
+                    cells.append("–")
+                    continue
+                r = found[0]
+                cell = (f"{r['wall']['median_s']:.2f}s · link {r['link']['median_s']:.2f}s · "
+                        f"{r['compiled']:.0f} compiled")
+                if "cache" in r and (r["cache"]["hits"] + r["cache"]["misses"]):
+                    total = r["cache"]["hits"] + r["cache"]["misses"]
+                    cell += f" · {r['cache']['hits']}/{total} hits"
+                if case == "clean" and mode == "sccache" and "first_wall_s" in r:
+                    cell += f" · first (cold) run {r['first_wall_s']:.2f}s"
+                cells.append(cell)
+            lines.append(f"| {label} | " + " | ".join(cells) + " |")
+        lines.append("")
+        sized = [r for r in mine if r["mode"] == "baseline" and "target_kinds" in r]
+        if sized:
+            lines += ["`target/` by kind (baseline):", "",
+                      "| After | " + " | ".join(KINDS) + " | total |",
+                      "| --- |" + " ---: |" * (len(KINDS) + 1)]
+            for r in sized:
+                kinds = r["target_kinds"]
+                lines.append(f"| {CASE_LABELS[r['case']]} | "
+                             + " | ".join(mib(kinds[k]) for k in KINDS)
+                             + f" | {mib(sum(kinds.values()))} |")
+            lines.append("")
+    return lines
+
+
+def dedup_section(result: dict) -> list[str]:
+    lines = [f"### Dedup probe: second worktree vs first ({describe(result)})", "",
+             "Share of the second worktree's `target/` bytes that are byte-identical to "
+             "something in the first's, at three granularities. Incremental state is "
+             "excluded.", "",
+             "| Project | Files | rlib members | DWARF sections |", "| --- | ---: | ---: | ---: |"]
+
+    def share(level: dict) -> str:
+        return (f"{100 * level['identical_bytes'] / max(1, level['bytes']):.0f}% "
+                f"of {mib(level['bytes'])}")
+
+    for r in result["results"]:
+        lines.append(f"| {r['project']} {r['rev']} | {share(r['files'])} | "
+                     f"{share(r['rlib_members'])} | {share(r['dwarf_sections'])} |")
+    return lines + [""]
+
+
 def cas_section(result: dict) -> list[str]:
     lines = [f"### Restoring a {result['artifact_mb']} MiB artifact ({describe(result)})", "",
              "| Method | Median | min–max |", "| --- | ---: | ---: |"]
@@ -142,12 +218,17 @@ def cas_section(result: dict) -> list[str]:
 
 def main() -> None:
     sections: list[str] = []
-    order = {"baseline": 0, "cache": 1, "link": 2, "cas": 3}
+    order = {"scenarios": 0, "baseline": 1, "cache": 2, "dedup": 3, "link": 4, "native": 5,
+             "cas": 6}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
         result = json.loads(path.read_text())
-        if result["benchmark"] == "baseline":
+        if result["benchmark"] == "scenarios":
+            sections += scenarios_section(result)
+        elif result["benchmark"] == "dedup":
+            sections += dedup_section(result)
+        elif result["benchmark"] == "baseline":
             sections += baseline_section(result)
         elif result["benchmark"] == "cache":
             sections += cache_section(result)
