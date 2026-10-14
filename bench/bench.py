@@ -314,6 +314,10 @@ def bench_cache(args: argparse.Namespace) -> dict:
                       "--bin", project["bin"])
         cached_env = dict(STOCK_ENV, RUSTC_WRAPPER=sccache, SCCACHE_DIR=str(cache_dir),
                           SCCACHE_SERVER_PORT=SCCACHE_PORT, SCCACHE_CACHE_SIZE="50G")
+        # sccache refuses to run at all while CARGO_INCREMENTAL=1 is set. Without
+        # it, cargo's default dev profile still builds workspace members
+        # incrementally, and sccache reports those as non-cacheable.
+        cached_env.pop("CARGO_INCREMENTAL")
 
         def restart_server() -> None:
             subprocess.run([sccache, "--stop-server"], env=cached_env,
