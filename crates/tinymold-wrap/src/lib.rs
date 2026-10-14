@@ -6,6 +6,10 @@
 //! running rustc, and on a miss runs rustc with its output streamed through
 //! and stores what it produced. Anything it cannot key, it runs unchanged.
 //!
+//! [`run_test`] is the same idea one step later: as cargo's test runner, it
+//! replays a recorded passing run of a test binary the wrapper built, when
+//! nothing the run can observe has changed (`docs/specs/test-cache.md`).
+//!
 //! The cache lives in the same store as `tinymold cas`: objects under
 //! `objects/`, actions under `entries/<crate>/`, input sets under
 //! `prekeys/`, and the digest cache under `stat/`. [`records`] lists them,
@@ -36,8 +40,8 @@ mod declared;
 mod error;
 mod exec;
 mod flight;
-mod parallel;
 mod package_tree;
+mod parallel;
 mod placed;
 mod record;
 mod remote;
@@ -233,7 +237,13 @@ fn utf8(args: &[OsString]) -> Option<Vec<String>> {
         .collect()
 }
 
-pub(crate) fn log(config: &Config, started: Instant, outcome: &str, crate_name: &str, detail: &str) {
+pub(crate) fn log(
+    config: &Config,
+    started: Instant,
+    outcome: &str,
+    crate_name: &str,
+    detail: &str,
+) {
     let Some(path) = &config.log else {
         return;
     };

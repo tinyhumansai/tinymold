@@ -12,7 +12,10 @@ fn the_test_binary_encoding_is_pinned() {
     };
     let expected = "tinymold-test-binary 1\ncrate demo\ndylib libplugin-1.dylib\n";
     assert_eq!(binary.encode(), expected);
-    assert_eq!(TestBinary::decode(expected, Path::new("b")).unwrap(), binary);
+    assert_eq!(
+        TestBinary::decode(expected, Path::new("b")).unwrap(),
+        binary
+    );
 }
 
 #[test]

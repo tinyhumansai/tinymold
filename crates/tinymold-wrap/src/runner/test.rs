@@ -58,7 +58,11 @@ fn build(root: &Path, config: &Config) -> PathBuf {
     .chain([out.clone().into(), root.join("src/lib.rs").into()])
     .collect();
     assert_eq!(crate::run(config, &rustc(), &args), 0);
-    out.join(if cfg!(windows) { "demo-1.exe" } else { "demo-1" })
+    out.join(if cfg!(windows) {
+        "demo-1.exe"
+    } else {
+        "demo-1"
+    })
 }
 
 fn env(extra: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
@@ -73,7 +77,13 @@ fn env(extra: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
     env
 }
 
-fn run(config: &Config, root: &Path, binary: &Path, args: &[&str], env: &[(OsString, OsString)]) -> i32 {
+fn run(
+    config: &Config,
+    root: &Path,
+    binary: &Path,
+    args: &[&str],
+    env: &[(OsString, OsString)],
+) -> i32 {
     let args: Vec<OsString> = args.iter().map(OsString::from).collect();
     run_test(
         config,
@@ -98,7 +108,9 @@ fn log_lines(config: &Config) -> Vec<String> {
             let outcome = parts.next().unwrap();
             let _crate = parts.next();
             let _time = parts.next();
-            format!("{outcome} {}", parts.next().unwrap_or("")).trim_end().to_owned()
+            format!("{outcome} {}", parts.next().unwrap_or(""))
+                .trim_end()
+                .to_owned()
         })
         .collect()
 }
@@ -129,7 +141,10 @@ fn a_passing_run_is_replayed_without_running_the_binary() {
     assert_eq!(lines[1], "test-hit");
 
     // Other arguments are another run.
-    assert_eq!(run(&config, &root, &binary, &["--exact", "it_works"], &env), 0);
+    assert_eq!(
+        run(&config, &root, &binary, &["--exact", "it_works"], &env),
+        0
+    );
     assert_eq!(runs(&marker), 2);
 }
 
@@ -210,7 +225,10 @@ fn a_changed_env_var_runs_again_but_an_ignored_one_does_not() {
     let binary = build(&root, &config);
     let marker = dir.path().join("marker");
     let path = marker.to_str().unwrap();
-    assert_eq!(run(&config, &root, &binary, &[], &env(&[("MARKER", path)])), 0);
+    assert_eq!(
+        run(&config, &root, &binary, &[], &env(&[("MARKER", path)])),
+        0
+    );
     let ignored = env(&[("MARKER", path), ("COLUMNS", "71")]);
     assert_eq!(run(&config, &root, &binary, &[], &ignored), 0);
     assert_eq!(runs(&marker), 1);

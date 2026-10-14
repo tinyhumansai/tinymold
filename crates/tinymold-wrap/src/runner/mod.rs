@@ -87,12 +87,7 @@ struct Prepared {
     now_ns: u64,
 }
 
-fn serve(
-    config: &Config,
-    command: &TestCommand<'_>,
-    prepared: &Prepared,
-    started: Instant,
-) -> i32 {
+fn serve(config: &Config, command: &TestCommand<'_>, prepared: &Prepared, started: Instant) -> i32 {
     let record_path = TestRun::path(&config.store, &prepared.key);
     if let Ok(Some(recorded)) = replay(&prepared.store, &record_path) {
         record::touch(&record_path);

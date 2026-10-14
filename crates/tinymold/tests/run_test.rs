@@ -125,7 +125,10 @@ fn cargo_test_reruns_exactly_the_binaries_an_edit_reaches() {
 
     let (first, lines) = cargo_test(&root, &store);
     assert!(first.status.success(), "{first:?}");
-    assert_eq!(crates(&lines, "test-miss"), set(&["alpha", "beta", "gamma"]));
+    assert_eq!(
+        crates(&lines, "test-miss"),
+        set(&["alpha", "beta", "gamma"])
+    );
 
     // Nothing changed: every run is replayed, with its output.
     let (second, lines) = cargo_test(&root, &store);
@@ -133,7 +136,11 @@ fn cargo_test_reruns_exactly_the_binaries_an_edit_reaches() {
     assert_eq!(crates(&lines, "test-hit"), set(&["alpha", "beta", "gamma"]));
     assert!(crates(&lines, "test-miss").is_empty(), "{lines:?}");
     let stdout = String::from_utf8_lossy(&second.stdout);
-    assert_eq!(stdout.matches("test result: ok. 1 passed").count(), 3, "{stdout}");
+    assert_eq!(
+        stdout.matches("test result: ok. 1 passed").count(),
+        3,
+        "{stdout}"
+    );
 
     // Edit alpha's logic: alpha and beta, which links it, run again; gamma
     // is replayed.
@@ -161,10 +168,8 @@ fn a_failing_test_fails_again_instead_of_being_replayed() {
         let (output, lines) = cargo_test(&root, &store);
         assert!(!output.status.success());
         assert!(
-            lines
-                .iter()
-                .any(|line| line.starts_with("test-miss alpha ")
-                    && line.ends_with("not recorded: the run failed")),
+            lines.iter().any(|line| line.starts_with("test-miss alpha ")
+                && line.ends_with("not recorded: the run failed")),
             "{lines:?}"
         );
     }
@@ -177,7 +182,11 @@ fn run_test_passes_arguments_and_exit_status_through() {
     let script = dir.path().join("fake-test");
     write(&script, "#!/bin/sh\necho \"args: $*\"\nexit 3\n");
     if cfg!(unix) {
-        Command::new("chmod").arg("+x").arg(&script).status().unwrap();
+        Command::new("chmod")
+            .arg("+x")
+            .arg(&script)
+            .status()
+            .unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_tinymold"))
             .args(["run-test"])
             .arg(&script)

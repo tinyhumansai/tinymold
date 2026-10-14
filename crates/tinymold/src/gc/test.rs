@@ -501,7 +501,11 @@ fn test_binary_records_expire_like_pre_keys() {
             .root
             .join("tests/bin")
             .join(Digest::of_bytes(name.as_bytes()).to_hex());
-        write(&path, "tinymold-test-binary 1\ncrate demo\n", fixture.now - age);
+        write(
+            &path,
+            "tinymold-test-binary 1\ncrate demo\n",
+            fixture.now - age,
+        );
         path
     };
     let old = binary("old", 2 * DAY);

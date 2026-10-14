@@ -512,7 +512,11 @@ impl Unit<'_> {
             return;
         };
         let mut dylibs = Vec::new();
-        for path in invocation.externs.iter().filter_map(|ext| ext.path.as_ref()) {
+        for path in invocation
+            .externs
+            .iter()
+            .filter_map(|ext| ext.path.as_ref())
+        {
             if !is_dylib(path) {
                 continue;
             }

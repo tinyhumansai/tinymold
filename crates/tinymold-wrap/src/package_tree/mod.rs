@@ -85,9 +85,8 @@ fn walk(
         };
         let meta = fs::symlink_metadata(&path).map_err(io("read", &path))?;
         if meta.is_dir() {
-            let skipped = name == ".git"
-                || path.join("CACHEDIR.TAG").exists()
-                || binary.starts_with(&path);
+            let skipped =
+                name == ".git" || path.join("CACHEDIR.TAG").exists() || binary.starts_with(&path);
             if !skipped {
                 walk(store, &path, &relative, binary, now_ns, files)?;
             }

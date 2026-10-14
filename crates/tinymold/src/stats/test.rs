@@ -99,7 +99,12 @@ fn test_runs_are_counted_apart_from_compiles() {
     assert_eq!(stats.cacheable(), 1);
     assert_eq!(stats.unparsed, 0);
     assert_eq!(
-        (stats.test_hits, stats.test_misses, stats.test_passes, stats.test_errors),
+        (
+            stats.test_hits,
+            stats.test_misses,
+            stats.test_passes,
+            stats.test_errors
+        ),
         (2, 1, 1, 1)
     );
     let text = stats.to_string();
