@@ -4,7 +4,7 @@
 - **Decision:** [ADR 0008](../adr/0008-test-results-keyed-by-binary-digest.md)
 - **Roadmap:** slices 1–5 belong to Phase 4 (test builds and links), slice 6
   to Phase 7 (research bets).
-- **Status:** Not started.
+- **Status:** Slice 1 implemented.
 
 Each slice is its own pull request, written test first: a failing test for
 the behaviour, then the smallest change that passes it. Every slice ends
@@ -124,7 +124,7 @@ The cheapest win, independent of everything else.
 
 ## Completion checklist
 
-- [ ] Slice 1: lint flags leave capped keys
+- [x] Slice 1: lint flags leave capped keys
 - [ ] Slice 2: test key
 - [ ] Slice 3: records and `run-test`
 - [ ] Slice 4: clippy-driver caching
