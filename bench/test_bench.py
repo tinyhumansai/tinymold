@@ -104,3 +104,31 @@ class Report(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Retest(unittest.TestCase):
+    def test_the_runner_variable_names_the_host_triple(self):
+        with mock.patch.object(bench, "host_triple", return_value="aarch64-apple-darwin"):
+            self.assertEqual(bench.runner_env(Path("/t/tinymold")),
+                             {"CARGO_TARGET_AARCH64_APPLE_DARWIN_RUNNER": "/t/tinymold run-test"})
+
+    def test_runner_counts_read_the_test_lines_of_the_log(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as dir:
+            log = Path(dir) / "log"
+            log.write_text("hit rg 1.0ms\ntest-hit rg 0.9ms\ntest-hit grep 0.8ms\n"
+                           "test-miss rg 900.0ms recorded in 1ms\ntest-pass - 0.1ms x\n")
+            self.assertEqual(bench.runner_counts(log), {"replayed": 2, "ran": 1})
+            self.assertEqual(bench.runner_counts(Path(dir) / "absent"),
+                             {"replayed": 0, "ran": 0})
+
+    def test_the_report_compares_both_sides_per_case(self):
+        def side(mode, wall, replayed, ran):
+            timing = {"median_s": wall, "min_s": wall, "max_s": wall}
+            return {"project": "rg", "rev": "14.1.1", "case": "again", "mode": mode,
+                    "wall": timing, "replayed": replayed, "ran": ran}
+        result = {"benchmark": "retest", "machine": MACHINE, "runs": 3, "date": "2026-10-15",
+                  "results": [side("cargo", 4.0, 0, 0), side("run-test", 1.0, 5, 0)]}
+        table = "\n".join(report.retest_section(result))
+        self.assertIn("| rg 14.1.1 | again | 4.00s (4.00–4.00) | 1.00s (1.00–1.00) | 5 / 0 | -75% |",
+                      table)

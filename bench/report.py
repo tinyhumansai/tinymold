@@ -380,10 +380,37 @@ def hit_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def retest_section(result: dict) -> list[str]:
+    """`cargo test` run again, with and without `tinymold run-test`."""
+    rows = result["results"]
+    lines = [f"### Running tests again ({describe(result)})", "",
+             "`cargo test` for the project's package, built through `RUSTC_WRAPPER=tinymold` "
+             "on both sides; only the runner differs. *again*: nothing changed. "
+             "*private_body*: a one-line private edit before every run. Cells are median wall "
+             "time (min–max) and test binaries replayed / run by `tinymold run-test`.", "",
+             "| Project | Case | cargo | run-test | replayed / ran | change |",
+             "| --- | --- | ---: | ---: | ---: | ---: |"]
+
+    def cell(stats: dict) -> str:
+        return f"{stats['median_s']:.2f}s ({stats['min_s']:.2f}–{stats['max_s']:.2f})"
+
+    for project in dict.fromkeys(r["project"] for r in rows):
+        for case in dict.fromkeys(r["case"] for r in rows if r["project"] == project):
+            pick = {r["mode"]: r for r in rows if r["project"] == project and r["case"] == case}
+            if not {"cargo", "run-test"} <= set(pick):
+                continue
+            old, new = pick["cargo"], pick["run-test"]
+            change = f"{new['wall']['median_s'] / old['wall']['median_s'] - 1:+.0%}"
+            lines.append(f"| {project} {old['rev']} | {case} | {cell(old['wall'])} | "
+                         f"{cell(new['wall'])} | {new['replayed']:.0f} / {new['ran']:.0f} | "
+                         f"{change} |")
+    return lines + [""]
+
+
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "hit": 6, "dedup": 7, "link": 8, "native": 9, "cas": 10}
+             "hit": 6, "retest": 7, "dedup": 8, "link": 9, "native": 10, "cas": 11}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -408,6 +435,8 @@ def main() -> None:
             sections += ci_section(result)
         elif result["benchmark"] == "hit":
             sections += hit_section(result)
+        elif result["benchmark"] == "retest":
+            sections += retest_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()
