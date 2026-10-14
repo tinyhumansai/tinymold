@@ -136,7 +136,7 @@ class Report(unittest.TestCase):
         self.assertIn("| rg v1 | tinymold | 2.00s | – | – | – | – | 2.00s | 3.00s |", text)
         # target/ grows (140 - 100) / 4 = 10 MiB a step, the store 12 or 13
         self.assertIn("| 140 MiB | 10 MiB |", text)
-        self.assertIn("| 100 MiB | 12 MiB | 104 MiB |", text)
+        self.assertIn("| 100 MiB | 12 MiB | – | 104 MiB |", text)
 
 
 if __name__ == "__main__":

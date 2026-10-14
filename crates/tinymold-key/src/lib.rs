@@ -15,7 +15,9 @@
 //! - [`content_digest`] names a static archive by its members, not its
 //!   build stamps;
 //! - [`pre_key`] and [`full_key`] compute the two digests of the two-phase
-//!   lookup described in `docs/specs/rustc-wrapper.md`.
+//!   lookup described in `docs/specs/rustc-wrapper.md`;
+//! - [`test_key`] names one test run, for replaying a recorded pass
+//!   (`docs/specs/test-cache.md`).
 //!
 //! # Example
 //!
@@ -44,6 +46,7 @@ mod depinfo;
 mod error;
 mod key;
 mod roots;
+mod test_key;
 
 pub use archive::content_digest;
 pub use args::{Classified, Extern, Invocation, SearchPath};
@@ -51,4 +54,8 @@ pub use depinfo::DepInfo;
 pub use error::{Error, Result};
 pub use key::{KEY_ENV, PreKeyInputs, full_key, pre_key};
 pub use roots::Roots;
+pub use test_key::{
+    TEST_ENV_IGNORED, TEST_ENV_IGNORED_PREFIXES, TestKeyInputs, is_ignored_env, test_key,
+    tree_digest,
+};
 pub use tinymold_hash::Digest;
