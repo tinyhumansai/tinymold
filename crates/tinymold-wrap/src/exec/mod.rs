@@ -28,18 +28,30 @@ pub(crate) struct Captured {
 
 /// Runs `program` with `args`, inheriting stdio, and returns its exit code.
 pub(crate) fn pass_through(program: &Path, args: &[OsString]) -> Result<i32> {
-    let status = Command::new(program)
-        .args(args)
-        .status()
-        .map_err(spawn_error(program))?;
+    let mut command = Command::new(program);
+    command.args(args);
+    pass_through_command(command, program)
+}
+
+/// Runs `command`, which runs `program`, inheriting stdio, and returns its
+/// exit code.
+pub(crate) fn pass_through_command(mut command: Command, program: &Path) -> Result<i32> {
+    let status = command.status().map_err(spawn_error(program))?;
     Ok(status.code().unwrap_or(1))
 }
 
 /// Runs `program` with `args`, streaming its stdout and stderr through to
 /// ours while keeping a copy of each.
 pub(crate) fn run_captured(program: &Path, args: &[OsString]) -> Result<Captured> {
-    let mut child = Command::new(program)
-        .args(args)
+    let mut command = Command::new(program);
+    command.args(args);
+    capture(command, program)
+}
+
+/// Runs `command`, which runs `program`, streaming its stdout and stderr
+/// through to ours while keeping a copy of each.
+pub(crate) fn capture(mut command: Command, program: &Path) -> Result<Captured> {
+    let mut child = command
         .stdin(Stdio::inherit())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
