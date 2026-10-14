@@ -167,6 +167,29 @@ Either way, stdout and stderr are read before any file is removed, so a
 missing replay object fails the hit with the out-dir untouched, and any
 output that cannot be placed fails the whole hit, which then runs rustc.
 
+**Incremental sessions.** A hit runs no rustc, so it leaves no incremental
+session, and a target directory filled from the store would leave the first
+edit of every crate cold. So the action of an incremental miss also stores
+the session rustc just finished
+([ADR 0008](../adr/0008-incremental-sessions-at-the-same-path.md)):
+
+- **Finding it.** It is the finished session (`s-<time>-<random>-<hash>`)
+  under `<incremental>/<crate>-*` holding a file with the inode of one of
+  the unit's output objects, since rustc hardlinks session objects into the
+  out-dir. Without split debuginfo there are no such objects. The session is
+  then the only finished session of the crate written since the compile's
+  clock reading. With two, as when a library and its tests compile at once,
+  none is stored.
+- **Storing it.** Objects that are also outputs take the outputs' digests.
+  The dep graph and query cache are inserted. The action lists them as
+  `session` and `sfile` lines, and gc keeps them with the action.
+- **Restoring it.** On a hit, the session is placed only into the crate
+  directory it came from, and only when that directory does not exist. rustc
+  discards a session from another working directory, and one rustc wrote
+  since is newer. It is written beside the crate directory, then renamed into
+  place, with its lock file, by reflink or copy and made writable. A failure
+  never fails the hit.
+
 **Outputs kept in place.** After every hit and every stored miss, the
 wrapper records the identity (device, inode, size, mtime) and digest of each
 binary output it left, one record per unit and out-dir, under `stat/`. An
