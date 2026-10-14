@@ -214,7 +214,7 @@ impl Unit<'_> {
             let identity = driver::clippy_identity(
                 self.store_dir,
                 program,
-                &self.cwd,
+                &driver::config_start(&self.cwd),
                 &self.roots,
                 self.now_ns,
             )?;

@@ -37,8 +37,16 @@ pub(crate) fn is_clippy<S: AsRef<str>>(program: &Path, args: &[S]) -> bool {
             .is_some_and(|first| Path::new(first.as_ref()).file_stem().is_some_and(|s| s == "rustc"))
 }
 
+/// Where clippy starts looking for its configuration: `CLIPPY_CONF_DIR`,
+/// else the crate's `CARGO_MANIFEST_DIR`, else the current directory `cwd`.
+pub(crate) fn config_start(cwd: &Path) -> PathBuf {
+    std::env::var_os("CLIPPY_CONF_DIR")
+        .or_else(|| std::env::var_os("CARGO_MANIFEST_DIR"))
+        .map_or_else(|| cwd.to_path_buf(), |dir| cwd.join(dir))
+}
+
 /// What clippy-driver adds to the pre-key: its version and the
-/// configuration file it would read from `cwd`.
+/// configuration file it would find looking from `start`.
 ///
 /// # Errors
 ///
@@ -47,15 +55,12 @@ pub(crate) fn is_clippy<S: AsRef<str>>(program: &Path, args: &[S]) -> bool {
 pub(crate) fn clippy_identity(
     store: &Path,
     program: &Path,
-    cwd: &Path,
+    start: &Path,
     roots: &Roots,
     now_ns: u64,
 ) -> Result<String> {
     let version = stat::version(store, program, "--version")?;
-    let start = std::env::var_os("CLIPPY_CONF_DIR")
-        .or_else(|| std::env::var_os("CARGO_MANIFEST_DIR"))
-        .map_or_else(|| cwd.to_path_buf(), |dir| cwd.join(dir));
-    let config = match find_config(&start) {
+    let config = match find_config(start) {
         Some(path) => {
             let digest = stat::digest(store, &path, now_ns)?;
             format!("{} {digest}", roots.normalize(&path.to_string_lossy()))
