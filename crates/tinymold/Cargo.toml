@@ -18,6 +18,8 @@ path = "src/main.rs"
 tinymold-hash = { workspace = true }
 tinymold-cas = { workspace = true }
 clap = { workspace = true }
+# Copy-on-write clones of whole target directories for `tinymold snapshot`.
+reflink-copy = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

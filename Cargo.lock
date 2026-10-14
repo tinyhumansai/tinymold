@@ -344,6 +344,7 @@ name = "tinymold"
 version = "0.0.1"
 dependencies = [
  "clap",
+ "reflink-copy",
  "tempfile",
  "thiserror",
  "tinymold-cas",
