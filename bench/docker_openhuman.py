@@ -88,11 +88,12 @@ def docker_info() -> dict:
     info = json.loads(bench.output(["docker", "info", "--format", "{{json .}}"]))
     probe = bench.output(["docker", "run", "--rm", "-v", f"{VOLUME}:/work", IMAGE, "sh", "-c",
                           "rustc -V; mold --version | cut -d' ' -f1,2; ld --version | head -1;"
-                          " df -T /work | tail -1 | awk '{print $2}'"]).splitlines()
+                          " df -T /work | tail -1 | awk '{print $2}'; sccache --version"]
+                         ).splitlines()
     return {"docker": info.get("ServerVersion"), "cpus": info.get("NCPU"),
             "memory_bytes": info.get("MemTotal"), "kernel": info.get("KernelVersion"),
             "storage_driver": info.get("Driver"), "rustc": probe[0], "mold": probe[1],
-            "ld": probe[2], "work_filesystem": probe[3]}
+            "ld": probe[2], "work_filesystem": probe[3], "sccache": probe[4]}
 
 
 def cmd_run(args: argparse.Namespace) -> None:
@@ -159,9 +160,9 @@ def tables(result: dict) -> str:
              f"{machine['rustc']}, {result['date']})", "",
              f"OpenHuman {result['rev']}, dev profile, `-j {machine['cpus']}`, sources and "
              f"store on {machine['work_filesystem']} in a Docker volume ({machine['mold']}, "
-             f"{machine['ld']}; host: {result['host']}). Each cell: median wall time of "
+             f"{machine['ld']}{', ' + machine['sccache'] if machine.get('sccache') else ''}; host: {result['host']}). Each cell: median wall time of "
              f"{result['runs']} runs (one for a cold build), link time, units compiled, and "
-             "tinymold cache hits. `ld` and `mold` have no cache, so their warm and "
+             "cache hits (summed over runs). `ld` and `mold` have no cache, so their warm and "
              "second-checkout builds would be their cold build. A second checkout's repeat runs "
              "reuse what its first run stored at that path, so the first run is shown when "
              "it differs.", "",
@@ -172,28 +173,29 @@ def tables(result: dict) -> str:
             continue
         row = [cell_text(cells[c].get(case), case) for c in configs]
         lines.append(f"| {LABELS[case]} | " + " | ".join(row) + " |")
-    speedups = []
-    mold, tm = cells.get("mold", {}), cells.get("tinymold", {})
-    ld = cells.get("ld", {})
-    for case in CASES:
-        base = mold.get("cold") if case in ("warm", "second_path", "snapshot") else mold.get(case)
-        if base and case in tm:
-            cell = tm[case]
-            restore = cell.get("restore", 0.0)
-            text = f"{LABELS[case].lower()}: {base['wall'] / (cell['wall'] + restore):.1f}x"
-            if case in NEW_PATH and cell["first"] > 2 * cell["wall"]:
-                text += (f" (first run at a new path "
-                         f"{base['wall'] / (cell['first'] + restore):.1f}x)")
-            speedups.append(text)
-    if speedups:
-        lines += ["", "tinymold+mold against plain mold, by median wall time plus any snapshot "
-                  "restore; cached cases compare against the cold mold build: "
-                  + "; ".join(speedups) + "."]
+    mold, ld = cells.get("mold", {}), cells.get("ld", {})
+    for cached in ("tinymold", "sccache"):
+        speedups, tm = [], cells.get(cached, {})
+        for case in CASES:
+            base = mold.get("cold") if case in NEW_PATH + ("warm",) else mold.get(case)
+            if base and case in tm:
+                cell = tm[case]
+                restore = cell.get("restore", 0.0)
+                text = f"{LABELS[case].lower()}: {base['wall'] / (cell['wall'] + restore):.1f}x"
+                if case in NEW_PATH and cell["first"] > 2 * cell["wall"]:
+                    text += (f" (first run at a new path "
+                             f"{base['wall'] / (cell['first'] + restore):.1f}x)")
+                speedups.append(text)
+        if speedups:
+            lines += ["", f"{cached}+mold against plain mold, by median wall time plus any "
+                      "snapshot restore; cached cases compare against the cold mold build: "
+                      + "; ".join(speedups) + "."]
     if ld and mold:
         ratios = [f"{LABELS[c].lower()}: {ld[c]['link'] / mold[c]['link']:.1f}x"
                   for c in ("cold", "edit_leaf", "edit_core")
                   if c in ld and c in mold and mold[c]["link"] > 0]
         if ratios:
+            lines.append("")
             lines.append("Link time, GNU ld over mold: " + "; ".join(ratios) + ".")
     return "\n".join(lines) + "\n"
 
@@ -201,8 +203,9 @@ def tables(result: dict) -> str:
 def critical_paths(jobs: int) -> str:
     """The cold and warm builds' critical paths, from their --timings reports."""
     lines = []
-    for name in ("mold-cold-1", "tinymold-cold-1", "tinymold-warm-1", "mold-edit_core-1",
-                 "tinymold-edit_core-1"):
+    for name in ("mold-cold-1", "tinymold-cold-1", "sccache-cold-1", "tinymold-warm-1",
+                 "sccache-warm-1", "mold-edit_core-1", "tinymold-edit_core-1",
+                 "sccache-edit_core-1"):
         html = OUT / "timings" / f"{name}.html"
         if not html.exists():
             continue
