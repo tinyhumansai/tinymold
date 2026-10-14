@@ -107,6 +107,14 @@ The cheapest win, independent of everything else.
   stands for every file under it, and a strict reader handles the table.
 - **Nested packages stay in the package tree.** A test may read one as a
   fixture; leaving them out would be a wrong hit.
+- **A wrong hit, caught before merge.** An integration test that runs its
+  package's binary (`CARGO_BIN_EXE_<name>`) does not change when that
+  binary does, so editing a crate only the binary links replayed a stale
+  pass (`an_integration_test_reruns_when_the_binary_it_runs_changes`
+  reproduced it). The test-binary record now names those binaries and the
+  build script's `OUT_DIR`, and their contents join the key. Found while
+  designing the slice 5 benchmark on ripgrep, whose integration tests run
+  `rg`.
 - **Early cutoff at the binary.** An edit rustc folds away (`1` to
   `2 - 1`) left a dependent's test binary byte-identical, and its result
   was replayed, as the design intends.

@@ -118,11 +118,15 @@ Everything else runs unchanged, with the same argv, env and exit code.
 
 - The binary has a **test-binary record**. When the wrapper compiles or
   restores a `--test` unit that links, it writes `tests/bin/<binary
-  digest>`: the crate name, and the file names of the dynamic libraries in
+  digest>`: the crate name; the file names of the dynamic libraries in
   the binary's directory that the compile linked against (proc macros
-  included, harmlessly). Their digests join the key. No record is written
-  for `-C prefer-dynamic` or for a dynamic library linked from another
-  directory. A binary tinymold did not build has no record and is never
+  included, harmlessly); the package binaries cargo passed as
+  `CARGO_BIN_EXE_<name>`, which an integration test runs; and the build
+  script's `OUT_DIR`, which a test may read at run time. The last two are
+  stored as `${PROFILE}/…` or `${OUT}/…` paths. All of their contents join
+  the key: an integration test's own bytes do not change when the binary
+  it runs does. No record is written for `-C prefer-dynamic`, or when any
+  of these lies outside the build. A binary tinymold did not build has no record and is never
   cached, which also keeps `cargo run` and examples out.
 - The arguments do not contain `--bench`. `cargo bench` runs the same kind
   of binary.
@@ -157,9 +161,10 @@ The BLAKE3 digest of these fields in order, each length-prefixed with
    a fixture. It is the conservative default for fixtures: a test reading
    `tests/data/*.json` reruns when that file changes. Digests come from the
    stat cache, so only changed files are read.
-8. **Declared inputs and dynamic libraries:** the files the package
-   declares (below), and the dynamic libraries named by the test-binary
-   record, with the same Merkle digest.
+8. **Declared inputs and build artifacts:** the files the package
+   declares (below), and the dynamic libraries, package binaries and
+   `OUT_DIR` trees named by the test-binary record, with the same Merkle
+   digest.
 9. **The environment** the test process receives, sorted by name, with
    absolute paths in values rewritten to `${WS}`, `${CARGO_HOME}` and
    `${OUT}`, minus a pinned ignore list: `TERM`, `COLORTERM`, `CLICOLOR`,
@@ -170,6 +175,13 @@ The BLAKE3 digest of these fields in order, each length-prefixed with
 
 `PATH` and `HOME` stay in. They make results machine-local, which is the
 v1 scope anyway.
+
+**Known limit.** Programs a test runs from `PATH` (`git`, `python`, a
+system `cc`) are keyed only by `PATH` itself, not by their bytes, and files
+read outside the package are keyed only when declared. A new toolchain is
+covered, since it rebuilds every test binary. A package whose tests depend
+on other external programs or files should declare them or set
+`cache = false`.
 
 ### Declared inputs
 
