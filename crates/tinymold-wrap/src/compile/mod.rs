@@ -336,7 +336,7 @@ impl Unit<'_> {
         // just after the start can carry a time just before it.
         let threshold = started_ns - started_ns % 1_000_000_000;
         let prefixes = self.invocation.output_prefixes();
-        let mut outputs = Vec::new();
+        let mut found = Vec::new();
         let entries = fs::read_dir(&self.out_dir).map_err(io("read", &self.out_dir))?;
         for entry in entries {
             let entry = entry.map_err(io("read", &self.out_dir))?;
@@ -351,29 +351,64 @@ impl Unit<'_> {
             if !meta.is_file() {
                 return Err(Unstorable::Reason("an output is not a regular file"));
             }
-            if meta.modified().map_or(0, nanos) < threshold {
-                continue; // left over from an earlier compile of this unit
+            if meta.modified().map_or(0, nanos) >= threshold {
+                found.push((name, path, meta));
+            } // otherwise left over from an earlier compile of this unit
+        }
+        if found.is_empty() {
+            return Err(Unstorable::Reason("no outputs found"));
+        }
+
+        // An incremental compile with split debuginfo writes hundreds of
+        // object files; storing them one by one would hold cargo up for
+        // longer than the compile's own link.
+        let workers = std::thread::available_parallelism().map_or(4, |n| n.get().min(8));
+        let chunk = found.len().div_ceil(workers);
+        let mut outputs = Vec::with_capacity(found.len());
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = found
+                .chunks(chunk)
+                .map(|batch| scope.spawn(move || self.store_outputs(batch)))
+                .collect();
+            for handle in handles {
+                match handle.join() {
+                    Ok(batch) => outputs.extend(batch?),
+                    Err(_) => return Err(Unstorable::Reason("a storing thread panicked")),
+                }
             }
-            let text = Path::new(&name).extension().is_some_and(|ext| ext == "d");
+            Ok(())
+        })?;
+        outputs.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(outputs)
+    }
+
+    /// Stores one batch of output files.
+    fn store_outputs(
+        &self,
+        batch: &[(String, PathBuf, fs::Metadata)],
+    ) -> std::result::Result<Vec<Output>, Unstorable> {
+        let mut outputs = Vec::with_capacity(batch.len());
+        for (name, path, meta) in batch {
+            let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
+            let text = extension == Some("d");
             let digest = if text {
-                let content = fs::read(&path).map_err(io("read", &path))?;
+                let content = fs::read(path).map_err(io("read", path))?;
                 self.store_text(&content)?
             } else {
-                let digest = self.store.insert_file(&path)?;
-                let _ = stat::remember(self.store_dir, &path, stat::identity_of(&meta), digest);
+                let digest = self.store.insert_file(path)?;
+                if matches!(extension, Some("rlib" | "rmeta" | "dylib" | "so" | "dll")) {
+                    // A dependent hashes this file next; it need not read it.
+                    let _ = stat::remember(self.store_dir, path, stat::identity_of(meta), digest);
+                }
                 digest
             };
             outputs.push(Output {
-                name,
+                name: name.clone(),
                 digest,
-                executable: is_executable(&meta),
+                executable: is_executable(meta),
                 text,
             });
         }
-        if outputs.is_empty() {
-            return Err(Unstorable::Reason("no outputs found"));
-        }
-        outputs.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(outputs)
     }
 
