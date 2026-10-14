@@ -5071,6 +5071,11 @@
     }
   ],
   "variants": {
+    "cgu-16": {
+      "config": [
+        "profile.dev.codegen-units=16"
+      ]
+    },
     "cgu-32": {
       "config": [
         "profile.dev.codegen-units=32"
@@ -5079,6 +5084,38 @@
     "cgu-64": {
       "config": [
         "profile.dev.codegen-units=64"
+      ]
+    },
+    "cranelift": {
+      "toolchain": "nightly",
+      "rustflags": [
+        "-Zcodegen-backend=cranelift"
+      ]
+    },
+    "deps-nodebug": {
+      "config": [
+        "profile.dev.package.\"*\".debug=false"
+      ]
+    },
+    "line-tables": {
+      "config": [
+        "profile.dev.debug=\"line-tables-only\"",
+        "profile.dev.package.\"*\".debug=false"
+      ]
+    },
+    "nightly": {
+      "toolchain": "nightly"
+    },
+    "nodebug": {
+      "config": [
+        "profile.dev.debug=false",
+        "profile.dev.package.\"*\".debug=false"
+      ]
+    },
+    "threads-8": {
+      "toolchain": "nightly",
+      "rustflags": [
+        "-Zthreads=8"
       ]
     }
   },
