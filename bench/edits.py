@@ -170,9 +170,11 @@ class EditSession:
     """One project in one mode with one linker: its env, target dir, store."""
 
     def __init__(self, project: dict, src: Path, mode: str, linker: str,
-                 linker_flags: list[str], tinymold: Path | None, sccache: str | None):
+                 linker_flags: list[str], tinymold: Path | None, sccache: str | None,
+                 name: str | None = None):
         self.project, self.src, self.mode, self.linker = project, src, mode, linker
-        self.label = mode if linker == "default" else f"{mode}+{linker}"
+        self.name = name = name or mode
+        self.label = name if linker == "default" else f"{name}+{linker}"
         self.target = src / "target" / f"edits-{self.label}"
         self.log = bench.WORK / f"link-edits-{project['name']}-{self.label}.log"
         triple = bench.host_triple().upper().replace("-", "_")
@@ -185,8 +187,11 @@ class EditSession:
         if mode == "tinymold":
             self.store = bench.WORK / "tinymold-store" / f"edits-{project['name']}-{self.label}"
             self.cache_log = bench.WORK / f"tinymold-edits-{project['name']}-{self.label}.log"
+            # Collections run between steps when asked (--gc), never in the
+            # background of a timed build.
             self.env.update(TINYMOLD_STORE=str(self.store), RUSTC_WRAPPER=str(tinymold),
-                            TINYMOLD_LOG=str(self.cache_log))
+                            TINYMOLD_LOG=str(self.cache_log), TINYMOLD_AUTO_GC="0")
+            self.tinymold = tinymold
         if mode == "sccache":
             self.store = bench.WORK / "sccache" / f"edits-{project['name']}-{self.label}"
             self.env.update(RUSTC_WRAPPER=sccache, SCCACHE_DIR=str(self.store),
@@ -215,7 +220,11 @@ class EditSession:
             target = bench.target_args(self.project)[2:]  # past "--package <name>"
             return [("build", ["cargo", "build", *base, *target], False)]
         if name == "clippy":
-            return [("clippy", ["cargo", "clippy", *base, "--all-targets"], False)]
+            # Lints are capped at warnings: a corpus release that a newer
+            # clippy denies is a lint result, not a failed measurement, and a
+            # denied crate would stop cargo before the rest are linted.
+            return [("clippy", ["cargo", "clippy", *base, "--all-targets", "--",
+                                "--cap-lints=warn"], False)]
         if name == "test":
             # Corpus test suites are run, not judged: a shallow clone without
             # submodules or fixtures fails some tests, which is not a result.
@@ -234,7 +243,11 @@ class EditSession:
                 self.cache_log.unlink(missing_ok=True)
             done = measure(cmd, self.src, self.env)
             if done["rc"] != 0 and not tolerated:
-                sys.stderr.write(done["stderr"][-4000:])
+                # rustc's own error lines first: the tail is mostly the
+                # failed command line.
+                errors = [line for line in done["stderr"].splitlines()
+                          if line.lstrip().startswith(("error", "-->"))]
+                sys.stderr.write("\n".join(errors[:40]) + "\n" + done["stderr"][-2000:])
                 raise SystemExit(f"{self.project['name']}: {label} failed in {self.label}")
             links = ([float(x) for x in self.log.read_text().split()]
                      if self.log.exists() else [])
@@ -246,6 +259,15 @@ class EditSession:
                 row["cache"] = bench.tinymold_stats(self.cache_log)
             rows[label] = row
         return rows
+
+    def collect(self, keep: int) -> dict:
+        """Runs `tinymold gc --keep-generations keep` with no grace period,
+        as the background collection converges to, and returns its time."""
+        start = time.perf_counter()
+        bench.run([str(self.tinymold), "--store", str(self.store), "gc",
+                   "--keep-generations", str(keep), "--grace", "0s"],
+                  env=self.env, stdout=subprocess.DEVNULL)
+        return {"gc_s": round(time.perf_counter() - start, 4)}
 
     def sizes(self) -> dict:
         sizes = {"target": target_split(self.target)}
@@ -265,13 +287,18 @@ def apply_edit(edits: bench.Edits, kind: str, step: int, sessions: list[EditSess
         edits.apply(kind, step)
 
 
-def run_step(session: EditSession, commands: list[str]) -> dict:
+def run_step(session: EditSession, commands: list[str], keep: int | None = None) -> dict:
     free_before = free_bytes(session.src)
     row = {"commands": {}}
     for name in commands:
         row["commands"].update(session.run(name))
     row["free_delta"] = free_before - free_bytes(session.src)
     row.update(session.sizes())
+    # Only the build under test collects: an --against binary may predate
+    # --keep-generations.
+    if keep is not None and session.name == "tinymold":
+        row.update(session.collect(keep))
+        row["store_after_gc"] = disk_usage(session.store)
     return row
 
 
@@ -305,7 +332,19 @@ def bench_edits(args: argparse.Namespace) -> dict:
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         sessions = [EditSession(project, src, mode, linker, available[linker], tinymold, sccache)
                     for linker in linkers for mode in modes]
+        if args.against:
+            # Another build of tinymold on the same edits, with its own store:
+            # the before side of a before-and-after comparison.
+            sessions += [EditSession(project, src, "tinymold", linker, available[linker],
+                                     Path(args.against).resolve(), sccache, "tinymold-base")
+                         for linker in linkers]
         rows: dict[str, list[dict]] = {s.label: [] for s in sessions}
+        edited = sorted({edit["file"] for edit in project["edits"].values()})
+        dirty = bench.output(["git", "-C", str(src), "status", "--porcelain", "--", *edited])
+        if dirty:
+            # Edits left by an interrupted run would make every later edit a
+            # different one, or a duplicate definition.
+            raise SystemExit(f"{project['name']}: edited files are not clean in {src}:\n{dirty}")
         plan = schedule(args.steps, args.churn_every, "churn" in project, args.fresh_every)
         edits = bench.Edits(src, project["edits"], cumulative=True)
         servers = [s for s in sessions if s.mode == "sccache"]
@@ -318,12 +357,12 @@ def bench_edits(args: argparse.Namespace) -> dict:
                 print(f"{project['name']} / {session.label} / warm-up", file=sys.stderr)
                 rows[session.label].append({"step": 0, "edit": "clean",
                                             "load": round(os.getloadavg()[0], 2),
-                                            **run_step(session, commands)})
+                                            **run_step(session, commands, args.gc)})
             for step, kind in enumerate(plan, start=1):
                 apply_edit(edits, kind, step, sessions)
                 for session in sessions:
                     row = {"step": step, "edit": kind, "load": round(os.getloadavg()[0], 2),
-                           **run_step(session, commands)}
+                           **run_step(session, commands, args.gc)}
                     rows[session.label].append(row)
                     walls = ", ".join(f"{k} {v['wall_s']}s" for k, v in row["commands"].items())
                     print(f"{project['name']} / {session.label} / {step} {kind}: {walls}",
@@ -340,7 +379,8 @@ def bench_edits(args: argparse.Namespace) -> dict:
             session.reset()
     return {"benchmark": "edits", "pins": {**bench.pins(), "linker": "per row"},
             "commands": commands, "schedule": "comment, private_body, public_signature in turn; "
-            f"churn every {args.churn_every} steps; fresh target every {args.fresh_every} steps",
+            f"churn every {args.churn_every} steps; fresh target every {args.fresh_every} steps"
+            + (f"; gc --keep-generations {args.gc} after each step" if args.gc is not None else ""),
             "results": results}
 
 
@@ -356,5 +396,10 @@ def add_parser(sub) -> None:
                        help=f"comma-separated, from: {', '.join(EDIT_MODES)}")
     edits.add_argument("--commands", default=",".join(COMMANDS),
                        help=f"comma-separated, from: {', '.join(COMMANDS)}")
+    edits.add_argument("--gc", type=int, metavar="KEEP",
+                       help="after every step, run tinymold gc --keep-generations KEEP "
+                       "with no grace period (outside the timings)")
+    edits.add_argument("--against", metavar="BINARY",
+                       help="another tinymold binary, run as mode tinymold-base")
     edits.add_argument("--linkers", default="default",
                        help="comma-separated: default, rust-lld, and on Linux mold or wild")
