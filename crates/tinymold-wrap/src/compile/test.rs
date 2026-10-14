@@ -999,7 +999,10 @@ fn an_output_whose_identity_changed_or_object_is_gone_is_stored_again() {
     let placed = placed_record(dir.path(), &[("demo.o".to_owned(), identity, digest)]);
     assert!(store.remove(&digest).unwrap());
     assert_eq!(carried_over(&store, &placed, "demo.o", identity, now), None);
-    assert_eq!(carried_over(&store, &placed, "other.o", identity, now), None);
+    assert_eq!(
+        carried_over(&store, &placed, "other.o", identity, now),
+        None
+    );
 }
 
 /// A placement record holding `files`, saved and loaded back.
