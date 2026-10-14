@@ -166,15 +166,15 @@ fn check_reports_capabilities() {
     assert_eq!(
         capabilities,
         Capabilities {
-            sha256: true,
-            blake3: false,
+            digest_functions: vec!["sha256"],
             updates_enabled: true,
             writable: true,
         }
     );
+    assert!(capabilities.sha256());
     assert_eq!(
         capabilities.to_string(),
-        "sha256 yes, blake3 no, action cache updates yes, writable yes"
+        "digests sha256, action cache updates yes, writable yes"
     );
 }
 

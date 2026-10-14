@@ -107,10 +107,18 @@ impl RemoteCache {
             Err(error) if self.authenticated => return Err(error),
             Err(_) => false,
         };
+        let digest_functions = cache
+            .digest_functions
+            .iter()
+            .filter_map(|function| match *function {
+                proto::DIGEST_SHA256 => Some("sha256"),
+                proto::DIGEST_BLAKE3 => Some("blake3"),
+                _ => None,
+            })
+            .collect();
         Ok(Capabilities {
             writable,
-            sha256: cache.digest_functions.contains(&proto::DIGEST_SHA256),
-            blake3: cache.digest_functions.contains(&proto::DIGEST_BLAKE3),
+            digest_functions,
             updates_enabled: cache
                 .action_cache_update_capabilities
                 .is_some_and(|update| update.update_enabled),

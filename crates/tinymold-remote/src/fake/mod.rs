@@ -216,7 +216,11 @@ async fn get_action_result(
     request: http::Request<Body>,
 ) -> http::Response<Body> {
     let service = tower::service_fn(move |call: Request<GetActionResultRequest>| {
-        let key = call.into_inner().action_digest.unwrap_or_default().hash;
+        let key = call.into_inner().action_digest.unwrap_or_default();
+        if let Err(status) = valid(&key) {
+            return ready(Err(status));
+        }
+        let key = key.hash;
         let found = state.lock().unwrap().actions.get(&key).cloned();
         ready(
             found
@@ -248,8 +252,11 @@ async fn update_action_result(
         if missing {
             return ready(Err(Status::failed_precondition("missing blobs")));
         }
-        let key = call.action_digest.unwrap_or_default().hash;
-        state.actions.insert(key, result.clone());
+        let key = call.action_digest.unwrap_or_default();
+        if let Err(status) = valid(&key) {
+            return ready(Err(status));
+        }
+        state.actions.insert(key.hash, result.clone());
         ready(Ok(Response::new(result)))
     });
     Grpc::new(ProstCodec::<ActionResult, UpdateActionResultRequest>::default())
