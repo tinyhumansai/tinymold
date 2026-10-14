@@ -316,7 +316,10 @@ python3 bench/report.py                       # refresh the tables and charts
 To see where one build's time goes rather than how long it takes (critical
 path, idle job slots, build scripts, links, wrapper steps), use
 `bench/profile_build.py`; see [`PROFILING.md`](PROFILING.md).
-Use `ab` for any claim about a setting. `scenarios --variants` runs each side
+To compare two builds of tinymold itself, point `TINYMOLD_BENCH_BIN` at a
+prebuilt binary (say, the base branch's) for one run and leave it unset for
+the other; by default the `tinymold` mode builds the checkout's release
+binary. Use `ab` for any claim about a setting. `scenarios --variants` runs each side
 to completion before the next, so load drift on a shared machine biases it;
 `ab` builds every edit with both sides back to back, in alternating order.
 
