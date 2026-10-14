@@ -142,7 +142,9 @@ The BLAKE3 digest of these fields in order, each length-prefixed with
 4. **The arguments, in order.** Only `--color` and its value are dropped.
    Filters, `--exact`, `--include-ignored`, `--format`, `--quiet` and
    `--test-threads` stay: they change what runs or what is printed.
-5. **The working directory**, normalized to `${WS}`.
+5. **Not the working directory.** Cargo runs tests in the package root,
+   which normalizes to `${CWD}` in every worktree, so it adds nothing; its
+   contents are the package tree below.
 6. **The host:** OS, architecture and kernel release. Tests call system
    libraries that the binary digest does not cover.
 7. **The package tree:** a Merkle digest of `(path, content digest)` for
