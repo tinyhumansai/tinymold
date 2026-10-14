@@ -2,19 +2,85 @@
   "projects": [
     {
       "name": "ripgrep",
+      "role": "small, link-bound binary",
       "repo": "https://github.com/BurntSushi/ripgrep",
       "rev": "14.1.1",
       "package": "ripgrep",
       "bin": "rg",
-      "edit": "crates/core/main.rs"
+      "edit": "crates/core/main.rs",
+      "edits": {
+        "comment": {"file": "crates/core/main.rs"},
+        "private_body": {
+          "file": "crates/core/main.rs",
+          "anchor": "fn search(args: &HiArgs, mode: SearchMode) -> anyhow::Result<bool> {"
+        },
+        "public_signature": {"file": "crates/searcher/src/lib.rs"}
+      }
     },
     {
       "name": "bat",
+      "role": "binary with build scripts and C dependencies",
       "repo": "https://github.com/sharkdp/bat",
       "rev": "v0.24.0",
       "package": "bat",
       "bin": "bat",
-      "edit": "src/bin/bat/main.rs"
+      "edit": "src/bin/bat/main.rs",
+      "edits": {
+        "comment": {"file": "src/bin/bat/main.rs"},
+        "private_body": {
+          "file": "src/bin/bat/main.rs",
+          "anchor": "fn build_assets(matches: &clap::ArgMatches, config_dir: &Path, cache_dir: &Path) -> Result<()> {"
+        },
+        "public_signature": {"file": "src/lib.rs"}
+      }
+    },
+    {
+      "name": "tinymold",
+      "role": "this repository, as a small workspace",
+      "repo": "local",
+      "rev": "HEAD",
+      "package": "tinymold",
+      "bin": "tinymold",
+      "edits": {
+        "comment": {"file": "crates/tinymold/src/main.rs"},
+        "private_body": {
+          "file": "crates/tinymold/src/doctor/mod.rs",
+          "anchor": "fn executable(name: &str) -> String {"
+        },
+        "public_signature": {"file": "crates/tinymold-hash/src/lib.rs"}
+      }
+    },
+    {
+      "name": "tokio",
+      "role": "test-heavy library workspace (173 integration test files)",
+      "repo": "https://github.com/tokio-rs/tokio",
+      "rev": "tokio-1.53.3",
+      "package": "tokio",
+      "features": "full",
+      "edits": {
+        "comment": {"file": "tokio/src/runtime/park.rs"},
+        "private_body": {
+          "file": "tokio/src/runtime/park.rs",
+          "anchor": "    fn park(&self) {"
+        },
+        "public_signature": {"file": "tokio/src/lib.rs"}
+      }
+    },
+    {
+      "name": "bevy",
+      "role": "deep dependency graph, link-bound example",
+      "repo": "https://github.com/bevyengine/bevy",
+      "rev": "v0.19.1",
+      "package": "bevy",
+      "example": "3d_scene",
+      "edits": {
+        "comment": {"file": "examples/3d/3d_scene.rs"},
+        "private_body": {
+          "file": "examples/3d/3d_scene.rs",
+          "anchor": "fn main() {"
+        },
+        "public_signature": {"file": "crates/bevy_utils/src/lib.rs"}
+      }
     }
   ]
 }
