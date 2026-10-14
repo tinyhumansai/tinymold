@@ -182,7 +182,7 @@ def tables(result: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def critical_paths() -> str:
+def critical_paths(jobs: int) -> str:
     """The cold and warm builds' critical paths, from their --timings reports."""
     lines = []
     for name in ("mold-cold-1", "tinymold-cold-1", "tinymold-warm-1", "mold-edit_core-1",
@@ -191,7 +191,7 @@ def critical_paths() -> str:
         if not html.exists():
             continue
         summary = profile_build.analyze(profile_build.timings_data(html.read_text()),
-                                        bench.os.cpu_count() or 1, None, [], [])
+                                        jobs, None, [], [])
         path = summary["critical_path"]
         top = sorted(path, key=lambda step: step["on_path"], reverse=True)[:4]
         lines.append(f"- `{name}`: {summary['last_end']:.1f}s of units, average concurrency "
@@ -199,7 +199,7 @@ def critical_paths() -> str:
                      f"{summary['critical_path_work']:.1f}s, led by "
                      + ", ".join(f"{s['label']} {s['on_path']:.1f}s" for s in top) + ".")
     return ("\nCritical paths (from each build's `--timings`, analyzed by "
-            "`bench/profile_build.py`; job slots taken as this host's CPU count):\n\n"
+            "`bench/profile_build.py`):\n\n"
             + "\n".join(lines) + "\n") if lines else ""
 
 
@@ -220,7 +220,7 @@ def cmd_report(_args: argparse.Namespace) -> None:
               "machine": machine, "cells": aggregate(rows), "samples": rows}
     path = bench.RESULTS / f"openhuman-docker-{machine['os']}-{machine['arch']}.json"
     path.write_text(json.dumps(result, indent=2) + "\n")
-    print(tables(result) + critical_paths())
+    print(tables(result) + critical_paths(machine["cpus"] or 1))
     print(f"Wrote {path}")
 
 
