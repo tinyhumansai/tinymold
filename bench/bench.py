@@ -524,6 +524,22 @@ CASES = ("clean", "noop", "comment", "private_body", "public_signature", "touch_
          "second_worktree", "branch_switch", "test_no_run")
 MODES = ("baseline", "sccache", "tinymold")
 
+# Edit-loop experiments (roadmap Phase 5): settings layered on the baseline,
+# each reported as its own column, `baseline+<name>`. A variant may set cargo
+# `--config` values, rustflags for every crate, and a toolchain; nightly-only
+# variants are compared with the `nightly` variant, not with stable.
+VARIANTS = {
+    "deps-nodebug": {"config": ['profile.dev.package."*".debug=false']},
+    "line-tables": {"config": ['profile.dev.debug="line-tables-only"',
+                               'profile.dev.package."*".debug=false']},
+    "nodebug": {"config": ["profile.dev.debug=false",
+                           'profile.dev.package."*".debug=false']},
+    "cgu-16": {"config": ["profile.dev.codegen-units=16"]},
+    "nightly": {"toolchain": "nightly"},
+    "threads-8": {"toolchain": "nightly", "rustflags": ["-Zthreads=8"]},
+    "cranelift": {"toolchain": "nightly", "rustflags": ["-Zcodegen-backend=cranelift"]},
+}
+
 # A linker wrapper that times the real linker and appends the duration to a
 # log. Perl because it starts in a few milliseconds on every Unix and its
 # Time::HiRes is core; a Python wrapper would add ~30 ms to every link.
@@ -652,12 +668,20 @@ class Session:
     """
 
     def __init__(self, project: dict, src: Path, mode: str, sccache: str | None,
-                 tinymold: Path | None = None):
+                 tinymold: Path | None = None, variant: str | None = None):
         self.project, self.src, self.mode = project, src, mode
         self.tinymold = tinymold
-        self.log = WORK / f"link-{project['name']}-{mode}.log"
+        self.label = mode if variant is None else f"{mode}+{variant}"
+        self.log = WORK / f"link-{project['name']}-{self.label}.log"
         timer = link_timer()
         self.config = ["--config", f"target.{host_triple()}.linker=\"{timer}\""]
+        settings = VARIANTS[variant] if variant else {}
+        for value in settings.get("config", []):
+            self.config += ["--config", value]
+        if settings.get("rustflags"):
+            flags = ", ".join(json.dumps(flag) for flag in settings["rustflags"])
+            self.config += ["--config", f"build.rustflags=[{flags}]"]
+        self.toolchain = settings.get("toolchain")
         self.env = dict(STOCK_ENV, TINYMOLD_BENCH_LINK_LOG=str(self.log))
         self.sccache = sccache
         if mode == "sccache":
@@ -695,6 +719,8 @@ class Session:
                               if "features" in self.project else []))
         else:
             command = cargo(*self.config, "build", "--locked", "-v", *args)
+        if self.toolchain:
+            command.insert(1, f"+{self.toolchain}")
         self.log.unlink(missing_ok=True)
         if self.mode == "tinymold":
             self.cache_log.unlink(missing_ok=True)
@@ -845,14 +871,19 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
     if "sccache" in modes and sccache is None:
         raise SystemExit("mode 'sccache' needs sccache on PATH (cargo install sccache)")
     cases = args.cases.split(",") if args.cases else list(CASES)
+    variants = args.variants.split(",") if args.variants else []
+    for variant in variants:
+        if variant not in VARIANTS:
+            raise SystemExit(f"unknown variant {variant!r}; choose from {', '.join(VARIANTS)}")
+    sessions = [(mode, None) for mode in modes] + [("baseline", v) for v in variants]
 
     results = []
     for project in load_corpus(args.project, needs=("edits",)):
         src = checkout(project)
         run(["cargo", "fetch", "--locked"], cwd=src, env=STOCK_ENV,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for mode in modes:
-            session = Session(project, src, mode, sccache, tinymold)
+        for mode, variant in sessions:
+            session = Session(project, src, mode, sccache, tinymold, variant)
             if mode == "tinymold":
                 shutil.rmtree(session.store, ignore_errors=True)
             if mode == "sccache":
