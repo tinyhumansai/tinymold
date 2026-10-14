@@ -330,7 +330,9 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
 /// store can be found. The binary's output goes straight to this process's
 /// stdout and stderr, as cargo expects of a runner.
 fn run_test(cli: &Cli, args: &RunTestArgs) -> Result<Outcome> {
-    let cwd = std::env::current_dir().map_err(Error::Output)?;
+    // Cargo runs tests in the package root; should the absolute path be
+    // unreadable, `.` still names it, only without normalizing paths.
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let vars: Vec<(std::ffi::OsString, std::ffi::OsString)> = std::env::vars_os().collect();
     let command = tinymold_wrap::TestCommand {
         via: args.via.as_deref(),
