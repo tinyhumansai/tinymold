@@ -761,5 +761,27 @@ fn set_mode(path: &Path, _executable: bool) -> Result<()> {
     fs::set_permissions(path, permissions).map_err(io("set the mode of", path))
 }
 
+/// The digest of the output `name`, whose identity is now `identity`, when
+/// `placed` records that very file and the store still holds its object,
+/// refreshed for `tinymold gc`'s grace period. `now_ns` is the compile's clock
+/// reading.
+fn carried_over(
+    store: &Store,
+    placed: &Placed,
+    name: &str,
+    identity: Identity,
+    now_ns: u64,
+) -> Option<Digest> {
+    // A file rustc rewrote during the compile may keep its size, and on a
+    // coarse clock its mtime; only one written before the compile began is
+    // known to be the recorded file.
+    if !written_before(identity.mtime_ns, now_ns) {
+        return None;
+    }
+    placed
+        .digest_of(name, identity)
+        .filter(|digest| store.keep(digest))
+}
+
 #[cfg(test)]
 mod test;
