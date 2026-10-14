@@ -54,7 +54,7 @@ fn a_span_returns_its_value_and_records_in_order() {
     let mut trace = Trace::start();
     assert_eq!(trace.span("lookup", || 7), 7);
     trace.span("restore", || {
-        std::thread::sleep(std::time::Duration::from_millis(2))
+        std::thread::sleep(std::time::Duration::from_millis(2));
     });
     let names: Vec<_> = trace.spans.iter().map(|span| span.name).collect();
     assert_eq!(names, ["lookup", "restore"]);
