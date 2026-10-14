@@ -256,8 +256,8 @@ def bench_baseline(args: argparse.Namespace) -> dict:
         # A real `git worktree`: same commit, different absolute path, empty
         # target/. Everything it builds, the first worktree already built.
         second = WORK / f"{name}-{project['rev']}-worktree2"
-        run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)],
-            stderr=subprocess.DEVNULL) if second.exists() else None
+        if second.exists():
+            run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
         run(["git", "-C", str(src), "worktree", "add", "--quiet", "--detach", str(second)])
         row["second_worktree_build_s"] = round(timed(build, cwd=second, env=env), 3)
         shared, total = shared_artifact_bytes(src / "target" / "debug" / "deps",

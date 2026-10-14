@@ -8,6 +8,8 @@ members = ["crates/*"]
 # `worktrees/` holds `git worktree` checkouts of this same repository; each
 # contains a full copy of this manifest and every crate under it, so without
 # this entry cargo walks into them and reports duplicate packages.
+# `bench/.work/` holds the benchmark corpus checkouts, which are separate
+# projects and must not be absorbed into this workspace.
 exclude = ["worktrees", "bench/.work"]
 
 # Shared package metadata. A member inherits a field with `field.workspace =
