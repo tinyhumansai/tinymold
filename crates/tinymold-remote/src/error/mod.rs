@@ -52,7 +52,7 @@ pub enum Error {
     /// An entry the server holds is not one tinymold wrote.
     #[error("remote entry {key} is not a tinymold entry: {reason}")]
     Malformed {
-        /// The ActionCache key.
+        /// The `ActionCache` key.
         key: String,
         /// What is wrong with it.
         reason: &'static str,

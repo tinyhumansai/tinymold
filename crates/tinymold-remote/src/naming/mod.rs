@@ -2,10 +2,10 @@
 //!
 //! - **Blobs** are named by SHA-256, the one digest every REAPI cache
 //!   accepts (bazel-remote accepts nothing else).
-//! - **ActionCache keys** are tinymold's own BLAKE3 digests, sent as opaque
+//! - **`ActionCache` keys** are tinymold's own BLAKE3 digests, sent as opaque
 //!   32-byte hashes. Pre-key records are stored under a salted key, so they
 //!   can never collide with an action's full key.
-//! - **ByteStream resources** follow the REAPI resource-name grammar.
+//! - **`ByteStream` resources** follow the REAPI resource-name grammar.
 //!
 //! These names are shared with every other machine using the same server, so
 //! the tests pin them.
@@ -19,9 +19,9 @@ use tinymold_hash::{Digest, Hasher};
 
 use crate::proto;
 
-/// The output-file path of the tinymold action record in an ActionResult.
+/// The output-file path of the tinymold action record in an `ActionResult`.
 pub(crate) const ACTION_FILE: &str = ".tinymold/action";
-/// The output-file path of the pre-key record in an ActionResult.
+/// The output-file path of the pre-key record in an `ActionResult`.
 pub(crate) const PREKEY_FILE: &str = ".tinymold/prekey";
 
 /// The SHA-256 digest of `bytes`, as REAPI names a blob.
@@ -37,12 +37,12 @@ pub(crate) fn blob(bytes: &[u8]) -> proto::Digest {
     }
 }
 
-/// The ActionCache key of the action under the full key `key`.
+/// The `ActionCache` key of the action under the full key `key`.
 pub(crate) fn action_key(key: &Digest) -> proto::Digest {
     opaque(key)
 }
 
-/// The ActionCache key of the input sets under the pre-key `pre`.
+/// The `ActionCache` key of the input sets under the pre-key `pre`.
 pub(crate) fn prekey_key(pre: &Digest) -> proto::Digest {
     let mut hasher = Hasher::new();
     hasher.field(b"tinymold/remote/prekey/v1").digest(pre);
@@ -56,7 +56,7 @@ fn opaque(digest: &Digest) -> proto::Digest {
     }
 }
 
-/// The ByteStream resource to read the blob `digest` from.
+/// The `ByteStream` resource to read the blob `digest` from.
 pub(crate) fn read_resource(instance: &str, digest: &proto::Digest) -> String {
     format!(
         "{}blobs/{}/{}",
@@ -66,7 +66,7 @@ pub(crate) fn read_resource(instance: &str, digest: &proto::Digest) -> String {
     )
 }
 
-/// A fresh ByteStream resource to upload the blob `digest` to.
+/// A fresh `ByteStream` resource to upload the blob `digest` to.
 pub(crate) fn write_resource(instance: &str, digest: &proto::Digest) -> String {
     format!(
         "{}uploads/{}/blobs/{}/{}",

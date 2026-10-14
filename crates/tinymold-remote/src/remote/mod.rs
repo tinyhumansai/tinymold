@@ -6,7 +6,7 @@
 //! so a wrapper that only hits locally pays for neither a connection nor a
 //! thread.
 //!
-//! An action is stored as an ActionResult (see `docs/specs/remote.md`):
+//! An action is stored as an `ActionResult` (see `docs/specs/remote.md`):
 //!
 //! - one output file, [`naming::ACTION_FILE`], holds the tinymold action
 //!   record;
@@ -238,7 +238,7 @@ impl tinymold_wrap::Remote for RemoteCache {
     }
 }
 
-/// The ActionResult for the action recorded at `path`, adding every blob it
+/// The `ActionResult` for the action recorded at `path`, adding every blob it
 /// needs to `blobs`; `None` when an object it names is gone.
 fn action_result(
     store: &Store,

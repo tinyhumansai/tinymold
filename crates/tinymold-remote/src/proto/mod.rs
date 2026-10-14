@@ -1,4 +1,4 @@
-//! The REAPI v2 and ByteStream messages the client sends and receives.
+//! The REAPI v2 and `ByteStream` messages the client sends and receives.
 //!
 //! Only the fields tinymold uses are declared. Protobuf skips unknown fields
 //! when decoding, so a server's richer messages still parse, and a field
@@ -12,13 +12,13 @@ pub(crate) const DIGEST_SHA256: i32 = 1;
 /// `build.bazel.remote.execution.v2.DigestFunction.Value.BLAKE3`.
 pub(crate) const DIGEST_BLAKE3: i32 = 9;
 
-/// A blob's name in the CAS, or a key in the ActionCache.
+/// A blob's name in the CAS, or a key in the `ActionCache`.
 #[derive(Clone, PartialEq, Eq, Hash, prost::Message)]
 pub(crate) struct Digest {
     /// Lowercase hex of the hash.
     #[prost(string, tag = "1")]
     pub(crate) hash: String,
-    /// The blob's size; 0 for an ActionCache key.
+    /// The blob's size; 0 for an `ActionCache` key.
     #[prost(int64, tag = "2")]
     pub(crate) size_bytes: i64,
 }
@@ -37,7 +37,7 @@ pub(crate) struct OutputFile {
     pub(crate) is_executable: bool,
 }
 
-/// What an action produced, as the ActionCache stores it.
+/// What an action produced, as the `ActionCache` stores it.
 #[derive(Clone, PartialEq, prost::Message)]
 pub(crate) struct ActionResult {
     /// Every output file.
@@ -113,7 +113,7 @@ pub(crate) struct CacheCapabilities {
     pub(crate) action_cache_update_capabilities: Option<ActionCacheUpdateCapabilities>,
 }
 
-/// Whether clients may write to the ActionCache.
+/// Whether clients may write to the `ActionCache`.
 #[derive(Clone, PartialEq, prost::Message)]
 pub(crate) struct ActionCacheUpdateCapabilities {
     #[prost(bool, tag = "1")]

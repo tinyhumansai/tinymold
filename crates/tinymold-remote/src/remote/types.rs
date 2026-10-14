@@ -9,7 +9,7 @@ pub struct Capabilities {
     pub sha256: bool,
     /// Whether it also accepts BLAKE3 digests.
     pub blake3: bool,
-    /// Whether clients may write ActionCache entries.
+    /// Whether clients may write `ActionCache` entries.
     pub updates_enabled: bool,
 }
 
@@ -29,9 +29,9 @@ impl fmt::Display for Capabilities {
 /// What one `push` uploaded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PushReport {
-    /// Actions written to the ActionCache.
+    /// Actions written to the `ActionCache`.
     pub actions: u64,
-    /// Pre-key records written to the ActionCache.
+    /// Pre-key records written to the `ActionCache`.
     pub prekeys: u64,
     /// Actions skipped because an object they name is no longer in the local
     /// store.

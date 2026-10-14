@@ -26,7 +26,7 @@ use crate::proto::{
 };
 use crate::{Error, Result};
 
-/// How large one ByteStream write chunk is.
+/// How large one `ByteStream` write chunk is.
 const CHUNK: usize = 1 << 20;
 
 /// The transfer rate a blob's extra time allowance assumes: 4 MiB/s.
@@ -83,7 +83,7 @@ impl Client {
         .await
     }
 
-    /// The ActionResult under `key`, or `None` when there is none.
+    /// The `ActionResult` under `key`, or `None` when there is none.
     pub(crate) async fn get_action_result(&self, key: Digest) -> Result<Option<ActionResult>> {
         let request = GetActionResultRequest {
             instance_name: self.instance.clone(),

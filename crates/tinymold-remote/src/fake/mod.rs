@@ -1,4 +1,4 @@
-//! An in-process REAPI cache server for the tests: an ActionCache and a CAS
+//! An in-process REAPI cache server for the tests: an `ActionCache` and a CAS
 //! in memory, served over real gRPC on a local port.
 //!
 //! It answers the calls the client makes the way bazel-remote does: missing
@@ -33,7 +33,7 @@ use crate::proto::{
 /// What the fake server holds and how it misbehaves.
 #[derive(Debug, Default)]
 pub(crate) struct State {
-    /// ActionCache entries by key hash.
+    /// `ActionCache` entries by key hash.
     pub(crate) actions: HashMap<String, ActionResult>,
     /// Blobs by SHA-256 hash.
     pub(crate) blobs: HashMap<String, Vec<u8>>,
