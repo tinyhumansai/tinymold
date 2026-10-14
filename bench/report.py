@@ -211,6 +211,39 @@ def dedup_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def ci_section(result: dict) -> list[str]:
+    rows = result["results"]
+    lines = [f"### A fresh CI runner ({describe(result)})", "",
+             f"`{result['command']}` on a fresh checkout at the same path, with nothing on "
+             "disk but what the job restores. Each cell is the median of restore plus build; "
+             "downloading an archive from GitHub's cache is not included, so archive sizes "
+             "are listed for that estimate.", "",
+             "| Mode | " + " | ".join(f"{r['project']} {r['rev']}" for r in rows) + " |",
+             "| --- |" + " ---: |" * len(rows)]
+
+    def row(label: str, cell) -> None:
+        lines.append(f"| {label} | " + " | ".join(cell(r) for r in rows) + " |")
+
+    def timing(mode: str):
+        def cell(r: dict) -> str:
+            if mode not in r:
+                return "n/a"
+            stats = r[mode]["stats"]
+            served = stats.get("hit", 0) + stats.get("remote", 0)
+            total = served + stats.get("miss", 0)
+            hits = f" ({served}/{total} hits)" if total else ""
+            return f"{r[mode]['time']['median_s']:.1f}s{hits}"
+        return cell
+
+    row("Cold, no cache", timing("cold"))
+    row("`target/` restored, sources touched", timing("target_cache"))
+    row("tinymold store restored (GitHub backend)", timing("tinymold_github"))
+    row("tinymold from bazel-remote only (remote backend)", timing("tinymold_remote"))
+    row("`target/` archive", lambda r: mib(r["target_archive_bytes"]))
+    row("tinymold store archive", lambda r: mib(r["store_archive_bytes"]))
+    return lines + [""]
+
+
 def cas_section(result: dict) -> list[str]:
     lines = [f"### Restoring a {result['artifact_mb']} MiB artifact ({describe(result)})", "",
              "| Method | Median | min–max |", "| --- | ---: | ---: |"]
@@ -223,8 +256,8 @@ def cas_section(result: dict) -> list[str]:
 
 def main() -> None:
     sections: list[str] = []
-    order = {"scenarios": 0, "baseline": 1, "cache": 2, "dedup": 3, "link": 4, "native": 5,
-             "cas": 6}
+    order = {"scenarios": 0, "baseline": 1, "cache": 2, "ci": 3, "dedup": 4, "link": 5,
+             "native": 6, "cas": 7}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -241,6 +274,8 @@ def main() -> None:
             sections += link_section(path.stem, result)
         elif result["benchmark"] == "cas":
             sections += cas_section(result)
+        elif result["benchmark"] == "ci":
+            sections += ci_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()

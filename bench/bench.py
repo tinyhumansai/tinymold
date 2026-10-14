@@ -877,6 +877,147 @@ def bench_scenarios(args: argparse.Namespace) -> dict:
     return {"benchmark": "scenarios", "pins": pins(), "results": results}
 
 
+BAZEL_REMOTE_IMAGE = "buchgr/bazel-remote-cache:v2.6.2"
+BAZEL_REMOTE_PORT = 19093
+
+
+def start_bazel_remote() -> str | None:
+    """Starts a throwaway bazel-remote container and returns its gRPC URL, or
+    None when docker is not available."""
+    docker = shutil.which("docker")
+    if docker is None:
+        return None
+    subprocess.run([docker, "rm", "-f", "tinymold-bench-remote"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    started = subprocess.run(
+        [docker, "run", "-d", "--rm", "--name", "tinymold-bench-remote",
+         "-p", f"{BAZEL_REMOTE_PORT}:9092", BAZEL_REMOTE_IMAGE, "--dir=/data", "--max_size=20"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if started.returncode != 0:
+        return None
+    import socket
+    for _ in range(60):
+        try:
+            socket.create_connection(("127.0.0.1", BAZEL_REMOTE_PORT), timeout=1).close()
+            return f"grpc://127.0.0.1:{BAZEL_REMOTE_PORT}"
+        except OSError:
+            time.sleep(0.5)
+    return None
+
+
+def stop_bazel_remote() -> None:
+    subprocess.run(["docker", "rm", "-f", "tinymold-bench-remote"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def fresh_checkout_mtimes(src: Path) -> None:
+    """Gives every tracked file a new mtime, as a fresh `git checkout` does."""
+    now = time.time()
+    for name in output(["git", "-C", str(src), "ls-files"]).splitlines():
+        path = src / name
+        if path.is_file():
+            os.utime(path, (now, now))
+
+
+def wrapper_stats(log: Path) -> dict:
+    """Local hits, remote hits and misses in a wrapper log."""
+    lines = log.read_text().splitlines() if log.exists() else []
+    return {outcome: sum(line.startswith(f"{outcome} ") for line in lines)
+            for outcome in ("hit", "remote", "miss")}
+
+
+def bench_ci(args: argparse.Namespace) -> dict:
+    """A fresh CI runner: same commit, same path, nothing on disk but what the
+    job restores. Each mode is filled once, then measured `runs` times from a
+    deleted target/ and store:
+
+    - cold: no cache at all;
+    - target_cache: target/ restored from a tar archive and every source
+      touched, which is what a target/ cache such as Swatinem/rust-cache does;
+    - tinymold_github: tinymold's store restored from a tar archive, the
+      action's stateless backend;
+    - tinymold_remote: nothing restored, every unit fetched from a local
+      bazel-remote, the action's remote backend (needs docker).
+
+    Archive extraction is counted in the build time. Downloading the archive
+    from GitHub is not, so archive sizes are recorded for that estimate.
+    """
+    tinymold = tinymold_binary()
+    remote_url = None if args.no_remote else start_bazel_remote()
+    env = dict(STOCK_ENV, CARGO_INCREMENTAL="0")
+    results = []
+    try:
+        for project in load_corpus(args.project, needs=("bin",)):
+            src = checkout(project)
+            name = project["name"]
+            work = WORK / "ci" / name
+            shutil.rmtree(work, ignore_errors=True)
+            work.mkdir(parents=True)
+            store, log = work / "store", work / "tinymold.log"
+            build = cargo("test", "--no-run", "--quiet", "--locked", "--package", project["package"])
+            wrapped = dict(env, RUSTC_WRAPPER=str(tinymold), TINYMOLD_STORE=str(store),
+                           TINYMOLD_LOG=str(log))
+
+            def reset() -> None:
+                shutil.rmtree(src / "target", ignore_errors=True)
+                shutil.rmtree(store, ignore_errors=True)
+                log.unlink(missing_ok=True)
+
+            def measure(label: str, restore, build_env: dict) -> dict:
+                samples, stats = [], {}
+                for _ in range(args.runs):
+                    reset()
+                    started = time.perf_counter()
+                    restore()
+                    fresh_checkout_mtimes(src)
+                    run(build, cwd=src, env=build_env)
+                    samples.append(time.perf_counter() - started)
+                    stats = wrapper_stats(log)
+                print(f"  {label}: {statistics.median(samples):.2f}s {stats}", file=sys.stderr)
+                return {"time": summarize(samples), "stats": stats}
+
+            row: dict = {"project": name, "rev": project["rev"]}
+            print(f"{name}: cold", file=sys.stderr)
+            row["cold"] = measure("cold", lambda: None, env)
+
+            print(f"{name}: target/ cache", file=sys.stderr)
+            reset()
+            run(build, cwd=src, env=env)
+            target_tar = work / "target.tar"
+            run(["tar", "-cf", str(target_tar), "-C", str(src), "target"])
+            row["target_archive_bytes"] = target_tar.stat().st_size
+            row["target_cache"] = measure(
+                "target cache", lambda: run(["tar", "-xf", str(target_tar), "-C", str(src)]), env)
+
+            print(f"{name}: tinymold, GitHub cache", file=sys.stderr)
+            reset()
+            run(build, cwd=src, env=wrapped)
+            run([str(tinymold), "--store", str(store), "gc", "--max-size", "4G"],
+                stdout=subprocess.DEVNULL)
+            store_tar = work / "store.tar"
+            run(["tar", "-cf", str(store_tar), "-C", str(work), "store"])
+            row["store_archive_bytes"] = store_tar.stat().st_size
+            row["tinymold_github"] = measure(
+                "tinymold github", lambda: run(["tar", "-xf", str(store_tar), "-C", str(work)]),
+                wrapped)
+
+            if remote_url:
+                print(f"{name}: tinymold, bazel-remote", file=sys.stderr)
+                remote_env = dict(wrapped, TINYMOLD_REMOTE_URL=remote_url)
+                reset()
+                run(build, cwd=src, env=remote_env)
+                run([str(tinymold), "--store", str(store), "remote", "push"], env=remote_env,
+                    stdout=subprocess.DEVNULL)
+                row["tinymold_remote"] = measure("tinymold remote", lambda: None, remote_env)
+            reset()
+            results.append(row)
+    finally:
+        if remote_url:
+            stop_bazel_remote()
+    return {"benchmark": "ci", "command": "cargo test --no-run --locked --package <package>",
+            "remote_server": BAZEL_REMOTE_IMAGE if remote_url else None, "results": results}
+
+
 def pins() -> dict:
     """What the scenario numbers depend on, pinned where cargo allows it."""
     return {
@@ -1034,12 +1175,16 @@ def main() -> None:
     link = sub.add_parser("link", help="edit-rebuild loop per linker")
     link.add_argument("--runs", type=int, default=5)
     link.add_argument("--project", help="only this corpus project")
+    ci = sub.add_parser("ci", help="a fresh CI runner: cold, target/ cache, tinymold store, remote")
+    ci.add_argument("--runs", type=int, default=3)
+    ci.add_argument("--project", help="only this corpus project")
+    ci.add_argument("--no-remote", action="store_true", help="skip the bazel-remote mode")
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
+    benchmarks = {"scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
