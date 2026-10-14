@@ -66,7 +66,16 @@ fn cargo_test_with(root: &Path, store: &Path, targets: &[&str]) -> (Output, Vec<
     let log = store.with_extension("log");
     let _ = fs::remove_file(&log);
     let tinymold = env!("CARGO_BIN_EXE_tinymold");
-    let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+    let mut command = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
+    // Cargo gives this test `CARGO_BIN_EXE_tinymold`; inherited by the inner
+    // build, it would name a binary outside it, and the wrapper would
+    // rightly refuse to record the fixtures' test binaries.
+    for (name, _) in std::env::vars_os() {
+        if name.to_string_lossy().starts_with("CARGO_BIN_EXE_") {
+            command.env_remove(name);
+        }
+    }
+    let output = command
         .arg("test")
         .args(targets)
         .arg("--offline")
