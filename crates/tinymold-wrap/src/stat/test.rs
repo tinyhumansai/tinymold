@@ -39,7 +39,7 @@ fn a_digest_is_reused_until_the_file_changes() {
     // Same size, new content and mtime: the entry no longer applies.
     fs::write(&file, b"two").unwrap();
     assert_eq!(digest(&store, &file, now(&store)).unwrap(), Digest::of_bytes(b"two"));
-    assert!(digest(&store, &dir.path(, now(&store)).join("missing")).is_err());
+    assert!(digest(&store, &dir.path().join("missing"), now(&store)).is_err());
 }
 
 #[test]
