@@ -299,8 +299,8 @@ jobs:
     needs:
       - prepare
       - binaries
-    # CARGO_REGISTRY_TOKEN is a secret of the `prod` environment.
-    environment: prod
+    # CARGO_REGISTRY_TOKEN is a secret of the `Production` environment.
+    environment: Production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

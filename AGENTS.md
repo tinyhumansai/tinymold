@@ -313,7 +313,7 @@ version, the internal `version = "=X.Y.Z"` requirements, and `Cargo.lock`,
 commits and tags `vX.Y.Z`, builds the `tinymold` binary for Linux, macOS, and
 Windows on x86_64 and ARM64, creates an immutable GitHub release with
 `SHA256SUMS`, and publishes every crate to crates.io leaf-first using the
-`CARGO_REGISTRY_TOKEN` secret of the `prod` environment. Last, it moves the major tag (`v0` for 0.x) to
+`CARGO_REGISTRY_TOKEN` secret of the `Production` environment. Last, it moves the major tag (`v0` for 0.x) to
 the new release, because workflows pin the GitHub Action as
 `tinyhumansai/tinymold@v0`; it is the only tag that ever moves.
 
