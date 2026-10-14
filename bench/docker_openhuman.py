@@ -135,7 +135,10 @@ def aggregate(rows: list[dict]) -> dict:
     return cells
 
 
-def cell_text(cell: dict | None) -> str:
+NEW_PATH = ("second_path", "snapshot")
+
+
+def cell_text(cell: dict | None, case: str) -> str:
     if not cell:
         return "-"
     text = f"{cell['wall']:.1f}s · link {cell['link']:.2f}s · {cell['compiled']} compiled"
@@ -143,7 +146,7 @@ def cell_text(cell: dict | None) -> str:
         text += f" · {cell['hits']}/{cell['hits'] + cell['misses']} hits"
     if "restore" in cell:
         text += f" · restore {cell['restore']:.1f}s"
-    if cell["runs"] > 1 and cell["first"] > 2 * cell["wall"]:
+    if case in NEW_PATH and cell["first"] > 2 * cell["wall"]:
         text += f" · **first run {cell['first']:.1f}s**"
     return text
 
@@ -167,7 +170,7 @@ def tables(result: dict) -> str:
     for case in CASES:
         if not any(case in cells[c] for c in configs):
             continue
-        row = [cell_text(cells[c].get(case)) for c in configs]
+        row = [cell_text(cells[c].get(case), case) for c in configs]
         lines.append(f"| {LABELS[case]} | " + " | ".join(row) + " |")
     speedups = []
     mold, tm = cells.get("mold", {}), cells.get("tinymold", {})
@@ -178,7 +181,7 @@ def tables(result: dict) -> str:
             cell = tm[case]
             restore = cell.get("restore", 0.0)
             text = f"{LABELS[case].lower()}: {base['wall'] / (cell['wall'] + restore):.1f}x"
-            if cell["runs"] > 1 and cell["first"] > 2 * cell["wall"]:
+            if case in NEW_PATH and cell["first"] > 2 * cell["wall"]:
                 text += (f" (first run at a new path "
                          f"{base['wall'] / (cell['first'] + restore):.1f}x)")
             speedups.append(text)
