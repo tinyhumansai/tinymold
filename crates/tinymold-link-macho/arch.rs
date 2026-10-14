@@ -214,7 +214,7 @@ pub trait Target: Copy + Default + Send + Sync + 'static {
         unreachable!("legacy LINKEDIT on {}", Self::NAME)
     }
 
-    /// Writes the __objc_stubs section: for each _objc_msgSend$<sel>
+    /// Writes the __objc_stubs section: for each `_objc_msgSend$<sel>`
     /// symbol, code that loads the selector from its __objc_selrefs
     /// slot and tail-calls _objc_msgSend through the GOT.
     fn write_objc_stubs(ctx: &Context<Self>, addr: u64, buf: &mut [u8]);
@@ -276,7 +276,7 @@ pub trait Target: Copy + Default + Send + Sync + 'static {
     );
 
     /// Converts raw relocation records of one input section, `hdr`,
-    /// into [`Reloc`]s, failing the link on one it can't apply (see
+    /// into `Reloc`s, failing the link on one it can't apply (see
     /// bad_reloc). Mach-O encodes addends target-dependently: some are
     /// embedded in the relocated field, some are separate records.
     /// `contents` is the section's bytes.
