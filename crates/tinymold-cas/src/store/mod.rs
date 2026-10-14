@@ -361,12 +361,30 @@ fn remove_if_present(path: &Path) -> Result<bool> {
     match fs::remove_file(path) {
         Ok(()) => Ok(true),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        // Windows refuses to delete a read-only file, and objects are sealed.
+        Err(_) if unseal(path) => fs::remove_file(path)
+            .map(|()| true)
+            .map_err(io_error("remove", path)),
         Err(source) => Err(Error::Io {
             action: "remove",
             path: path.to_path_buf(),
             source,
         }),
     }
+}
+
+/// Clears the read-only flag on `path`, and reports whether it did.
+fn unseal(path: &Path) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    let mut permissions = meta.permissions();
+    if !permissions.readonly() {
+        return false;
+    }
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(false);
+    fs::set_permissions(path, permissions).is_ok()
 }
 
 fn remove(path: &Path) -> Result<()> {
