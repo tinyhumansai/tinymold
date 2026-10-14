@@ -24,7 +24,14 @@ Only the Python standard library is used. Everything the harness downloads or
 builds lives under bench/.work/ (git-ignored), and each corpus project builds
 into its own checkout's target/ directory.
 
+  cache  Clean builds with and without a compile cache: no cache, an empty
+         cache (the dry run that fills it), the warm cache (the cached run),
+         and the warm cache from a second worktree at another path. The cache
+         is sccache, the reference tinymold has to beat, run on a private port
+         and directory so it never touches a developer's own sccache server.
+
 Usage:
+  python3 bench/bench.py cache [--runs N] [--project NAME]
   python3 bench/bench.py baseline [--runs N] [--project NAME]
   python3 bench/bench.py link [--runs N] [--project NAME]
   python3 bench/bench.py cas [--runs N] [--size-mb N]
@@ -273,6 +280,96 @@ def bench_baseline(args: argparse.Namespace) -> dict:
     return {"benchmark": "baseline", "results": results}
 
 
+SCCACHE_PORT = "4227"
+
+
+def sccache_stats(sccache: str, env: dict) -> dict:
+    """Rust compile hits and misses since the last `--zero-stats`."""
+    text = output_env([sccache, "--show-stats", "--stats-format", "json"], env)
+    stats = json.loads(text).get("stats", {})
+
+    def count(key: str) -> int:
+        value = stats.get(key, {})
+        return sum(value.get("counts", {}).values()) if isinstance(value, dict) else 0
+
+    return {"hits": count("cache_hits"), "misses": count("cache_misses"),
+            "non_cacheable": stats.get("non_cacheable_compilations", 0)}
+
+
+def output_env(cmd: list[str], env: dict) -> str:
+    return run(cmd, capture_output=True, text=True, env=env).stdout.strip()
+
+
+def bench_cache(args: argparse.Namespace) -> dict:
+    sccache = shutil.which("sccache")
+    if sccache is None:
+        raise SystemExit("the cache benchmark needs sccache on PATH (cargo install sccache)")
+    version = output([sccache, "--version"])
+    results = []
+    for project in load_corpus(args.project):
+        src = checkout(project)
+        name = project["name"]
+        cache_dir = WORK / "sccache" / name
+        build = cargo("build", "--quiet", "--locked", "--package", project["package"],
+                      "--bin", project["bin"])
+        cached_env = dict(STOCK_ENV, RUSTC_WRAPPER=sccache, SCCACHE_DIR=str(cache_dir),
+                          SCCACHE_SERVER_PORT=SCCACHE_PORT, SCCACHE_CACHE_SIZE="50G")
+
+        def restart_server() -> None:
+            subprocess.run([sccache, "--stop-server"], env=cached_env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            run([sccache, "--start-server"], env=cached_env, stdout=subprocess.DEVNULL)
+
+        def clean_build(cwd: Path, env: dict) -> float:
+            shutil.rmtree(cwd / "target", ignore_errors=True)
+            return timed(build, cwd=cwd, env=env)
+
+        row: dict = {"project": name, "rev": project["rev"]}
+        print(f"{name}: clean build, no cache", file=sys.stderr)
+        row["no_cache"] = summarize([clean_build(src, STOCK_ENV) for _ in range(args.runs)])
+
+        print(f"{name}: clean build, empty cache (dry run)", file=sys.stderr)
+        cold = []
+        for _ in range(args.runs):
+            shutil.rmtree(cache_dir, ignore_errors=True)
+            restart_server()
+            cold.append(clean_build(src, cached_env))
+        row["cold_cache"] = summarize(cold)
+        row["cold_stats"] = sccache_stats(sccache, cached_env)
+
+        print(f"{name}: clean build, warm cache (cached run)", file=sys.stderr)
+        warm = []
+        for _ in range(args.runs):
+            run([sccache, "--zero-stats"], env=cached_env, stdout=subprocess.DEVNULL)
+            warm.append(clean_build(src, cached_env))
+        row["warm_cache"] = summarize(warm)
+        row["warm_stats"] = sccache_stats(sccache, cached_env)
+
+        print(f"{name}: second worktree, warm cache", file=sys.stderr)
+        second = WORK / f"{name}-{project['rev']}-worktree2"
+        if second.exists():
+            run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+        run(["git", "-C", str(src), "worktree", "add", "--quiet", "--detach", str(second)])
+        samples = []
+        try:
+            for _ in range(args.runs):
+                run([sccache, "--zero-stats"], env=cached_env, stdout=subprocess.DEVNULL)
+                samples.append(clean_build(second, cached_env))
+            row["second_worktree_warm_cache"] = summarize(samples)
+            row["second_worktree_stats"] = sccache_stats(sccache, cached_env)
+        finally:
+            run(["git", "-C", str(src), "worktree", "remove", "--force", str(second)])
+            subprocess.run([sccache, "--stop-server"], env=cached_env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        row["cache_bytes"] = tree_size(cache_dir)
+
+        results.append(row)
+        print(f"  no cache {row['no_cache']['median_s']}s, cold {row['cold_cache']['median_s']}s, "
+              f"warm {row['warm_cache']['median_s']}s, "
+              f"2nd worktree {row['second_worktree_warm_cache']['median_s']}s", file=sys.stderr)
+    return {"benchmark": "cache", "cache": version, "results": results}
+
+
 def shared_artifact_bytes(first: Path, second: Path) -> tuple[int, int]:
     """Bytes of `second`'s artifacts that are byte-identical to one in `first`.
 
@@ -359,6 +456,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="benchmark", required=True)
+    cache = sub.add_parser("cache", help="clean builds: no cache, cold cache, warm cache")
+    cache.add_argument("--runs", type=int, default=3)
+    cache.add_argument("--project", help="only this corpus project")
     baseline = sub.add_parser("baseline", help="plain cargo, the numbers to beat")
     baseline.add_argument("--runs", type=int, default=5)
     baseline.add_argument("--project", help="only this corpus project")
@@ -370,7 +470,7 @@ def main() -> None:
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
+    benchmarks = {"cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()
