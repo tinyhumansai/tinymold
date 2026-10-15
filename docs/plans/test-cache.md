@@ -50,12 +50,13 @@ Built test first, then dropped before merging. Branch
   `test.rs`): `TestKeyInputs` (binary digest, via-runner, args, cwd, host,
   package-tree digest, declared-input digest, env) and `test_key`. Pure
   functions: the caller supplies every digest.
-- `normalize_test_args` drops `--color` in both spellings and keeps the
-  rest in order.
+- Every argument is keyed in order, `--color` included: a hit replays
+  the run's output, colors and all.
 - `ENV_IGNORED`: the pinned ignore list, with `SSH_*` and `TINYMOLD_*` as
   prefixes; values rewritten through the existing `Roots`.
 - Tests: a golden vector; one table-driven test that each keyed field
-  changes the key; one that `--color` and each ignored variable do not.
+  changes the key, `--color` among them; one that each ignored variable
+  does not.
 
 ## Slice 3: the test-binary record and `tinymold run-test`
 

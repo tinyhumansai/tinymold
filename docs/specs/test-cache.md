@@ -145,9 +145,10 @@ The BLAKE3 digest of these fields in order, each length-prefixed with
    unchanged binary is not rehashed.
 3. **The via-runner:** its resolved path and file identity (device,
    inode, size, mtime), as for the linker in the rustc key, or empty.
-4. **The arguments, in order.** Only `--color` and its value are dropped.
-   Filters, `--exact`, `--include-ignored`, `--format`, `--quiet` and
-   `--test-threads` stay: they change what runs or what is printed.
+4. **The arguments, in order,** all of them. Filters, `--exact`,
+   `--include-ignored`, `--format`, `--quiet` and `--test-threads` change
+   what runs or what is printed, and `--color` changes the bytes the run
+   writes, which a hit replays.
 5. **Not the working directory.** Cargo runs tests in the package root,
    which normalizes to `${CWD}` in every worktree, so it adds nothing; its
    contents are the package tree below.
@@ -211,8 +212,12 @@ misread that leaves an input out.
   bytes. With `TINYMOLD_LOG` set, the runner logs `test-hit`, `test-miss`,
   `test-pass` or `test-error` lines, which `tinymold stats` counts apart
   from compiles.
-- **Miss:** run the binary (through the via-runner), stream its output
-  through while capturing it, and return its exit status.
+- **Miss:** run the binary (through the via-runner) with an empty stdin,
+  stream its output through while capturing it, and return its exit
+  status. The key covers no stdin, so the run it describes reads none.
+  Its stdout and stderr are pipes on a miss and replayed bytes on a hit,
+  so what a hit replays is what a miss printed; a test that checks for a
+  terminal sees none either way.
 - **Record:** only on exit 0 with no signal, and only if the package tree
   and declared inputs are unchanged after the run: a test that writes into
   its package, or a file edited while it ran, is not recorded, since the
@@ -297,16 +302,17 @@ own spike and ADR before any code.
 - The runner never changes the outcome of a test it runs: same argv, env,
   working directory, output bytes and exit status as without tinymold.
 - Any internal failure runs the test unchanged.
-- A binary without a test-binary record, a bench run, or a coverage run is
-  never cached.
+- A binary without a test-binary record, a bench run, a coverage run, or
+  a run whose stdin may carry input (a pipe or a file, rather than a
+  terminal or the null device) is never cached.
 - The record is written after its output objects, so a reader that finds
   one can always replay it.
 
 ## Acceptance criteria
 
 - A golden test pins the test-key encoding, including the env ignore list.
-- Changing any keyed field changes the key; changing `--color` or an
-  ignored env var does not. Table-driven tests cover both.
+- Changing any keyed field, `--color` included, changes the key; changing
+  an ignored env var does not. Table-driven tests cover both.
 - On the corpus, a second `cargo test` with no edits runs zero test
   binaries, and its output matches the first run's apart from timings.
 - Editing one library reruns exactly the test binaries that link it,
