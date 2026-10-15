@@ -81,7 +81,11 @@ fn a_put_output_is_served_back_from_its_disk_path() {
 
     let stored = disk_path(&lines[1]);
     assert_eq!(std::fs::read(&stored).unwrap(), b"compiled package");
-    assert!(lines[2].starts_with(r#"{"ID":2,"OutputID":""#), "{}", lines[2]);
+    assert!(
+        lines[2].starts_with(r#"{"ID":2,"OutputID":""#),
+        "{}",
+        lines[2]
+    );
     assert!(lines[2].contains(&b64(b"output-id")));
     assert!(lines[2].contains(r#""Size":16"#));
     assert_eq!(disk_path(&lines[2]), stored);
@@ -237,15 +241,15 @@ fn malformed_requests_are_refused() {
 
 #[test]
 fn json_strings_escape_quotes_backslashes_and_controls() {
-    assert_eq!(
-        json_string("a\"b\\c\nd"),
-        r#""a\"b\\c\u000ad""#
-    );
+    assert_eq!(json_string("a\"b\\c\nd"), r#""a\"b\\c\u000ad""#);
 }
 
 #[test]
 fn hex_round_trips_and_rejects_odd_or_bad_text() {
-    assert_eq!(hex_decode(&hex_encode(&[0, 171, 255])), Some(vec![0, 171, 255]));
+    assert_eq!(
+        hex_decode(&hex_encode(&[0, 171, 255])),
+        Some(vec![0, 171, 255])
+    );
     assert_eq!(hex_decode("abc"), None);
     assert_eq!(hex_decode("zz"), None);
 }
