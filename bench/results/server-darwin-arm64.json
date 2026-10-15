@@ -4,8 +4,8 @@
     "tinymold serve": "release build, tinymold-a7ed554a21bb, uncompressed store",
     "bazel-remote": "native, github.com/buchgr/bazel-remote/v2 v2.6.2, default zstd storage"
   },
-  "requests": 200,
-  "entries": 300,
+  "requests": 2000,
+  "entries": 20000,
   "not_measured": [
     "FindMissingBlobs (gRPC)"
   ],
@@ -13,81 +13,121 @@
     {
       "server": "tinymold serve",
       "case": "hit 1 KiB p50 (ms)",
-      "median": 0.2814,
+      "median": 0.3272,
       "samples": [
-        0.2814
+        0.1521,
+        0.2669,
+        0.335,
+        0.3422,
+        0.3272
       ]
     },
     {
       "server": "tinymold serve",
       "case": "hit 1 KiB p99 (ms)",
-      "median": 0.4475,
+      "median": 1.1457,
       "samples": [
-        0.4475
+        0.3052,
+        0.7528,
+        1.1457,
+        20.3722,
+        24.0796
       ]
     },
     {
       "server": "tinymold serve",
       "case": "download 4 MiB (MB/s)",
-      "median": 1071.8333,
+      "median": 1063.2343,
       "samples": [
-        1071.8333
+        1576.1448,
+        1018.4948,
+        1063.2343,
+        1048.8534,
+        1140.8024
       ]
     },
     {
       "server": "tinymold serve",
       "case": "upload 4 MiB (MB/s)",
-      "median": 332.3406,
+      "median": 339.1586,
       "samples": [
-        332.3406
+        488.1936,
+        339.1586,
+        385.5481,
+        170.8123,
+        213.2402
       ]
     },
     {
       "server": "bazel-remote",
       "case": "hit 1 KiB p50 (ms)",
-      "median": 0.2332,
+      "median": 0.1777,
       "samples": [
-        0.2332
+        0.106,
+        0.1777,
+        0.1335,
+        0.1818,
+        0.2923
       ]
     },
     {
       "server": "bazel-remote",
       "case": "hit 1 KiB p99 (ms)",
-      "median": 0.4467,
+      "median": 0.3455,
       "samples": [
-        0.4467
+        0.2085,
+        0.3455,
+        0.2875,
+        1.3955,
+        11.1498
       ]
     },
     {
       "server": "bazel-remote",
       "case": "download 4 MiB (MB/s)",
-      "median": 793.8283,
+      "median": 887.9007,
       "samples": [
-        793.8283
+        1053.4319,
+        887.9007,
+        946.6129,
+        831.8642,
+        681.6574
       ]
     },
     {
       "server": "bazel-remote",
       "case": "upload 4 MiB (MB/s)",
-      "median": 300.5858,
+      "median": 319.0815,
       "samples": [
-        300.5858
+        387.5111,
+        319.0815,
+        379.3677,
+        301.0055,
+        318.0727
       ]
     },
     {
       "server": "tinymold serve",
       "case": "cold start (s)",
-      "median": 0.065,
+      "median": 1.7276,
       "samples": [
-        0.065
+        1.4628,
+        1.4462,
+        1.7276,
+        1.891,
+        1.7276
       ]
     },
     {
       "server": "bazel-remote",
       "case": "cold start (s)",
-      "median": 0.0717,
+      "median": 0.0797,
       "samples": [
-        0.0717
+        0.0852,
+        0.0718,
+        0.0675,
+        0.081,
+        0.0797
       ]
     }
   ],
@@ -101,5 +141,5 @@
     "cargo_settings": "tinymold release build; servers on loopback, one client connection, HTTP/1.1 keep-alive"
   },
   "date": "2026-10-15",
-  "runs": 1
+  "runs": 5
 }
