@@ -28,3 +28,11 @@ fn malformed_hex_is_refused() {
         assert!(matches!(error, Error::InvalidSha256(ref got) if got == text));
     }
 }
+
+#[test]
+fn raw_bytes_round_trip_and_debug_shows_the_hex() {
+    let digest = Sha256::of_bytes(b"abc");
+
+    assert_eq!(Sha256::from_bytes(*digest.as_bytes()), digest);
+    assert_eq!(format!("{digest:?}"), format!("Sha256({digest})"));
+}

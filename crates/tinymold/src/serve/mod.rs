@@ -21,6 +21,15 @@ use crate::{Error, Result};
 /// on a binary built without the `server` feature.
 #[cfg(feature = "server")]
 pub(crate) fn run(cli: &Cli, args: &ServeArgs, out: &mut impl Write) -> Result<Outcome> {
+    let server = start(cli, args, out)?;
+    server.run_blocking(tinymold_server::shutdown_signal())?;
+    Ok(Outcome::Success)
+}
+
+/// Binds the server `args` describe and says where it listens, without
+/// serving yet.
+#[cfg(feature = "server")]
+fn start(cli: &Cli, args: &ServeArgs, out: &mut impl Write) -> Result<tinymold_server::Server> {
     let dir = args
         .dir
         .clone()
@@ -35,18 +44,23 @@ pub(crate) fn run(cli: &Cli, args: &ServeArgs, out: &mut impl Write) -> Result<O
         out,
         format_args!(
             "tinymold serve: listening on {}://{} (store {})",
-            if config.tls.is_some() {
-                "https"
-            } else {
-                "http"
-            },
+            scheme(&config),
             server.local_addr(),
             config.store.display()
         ),
     )?;
     let _ = out.flush();
-    server.run_blocking(tinymold_server::shutdown_signal())?;
-    Ok(Outcome::Success)
+    Ok(server)
+}
+
+/// The URL scheme clients reach `config` at.
+#[cfg(feature = "server")]
+fn scheme(config: &tinymold_server::Config) -> &'static str {
+    if config.tls.is_some() {
+        "https"
+    } else {
+        "http"
+    }
 }
 
 /// Without the server feature there is nothing to run.
