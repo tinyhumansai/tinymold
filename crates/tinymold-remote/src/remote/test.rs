@@ -382,7 +382,11 @@ fn a_proxy_whose_server_is_restarting_is_retried() {
         call: "Write",
         status: Box::new(tonic::Status::internal(message.to_owned())),
     };
-    for code in ["502 Bad Gateway", "503 Service Unavailable", "504 Gateway Timeout"] {
+    for code in [
+        "502 Bad Gateway",
+        "503 Service Unavailable",
+        "504 Gateway Timeout",
+    ] {
         let message = format!(
             "protocol error: received message with invalid compression flag: 60 (valid flags are 0 and 1) while receiving response with status: {code}"
         );
