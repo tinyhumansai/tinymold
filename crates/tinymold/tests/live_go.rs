@@ -47,7 +47,10 @@ fn live_go_builds_from_the_store_with_an_empty_gocache() {
     let first = build(dir.path(), &store, "first");
     let second = build(dir.path(), &store, "second");
 
-    assert!(first.contains("example.com/fixture"), "the first build compiled nothing:\n{first}");
+    assert!(
+        first.contains("example.com/fixture"),
+        "the first build compiled nothing:\n{first}"
+    );
     assert!(
         !second.contains("example.com/fixture"),
         "the second build recompiled the fixture:\n{second}"
