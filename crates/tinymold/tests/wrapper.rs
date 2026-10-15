@@ -196,7 +196,7 @@ fn a_crate_that_uses_its_out_dir_only_transformed_misses_in_another_worktree() {
     let store = dir.path().join("store");
     // Only the length reaches the outputs, never the path itself, so no
     // output contains the value; the two worktrees' lengths differ.
-    let source = "pub const LEN: usize = env!(\"OUT_DIR\").len();\n";
+    let source = "const LEN: usize = env!(\"OUT_DIR\").len();\npub static VALUE: usize = LEN;\n";
     let a = dir.path().join("a");
     let b = dir.path().join("a-longer-path");
     worktree(&a, source);
