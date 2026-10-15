@@ -312,3 +312,55 @@ fn keeping_an_object_refreshes_its_time_and_reports_whether_it_exists() {
     assert!(store.objects().unwrap()[0].modified > old + Duration::from_secs(3600));
     assert!(!store.keep(&Digest::of_bytes(b"never stored")));
 }
+
+#[test]
+fn a_staged_stream_commits_under_its_digest() {
+    let (_dir, store) = store();
+    let staged = store.stage(&b"streamed artifact"[..]).unwrap();
+
+    assert_eq!(staged.digest(), Digest::of_bytes(b"streamed artifact"));
+    assert_eq!(staged.size(), 17);
+    assert!(!store.contains(&staged.digest()));
+
+    let digest = staged.commit().unwrap();
+    assert_eq!(store.read(&digest).unwrap(), b"streamed artifact");
+    assert!(store.staging_files().unwrap().is_empty());
+}
+
+#[test]
+fn dropping_a_staged_stream_leaves_nothing_behind() {
+    let (_dir, store) = store();
+    let staged = store.stage(&b"abandoned upload"[..]).unwrap();
+    let digest = staged.digest();
+    drop(staged);
+
+    assert!(!store.contains(&digest));
+    assert!(store.staging_files().unwrap().is_empty());
+}
+
+#[test]
+fn staging_bytes_the_store_already_holds_commits_to_the_same_object() {
+    let (_dir, store) = store();
+    let first = store.insert_bytes(b"shared").unwrap();
+    let second = store.stage(&b"shared"[..]).unwrap().commit().unwrap();
+
+    assert_eq!(first, second);
+    assert_eq!(store.objects().unwrap().len(), 1);
+    assert!(store.staging_files().unwrap().is_empty());
+}
+
+#[test]
+fn a_failing_stream_is_an_io_error_and_leaves_no_staging_file() {
+    struct Broken;
+    impl io::Read for Broken {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::other("connection reset"))
+        }
+    }
+
+    let (_dir, store) = store();
+    let error = store.stage(Broken).unwrap_err();
+
+    assert!(matches!(error, Error::Io { action: "read", .. }), "{error:?}");
+    assert!(store.staging_files().unwrap().is_empty());
+}
