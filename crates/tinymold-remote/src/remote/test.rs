@@ -172,28 +172,76 @@ fn a_fetch_reads_an_actions_objects_together() {
     );
 }
 
+/// Runs `sizes` through [`in_flight`] as jobs that each take 10 ms, and
+/// returns the most bytes and the most jobs that were running at once.
+fn peaks(sizes: &[u64]) -> (u64, usize) {
+    use std::cell::Cell;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .unwrap();
+    let (bytes, jobs) = (Cell::new(0), Cell::new(0));
+    let (peak_bytes, peak_jobs) = (Cell::new(0), Cell::new(0));
+    let items = sizes.iter().map(|&size| (size, size)).collect();
+    runtime
+        .block_on(in_flight(
+            items,
+            |size| {
+                let (bytes, jobs) = (&bytes, &jobs);
+                let (peak_bytes, peak_jobs) = (&peak_bytes, &peak_jobs);
+                async move {
+                    bytes.set(bytes.get() + size);
+                    jobs.set(jobs.get() + 1);
+                    peak_bytes.set(peak_bytes.get().max(bytes.get()));
+                    peak_jobs.set(peak_jobs.get().max(jobs.get()));
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                    bytes.set(bytes.get() - size);
+                    jobs.set(jobs.get() - 1);
+                }
+            },
+            |()| Ok(()),
+        ))
+        .unwrap();
+    (peak_bytes.get(), peak_jobs.get())
+}
+
 #[test]
-fn large_blobs_go_up_a_few_at_a_time() {
-    // Each object is over half the in-flight byte budget, so only one is in
-    // flight at once and memory stays bounded by the budget.
-    let server = Server::start();
-    server.with(|state| state.delay = Some(Duration::from_millis(20)));
-    let local = Local::new();
-    let big = usize::try_from(IN_FLIGHT_BYTES / 2 + 1).unwrap();
-    for n in 0..4u8 {
-        let object = local.store.insert_bytes(&vec![n; big]).unwrap();
-        let empty = local.store.insert_bytes(b"").unwrap();
-        let key = Digest::of_bytes(&[b'k', n]);
-        write(
-            &local.root.join("entries/demo").join(key.to_hex()),
-            &format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {object} 0 0 big{n}\n"),
-        );
-    }
-    let report = remote(&server).push(&local.root, None).unwrap();
-    assert_eq!((report.actions, report.failed), (5, 0));
-    // The four big objects never overlap each other; small blobs may
-    // still ride alongside one.
-    assert!(server.with(|state| state.peak_in_flight["Write"]) <= 2);
+fn in_flight_keeps_small_jobs_together_up_to_the_call_limit() {
+    assert_eq!(peaks(&[1; 100]), (IN_FLIGHT_CALLS as u64, IN_FLIGHT_CALLS));
+}
+
+#[test]
+fn in_flight_keeps_the_bytes_in_flight_within_the_budget() {
+    let half = IN_FLIGHT_BYTES / 2 + 1;
+    let (bytes, jobs) = peaks(&[half, half, half, 1, 1, half]);
+    assert!(bytes <= IN_FLIGHT_BYTES, "{bytes} bytes in flight");
+    assert_eq!(jobs, 3, "a big job, and the small ones beside it");
+}
+
+#[test]
+fn in_flight_runs_a_job_over_the_budget_alone() {
+    assert_eq!(
+        peaks(&[IN_FLIGHT_BYTES * 3, 1]),
+        (IN_FLIGHT_BYTES * 3, 1)
+    );
+}
+
+#[test]
+fn in_flight_stops_at_the_first_failure() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let mut seen = 0;
+    let result = runtime.block_on(in_flight(
+        vec![(1, 1), (1, 2), (1, 3)],
+        |n| async move { n },
+        |n| {
+            seen += 1;
+            if n == 1 { Err(Error::Timeout("Write")) } else { Ok(()) }
+        },
+    ));
+    assert!(matches!(result, Err(Error::Timeout("Write"))));
+    assert_eq!(seen, 1);
 }
 
 #[test]
