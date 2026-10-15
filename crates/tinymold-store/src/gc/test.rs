@@ -234,3 +234,62 @@ fn a_read_refreshes_the_last_use_of_an_entry_and_its_objects() {
     assert!(store.contains(&key));
     assert_eq!(report.entries_removed, 0);
 }
+
+#[test]
+fn a_damaged_index_file_is_swept_after_the_grace_period() {
+    let (_dir, store) = store();
+    let now = SystemTime::now();
+    let ingested = store.ingest(&b"artifact"[..], None).unwrap();
+    let index = store.sha256_path(&ingested.sha256);
+    fs::write(&index, b"short").unwrap();
+    age(&index, now - 2 * HOUR);
+
+    collect(&store, &policy(now)).unwrap();
+
+    assert!(!index.exists());
+}
+
+#[test]
+fn an_unreadable_entry_directory_is_an_error() {
+    let (_dir, store) = store();
+    let ac = store.root().join("ac");
+    fs::remove_dir_all(&ac).unwrap();
+    fs::write(&ac, b"not a directory").unwrap();
+
+    assert!(matches!(
+        collect(&store, &policy(SystemTime::now())),
+        Err(Error::Io { action: "read", .. })
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn an_entry_that_cannot_be_removed_is_an_error() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let (_dir, store) = store();
+    let now = SystemTime::now();
+    let old = entry(&store, b"old", b"old bytes", now - 30 * DAY);
+    let shard = store.entry_path(&old).parent().unwrap().to_path_buf();
+    fs::set_permissions(&shard, fs::Permissions::from_mode(0o555)).unwrap();
+
+    let result = collect(
+        &store,
+        &Policy {
+            max_age: Some(14 * DAY),
+            ..policy(now)
+        },
+    );
+    fs::set_permissions(&shard, fs::Permissions::from_mode(0o755)).unwrap();
+
+    assert!(
+        matches!(
+            result,
+            Err(Error::Io {
+                action: "remove",
+                ..
+            })
+        ),
+        "{result:?}"
+    );
+}

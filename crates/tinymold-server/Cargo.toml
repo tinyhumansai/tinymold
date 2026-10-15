@@ -35,6 +35,10 @@ tokio-stream = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# A self-signed certificate made at test time for the TLS tests, so no
+# private key is committed. Default features use ring, which the workspace
+# already builds for rustls.
+rcgen = "0.14"
 hyper = { workspace = true, features = ["client", "http1", "http2"] }
 
 [lints]

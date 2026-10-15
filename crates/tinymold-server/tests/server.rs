@@ -8,6 +8,7 @@ use bytes::Bytes;
 use http::{Method, Request, StatusCode};
 use http_body_util::{BodyExt as _, Full};
 use hyper_util::rt::{TokioExecutor, TokioIo};
+use rustls_pki_types::pem::PemObject as _;
 use tinymold_server::{Config, Error, Server, TlsFiles};
 use tinymold_store::Sha256;
 use tokio::net::TcpStream;
@@ -200,4 +201,93 @@ fn an_address_in_use_is_a_bind_error() {
     taken.listen = first.local_addr();
 
     assert!(matches!(Server::bind(&taken), Err(Error::Bind { .. })));
+}
+
+/// A configuration serving TLS with a self-signed certificate for
+/// `localhost` and `127.0.0.1`, made for this test.
+fn tls_config(dir: &tempfile::TempDir) -> Config {
+    let rcgen::CertifiedKey { cert, signing_key } =
+        rcgen::generate_simple_self_signed(vec!["localhost".to_owned(), "127.0.0.1".to_owned()])
+            .unwrap();
+    let files = TlsFiles {
+        cert: dir.path().join("cert.pem"),
+        key: dir.path().join("key.pem"),
+    };
+    std::fs::write(&files.cert, cert.pem()).unwrap();
+    std::fs::write(&files.key, signing_key.serialize_pem()).unwrap();
+    let mut config = config(dir);
+    config.tls = Some(files);
+    config
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn serves_https_with_the_configured_certificate() {
+    use tokio_rustls::rustls;
+
+    let dir = tempfile::tempdir().unwrap();
+    let config = tls_config(&dir);
+    let server = Server::bind(&config).unwrap();
+    let addr = server.local_addr();
+    let (stop, stopped) = oneshot::channel::<()>();
+    let task = tokio::spawn(server.run(async {
+        let _ = stopped.await;
+    }));
+
+    let pem = std::fs::read(&config.tls.as_ref().unwrap().cert).unwrap();
+    let mut roots = rustls::RootCertStore::empty();
+    for cert in rustls_pki_types::CertificateDer::pem_slice_iter(&pem) {
+        roots.add(cert.unwrap()).unwrap();
+    }
+    let provider = std::sync::Arc::new(rustls::crypto::ring::default_provider());
+    let client = rustls::ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(client));
+    let tcp = TcpStream::connect(addr).await.unwrap();
+    let name = rustls_pki_types::ServerName::try_from("localhost").unwrap();
+    let tls = connector.connect(name, tcp).await.unwrap();
+
+    let (mut sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(tls))
+        .await
+        .unwrap();
+    tokio::spawn(connection);
+    let request = Request::builder()
+        .uri("/healthz")
+        .header(http::header::HOST, "localhost")
+        .body(Full::new(Bytes::new()))
+        .unwrap();
+    let response = sender.send_request(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let _ = stop.send(());
+    task.await.unwrap().unwrap();
+}
+
+#[test]
+fn a_tls_key_file_without_a_key_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = tls_config(&dir);
+    let garbage = dir.path().join("garbage.pem");
+    std::fs::write(&garbage, "no key here\n").unwrap();
+    config.tls.as_mut().unwrap().key = garbage;
+
+    assert!(matches!(
+        Server::bind(&config),
+        Err(Error::TlsPem {
+            reason: "no private key in file",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn run_blocking_starts_its_own_runtime_and_returns_on_shutdown() {
+    let dir = tempfile::tempdir().unwrap();
+    let server = Server::bind(&config(&dir)).unwrap();
+    let shown = format!("{server:?}");
+
+    assert!(shown.contains(&server.local_addr().to_string()), "{shown}");
+    server.run_blocking(async {}).unwrap();
 }
