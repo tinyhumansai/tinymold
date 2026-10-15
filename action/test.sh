@@ -124,6 +124,25 @@ run_save env TINYMOLD_REGISTRY_KEY=tinymold-cargo-v1-Linux-X64-lock TINYMOLD_CAR
   INPUT_SAVE_CACHE=false
 [[ "$(output save-registry)" == false ]] || fail "save-registry is $(output save-registry)"
 
+# A stub tinymold that records every command line it is given.
+recording_runner() {
+  new_runner "$1"
+  printf '#!/usr/bin/env bash\necho "$*" >> "%s/calls"\n' "${root}" > "${root}/bin/tinymold"
+}
+
+# A hosted job's store is its own: everything in it was written by this job,
+# so all of it is younger than gc's grace period, and with the default grace
+# `--max-size` removed actions but not one object (a 14 GiB store saved
+# against a 3G budget, and the runner out of disk).
+recording_runner "gc ignores the grace period for a store from GitHub's cache"
+run_save env
+grep -q -- "^gc .*--grace 0s" "${root}/calls" || fail "gc ran as: $(grep '^gc' "${root}/calls")"
+
+recording_runner "gc keeps the grace period for a store other jobs may share"
+run_save env TINYMOLD_BACKEND=none
+grep -q -- "^gc " "${root}/calls" || fail "gc did not run"
+if grep -q -- "--grace" "${root}/calls"; then fail "gc ran as: $(grep '^gc' "${root}/calls")"; fi
+
 # With `serve: true`, a server store beside the wrapper store.
 serve_runner() {
   new_runner "$1"

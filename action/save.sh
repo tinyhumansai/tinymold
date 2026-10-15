@@ -91,7 +91,16 @@ tinymold stats || true
 save=false
 # Every backend gets gc: a self-hosted runner keeps its store between jobs
 # whichever backend it uses, and this runs after the push.
-tinymold gc --max-age "${INPUT_MAX_AGE}" --max-size "${INPUT_MAX_SIZE}"
+gc_args=(--max-age "${INPUT_MAX_AGE}" --max-size "${INPUT_MAX_SIZE}")
+# A store restored from GitHub's cache belongs to this job alone, and every
+# object it stored is younger than gc's grace period (which guards against a
+# concurrent build). Without --grace 0s, --max-size would drop the actions
+# but keep their objects, and save a store far over budget. A remote or
+# persistent store may be shared by jobs still running, so it keeps the grace.
+if [[ "${backend}" == github || "${backend}" == both ]]; then
+  gc_args+=(--grace 0s)
+fi
+tinymold gc "${gc_args[@]}"
 if [[ "${INPUT_SAVE_CACHE}" == true ]] && [[ "${backend}" == github || "${backend}" == both ]]; then
   # A job that stored nothing new would only upload the store it restored.
   if grep -q " stored in " "${TINYMOLD_LOG}" 2>/dev/null; then
