@@ -37,12 +37,20 @@ impl Reply {
 }
 
 async fn send(state: &Arc<State>, request: http::request::Builder, body: &[u8]) -> Reply {
-    let request = request.body(Full::new(Bytes::copy_from_slice(body))).unwrap();
+    let request = request
+        .body(Full::new(Bytes::copy_from_slice(body)))
+        .unwrap();
     let response = route::handle(state.clone(), request).await.unwrap();
     Reply {
         status: response.status(),
         headers: response.headers().clone(),
-        body: response.into_body().collect().await.unwrap().to_bytes().to_vec(),
+        body: response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
     }
 }
 
@@ -105,7 +113,10 @@ async fn an_artifact_round_trips_with_its_headers() {
     assert_eq!(reply.body, b"tarball bytes");
     assert_eq!(reply.headers["x-artifact-duration"], "1200");
     assert_eq!(reply.headers["x-artifact-tag"], "c2lnbmF0dXJl");
-    assert_eq!(reply.headers[header::CONTENT_TYPE], "application/octet-stream");
+    assert_eq!(
+        reply.headers[header::CONTENT_TYPE],
+        "application/octet-stream"
+    );
     assert!(!reply.headers.contains_key("x-artifact-client-ci"));
 }
 
@@ -114,8 +125,22 @@ async fn head_reports_existence_without_a_body() {
     let (_dir, state) = state();
     send(&state, put("/v8/artifacts/abc?slug=s"), b"tar").await;
 
-    let present = send(&state, Request::builder().method(Method::HEAD).uri("/v8/artifacts/abc?slug=s"), b"").await;
-    let absent = send(&state, Request::builder().method(Method::HEAD).uri("/v8/artifacts/def?slug=s"), b"").await;
+    let present = send(
+        &state,
+        Request::builder()
+            .method(Method::HEAD)
+            .uri("/v8/artifacts/abc?slug=s"),
+        b"",
+    )
+    .await;
+    let absent = send(
+        &state,
+        Request::builder()
+            .method(Method::HEAD)
+            .uri("/v8/artifacts/def?slug=s"),
+        b"",
+    )
+    .await;
 
     assert_eq!(present.status, StatusCode::OK);
     assert_eq!(present.headers[header::CONTENT_LENGTH], "3");
@@ -131,7 +156,10 @@ async fn teams_do_not_see_each_others_artifacts() {
     let other = send(&state, get("/v8/artifacts/abc?teamId=b"), b"").await;
 
     assert_eq!(other.status, StatusCode::NOT_FOUND);
-    assert_eq!(other.text(), r#"{"code":"not_found","message":"artifact not found"}"#);
+    assert_eq!(
+        other.text(),
+        r#"{"code":"not_found","message":"artifact not found"}"#
+    );
 }
 
 #[tokio::test]
@@ -144,7 +172,9 @@ async fn a_batch_query_reports_size_duration_and_tag_or_null() {
 
     let reply = send(
         &state,
-        Request::builder().method(Method::POST).uri("/v8/artifacts?teamId=t"),
+        Request::builder()
+            .method(Method::POST)
+            .uri("/v8/artifacts?teamId=t"),
         br#"{"hashes":["aa","bb"]}"#,
     )
     .await;
@@ -161,14 +191,31 @@ async fn malformed_requests_are_refused() {
     let (_dir, state) = state();
     let post = || Request::builder().method(Method::POST).uri("/v8/artifacts");
 
-    assert_eq!(send(&state, post(), b"not json").await.status, StatusCode::BAD_REQUEST);
-    assert_eq!(send(&state, get("/v8/artifacts/not-hex"), b"").await.status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        send(&state, post(), b"not json").await.status,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        send(&state, get("/v8/artifacts/not-hex"), b"").await.status,
+        StatusCode::NOT_FOUND
+    );
     let bad_duration = put("/v8/artifacts/ab").header("x-artifact-duration", "soon");
-    assert_eq!(send(&state, bad_duration, b"x").await.status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        send(&state, bad_duration, b"x").await.status,
+        StatusCode::BAD_REQUEST
+    );
     let long_tag = put("/v8/artifacts/ab").header("x-artifact-tag", "t".repeat(MAX_HEADER + 1));
-    assert_eq!(send(&state, long_tag, b"x").await.status, StatusCode::BAD_REQUEST);
-    let delete = Request::builder().method(Method::DELETE).uri("/v8/artifacts/ab");
-    assert_eq!(send(&state, delete, b"").await.status, StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(
+        send(&state, long_tag, b"x").await.status,
+        StatusCode::BAD_REQUEST
+    );
+    let delete = Request::builder()
+        .method(Method::DELETE)
+        .uri("/v8/artifacts/ab");
+    assert_eq!(
+        send(&state, delete, b"").await.status,
+        StatusCode::METHOD_NOT_ALLOWED
+    );
 }
 
 #[tokio::test]
@@ -176,17 +223,28 @@ async fn an_artifact_over_the_limit_is_refused() {
     let (_dir, state) = state();
     let big = vec![0_u8; 2048];
 
-    assert_eq!(send(&state, put("/v8/artifacts/ab"), &big).await.status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        send(&state, put("/v8/artifacts/ab"), &big).await.status,
+        StatusCode::PAYLOAD_TOO_LARGE
+    );
     let declared = put("/v8/artifacts/ab").header(header::CONTENT_LENGTH, "2048");
-    assert_eq!(send(&state, declared, &big).await.status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        send(&state, declared, &big).await.status,
+        StatusCode::PAYLOAD_TOO_LARGE
+    );
 }
 
 #[tokio::test]
 async fn events_are_accepted() {
     let (_dir, state) = state();
-    let events = Request::builder().method(Method::POST).uri("/v8/artifacts/events?teamId=t");
+    let events = Request::builder()
+        .method(Method::POST)
+        .uri("/v8/artifacts/events?teamId=t");
 
-    assert_eq!(send(&state, events, br#"[{"event":"HIT"}]"#).await.status, StatusCode::OK);
+    assert_eq!(
+        send(&state, events, br#"[{"event":"HIT"}]"#).await.status,
+        StatusCode::OK
+    );
 }
 
 #[tokio::test]
@@ -197,17 +255,30 @@ async fn bearer_tokens_are_checked_per_team() {
 
     let anonymous = send(&state, put("/v8/artifacts/ab?teamId=a"), b"x").await;
     assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
-    assert_eq!(anonymous.text(), r#"{"code":"unauthorized","message":"a valid token is required"}"#);
+    assert_eq!(
+        anonymous.text(),
+        r#"{"code":"unauthorized","message":"a valid token is required"}"#
+    );
 
     let reader = put("/v8/artifacts/ab?teamId=a").header(header::AUTHORIZATION, bearer("team-a"));
-    assert_eq!(send(&state, reader, b"x").await.status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        send(&state, reader, b"x").await.status,
+        StatusCode::FORBIDDEN
+    );
 
     let writer = put("/v8/artifacts/ab?teamId=a").header(header::AUTHORIZATION, bearer("ci"));
-    assert_eq!(send(&state, writer, b"x").await.status, StatusCode::ACCEPTED);
+    assert_eq!(
+        send(&state, writer, b"x").await.status,
+        StatusCode::ACCEPTED
+    );
     let read = get("/v8/artifacts/ab?teamId=a").header(header::AUTHORIZATION, bearer("team-a"));
     assert_eq!(send(&state, read, b"").await.status, StatusCode::OK);
-    let other_team = get("/v8/artifacts/ab?teamId=b").header(header::AUTHORIZATION, bearer("team-a"));
-    assert_eq!(send(&state, other_team, b"").await.status, StatusCode::FORBIDDEN);
+    let other_team =
+        get("/v8/artifacts/ab?teamId=b").header(header::AUTHORIZATION, bearer("team-a"));
+    assert_eq!(
+        send(&state, other_team, b"").await.status,
+        StatusCode::FORBIDDEN
+    );
 }
 
 #[tokio::test]

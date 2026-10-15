@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-5 done)
+- **Status:** In progress (slices 1-6 done)
 
 ## Goal
 
@@ -133,6 +133,12 @@ store, which the server refuses to share.
   team isolation, and headers returned unchanged.
 - `live_turbo` test: a two-package fixture under `crates/tinymold-server/tests/fixtures/`
   gets `FULL TURBO` on the second run.
+- **As built:** passes against turbo 2.11.8 from npm. The fixture copy is
+  made a git repository that ignores build output: outside git, turbo
+  hashes every file in a package, its own `.turbo` logs included, and no
+  two runs share a task hash. The batch query's JSON is parsed and written
+  by hand; it is a list of hex strings in and a flat map out, which does
+  not justify a JSON dependency.
 
 ### 7. `nx` and `gradle` front-ends
 
@@ -200,7 +206,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 3. Server: transport, auth, health
 - [x] 4. `bazel-http` front-end
 - [x] 5. `reapi` front-end and the CI switch
-- [ ] 6. `turbo` front-end
+- [x] 6. `turbo` front-end
 - [ ] 7. `nx` and `gradle` front-ends
 - [ ] 8. GitHub Action `serve: true`
 - [ ] 9. Native socket and the Rust adapter

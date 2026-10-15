@@ -78,12 +78,16 @@ where
     if let Err(denial) = state.access.check(request.headers(), &namespace, need) {
         record(state, Outcome::Denied, 0, 0);
         return match denial {
-            Denied::Unauthenticated => {
-                error(StatusCode::UNAUTHORIZED, "unauthorized", "a valid token is required")
-            }
-            Denied::Forbidden => {
-                error(StatusCode::FORBIDDEN, "forbidden", "the token lacks this scope")
-            }
+            Denied::Unauthenticated => error(
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "a valid token is required",
+            ),
+            Denied::Forbidden => error(
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "the token lacks this scope",
+            ),
         };
     }
 
@@ -102,7 +106,11 @@ where
                         download(state, &namespace, &hash, method == Method::HEAD).await
                     }
                     Method::PUT => upload(state, request, &namespace, &hash).await,
-                    _ => error(StatusCode::METHOD_NOT_ALLOWED, "method_not_allowed", "method not allowed"),
+                    _ => error(
+                        StatusCode::METHOD_NOT_ALLOWED,
+                        "method_not_allowed",
+                        "method not allowed",
+                    ),
                 }
             }
             None => error(StatusCode::NOT_FOUND, "not_found", "no such endpoint"),
@@ -110,7 +118,12 @@ where
     }
 }
 
-async fn download(state: &Arc<State>, namespace: &Namespace, hash: &str, head: bool) -> Response<Body> {
+async fn download(
+    state: &Arc<State>,
+    namespace: &Namespace,
+    hash: &str,
+    head: bool,
+) -> Response<Body> {
     let store = state.store.clone();
     let key = namespace.key(hash.as_bytes());
     let found = blocking(move || {
@@ -130,7 +143,10 @@ async fn download(state: &Arc<State>, namespace: &Namespace, hash: &str, head: b
     record(state, Outcome::Hit, 0, if head { 0 } else { len });
     let mut response = route::sized(body, len, head);
     let headers = response.headers_mut();
-    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/octet-stream"));
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/octet-stream"),
+    );
     for (name, value) in meta {
         if let (Ok(name), Ok(value)) = (HeaderName::try_from(name), HeaderValue::try_from(value)) {
             headers.insert(name, value);
@@ -139,14 +155,23 @@ async fn download(state: &Arc<State>, namespace: &Namespace, hash: &str, head: b
     response
 }
 
-async fn upload<B>(state: &Arc<State>, request: Request<B>, namespace: &Namespace, hash: &str) -> Response<Body>
+async fn upload<B>(
+    state: &Arc<State>,
+    request: Request<B>,
+    namespace: &Namespace,
+    hash: &str,
+) -> Response<Body>
 where
     B: hyper::body::Body<Data = Bytes> + Send + Unpin + 'static,
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     if declared_length(&request).is_some_and(|len| len > state.max_body) {
         record(state, Outcome::Other, 0, 0);
-        return error(StatusCode::PAYLOAD_TOO_LARGE, "too_large", "artifact too large");
+        return error(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "too_large",
+            "artifact too large",
+        );
     }
     let meta = match kept_headers(request.headers()) {
         Ok(meta) => meta,
@@ -168,11 +193,18 @@ where
     match result {
         Ok(()) => {
             record(state, Outcome::Write, received, 0);
-            json(StatusCode::ACCEPTED, format!(r#"{{"urls":["{PREFIX}/{hash}"]}}"#))
+            json(
+                StatusCode::ACCEPTED,
+                format!(r#"{{"urls":["{PREFIX}/{hash}"]}}"#),
+            )
         }
         Err(UploadError::TooLarge) => {
             record(state, Outcome::Other, received, 0);
-            error(StatusCode::PAYLOAD_TOO_LARGE, "too_large", "artifact too large")
+            error(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "too_large",
+                "artifact too large",
+            )
         }
         Err(UploadError::Body) => {
             record(state, Outcome::Other, received, 0);
@@ -180,7 +212,11 @@ where
         }
         Err(UploadError::Store(_)) => {
             record(state, Outcome::Other, received, 0);
-            error(StatusCode::INTERNAL_SERVER_ERROR, "internal", "store failed")
+            error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal",
+                "store failed",
+            )
         }
     }
 }
@@ -190,14 +226,21 @@ where
     B: hyper::body::Body<Data = Bytes> + Send + Unpin + 'static,
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
-    let Ok(body) = http_body_util::Limited::new(request.into_body(), usize::try_from(MAX_QUERY).unwrap_or(usize::MAX))
-        .collect()
-        .await
+    let Ok(body) = http_body_util::Limited::new(
+        request.into_body(),
+        usize::try_from(MAX_QUERY).unwrap_or(usize::MAX),
+    )
+    .collect()
+    .await
     else {
         return error(StatusCode::BAD_REQUEST, "bad_request", "unreadable query");
     };
     let Some(hashes) = parse_hashes(&body.to_bytes()) else {
-        return error(StatusCode::BAD_REQUEST, "bad_request", "expected {\"hashes\": [...]}");
+        return error(
+            StatusCode::BAD_REQUEST,
+            "bad_request",
+            "expected {\"hashes\": [...]}",
+        );
     };
     let store = state.store.clone();
     let answers = blocking(move || {
@@ -247,13 +290,17 @@ where
 }
 
 /// The kept artifact headers of an upload, or why one is refused.
-fn kept_headers(headers: &HeaderMap) -> Result<std::collections::BTreeMap<String, String>, &'static str> {
+fn kept_headers(
+    headers: &HeaderMap,
+) -> Result<std::collections::BTreeMap<String, String>, &'static str> {
     let mut meta = std::collections::BTreeMap::new();
     for name in KEPT {
         let Some(value) = headers.get(name) else {
             continue;
         };
-        let value = value.to_str().map_err(|_| "artifact headers must be ascii")?;
+        let value = value
+            .to_str()
+            .map_err(|_| "artifact headers must be ascii")?;
         if value.len() > MAX_HEADER {
             return Err("an artifact header is too long");
         }
@@ -323,7 +370,11 @@ fn parse_hashes(body: &[u8]) -> Option<Vec<String>> {
     loop {
         rest = rest.trim_start();
         if let Some(after) = rest.strip_prefix(']') {
-            return after.trim_start().strip_prefix('}').map(|tail| tail.trim().is_empty())?.then_some(hashes);
+            return after
+                .trim_start()
+                .strip_prefix('}')
+                .map(|tail| tail.trim().is_empty())?
+                .then_some(hashes);
         }
         if !hashes.is_empty() {
             rest = rest.strip_prefix(',')?.trim_start();
@@ -347,7 +398,9 @@ fn json_string(text: &str) -> String {
         match character {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
-            control if control.is_control() => out.push_str(&format!("\\u{:04x}", u32::from(control))),
+            control if control.is_control() => {
+                out.push_str(&format!("\\u{:04x}", u32::from(control)))
+            }
             other => out.push(other),
         }
     }
@@ -357,16 +410,21 @@ fn json_string(text: &str) -> String {
 
 fn json(status: StatusCode, body: String) -> Response<Body> {
     let mut response = route::text(status, body);
-    response
-        .headers_mut()
-        .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
     response
 }
 
 fn error(status: StatusCode, code: &str, message: &str) -> Response<Body> {
     json(
         status,
-        format!(r#"{{"code":{},"message":{}}}"#, json_string(code), json_string(message)),
+        format!(
+            r#"{{"code":{},"message":{}}}"#,
+            json_string(code),
+            json_string(message)
+        ),
     )
 }
 
@@ -376,7 +434,9 @@ fn miss(state: &State) -> Response<Body> {
 }
 
 fn record(state: &State, outcome: Outcome, bytes_in: u64, bytes_out: u64) {
-    state.metrics.record(FrontEnd::Turbo, outcome, bytes_in, bytes_out);
+    state
+        .metrics
+        .record(FrontEnd::Turbo, outcome, bytes_in, bytes_out);
 }
 
 #[cfg(test)]

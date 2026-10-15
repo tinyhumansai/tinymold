@@ -66,7 +66,10 @@ async fn live_turbo_replays_every_task_from_the_server() {
     }));
 
     let repo = dir.path().join("repo");
-    copy_tree(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/turbo"), &repo);
+    copy_tree(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/turbo"),
+        &repo,
+    );
     let (first, second, restored) = tokio::task::spawn_blocking(move || {
         // Turbo hashes the files git sees, so the copy is a repository that
         // ignores build output, as a real one would. Outside git it would
@@ -100,8 +103,14 @@ async fn live_turbo_replays_every_task_from_the_server() {
     .await
     .unwrap();
 
-    assert!(!first.contains("FULL TURBO"), "the first run had nothing to replay:\n{first}");
-    assert!(second.contains("FULL TURBO"), "the second run missed the server:\n{second}");
+    assert!(
+        !first.contains("FULL TURBO"),
+        "the first run had nothing to replay:\n{first}"
+    );
+    assert!(
+        second.contains("FULL TURBO"),
+        "the second run missed the server:\n{second}"
+    );
     assert_eq!(restored, "built b");
     let _ = stop.send(());
     task.await.unwrap().unwrap();

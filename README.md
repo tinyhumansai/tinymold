@@ -77,6 +77,7 @@ tinymold snapshot restore --replace # after a branch switch
 # Run the cache server; point ccache (or Bazel) at it.
 tinymold serve                      # http://127.0.0.1:9090, store in tinymold-server/
 CCACHE_REMOTE_STORAGE="http://127.0.0.1:9090|layout=bazel" ccache cc -c unit.c
+TURBO_API=http://127.0.0.1:9090 TURBO_TOKEN=local TURBO_TEAM=me npx turbo run build
 ```
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In
@@ -200,7 +201,7 @@ the Rust side in [`docs/specs/architecture.md`](docs/specs/architecture.md).
 | --- | --- |
 | [`tinymold`](crates/tinymold) | The `tinymold` binary and its library half |
 | [`tinymold-cas`](crates/tinymold-cas) | Local content-addressed store: atomic insert, read-only objects, reflink → hardlink → copy restore |
-| [`tinymold-server`](crates/tinymold-server) | `tinymold serve`: one store behind REAPI v2 (tinymold, Bazel, Buck2) and Bazel's HTTP cache protocol (and ccache), with more protocols to come |
+| [`tinymold-server`](crates/tinymold-server) | `tinymold serve`: one store behind REAPI v2 (tinymold, Bazel, Buck2), Bazel's HTTP cache protocol (and ccache) and Turborepo's remote cache API, with more protocols to come |
 | [`tinymold-store`](crates/tinymold-store) | The cache server's core: namespaced entries over the CAS, and a SHA-256 index so every protocol finds the same blob |
 | [`tinymold-hash`](crates/tinymold-hash) | The BLAKE3-256 `Digest` type, streaming file hashing, and a field hasher for cache keys |
 | [`tinymold-key`](crates/tinymold-key) | rustc argument parsing, path roots, dep-info, and the two cache keys |
