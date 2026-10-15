@@ -16,7 +16,7 @@ const BUCKETS: [f64; 10] = [
 
 /// What one request did, for counting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Outcome {
+pub(crate) enum Outcome {
     /// A lookup that found its entry or blob.
     Hit,
     /// A lookup that did not.
@@ -42,7 +42,7 @@ struct Counters {
 
 /// The server's metrics.
 #[derive(Debug, Default)]
-pub struct Metrics {
+pub(crate) struct Metrics {
     front_ends: [Counters; FrontEnd::ALL.len()],
     buckets: [AtomicU64; BUCKETS.len()],
     latency_count: AtomicU64,
@@ -54,7 +54,7 @@ pub struct Metrics {
 
 impl Metrics {
     /// Counts one request through `front_end`.
-    pub fn record(&self, front_end: FrontEnd, outcome: Outcome, bytes_in: u64, bytes_out: u64) {
+    pub(crate) fn record(&self, front_end: FrontEnd, outcome: Outcome, bytes_in: u64, bytes_out: u64) {
         let Some(index) = FrontEnd::ALL.iter().position(|front| *front == front_end) else {
             return;
         };
@@ -75,7 +75,7 @@ impl Metrics {
     }
 
     /// Records how long one request took to answer.
-    pub fn observe(&self, elapsed: Duration) {
+    pub(crate) fn observe(&self, elapsed: Duration) {
         let seconds = elapsed.as_secs_f64();
         for (bound, bucket) in BUCKETS.iter().zip(&self.buckets) {
             if seconds <= *bound {
@@ -88,7 +88,7 @@ impl Metrics {
     }
 
     /// Records the store's size after a collection.
-    pub fn record_collection(&self, report: &Report) {
+    pub(crate) fn record_collection(&self, report: &Report) {
         self.store_entries
             .store(report.entries_kept, Ordering::Relaxed);
         self.store_bytes.store(report.bytes_kept, Ordering::Relaxed);
@@ -98,7 +98,7 @@ impl Metrics {
 
     /// The metrics in Prometheus text exposition format.
     #[must_use]
-    pub fn render(&self) -> String {
+    pub(crate) fn render(&self) -> String {
         let mut out = String::new();
         let families: [(&str, &str, fn(&Counters) -> &AtomicU64); 7] = [
             ("tinymold_requests_total", "Requests received.", |c| &c.requests),
