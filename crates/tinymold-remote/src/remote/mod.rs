@@ -629,9 +629,8 @@ where
 }
 
 /// Whether `error` may not happen again: a call that timed out, a server
-/// that said it is unavailable, overloaded or aborted the call, or a
-/// connection it closed under the call (an HTTP/2 GOAWAY, which a proxy such
-/// as nginx sends after its per-connection request limit; the channel
+/// that said it is unavailable, overloaded or aborted the call, or a proxy
+/// in front of it that failed the call (see [`proxy_hiccup`]; the channel
 /// reconnects). A refusal, such as a missing write credential, is not.
 fn transient(error: &Error) -> bool {
     match error {
@@ -643,11 +642,22 @@ fn transient(error: &Error) -> bool {
                     | tonic::Code::DeadlineExceeded
                     | tonic::Code::ResourceExhausted
                     | tonic::Code::Aborted
-            ) || (status.code() == tonic::Code::Internal
-                && status.message().starts_with("h2 protocol error"))
+            ) || (status.code() == tonic::Code::Internal && proxy_hiccup(status.message()))
         }
         _ => false,
     }
+}
+
+/// Whether an `INTERNAL` status's `message` is tonic's report of a proxy
+/// in front of the server failing the call rather than the server refusing
+/// it: a connection closed under the call (an HTTP/2 GOAWAY, which nginx
+/// sends after its per-connection request limit), or a 502, 503 or 504 with
+/// a body that is not gRPC (nginx while `tinymold serve` restarts).
+fn proxy_hiccup(message: &str) -> bool {
+    message.starts_with("h2 protocol error")
+        || ["502", "503", "504"]
+            .iter()
+            .any(|code| message.contains(&format!("while receiving response with status: {code} ")))
 }
 
 /// The digest of the output file at `path` in `result`.

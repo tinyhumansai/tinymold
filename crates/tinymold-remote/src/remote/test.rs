@@ -375,6 +375,29 @@ fn a_connection_the_server_closed_is_retried() {
 }
 
 #[test]
+fn a_proxy_whose_server_is_restarting_is_retried() {
+    // nginx answers 502 while `tinymold serve` restarts (a deploy), with an
+    // HTML body tonic cannot parse as gRPC; 503 and 504 are the same story.
+    let status = |message: &str| Error::Status {
+        call: "Write",
+        status: Box::new(tonic::Status::internal(message.to_owned())),
+    };
+    for code in [
+        "502 Bad Gateway",
+        "503 Service Unavailable",
+        "504 Gateway Timeout",
+    ] {
+        let message = format!(
+            "protocol error: received message with invalid compression flag: 60 (valid flags are 0 and 1) while receiving response with status: {code}"
+        );
+        assert!(transient(&status(&message)), "{code}");
+    }
+    assert!(!transient(&status(
+        "protocol error: received message with invalid compression flag: 60 (valid flags are 0 and 1) while receiving response with status: 400 Bad Request"
+    )));
+}
+
+#[test]
 fn an_upload_that_keeps_failing_skips_only_the_entries_that_need_it() {
     let server = Server::start();
     let local = Local::new();
