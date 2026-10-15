@@ -268,6 +268,70 @@ jobs:
         with:
           push: "false"
 
+  remote-e2e-serve:
+    name: Remote cache (tinymold serve)
+    runs-on: ubuntu-latest
+    env:
+      # A throwaway token for the server below, not a secret.
+      REMOTE_AUTH: ci:ci-token
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          backend: remote
+          remote-url: grpc://127.0.0.1:9092
+          remote-auth: ${{ env.REMOTE_AUTH }}
+
+      - name: Start tinymold serve
+        run: |
+          set -euo pipefail
+          dir="${RUNNER_TEMP}/tinymold-serve"
+          mkdir -p "${dir}"
+          echo "ci-token *:write" > "${dir}/tokens"
+          # Not a compile: the wrapper variable must not apply to the server.
+          env -u RUSTC_WRAPPER nohup tinymold serve --dir "${dir}/store" \
+            --listen 127.0.0.1:9092 --tokens "${dir}/tokens" \
+            --allow-anonymous-reads > "${dir}/serve.log" 2>&1 &
+          for _ in $(seq 30); do
+            if nc -z 127.0.0.1 9092; then exit 0; fi
+            sleep 1
+          done
+          cat "${dir}/serve.log"
+          exit 1
+
+      - name: Check the server and the credential
+        run: tinymold remote check
+
+      - name: A wrong credential is refused
+        run: |
+          if TINYMOLD_REMOTE_AUTH=ci:wrong tinymold remote check; then
+            echo "a wrong credential was accepted" >&2
+            exit 1
+          fi
+
+      - name: Build and push
+        run: |
+          cargo build --locked --all-targets --all-features
+          tinymold remote push --since "${TINYMOLD_SAVE_START}"
+
+      - name: Build again from the remote alone
+        run: |
+          set -euo pipefail
+          rm -rf target "${TINYMOLD_STORE}" "${TINYMOLD_LOG}"
+          cargo build --locked --all-targets --all-features
+          tinymold stats --min-hit-rate 90
+
+      - uses: ./save
+        if: always()
+        with:
+          push: "false"
+
   supply-chain:
     name: Supply chain
     runs-on: ubuntu-latest
