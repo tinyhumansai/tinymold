@@ -11,7 +11,7 @@ use std::time::Instant;
 use bytes::Bytes;
 use http::{Method, Request, Response, StatusCode, header};
 use http_body_util::combinators::BoxBody;
-use http_body_util::{BodyExt as _, Empty, Full};
+use http_body_util::{BodyExt as _, Full};
 use tinymold_store::Store;
 
 use crate::auth::Access;
@@ -26,9 +26,6 @@ pub(crate) struct State {
     pub(crate) store: Store,
     pub(crate) access: Access,
     pub(crate) metrics: Metrics,
-    /// The largest request body accepted, in bytes.
-    #[allow(dead_code, reason = "read by the front-ends that accept uploads")]
-    pub(crate) max_body: u64,
 }
 
 /// Answers one request. Never fails: every problem becomes a status code.
@@ -68,14 +65,6 @@ pub(crate) fn text(status: StatusCode, body: impl Into<Bytes>) -> Response<Body>
             .map_err(|never| match never {})
             .boxed(),
     );
-    *response.status_mut() = status;
-    response
-}
-
-/// A response with no body.
-#[allow(dead_code, reason = "used by the front-ends")]
-pub(crate) fn empty(status: StatusCode) -> Response<Body> {
-    let mut response = Response::new(Empty::new().map_err(|never| match never {}).boxed());
     *response.status_mut() = status;
     response
 }
