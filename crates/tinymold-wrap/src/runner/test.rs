@@ -93,6 +93,7 @@ fn run(
             args: &args,
             cwd: root,
             env,
+            stdin_has_input: false,
         },
     )
 }
@@ -531,4 +532,40 @@ fn a_changed_build_script_output_or_package_binary_runs_again() {
     fs::write(profile.join("tool"), "tool version two").unwrap();
     assert_eq!(run(&config, &root, &binary, &[], &env), 0);
     assert_eq!(runs(&marker), 3);
+}
+
+#[test]
+fn a_run_whose_stdin_may_carry_input_is_never_cached() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), COUNTS_RUNS);
+    let binary = build(&root, &config);
+    let marker = dir.path().join("marker");
+    let env = env(&[("MARKER", marker.to_str().unwrap())]);
+    let command = TestCommand {
+        via: None,
+        binary: &binary,
+        args: &[],
+        cwd: &root,
+        env: &env,
+        stdin_has_input: true,
+    };
+    assert_eq!(run_test(&config, &command), 0);
+    assert_eq!(run_test(&config, &command), 0);
+    assert_eq!(runs(&marker), 2);
+    assert_eq!(
+        log_lines(&config),
+        ["test-pass stdin may carry input", "test-pass stdin may carry input"]
+    );
+}
+
+#[test]
+fn a_cached_run_reads_an_empty_stdin() {
+    // Whatever this process's stdin holds, the run the key describes reads
+    // nothing from it.
+    let dir = tempfile::tempdir().unwrap();
+    let body = "let mut text = String::new();\n    std::io::Read::read_to_string(&mut std::io::stdin(), &mut text).unwrap();\n    assert_eq!(text, \"\");";
+    let (root, config) = package(dir.path(), body);
+    let binary = build(&root, &config);
+    assert_eq!(run(&config, &root, &binary, &[], &env(&[])), 0);
+    assert!(log_lines(&config)[0].starts_with("test-miss recorded in"));
 }
