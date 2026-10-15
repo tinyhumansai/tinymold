@@ -51,6 +51,10 @@ pub struct PushReport {
     /// Actions skipped because an object they name is no longer in the local
     /// store.
     pub skipped: u64,
+    /// Actions and pre-key records not written because an upload they need
+    /// still failed after its retries. The rest of the push goes on without
+    /// them.
+    pub failed: u64,
     /// Blobs the server lacked and was sent.
     pub blobs: u64,
     /// Their total size in bytes.
@@ -63,6 +67,14 @@ impl fmt::Display for PushReport {
             f,
             "pushed {} actions and {} pre-keys ({} new blobs, {} bytes); skipped {} incomplete actions",
             self.actions, self.prekeys, self.blobs, self.bytes, self.skipped
-        )
+        )?;
+        if self.failed > 0 {
+            write!(
+                f,
+                "; {} entries not pushed after upload failures",
+                self.failed
+            )?;
+        }
+        Ok(())
     }
 }
