@@ -133,6 +133,26 @@ jobs:
       - name: Build with the declared MSRV
         run: cargo build --all-targets --all-features
 
+  # The Action's shell scripts on their own, on both runner families, since
+  # macOS ships BSD find, sed and shasum where Linux ships GNU tools.
+  action-scripts:
+    name: Action scripts (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Lint
+        if: runner.os == 'Linux'
+        run: shellcheck action/*.sh
+
+      - name: Test
+        run: bash action/test.sh
+
   # The GitHub Action in this repository (action.yml, save/action.yml), run on
   # this repository with its stateless backend: the store travels in GitHub's
   # cache. The second job starts on a fresh runner and must be served almost

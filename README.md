@@ -108,6 +108,8 @@ steps:
 ```
 
 By default the store travels in GitHub's own cache, so no server is needed.
+Cargo's crate downloads get a cache entry of their own, keyed by
+`Cargo.lock`.
 For many repositories or runners, run a shared
 [bazel-remote](deploy/bazel-remote/README.md) and use the action's `remote`
 backend (`remote-url`, plus `remote-auth` from a secret). Every local miss
