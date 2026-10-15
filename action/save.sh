@@ -32,7 +32,7 @@ prune_registry() {
   keep="$(locked_crates "${lockfiles[@]}")"
   for dir in "${cache}"/*/; do
     [[ -d "${dir}" ]] || continue
-    (cd "${dir}" && ls | LC_ALL=C sort | LC_ALL=C comm -23 - <(printf '%s\n' "${keep}") |
+    (cd "${dir}" && find . -maxdepth 1 -name '*.crate' -type f | sed 's|^\./||' | LC_ALL=C sort | LC_ALL=C comm -23 - <(printf '%s\n' "${keep}") |
       while IFS= read -r stale; do rm -f -- "${stale}"; done)
   done
 }
@@ -40,7 +40,7 @@ prune_registry() {
 backend="${TINYMOLD_BACKEND:-}"
 [[ -n "${backend}" ]] || {
   echo "::warning title=tinymold::the setup step did not run; nothing to save"
-  echo "save-cache=false" >> "${GITHUB_OUTPUT}"
+  printf 'save-cache=false\nsave-registry=false\n' >> "${GITHUB_OUTPUT}"
   exit 0
 }
 
@@ -90,7 +90,7 @@ fi
 # the same crates.
 save_registry=false
 if [[ "${INPUT_SAVE_CACHE}" == true && -n "${TINYMOLD_REGISTRY_KEY:-}" &&
-  "${TINYMOLD_REGISTRY_HIT:-}" != true && -d "${TINYMOLD_CARGO_HOME}/registry" ]]; then
+  "${TINYMOLD_REGISTRY_HIT:-}" != true && -d "${TINYMOLD_CARGO_HOME:-}/registry" ]]; then
   prune_registry "${TINYMOLD_CARGO_HOME}"
   save_registry=true
 fi
