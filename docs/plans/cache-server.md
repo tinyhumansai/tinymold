@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** Not started
+- **Status:** In progress (slice 1 done)
 
 ## Goal
 
@@ -59,15 +59,21 @@ Each slice is one PR, test first, with the four contract commands green.
     SHA-256 index finds it;
   - a body with a claimed digest that does not match is refused
     (`Error::DigestMismatch`) and leaves nothing in the store.
-- Then: the implementation over `tinymold-cas`, with the index as an
-  append log plus a periodic compacted snapshot.
+- Then: the implementation over `tinymold-cas`. **As built:** one file per
+  entry under `ac/` and one per SHA-256 under `sha256/`, each written
+  privately and renamed into place, instead of an append log. A reader sees
+  a whole file or none, several processes share one root without a lock,
+  and a restart needs no replay. An in-memory index can sit in front of it
+  later if the slice 11 benchmark asks for one. Streaming ingest needed a
+  new `tinymold_cas::Store::stage`, which hashes a body while staging it and
+  commits it only when asked.
 
 ### 2. `tinymold-store`: last use, pins and GC
 
 - Move `crates/tinymold/src/gc` into `tinymold-store`, keeping its tests;
   `tinymold gc` calls it from there.
 - Failing tests first: a pinned object survives GC; an object shared by two
-  entries survives evicting one; a torn index tail is rolled back on open.
+  entries survives evicting one; a stale file in `pending/` is swept.
 
 ### 3. `tinymold-server`: transport, auth, health
 
@@ -168,7 +174,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 
 ## Checklist
 
-- [ ] 1. Store: namespaces and entries
+- [x] 1. Store: namespaces and entries
 - [ ] 2. Store: last use, pins and GC
 - [ ] 3. Server: transport, auth, health
 - [ ] 4. `bazel-http` front-end

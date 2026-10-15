@@ -225,8 +225,9 @@ tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 - **Persistence.** The index and last-use times live in the store directory
   and survive a restart. A restart serves hits immediately; it does not
   rebuild the index by scanning objects.
-- **Crash safety.** A crash loses at most uncommitted uploads. A torn index
-  write is detected on start and rolled back to the last complete state.
+- **Crash safety.** A crash loses at most uncommitted uploads. Every entry
+  and index file is written privately and renamed into place, so a torn
+  write leaves only a stale file in `pending/`, which GC sweeps.
 - **Metrics.** `GET /metrics` in Prometheus text format: requests, hits,
   misses and bytes per front-end and namespace, latency histograms, store
   bytes and evictions.

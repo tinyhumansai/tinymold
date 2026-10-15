@@ -28,6 +28,7 @@ Cargo.toml              # virtual workspace: members, [workspace.package],
 crates/
 ├── tinymold-hash/      # BLAKE3-256 `Digest`, file hashing, field hasher
 ├── tinymold-cas/       # local content-addressed store + materialization
+├── tinymold-store/     # namespaced cache entries, SHA-256 index (server core)
 ├── tinymold-key/       # rustc argument parsing, path roots, dep-info, keys
 ├── tinymold-wrap/      # the RUSTC_WRAPPER: lookup, restore, run and store
 ├── tinymold-remote/    # the remote tier: a REAPI v2 client (bazel-remote)
@@ -58,9 +59,9 @@ Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ←
 `tinymold-wrap` ← `tinymold-remote` ← `tinymold`, with `tinymold-key` (pure
 key computation, depending only on `tinymold-hash`) used by `tinymold-wrap`.
 `tinymold-remote` is optional in `tinymold`, behind its default `remote`
-feature. The planned `tinymold-store` (namespaces, entries, digest index,
-GC; no network) sits on `tinymold-cas`, and `tinymold-server` (transport,
-auth, protocol front-ends) sits on it, as described in the
+feature. `tinymold-store` (namespaces, entries, digest index; no network)
+sits on `tinymold-cas`, and the planned `tinymold-server` (transport, auth,
+protocol front-ends) sits on it, as described in the
 [cache-server spec](docs/specs/cache-server.md).
 
 - `tinymold-hash` answers "what is the name of these bytes". No storage, no
