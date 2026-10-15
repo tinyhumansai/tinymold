@@ -17,6 +17,9 @@
 //!   does not match a digest the client claimed. [`Store::find_sha256`] maps
 //!   a SHA-256 back to the stored object, so a blob that arrived through one
 //!   protocol is found through another and kept once.
+//! - [`collect`] keeps the store inside a [`Policy`]: an age limit, a byte
+//!   budget evicted least recently used first, and safe sweeps of anything
+//!   no entry references.
 //!
 //! # Example
 //!
@@ -44,12 +47,14 @@
 
 mod entry;
 mod error;
+mod gc;
 mod namespace;
 mod sha256;
 mod store;
 
 pub use entry::{Entry, MAX_META};
 pub use error::{Error, Result};
+pub use gc::{GRACE, Policy, Report, collect};
 pub use namespace::{FrontEnd, Key, MAX_CLIENT_KEY, MAX_TENANT, Namespace};
 pub use sha256::Sha256;
 pub use store::{Claim, Ingested, Store};

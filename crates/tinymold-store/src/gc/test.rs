@@ -6,7 +6,7 @@ use std::fs::File;
 use std::time::{Duration, SystemTime};
 
 use super::*;
-use crate::{Entry, FrontEnd, Namespace};
+use crate::{Entry, FrontEnd, Key, Namespace};
 
 const HOUR: Duration = Duration::from_secs(3600);
 const DAY: Duration = Duration::from_secs(86_400);
