@@ -185,7 +185,7 @@ impl RemoteCache {
     /// every object it names.
     ///
     /// A call that times out, or that the server answers as unavailable or
-    /// overloaded, is retried after each of [`RETRY_DELAYS`]. When one still
+    /// overloaded, is retried after 1 s, 4 s and 15 s. When one still
     /// fails, only the entries that need it are left out, and
     /// [`PushReport::failed`] counts them: the rest of the store is pushed.
     ///
