@@ -53,3 +53,17 @@ fn the_collection_keeps_recent_generations_of_the_given_store() {
         other => panic!("expected gc, got {other:?}"),
     }
 }
+
+#[test]
+fn the_collection_drops_entries_unused_for_48_hours() {
+    assert_eq!(MAX_AGE, Duration::from_secs(48 * 3600));
+    let args = arguments(Path::new("/stores/main"));
+    let parsed = <crate::Cli as clap::Parser>::try_parse_from(
+        std::iter::once(OsString::from("tinymold")).chain(args),
+    )
+    .unwrap();
+    match parsed.command {
+        crate::Command::Gc(gc) => assert_eq!(gc.max_age.map(|age| age.0), Some(MAX_AGE)),
+        other => panic!("expected gc, got {other:?}"),
+    }
+}

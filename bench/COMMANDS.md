@@ -6,7 +6,7 @@ not edit by hand. The benchmark is `python3 bench/bench.py commands` (see
 
 ### Cache per command (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3 runs, 2026-10-15)
 
-Each command starts from an empty target directory and an empty cache. *Cold* is that first run, which fills the cache; *warm* deletes the target directory, keeps the cache and runs the command again: a CI runner that restored its cache, a new worktree or a `cargo clean`. Plain cargo has no cache, so its cell is the cold median. Cells are median wall time; tinymold's warm cell adds rustc invocations served from the store across all runs. *Speed-up* is plain cargo over tinymold warm. `test run` executes the tests, which no cache skips today.
+Each command starts from an empty target directory and an empty cache. *Cold* is that first run, which fills the cache; *warm* deletes the target directory, keeps the cache and runs the command again: a CI runner that restored its cache, a new worktree or a `cargo clean`. Plain cargo has no cache, so its cell is the cold median. Cells are median wall time; tinymold's warm cell adds rustc invocations served from the store across all runs. *Speed-up* is plain cargo over tinymold warm. `test run` is plain `cargo test` executing the tests, with no `tinymold run-test` runner, so no side caches it here; the `retest` benchmark measures replaying test runs.
 
 | Project | Command | plain cargo | sccache cold | sccache warm | tinymold cold | tinymold warm | speed-up |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

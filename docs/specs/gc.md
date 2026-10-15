@@ -73,18 +73,21 @@ tinymold gc [--max-age <age>] [--keep-generations <n>] [--max-size <size>]
 
 It runs these steps in order:
 
-1. **Expire actions** whose last use is older than `--max-age`.
+1. **Expire actions**, and recorded test runs (`tests/run/<key>`), whose
+   last use is older than `--max-age`. A test run is kept and evicted like
+   an action: it references the objects holding its stdout and stderr.
 2. **Keep `--keep-generations` per unit.** A unit is the cargo compile an
    action records, named by its dep-info output (`<crate>-<hash>.d`) within
    its crate. Each edit of a crate stores a new action for the same unit,
    and the older ones only serve a return to an earlier state. Of each
    unit's actions, all but the `n` most recently used are evicted. Actions
-   naming no dep-info output are left to the other steps.
+   naming no dep-info output, and test runs, are left to the other steps.
 3. **Enforce `--max-size`.** Let the store size be the bytes of every object
    a surviving action references. While that exceeds the budget, evict the
    least recently used action. An object's bytes are freed only when no
    surviving action still references it.
-4. **Expire pre-key records** older than `--max-age`, and digest-cache files
+4. **Expire pre-key records** and test-binary records (`tests/bin/`)
+   older than `--max-age`, and digest-cache files
    (`stat/`, `rustc/`) older than `--max-age`. These are caches: losing one
    costs a rehash, never a wrong hit.
 5. **Sweep objects** that no surviving action references and that are older
@@ -105,7 +108,7 @@ numbers and deletes nothing.
 A store used only through the wrapper would otherwise grow with every edit:
 each one stores a new rlib, and new binaries and test executables, tens of
 megabytes for a small workspace. So after each wrapper call, tinymold starts
-`tinymold gc --keep-generations 3` in the background, when:
+`tinymold gc --keep-generations 3 --max-age 48h` in the background, when:
 
 - `TINYMOLD_AUTO_GC` is not `0`, `false`, `no` or `off`;
 - the store exists;

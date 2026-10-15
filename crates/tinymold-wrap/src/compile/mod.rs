@@ -28,7 +28,7 @@ use std::time::{Duration, SystemTime};
 
 use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
-use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
+use tinymold_key::{DepInfo, EnvUse, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
 use crate::clock::{filesystem_now, written_before};
 use crate::driver;
@@ -44,6 +44,7 @@ use crate::record::{
 use crate::remote::{Remote, RemoteError};
 use crate::session;
 use crate::stat;
+use crate::test_record::{TestBinary, is_build_path};
 use crate::trace::Trace;
 use crate::{Error, Result};
 
@@ -160,6 +161,7 @@ pub(crate) fn serve(
                 if trace.span("restore", || unit.restore(&action)).is_ok() =>
             {
                 record::touch(&entry);
+                unit.note_test_binary(&action.outputs);
                 return Ok(Served::RemoteHit { waited });
             }
             Ok(_) => {}
@@ -336,6 +338,7 @@ impl Unit<'_> {
             return false;
         }
         record::touch(&entry);
+        self.note_test_binary(&action.outputs);
         record::touch(&self.prekey_path(pre));
         true
     }
@@ -417,13 +420,18 @@ impl Unit<'_> {
 
     /// The arguments rustc runs with on a miss: cargo's, plus the remapping
     /// of the profile directory (see [`Roots::remap_profile_flag`]) unless
-    /// the command line already remaps paths itself.
+    /// the command line already remaps paths itself. The flag goes before a
+    /// `--`, after which rustc reads every argument as an input.
     fn compile_args(&self, args: &[OsString]) -> Vec<OsString> {
         let mut args = args.to_vec();
         if !self.invocation.remaps_paths()
             && let Some(flag) = self.roots.remap_profile_flag()
         {
-            args.push(flag.into());
+            let end = args
+                .iter()
+                .position(|arg| arg == "--")
+                .unwrap_or(args.len());
+            args.insert(end, flag.into());
         }
         args
     }
@@ -432,47 +440,66 @@ impl Unit<'_> {
     /// its value with roots replaced.
     ///
     /// A value under a root, such as `OUT_DIR`, differs in every worktree.
-    /// It is only safe to key it without the root when the path cannot have
-    /// reached the outputs except through files rustc read, which the key
-    /// covers by content. So a value is normalized only when none of the
-    /// compile's binary outputs contains it: `include!(concat!(env!("OUT_DIR"),
-    /// ...))` qualifies once the profile directory is remapped, while
-    /// `const DIR: &str = env!("OUT_DIR")` leaves the path in the `.rlib` and
-    /// keeps a key of its own per worktree.
+    /// It is only safe to key it without the root when the value cannot have
+    /// changed the outputs except through files rustc read, which the key
+    /// covers by content. So a value is normalized only when both hold:
+    ///
+    /// - every use of the variable in the compile's `sources` is
+    ///   `include!(concat!(env!("OUT_DIR"), ...))` or its `include_str!` and
+    ///   `include_bytes!` forms (see [`EnvUse`]), which rules out
+    ///   `env!("OUT_DIR").len()` and anything else that could carry
+    ///   something derived from the path into the output;
+    /// - none of the compile's binary outputs contains the value, which
+    ///   catches a path that reached them all the same, as it does when the
+    ///   command line remaps paths itself and leaves the profile directory
+    ///   unmapped.
     fn env_deps(
         &self,
         env: &[(String, Option<String>)],
+        sources: &[PathBuf],
     ) -> std::result::Result<Vec<EnvDep>, Unstorable> {
-        let rooted: Vec<&str> = env
+        let mut candidates: Vec<(&str, &str)> = env
             .iter()
-            .filter_map(|(_, value)| value.as_deref())
-            .filter(|value| self.roots.normalize(value) != *value)
+            .filter_map(|(name, value)| Some((name.as_str(), value.as_deref()?)))
+            .filter(|(_, value)| self.roots.normalize(value) != *value)
             .collect();
-        let mut embedded = vec![false; rooted.len()];
-        if !rooted.is_empty() {
+        if !candidates.is_empty() {
+            let mut uses = vec![EnvUse::default(); candidates.len()];
+            for path in sources {
+                let text = fs::read(path).map_err(io("read", path))?;
+                for (found, (name, _)) in uses.iter_mut().zip(&candidates) {
+                    *found = found.merge(EnvUse::scan(&text, name));
+                }
+            }
+            let mut uses = uses.iter();
+            candidates.retain(|_| uses.next().is_some_and(EnvUse::only_picks_included_files));
+        }
+        if !candidates.is_empty() {
+            let needles: Vec<&[u8]> = candidates
+                .iter()
+                .map(|(_, value)| value.as_bytes())
+                .collect();
+            let mut embedded = vec![false; candidates.len()];
             for (name, path) in self.unit_files()? {
                 if Path::new(&name).extension().and_then(|ext| ext.to_str()) == Some("d") {
                     continue;
                 }
-                let bytes = fs::read(&path).map_err(io("read", &path))?;
-                for (found, value) in embedded.iter_mut().zip(&rooted) {
-                    *found = *found || contains(&bytes, value.as_bytes());
+                let found =
+                    file_contains(&path, &needles, SCAN_CHUNK).map_err(io("read", &path))?;
+                for (embedded, found) in embedded.iter_mut().zip(found) {
+                    *embedded |= found;
                 }
             }
+            let mut embedded = embedded.into_iter();
+            candidates.retain(|_| embedded.next() == Some(false));
         }
         Ok(env
             .iter()
-            .map(|(name, value)| {
-                let normalized = value.as_deref().is_some_and(|value| {
-                    rooted
-                        .iter()
-                        .position(|candidate| *candidate == value)
-                        .is_some_and(|index| !embedded[index])
-                });
-                EnvDep {
-                    name: name.clone(),
-                    normalized,
-                }
+            .map(|(name, value)| EnvDep {
+                name: name.clone(),
+                normalized: value
+                    .as_deref()
+                    .is_some_and(|value| candidates.contains(&(name.as_str(), value))),
             })
             .collect())
     }
@@ -577,6 +604,104 @@ impl Unit<'_> {
         Ok(Some((output.name.clone(), identity, output.digest)))
     }
 
+    /// Records that this unit's executable is a test binary the runner may
+    /// cache (`docs/specs/test-cache.md`), and remembers its digest so the
+    /// runner need not read it. The record names what the binary can run or
+    /// read from the build besides its own bytes: the dynamic-library
+    /// externs beside it, the package binaries cargo passed as
+    /// `CARGO_BIN_EXE_<name>`, and the build script's `OUT_DIR`. Only for
+    /// `--test` units that link `std` statically and where each of those is
+    /// inside the build. Best effort: without a record, the binary's runs
+    /// are not cached.
+    fn note_test_binary(&self, outputs: &[Output]) {
+        let invocation = self.invocation;
+        if !invocation.test || !invocation.links() || invocation.prefers_dynamic() {
+            return;
+        }
+        let [_, stem] = invocation.output_prefixes();
+        let exe = format!("{stem}.exe");
+        let Some(binary) = outputs
+            .iter()
+            .find(|output| output.name == stem || output.name == exe)
+        else {
+            return;
+        };
+        let mut dylibs = Vec::new();
+        for path in invocation
+            .externs
+            .iter()
+            .filter_map(|ext| ext.path.as_ref())
+        {
+            if !is_dylib(path) {
+                continue;
+            }
+            let path = self.cwd.join(path);
+            match path.file_name().and_then(|name| name.to_str()) {
+                Some(name) if path.parent() == Some(self.out_dir.as_path()) => {
+                    dylibs.push(name.to_owned());
+                }
+                // Loaded from somewhere the runner would not look.
+                _ => return,
+            }
+        }
+        if self.links_build_shared_library() {
+            return;
+        }
+        let mut exes = Vec::new();
+        let mut out_dirs = Vec::new();
+        for (name, value) in std::env::vars_os() {
+            let name = name.to_string_lossy();
+            let list = if name.starts_with("CARGO_BIN_EXE_") {
+                &mut exes
+            } else if name == "OUT_DIR" {
+                &mut out_dirs
+            } else {
+                continue;
+            };
+            let path = self.roots.normalize(&value.to_string_lossy());
+            if !is_build_path(&path) {
+                // Something the runner could not find again from the binary.
+                return;
+            }
+            list.push(path);
+        }
+        exes.sort();
+        let record = TestBinary {
+            crate_name: invocation.crate_name.clone(),
+            dylibs,
+            exes,
+            out_dirs,
+        };
+        let path = self.out_dir.join(&binary.name);
+        if let Ok(identity) = stat::identity(&path) {
+            let _ = stat::remember(self.store_dir, &path, identity, binary.digest);
+        }
+        let _ = write_atomically(
+            &TestBinary::path(self.store_dir, &binary.digest),
+            &record.encode(),
+        );
+    }
+
+    /// Whether a native search path inside the build holds a shared
+    /// library, as a build script's `-L native=` directory may: the binary
+    /// can load it at run time, and its own bytes do not change when the
+    /// library does.
+    fn links_build_shared_library(&self) -> bool {
+        self.invocation
+            .search_paths
+            .iter()
+            .filter(|search| matches!(search.kind.as_str(), "native" | "all"))
+            .map(|search| self.cwd.join(&search.path))
+            .filter(|dir| is_build_path(&self.roots.normalize(&dir.to_string_lossy())))
+            .any(|dir| {
+                fs::read_dir(dir).is_ok_and(|entries| {
+                    entries
+                        .filter_map(std::result::Result::ok)
+                        .any(|entry| is_dylib(&entry.path()))
+                })
+            })
+    }
+
     /// Where this unit records the outputs it left in its out-dir.
     fn placed_path(&self) -> PathBuf {
         let [_, stem] = self.invocation.output_prefixes();
@@ -618,7 +743,12 @@ impl Unit<'_> {
             .iter()
             .map(|input| (input.path.clone(), input.digest))
             .collect();
-        let env = self.env_deps(&info.env)?;
+        let sources: Vec<PathBuf> = info
+            .inputs
+            .iter()
+            .map(|written| self.cwd.join(written))
+            .collect();
+        let env = self.env_deps(&info.env, &sources)?;
         let key_env: Vec<(String, Option<String>)> = info
             .env
             .iter()
@@ -642,6 +772,7 @@ impl Unit<'_> {
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
         Placed::save(&self.placed_path(), &placements)?;
+        self.note_test_binary(&action.outputs);
 
         let set = InputSet {
             recorded_ns: self.now_ns,
@@ -853,7 +984,39 @@ impl Unit<'_> {
     }
 }
 
-/// Whether dependents read the output `name` as an `--extern`.
+/// How many bytes of an output [`file_contains`] holds in memory at once.
+const SCAN_CHUNK: usize = 1 << 20;
+
+/// Whether each of `needles` occurs anywhere in the file at `path`, read
+/// `chunk` bytes at a time, so a large output never has to fit in memory.
+/// Each read keeps the last `longest - 1` bytes of the one before, so a
+/// needle split across two reads is still found.
+fn file_contains(path: &Path, needles: &[&[u8]], chunk: usize) -> io::Result<Vec<bool>> {
+    let mut found = vec![false; needles.len()];
+    let keep = needles
+        .iter()
+        .map(|needle| needle.len())
+        .max()
+        .unwrap_or(0)
+        .saturating_sub(1);
+    let mut file = fs::File::open(path)?;
+    let mut window: Vec<u8> = Vec::with_capacity(keep + chunk);
+    loop {
+        let start = window.len();
+        window.resize(start + chunk, 0);
+        let read = io::Read::read(&mut file, &mut window[start..])?;
+        window.truncate(start + read);
+        for (found, needle) in found.iter_mut().zip(needles) {
+            *found = *found || contains(&window, needle);
+        }
+        if read == 0 || found.iter().all(|&found| found) {
+            return Ok(found);
+        }
+        let drop = window.len().saturating_sub(keep);
+        window.drain(..drop);
+    }
+}
+
 /// Whether `needle` occurs anywhere in `haystack`.
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty()
@@ -862,10 +1025,19 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
             .any(|window| window == needle)
 }
 
+/// Whether dependents read the output `name` as an `--extern`.
 fn is_library(name: &str) -> bool {
     matches!(
         Path::new(name).extension().and_then(|ext| ext.to_str()),
         Some("rlib" | "rmeta" | "dylib" | "so" | "dll")
+    )
+}
+
+/// Whether `path` is a dynamic library: a proc macro, or a `dylib` crate.
+fn is_dylib(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("dylib" | "so" | "dll")
     )
 }
 

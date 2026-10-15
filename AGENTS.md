@@ -4,12 +4,16 @@ This file is the single source of truth for how humans and coding agents work
 in this repository. `CLAUDE.md` is a symlink to this file, so every agent reads
 the same instructions.
 
-tinymold is a build accelerator for Rust: content-addressed build caching,
-fast linking, a hot cache server, and hashing, with `target/` disk footprint
-as a first-class goal. Read [`README.md`](README.md) for the pitch,
-[`docs/research/README.md`](docs/research/README.md) for why, and
-[`docs/specs/architecture.md`](docs/specs/architecture.md) for the design
-before changing behavior.
+tinymold is a fast content-addressed build cache: one server and one store,
+with protocol front-ends for each ecosystem's remote cache (REAPI, Bazel
+HTTP, Turborepo, Nx, Gradle) and client adapters for toolchains that need
+one (the Rust wrapper, Go's `GOCACHEPROG`). Linking is out of scope
+([ADR 0009](docs/adr/0009-a-cache-server-with-protocol-front-ends.md)). Read
+[`README.md`](README.md) for the pitch,
+[`docs/research/README.md`](docs/research/README.md) for why,
+[`docs/specs/cache-server.md`](docs/specs/cache-server.md) for the server and
+[`docs/specs/architecture.md`](docs/specs/architecture.md) for the Rust
+adapter before changing behavior.
 
 ## Project Structure
 
@@ -54,8 +58,10 @@ Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ←
 `tinymold-wrap` ← `tinymold-remote` ← `tinymold`, with `tinymold-key` (pure
 key computation, depending only on `tinymold-hash`) used by `tinymold-wrap`.
 `tinymold-remote` is optional in `tinymold`, behind its default `remote`
-feature. Planned crates (`tinymold-server`, `tinymold-link`) slot into the
-same chain as described in the architecture spec.
+feature. The planned `tinymold-store` (namespaces, entries, digest index,
+GC; no network) sits on `tinymold-cas`, and `tinymold-server` (transport,
+auth, protocol front-ends) sits on it, as described in the
+[cache-server spec](docs/specs/cache-server.md).
 
 - `tinymold-hash` answers "what is the name of these bytes". No storage, no
   cache policy.
@@ -69,6 +75,10 @@ same chain as described in the architecture spec.
 - `tinymold-remote` answers "what does the shared cache hold": REAPI calls,
   SHA-256 naming, and batch upload. It is the only crate with an async
   runtime.
+- `tinymold-store` answers "what is stored under this key, in this
+  namespace". Shared by every protocol; no network, no async runtime.
+- `tinymold-server` answers "serve this protocol's request": parsing each
+  wire protocol onto the store. It never computes a client's keys.
 - `tinymold` holds the command line and whatever composes the layers.
 
 Put new code in the lowest crate that can hold it without pulling in anything

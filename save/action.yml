@@ -11,7 +11,7 @@ branding:
 inputs:
   max-age:
     description: Remove entries not used for this long before saving (tinymold gc --max-age).
-    default: 7d
+    default: 48h
   max-size:
     description: Evict the least recently used entries beyond this size before saving (tinymold gc --max-size).
     default: 4G
@@ -19,7 +19,7 @@ inputs:
     description: "`auto` pushes to the remote when a credential was given; `true` or `false` force the choice."
     default: auto
   save-cache:
-    description: Whether the github and both backends save the store to GitHub's cache.
+    description: Whether the github and both backends save the store, and the cargo registry, to GitHub's cache.
     default: "true"
 
 runs:
@@ -40,4 +40,13 @@ runs:
       uses: actions/cache/save@v6
       with:
         path: ${{ env.TINYMOLD_STORE }}
-        key: ${{ env.TINYMOLD_CACHE_KEY }}
+        key: ${{ steps.save.outputs.key }}
+
+    - if: steps.save.outputs.save-registry == 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ${{ env.TINYMOLD_CARGO_HOME }}/registry/index
+          ${{ env.TINYMOLD_CARGO_HOME }}/registry/cache
+          ${{ env.TINYMOLD_CARGO_HOME }}/git/db
+        key: ${{ env.TINYMOLD_REGISTRY_KEY }}

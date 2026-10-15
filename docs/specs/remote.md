@@ -29,7 +29,9 @@ Goals:
 Non-goals:
 
 - Remote execution.
-- Shipping a server (see ADR 0006: bazel-remote is the reference).
+- Shipping a server. That is now [`cache-server.md`](cache-server.md)
+  ([ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)); this
+  client works against it and against any other REAPI cache.
 - Uploading from the wrapper on every miss.
 
 ## Configuration

@@ -109,6 +109,32 @@ impl Invocation {
             .any(|arg| matches!(arg, KeyArg::Text(text) if text.starts_with("--remap-path-prefix")))
     }
 
+    /// Whether the compile links the standard library dynamically
+    /// (`-C prefer-dynamic`). Such a binary loads `std` from the sysroot at
+    /// run time, so its own bytes do not cover all the code it runs. As
+    /// rustc does, the last setting wins.
+    #[must_use]
+    pub fn prefers_dynamic(&self) -> bool {
+        self.last_codegen_setting("prefer-dynamic")
+            .is_some_and(|setting| !matches!(setting, "=no" | "=n" | "=off" | "=false"))
+    }
+
+    /// What follows `-C <option>` in the last `-C` argument that sets it:
+    /// `""` for the bare option, or `=value`.
+    fn last_codegen_setting(&self, option: &str) -> Option<&str> {
+        let prefix = format!("-C {option}");
+        self.key_args
+            .iter()
+            .filter_map(|arg| {
+                let KeyArg::Text(text) = arg else {
+                    return None;
+                };
+                text.strip_prefix(prefix.as_str())
+                    .filter(|rest| rest.is_empty() || rest.starts_with('='))
+            })
+            .next_back()
+    }
+
     /// The name prefixes every output of this invocation starts with:
     /// `<crate><extra>` and `lib<crate><extra>`. Cargo makes `extra` unique
     /// per unit, so a file in the out-dir with one of these prefixes belongs

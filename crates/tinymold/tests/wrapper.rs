@@ -32,6 +32,11 @@ fn worktree(root: &Path, source: &str) {
 /// Compiles the worktree at `root` through the wrapper, the way cargo would,
 /// and returns the wrapper's log line for it.
 fn build(root: &Path, store: &Path, env: &[(&str, &str)]) -> String {
+    build_with(root, store, env, &[])
+}
+
+/// [`build`], with `extra` arguments after cargo's.
+fn build_with(root: &Path, store: &Path, env: &[(&str, &str)], extra: &[&str]) -> String {
     let log = store.with_extension("log");
     let _ = fs::remove_file(&log);
     let status = Command::new(env!("CARGO_BIN_EXE_tinymold"))
@@ -49,6 +54,7 @@ fn build(root: &Path, store: &Path, env: &[(&str, &str)]) -> String {
             "--out-dir",
         ])
         .arg(root.join("target/debug/deps"))
+        .args(extra)
         .current_dir(root)
         .env("TINYMOLD_STORE", store)
         .env("TINYMOLD_LOG", &log)
@@ -189,6 +195,53 @@ fn a_crate_that_bakes_in_its_out_dir_misses_in_another_worktree() {
     assert_eq!(outcome(&first), "miss", "{first}");
     let again = build(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())]);
     assert_eq!(outcome(&again), "hit", "{again}");
+    let other = build(&b, &store, &[("OUT_DIR", out_b.to_str().unwrap())]);
+    assert_eq!(outcome(&other), "miss", "{other}");
+}
+
+#[test]
+fn an_included_file_that_names_itself_misses_when_paths_are_not_remapped() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    let source = "include!(concat!(env!(\"OUT_DIR\"), \"/generated.rs\"));\n";
+    let generated_source = "pub fn here() -> &'static str { file!() }\n";
+    let a = dir.path().join("a");
+    let b = dir.path().join("b");
+    worktree(&a, source);
+    worktree(&b, source);
+    let out_a = generated(&a, generated_source);
+    let out_b = generated(&b, generated_source);
+    // A command line that remaps paths itself gets no remapping from
+    // tinymold, so `file!()` leaves the worktree's path in the library.
+    let remap = ["--remap-path-prefix=/nowhere=/elsewhere"];
+
+    let first = build_with(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())], &remap);
+    assert_eq!(outcome(&first), "miss", "{first}");
+    let again = build_with(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())], &remap);
+    assert_eq!(outcome(&again), "hit", "{again}");
+    let other = build_with(&b, &store, &[("OUT_DIR", out_b.to_str().unwrap())], &remap);
+    assert_eq!(outcome(&other), "miss", "{other}");
+}
+
+#[test]
+fn a_crate_that_uses_its_out_dir_only_transformed_misses_in_another_worktree() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    // Only the length reaches the outputs, never the path itself, so no
+    // output contains the value; the two worktrees' lengths differ.
+    let source = "pub static LEN: usize = env!(\"OUT_DIR\").len();\n";
+    let a = dir.path().join("a");
+    let b = dir.path().join("a-longer-path");
+    worktree(&a, source);
+    worktree(&b, source);
+    let out_a = a.join("target/debug/build/demo-1/out");
+    let out_b = b.join("target/debug/build/demo-1/out");
+
+    let first = build(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())]);
+    assert_eq!(outcome(&first), "miss", "{first}");
+    let rlib = fs::read(a.join("target/debug/deps/libdemo-1.rlib")).unwrap();
+    let needle = out_a.to_str().unwrap().as_bytes();
+    assert!(!rlib.windows(needle.len()).any(|window| window == needle));
     let other = build(&b, &store, &[("OUT_DIR", out_b.to_str().unwrap())]);
     assert_eq!(outcome(&other), "miss", "{other}");
 }

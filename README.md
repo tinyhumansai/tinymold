@@ -1,25 +1,22 @@
+![tinymold](https://raw.githubusercontent.com/tinyhumansai/tinymold/refs/heads/main/docs/tinymold.jpeg)
+
 # tinymold
 
-tinymold makes Rust builds fast by never compiling the same thing twice. It
-sits in front of rustc as cargo's `RUSTC_WRAPPER`, names every compile by the
-content of its inputs, and restores the outputs from a content-addressed
-store with a copy-on-write clone. In the spirit of
-[mold](https://github.com/rui314/mold): measure where the time goes, then
-remove that work rather than doing it slightly faster.
-
-> [!WARNING]
-> **🚧 DO NOT USE TINYMOLD FOR PRODUCTION BUILDS.** Use it only for
-> development and testing workflows for fast iterative changes.
-> tinymold is in its early stages and could have bugs, so it is not suitable
-> for building production code.
+tinymold is a fast content-addressed build cache: one server and one store,
+with adapters for each ecosystem's cache protocol. Rust gets the deepest
+integration, through a rustc wrapper that caches every compile by content.
+Turborepo, Nx, Gradle, ccache, Bazel and Go are served through their own
+remote-cache protocols ([ADR 0009](docs/adr/0009-a-cache-server-with-protocol-front-ends.md)).
+In the spirit of [mold](https://github.com/rui314/mold): measure where the
+time goes, then remove that work rather than doing it slightly faster.
 
 ## Every cargo command, from cache
 
 Developers, CI jobs and coding agents run the same four commands over and
 over: `cargo build`, `cargo clippy`, `cargo test` and `cargo llvm-cov`. Each
-one builds its own flavor of the dependency graph, and each one starts from
-scratch in a fresh CI runner, a new worktree or after a `cargo clean`.
-tinymold caches all four.
+builds its own flavor of the dependency graph, and each starts from scratch
+in a fresh CI runner, a new worktree or after a `cargo clean`. tinymold
+caches all four.
 
 Below, each command runs in a fresh `target/` directory, once with plain
 cargo and once with tinymold's store already warm: what a CI job sees after
@@ -51,9 +48,11 @@ Median of 3 runs on darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 
 
 <!-- commands:end -->
 
-`test run` is the tests themselves executing; tinymold serves their build,
-not their run (a test result cache is [in progress](docs/specs/test-cache.md)).
-Cold runs, sccache, and how each case is measured are in
+`test run` here is plain `cargo test` executing the tests. Set
+`tinymold run-test` as cargo's runner and a run whose test binary and inputs
+did not change is replayed instead: an unchanged `cargo test` on ripgrep went
+from 1.29s to 0.09s ([retest benchmark](bench/README.md#results)). Cold runs,
+sccache, and how each case is measured are in
 [`bench/COMMANDS.md`](bench/COMMANDS.md); reproduce them with
 `python3 bench/bench.py commands`.
 
@@ -69,12 +68,16 @@ to each [GitHub release](https://github.com/tinyhumansai/tinymold/releases).
 
 ## Use it
 
-**On your machine**, turn it on for every cargo command:
+**On your machine**, turn it on for every cargo command, and replay
+unchanged test runs:
 
 ```toml
 # ~/.cargo/config.toml, or .cargo/config.toml in a project
 [build]
 rustc-wrapper = "tinymold"
+
+[target.'cfg(all())']
+runner = ["tinymold", "run-test"]
 ```
 
 Every worktree, branch and agent sandbox on the machine then shares one
@@ -94,11 +97,14 @@ steps:
     if: always()
 ```
 
-The store travels in GitHub's own cache, so no server is needed. Self-hosted
-runners keep a persistent store instead (`backend: none`), and many
-repositories or runners can share a [bazel-remote](deploy/bazel-remote/README.md)
-server (`backend: remote`). Inputs, cache keys and runners are in
-[`docs/specs/github-actions.md`](docs/specs/github-actions.md).
+The store travels in GitHub's own cache, so no server is needed, and cargo's
+crate downloads get a cache entry of their own, keyed by `Cargo.lock`.
+Self-hosted runners keep a persistent store instead (`backend: none`), and
+many repositories or runners can share a
+[bazel-remote](deploy/bazel-remote/README.md) server (`backend: remote`).
+Inputs, cache keys and runners are in
+[`docs/specs/github-actions.md`](docs/specs/github-actions.md), and the remote
+tier in [`docs/specs/remote.md`](docs/specs/remote.md).
 
 **Anywhere else** (GitLab, Buildkite, Jenkins, custom runners), set
 `RUSTC_WRAPPER=tinymold`, cache the `TINYMOLD_STORE` directory between jobs,
@@ -120,6 +126,7 @@ tinymold gc --max-age 14d --max-size 20G
 # Start a new worktree warm, and survive branch switches.
 tinymold snapshot save                     # in the worktree you built
 tinymold snapshot restore                  # in a new worktree, before cargo build
+tinymold snapshot restore --replace        # after a branch switch
 tinymold fresh restore                     # after a checkout: undo mtime-only changes
 
 # The store itself.
@@ -129,7 +136,22 @@ tinymold cas put target/debug/deps/libfoo-*.rlib
 
 The store defaults to `$TINYMOLD_STORE`, then `$XDG_CACHE_HOME/tinymold`, then
 `~/.cache/tinymold`. Keep it on the same filesystem as your checkouts: that is
-what lets a restore be a reflink or hardlink instead of a copy.
+what lets a restore be a reflink or hardlink instead of a copy. Every hit
+records when an entry was last used, and `gc` expires by that
+([`docs/specs/gc.md`](docs/specs/gc.md)).
+
+`tinymold run-test` keys a run by the test binary's digest, its arguments,
+the files under its package, and its environment, and replays only passes
+([`docs/specs/test-cache.md`](docs/specs/test-cache.md)). A package whose
+tests read files outside it declares them under
+`[package.metadata.tinymold.test]`, or opts out with `cache = false`.
+
+The wrapper is specified in
+[`docs/specs/rustc-wrapper.md`](docs/specs/rustc-wrapper.md); set
+`TINYMOLD_LOG=<file>` to see a `hit`/`miss` line per compile, or
+`TINYMOLD_TRACE=<file>` for a Chrome trace event per wrapper step (see
+[`bench/PROFILING.md`](bench/PROFILING.md)). `fresh` and `snapshot` are
+specified in [`docs/specs/freshness.md`](docs/specs/freshness.md).
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In
 interleaved A/B runs it made every edit kind 13-21% faster on ripgrep and bat
@@ -153,13 +175,12 @@ M-series Mac:
 or a checkout that touched every mtime, produce the same keys, so they share
 every entry ([cache-key spec](docs/specs/cache-key.md)). On ripgrep, a second
 worktree of the same commit builds in 0.08s instead of 3.39s, and a branch
-switch A→B→A in 0.43s instead of 1.18s
-([scenarios](bench/README.md#results)).
+switch A→B→A in 0.43s instead of 1.18s ([scenarios](bench/README.md#results)).
 
 **It caches what other caches skip.** sccache refuses incremental builds and
 skips binaries and proc-macros. tinymold caches every rustc call cargo makes,
-plus `clippy-driver` with its lints replayed, plus the instrumented compiles
-of `cargo llvm-cov`.
+`clippy-driver` with its lints replayed, the instrumented compiles of
+`cargo llvm-cov`, and passing test runs.
 
 **It never trades correctness for speed.** Anything that is an input is in the
 key; anything that is not stays out. Objects are immutable once stored, and a
@@ -171,27 +192,41 @@ is still relinked in full, while unchanged crates, binaries and test
 executables are restored without compiling or linking. Every benchmark, the
 machine it ran on, and how to reproduce it are in [`bench/`](bench/README.md).
 
-## How it works
+> **Status: a working Rust cache.** The content-addressed store, the hashing
+> layer, the rustc wrapper (`RUSTC_WRAPPER=tinymold`), the test result cache
+> (`tinymold run-test`), `fresh`, `snapshot`, `gc` and the REAPI remote tier
+> work today. The cache server and its protocol front-ends are specified but
+> not built yet. See the [roadmap](docs/plans/roadmap.md).
+
+## How it will work
 
 ```text
-cargo ──▶ tinymold (RUSTC_WRAPPER)
-              │  key = BLAKE3(normalized rustc invocation, input digests)
-              ▼
-         key ─▶ ActionResult (output digests) ─▶ CAS objects
-              │                                   │
-              │  local store first, then an       │  reflink / hardlink
-              │  optional REAPI server            │  into target/
+ Turbo   Nx   Gradle   ccache   Bazel/Buck2   rustc wrapper   go (GOCACHEPROG)
+   └──────┴──────┴────────┴──────────┴──────────────┴──────────────┘
+                                  │ each speaks its own protocol
+                                  ▼
+          tinymold serve: front-ends (Turbo, Nx, Gradle, Bazel HTTP, REAPI, native)
+                                  │
+          tinymold-store: namespaces, ActionCache, BLAKE3 ↔ SHA-256 index, LRU budget
+                                  │
+          tinymold-cas: immutable objects by BLAKE3, reflink/hardlink restore
 ```
 
-tinymold attacks four costs: **caching** (done: the unit cache, local and
-remote), **hashing** (done: BLAKE3-256 for anything stored,
-[ADR 0002](docs/adr/0002-blake3-for-content-digests.md)), a **hot cache
-server** that keeps stat caches and hot artifacts in memory (designed), and
-**linking** (pick the fastest linker per platform and skip links whose inputs
-did not change; designed). The full design is in
-[`docs/specs/architecture.md`](docs/specs/architecture.md), the delivery plan
-in the [roadmap](docs/plans/roadmap.md), and the reasoning, with sources, in
-[`docs/research/`](docs/research/README.md).
+- **One store for every language.** Each toolchain keeps computing its own
+  keys; the server stores and serves the results, and identical bytes are
+  stored once whichever protocol they arrived through.
+- **Runs anywhere.** On a developer machine, as a shared service, or inside a
+  GitHub Actions job on `localhost` with the store carried in `actions/cache`.
+- **Rust goes deeper.** The rustc wrapper caches every unit by content, with
+  path normalization so worktrees at different paths share artifacts
+  ([cache-key spec](docs/specs/cache-key.md)), and replays passing test runs.
+- **Hashing:** BLAKE3-256 for anything stored or shared
+  ([ADR 0002](docs/adr/0002-blake3-for-content-digests.md)), and a stat cache so
+  unchanged files are never read at all.
+
+The server design is in [`docs/specs/cache-server.md`](docs/specs/cache-server.md),
+the Rust side in [`docs/specs/architecture.md`](docs/specs/architecture.md), and
+the reasoning, with sources, in [`docs/research/`](docs/research/README.md).
 
 ## Crates
 
@@ -214,6 +249,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo build --all-targets --all-features
 cargo test --all-features
+cargo run -p tinymold --example basic
 ```
 
 Those four checks are exactly what CI runs. CI also requires at least 90% line
@@ -225,12 +261,12 @@ humans and coding agents working on tinymold itself.
 ## Documentation
 
 - [`llms.txt`](llms.txt): integrating tinymold into a project, for coding agents
-- [`docs/specs/`](docs/specs/README.md): behavior specifications, starting
-  with the [architecture](docs/specs/architecture.md),
-  [rustc wrapper](docs/specs/rustc-wrapper.md) and
-  [cache key](docs/specs/cache-key.md)
 - [`docs/research/`](docs/research/README.md): what mold, wild, Bun, Zig, Go,
   Bazel, Buck2, Scion, and rustc teach about build speed, with sources
+- [`docs/specs/cache-server.md`](docs/specs/cache-server.md) and
+  [`docs/specs/architecture.md`](docs/specs/architecture.md): the target design
+- [`docs/specs/cache-key.md`](docs/specs/cache-key.md): what goes into a rustc
+  cache key, and what breaks reuse
 - [`docs/plans/roadmap.md`](docs/plans/roadmap.md): the phased delivery plan
 - [`docs/adr/`](docs/adr/): architecture decision records
 - [`bench/`](bench/README.md): benchmarks, results, and how to reproduce them

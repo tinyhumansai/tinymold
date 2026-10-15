@@ -1,6 +1,7 @@
 # 6. The remote tier speaks REAPI v2 to an off-the-shelf server
 
-- **Status:** Accepted
+- **Status:** Superseded by [0009](0009-a-cache-server-with-protocol-front-ends.md)
+  (in part: tinymold now ships its own server; the REAPI client stands)
 - **Date:** 2026-10-14
 
 ## Context

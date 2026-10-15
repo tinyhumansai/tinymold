@@ -540,3 +540,111 @@ fn a_shorter_grace_sweeps_young_unreferenced_objects() {
     .unwrap();
     assert!(!fixture.store.contains(&young));
 }
+
+impl Fixture {
+    /// Writes a test-run record replaying `stdout` and `stderr`, last used
+    /// `age` ago.
+    fn test_run(&self, name: &str, stdout: Digest, stderr: Digest, age: Duration) -> PathBuf {
+        let path = self
+            .root
+            .join("tests/run")
+            .join(Digest::of_bytes(name.as_bytes()).to_hex());
+        let text = format!("tinymold-test-run 1\nstdout {stdout}\nstderr {stderr}\norder\n");
+        write(&path, &text, self.now - age);
+        path
+    }
+}
+
+#[test]
+fn a_test_run_keeps_its_output_until_it_expires() {
+    let fixture = Fixture::new();
+    let kept_out = fixture.object(b"test result: ok", 3 * DAY);
+    let kept_err = fixture.object(b"", 3 * DAY);
+    let gone_out = fixture.object(b"test result: ok. 2 passed", 3 * DAY);
+    let kept = fixture.test_run("kept", kept_out, kept_err, Duration::from_secs(60));
+    let gone = fixture.test_run("gone", gone_out, kept_err, 2 * DAY);
+
+    let report = collect(
+        &fixture.root,
+        &Policy {
+            max_age: Some(DAY),
+            ..fixture.policy()
+        },
+    )
+    .unwrap();
+
+    assert!(kept.exists());
+    assert!(!gone.exists());
+    assert!(fixture.store.contains(&kept_out));
+    assert!(fixture.store.contains(&kept_err));
+    assert!(!fixture.store.contains(&gone_out));
+    assert_eq!(report.actions_removed, 1);
+    assert_eq!(report.actions_kept, 1);
+}
+
+#[test]
+fn test_binary_records_expire_like_pre_keys() {
+    let fixture = Fixture::new();
+    let binary = |name: &str, age| {
+        let path = fixture
+            .root
+            .join("tests/bin")
+            .join(Digest::of_bytes(name.as_bytes()).to_hex());
+        write(
+            &path,
+            "tinymold-test-binary 1\ncrate demo\n",
+            fixture.now - age,
+        );
+        path
+    };
+    let old = binary("old", 2 * DAY);
+    let new = binary("new", Duration::from_secs(60));
+    collect(
+        &fixture.root,
+        &Policy {
+            max_age: Some(DAY),
+            ..fixture.policy()
+        },
+    )
+    .unwrap();
+    assert!(!old.exists());
+    assert!(new.exists());
+
+    // Without an age limit, nothing in use is garbage.
+    let fixture = Fixture::new();
+    let recent = fixture.test_run(
+        "recent",
+        fixture.object(b"out", 3 * DAY),
+        fixture.object(b"err", 3 * DAY),
+        2 * DAY,
+    );
+    collect(&fixture.root, &fixture.policy()).unwrap();
+    assert!(recent.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_test_run_that_cannot_be_read_is_an_error_not_garbage() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = Fixture::new();
+    let out = fixture.object(b"test result: ok", 3 * DAY);
+    let run = fixture.test_run("run", out, out, Duration::from_secs(60));
+    fs::set_permissions(&run, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::read(&run).is_ok() {
+        // Running as root, which reads it anyway.
+        return;
+    }
+
+    let result = collect(&fixture.root, &fixture.policy());
+    let _ = fs::set_permissions(&run, fs::Permissions::from_mode(0o644));
+    assert!(
+        matches!(
+            result,
+            Err(Error::Wrap(tinymold_wrap::Error::Io { action: "read", .. }))
+        ),
+        "{result:?}"
+    );
+    assert!(run.exists());
+    assert!(fixture.store.contains(&out));
+}

@@ -1,12 +1,13 @@
 # tinymold
 
-> tinymold is a content-addressed build cache for Rust. It runs as cargo's
+> tinymold is a content-addressed build cache. For Rust it runs as cargo's
 > `RUSTC_WRAPPER`, keys every rustc and clippy-driver call by the content of
 > its inputs, and restores outputs from a local store (reflink or hardlink)
 > or a shared REAPI server. A warm cache serves `cargo build`, `cargo clippy`,
-> `cargo test` builds and `cargo llvm-cov` builds without recompiling. It is
-> pre-1.0: use it for development, tests, lints and coverage, not for the
-> release builds you ship.
+> `cargo test` and `cargo llvm-cov` builds without recompiling, and
+> `tinymold run-test` replays passing test runs whose binary and inputs did
+> not change. Protocol front-ends for other ecosystems (Turborepo, Nx,
+> Gradle, Bazel, Go) are specified but not built yet; this guide covers Rust.
 
 This file tells a coding agent how to add tinymold to a project: on a
 developer machine, in GitHub Actions, on self-hosted runners, and on any
@@ -21,8 +22,10 @@ the repository win.
   incremental builds and the instrumented compiles of `cargo llvm-cov`.
 - Cached: `clippy-driver` calls under `cargo clippy`, with their lints
   replayed on a hit.
-- Not cached: running tests. `cargo test` still executes every test; only
-  its build is served from the cache.
+- Cached when opted in: test runs. With `tinymold run-test` as cargo's
+  runner, a passing run is replayed when the test binary's digest, its
+  arguments, the files under its package and its environment are unchanged.
+  Failures are never cached; a changed binary or input runs again.
 - Not cached: C/C++ compiled by build scripts (`cc`, `cmake`). Build scripts
   re-run in an empty `target/`.
 - A binary that links an edited crate is relinked in full. Unchanged
@@ -32,8 +35,9 @@ the repository win.
 
 ## Rules for agents
 
-1. Do not wire tinymold into release or publishing builds. Use it for
-   development builds, `cargo test`, `cargo clippy` and `cargo llvm-cov`.
+1. tinymold is pre-1.0. Prefer it for development builds, `cargo test`,
+   `cargo clippy` and `cargo llvm-cov`; ask the project's owners before
+   wiring it into release or publishing builds.
 2. Never commit `TINYMOLD_REMOTE_AUTH` or any credential. Pass it from a CI
    secret.
 3. Keep the store on the same filesystem as the checkouts. That is what
@@ -66,7 +70,15 @@ config (`~/.cargo/config.toml`) or the project's `.cargo/config.toml`:
 ```toml
 [build]
 rustc-wrapper = "tinymold"
+
+# Optional: replay passing test runs whose binary and inputs did not change.
+[target.'cfg(all())']
+runner = ["tinymold", "run-test"]
 ```
+
+A package whose tests read files outside its own directory must declare them
+under `[package.metadata.tinymold.test]`, or opt out with `cache = false`,
+before you enable the runner; see the test cache spec linked below.
 
 Or per shell:
 
@@ -137,7 +149,7 @@ Placement rules:
   ```
 
 - Remove any `Swatinem/rust-cache` or `actions/cache` step that caches
-  `target/`, and any `RUSTC_WRAPPER: sccache` / `mozilla-actions/sccache-action`
+  `target/` or `~/.cargo/registry` (the action caches the registry itself), and any `RUSTC_WRAPPER: sccache` / `mozilla-actions/sccache-action`
   step. They duplicate or fight tinymold's cache.
 - `v0` moves to the newest 0.x release. Pin a full tag such as `v0.0.1` to
   stay put.
@@ -151,6 +163,7 @@ Setup inputs (`tinyhumansai/tinymold@v0`):
 | `backend` | `github` | `github`, `remote`, `both`, or `none` (a persistent local store) |
 | `store` | `~/.cache/tinymold` | Store directory |
 | `cache-key` | `''` | Extra text in the GitHub cache key |
+| `cache-registry` | `true` | Also keep cargo's downloaded crates and git dependencies in GitHub's cache, keyed by `Cargo.lock` |
 | `remote-url` | `''` | `grpc://host:port` or `grpcs://host[:port]` |
 | `remote-auth` | `''` | `user:password`, from a secret |
 | `remote-instance` | `''` | REAPI instance name |
@@ -158,6 +171,11 @@ Setup inputs (`tinyhumansai/tinymold@v0`):
 Save inputs (`tinyhumansai/tinymold/save@v0`): `max-age` (default `7d`),
 `max-size` (default `4G`), `push` (`auto`, `true`, `false`), `save-cache`
 (default `true`).
+
+The action does not set a test runner. To replay unchanged test runs in CI,
+commit the `runner = ["tinymold", "run-test"]` setting from the previous
+section to the project's `.cargo/config.toml`; it then applies locally and in
+CI alike.
 
 The setup step exports `RUSTC_WRAPPER=tinymold`, `TINYMOLD_STORE`,
 `TINYMOLD_LOG`, `CARGO_INCREMENTAL=0` and, with a remote, the
@@ -313,5 +331,6 @@ If hits stay at zero:
 - [Remote cache spec](https://github.com/tinyhumansai/tinymold/blob/main/docs/specs/remote.md): the REAPI tier and its configuration
 - [rustc wrapper spec](https://github.com/tinyhumansai/tinymold/blob/main/docs/specs/rustc-wrapper.md): what is cached and what passes through
 - [Cache key spec](https://github.com/tinyhumansai/tinymold/blob/main/docs/specs/cache-key.md): what goes into a key, and what breaks reuse
+- [Test cache spec](https://github.com/tinyhumansai/tinymold/blob/main/docs/specs/test-cache.md): `tinymold run-test`, what keys a test run, declaring extra inputs
 - [Garbage collection spec](https://github.com/tinyhumansai/tinymold/blob/main/docs/specs/gc.md): `tinymold gc` and background collection
 - [Benchmarks](https://github.com/tinyhumansai/tinymold/blob/main/bench/README.md): every number, the machine it came from, and how to reproduce it

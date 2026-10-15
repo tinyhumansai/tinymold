@@ -29,6 +29,9 @@ inputs:
   cache-key:
     description: Extra text in the GitHub cache key, to keep jobs that build different things apart.
     default: ""
+  cache-registry:
+    description: "With the github and both backends, also keep cargo's downloaded crates and git dependencies (the registry index and cache, and git/db under CARGO_HOME) in GitHub's cache, keyed by Cargo.lock."
+    default: "true"
   remote-url:
     description: The REAPI server, as grpc://host:port or grpcs://host[:port].
     default: ""
@@ -46,6 +49,9 @@ outputs:
   cache-hit:
     description: Whether a GitHub cache entry was restored.
     value: ${{ steps.restore.outputs.cache-matched-key != '' }}
+  registry-hit:
+    description: Whether the cargo registry was restored from an entry for this exact Cargo.lock.
+    value: ${{ steps.registry.outputs.cache-hit == 'true' }}
 
 runs:
   using: composite
@@ -77,13 +83,40 @@ runs:
           ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-
           ${{ steps.setup.outputs.key-prefix }}-
 
+    # Crate downloads change only with Cargo.lock, so they get an entry of their
+    # own instead of riding in every job's store. registry/src and
+    # git/checkouts are left out: cargo unpacks them again faster than the
+    # cache would download them.
+    - id: registry
+      if: (inputs.backend == 'github' || inputs.backend == 'both') && inputs.cache-registry == 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ${{ steps.setup.outputs.cargo-home }}/registry/index
+          ${{ steps.setup.outputs.cargo-home }}/registry/cache
+          ${{ steps.setup.outputs.cargo-home }}/git/db
+        key: ${{ steps.setup.outputs.registry-key-prefix }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ steps.setup.outputs.registry-key-prefix }}-
+
     - shell: bash
       env:
         CACHE_KEY: ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
         MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
+        REGISTRY_ENABLED: ${{ steps.registry.outcome == 'success' }}
+        REGISTRY_KEY: ${{ steps.setup.outputs.registry-key-prefix }}-${{ hashFiles('**/Cargo.lock') }}
+        REGISTRY_HIT: ${{ steps.registry.outputs.cache-hit == 'true' }}
+        CARGO_HOME_DIR: ${{ steps.setup.outputs.cargo-home }}
       run: |
         set -euo pipefail
-        echo "TINYMOLD_CACHE_KEY=${CACHE_KEY}" >> "$GITHUB_ENV"
+        {
+          echo "TINYMOLD_CACHE_KEY=${CACHE_KEY}"
+          if [[ "${REGISTRY_ENABLED}" == true ]]; then
+            echo "TINYMOLD_REGISTRY_KEY=${REGISTRY_KEY}"
+            echo "TINYMOLD_REGISTRY_HIT=${REGISTRY_HIT}"
+            echo "TINYMOLD_CARGO_HOME=${CARGO_HOME_DIR}"
+          fi
+        } >> "$GITHUB_ENV"
         if [[ -n "${MATCHED}" ]]; then
           echo "tinymold: restored the store from ${MATCHED}"
         fi

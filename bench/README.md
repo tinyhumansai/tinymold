@@ -7,16 +7,9 @@ harness, the corpus it builds, and the results it has produced.
 Each benchmark measures tinymold against plain cargo, sccache, or both, so
 together they are the baseline every later phase has to beat:
 
-- **`commands`**: what a warm cache saves each command developers, CI and
-  agents run: `cargo build`, `cargo clippy --all-targets`, `cargo test`
-  (its build and its run, timed apart) and `cargo llvm-cov`. Per project,
-  command and mode (plain cargo, sccache, tinymold), each run times a
-  *cold* run from an empty target directory and an empty cache, then a
-  *warm* one with the target directory deleted and the cache kept: a CI
-  runner that restored its cache, a new worktree, or a `cargo clean`. Each
-  command gets a cache of its own, so none is served by another's work.
-  Its numbers also fill the table at the top of the
-  [project README](../README.md). See [`commands.py`](commands.py).
+- **`commands`**: `cargo build`, `clippy`, `test` and `llvm-cov`, per mode,
+  cold (empty target and cache), then warm (target deleted, cache kept).
+  Results in [`COMMANDS.md`](COMMANDS.md); see [`commands.py`](commands.py).
 - **`scenarios`**: the full edit-loop matrix, and the main scoreboard. For
   every corpus project and every mode (`baseline`, `sccache`, and `tinymold`
   once its rustc wrapper exists), it runs eight cases:
@@ -309,6 +302,19 @@ Every source file touched, then rebuilt through the wrapper, so each workspace u
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold` restore (211 files) | 36.4 ms (34.9–38.0) | 6.7 ms (6.1–8.2) | -82% |
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_remote` restore (191 files) | 33.1 ms (31.8–33.7) | 5.4 ms (5.1–5.6) | -84% |
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_wrap` restore (169 files) | 28.8 ms (27.9–30.1) | 5.1 ms (4.7–5.6) | -82% |
+
+### Running tests again (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3/5 runs by row, 2026-10-15)
+
+`cargo test` for the project's package, built through `RUSTC_WRAPPER=tinymold` on both sides; only the runner differs. *again*: nothing changed. *private_body*: a one-line private edit before every run. Cells are median wall time (min–max) and test binaries replayed / run by `tinymold run-test`; *runs* is how many measurements each side took.
+
+Settings: cargo build jobs: 18; target filesystem: apfs; rustc wrapper: tinymold on both sides, one fresh store per project; cargo runner: cargo side: none, any CARGO_TARGET_<triple>_RUNNER removed; run-test side: CARGO_TARGET_<host>_RUNNER="tinymold run-test"; linker: cc, rustc's default, with no timing wrapper; incremental: on (CARGO_INCREMENTAL=1); tmpdir: one per project, emptied before every measurement; doctests: run on both sides; rustdoc does not go through the runner.
+
+| Project | Case | runs | cargo | run-test | replayed / ran | change |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| ripgrep 14.1.1 | again | 5 | 1.29s (1.03–1.60) | 0.09s (0.07–0.11) | 2 / 0 | -93% |
+| ripgrep 14.1.1 | private_body | 5 | 5.39s (4.82–6.21) | 4.68s (4.61–6.76) | 0 / 2 | -13% |
+| tinymold bb944ae | again | 3 | 18.09s (11.83–18.27) | 1.97s (1.53–4.74) | 5 / 0 | -89% |
+| tinymold bb944ae | private_body | 3 | 15.45s (15.38–21.73) | 20.69s (13.96–21.17) | 0 / 5 | +34% |
 
 ### OpenHuman `openhuman-core` in Docker (linux aarch64, 12 CPUs, 16 GiB, rustc 1.96.1 (31fca3adb 2026-06-26), 2026-10-15)
 

@@ -1,0 +1,330 @@
+{
+  "benchmark": "retest",
+  "settings": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "rustc_wrapper": "tinymold on both sides, one fresh store per project",
+    "cargo_runner": "cargo side: none, any CARGO_TARGET_<triple>_RUNNER removed; run-test side: CARGO_TARGET_<host>_RUNNER=\"tinymold run-test\"",
+    "linker": "cc, rustc's default, with no timing wrapper",
+    "incremental": "on (CARGO_INCREMENTAL=1)",
+    "tmpdir": "one per project, emptied before every measurement",
+    "doctests": "run on both sides; rustdoc does not go through the runner"
+  },
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "again",
+      "mode": "cargo",
+      "wall": {
+        "median_s": 1.2936,
+        "min_s": 1.0255,
+        "max_s": 1.6033,
+        "samples_s": [
+          1.0795,
+          1.6033,
+          1.0255,
+          1.2936,
+          1.3216
+        ]
+      },
+      "replayed": 0,
+      "ran": 0,
+      "counts": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "runs": 5
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "again",
+      "mode": "run-test",
+      "wall": {
+        "median_s": 0.0857,
+        "min_s": 0.0703,
+        "max_s": 0.1138,
+        "samples_s": [
+          0.0857,
+          0.0758,
+          0.1138,
+          0.0986,
+          0.0703
+        ]
+      },
+      "replayed": 2,
+      "ran": 0,
+      "counts": [
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          0
+        ]
+      ],
+      "runs": 5
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "private_body",
+      "mode": "cargo",
+      "wall": {
+        "median_s": 5.3891,
+        "min_s": 4.8168,
+        "max_s": 6.2137,
+        "samples_s": [
+          5.3891,
+          6.2137,
+          4.8958,
+          4.8168,
+          5.5232
+        ]
+      },
+      "replayed": 0,
+      "ran": 0,
+      "counts": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "runs": 5
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "case": "private_body",
+      "mode": "run-test",
+      "wall": {
+        "median_s": 4.6788,
+        "min_s": 4.607,
+        "max_s": 6.7636,
+        "samples_s": [
+          4.6235,
+          4.607,
+          4.6788,
+          6.7636,
+          5.9487
+        ]
+      },
+      "replayed": 0,
+      "ran": 2,
+      "counts": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "runs": 5
+    },
+    {
+      "project": "tinymold",
+      "rev": "bb944ae",
+      "case": "again",
+      "mode": "cargo",
+      "wall": {
+        "median_s": 18.0903,
+        "min_s": 11.8253,
+        "max_s": 18.2733,
+        "samples_s": [
+          18.0903,
+          11.8253,
+          18.2733
+        ]
+      },
+      "replayed": 0,
+      "ran": 0,
+      "counts": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "runs": 3
+    },
+    {
+      "project": "tinymold",
+      "rev": "bb944ae",
+      "case": "again",
+      "mode": "run-test",
+      "wall": {
+        "median_s": 1.9706,
+        "min_s": 1.533,
+        "max_s": 4.7447,
+        "samples_s": [
+          4.7447,
+          1.9706,
+          1.533
+        ]
+      },
+      "replayed": 5,
+      "ran": 0,
+      "counts": [
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          0
+        ]
+      ],
+      "runs": 3
+    },
+    {
+      "project": "tinymold",
+      "rev": "bb944ae",
+      "case": "private_body",
+      "mode": "cargo",
+      "wall": {
+        "median_s": 15.4479,
+        "min_s": 15.3832,
+        "max_s": 21.73,
+        "samples_s": [
+          15.4479,
+          15.3832,
+          21.73
+        ]
+      },
+      "replayed": 0,
+      "ran": 0,
+      "counts": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "runs": 3
+    },
+    {
+      "project": "tinymold",
+      "rev": "bb944ae",
+      "case": "private_body",
+      "mode": "run-test",
+      "wall": {
+        "median_s": 20.6936,
+        "min_s": 13.9582,
+        "max_s": 21.1673,
+        "samples_s": [
+          21.1673,
+          20.6936,
+          13.9582
+        ]
+      },
+      "replayed": 0,
+      "ran": 5,
+      "counts": [
+        [
+          0,
+          5
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          0,
+          5
+        ]
+      ],
+      "runs": 3
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "RUSTC_WRAPPER=tinymold on both sides, incremental on, full debuginfo, jobs=18, no RUSTFLAGS"
+  },
+  "date": "2026-10-15",
+  "runs": 3
+}
