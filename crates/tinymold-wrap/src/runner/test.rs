@@ -41,6 +41,12 @@ fn write_source(root: &Path, body: &str) {
 
 /// Compiles the package's test binary through the wrapper.
 fn build(root: &Path, config: &Config) -> PathBuf {
+    build_with(root, config, &[])
+}
+
+/// Compiles the package's test binary through the wrapper, with `extra`
+/// arguments.
+fn build_with(root: &Path, config: &Config, extra: &[OsString]) -> PathBuf {
     let out = root.join("target/debug/deps");
     fs::create_dir_all(&out).unwrap();
     let args: Vec<OsString> = [
@@ -56,6 +62,7 @@ fn build(root: &Path, config: &Config) -> PathBuf {
     .iter()
     .map(OsString::from)
     .chain([out.clone().into(), root.join("src/lib.rs").into()])
+    .chain(extra.iter().cloned())
     .collect();
     assert_eq!(crate::run(config, &rustc(), &args), 0);
     out.join(if cfg!(windows) {
@@ -576,4 +583,30 @@ fn a_cached_run_reads_an_empty_stdin() {
     let binary = build(&root, &config);
     assert_eq!(run(&config, &root, &binary, &[], &env(&[])), 0);
     assert!(log_lines(&config)[0].starts_with("test-miss recorded in"));
+}
+
+#[test]
+fn a_shared_library_in_a_native_search_path_of_the_build_turns_caching_off() {
+    // A build script's shared library is loaded at run time, and the test
+    // binary's bytes do not change when it does.
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), "");
+    let native = root.join("target/debug/build/native-1/out");
+    fs::create_dir_all(&native).unwrap();
+    let search = |dir: &Path| [OsString::from("-L"), format!("native={}", dir.display()).into()];
+
+    // A static library is part of the binary.
+    fs::write(native.join("libnative.a"), "archive").unwrap();
+    let binary = build_with(&root, &config, &search(&native));
+    assert_eq!(run(&config, &root, &binary, &[], &env(&[])), 0);
+    assert!(log_lines(&config)[0].starts_with("test-miss recorded in"));
+
+    fs::write(native.join("libnative.so"), "shared").unwrap();
+    write_source(&root, "assert_eq!(1, 1);");
+    let binary = build_with(&root, &config, &search(&native));
+    assert_eq!(run(&config, &root, &binary, &[], &env(&[])), 0);
+    assert_eq!(
+        log_lines(&config)[1],
+        "test-pass not a test binary tinymold built"
+    );
 }
