@@ -429,6 +429,20 @@ fn a_signed_entry_is_fetched_by_a_reader_that_trusts_its_key() {
 }
 
 #[test]
+fn a_signed_pre_key_reads_its_signature_and_record_together() {
+    let server = Server::start();
+    let local = Local::new();
+    let signer = SigningKey::generate();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let reader = configured(&server, trusting(&signer));
+    assert!(reader.input_sets(&local.pre).unwrap().is_some());
+    assert_eq!(server.with(|state| state.peak_in_flight["Read"]), 2);
+}
+
+#[test]
 fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
     let server = Server::start();
     let local = Local::new();
