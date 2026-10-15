@@ -117,10 +117,13 @@ impl Local {
                 .store
                 .insert_bytes(format!("object {n}").as_bytes())
                 .unwrap();
+            let empty = self.store.insert_bytes(b"").unwrap();
             let key = Digest::of_bytes(format!("key {n}").as_bytes());
             write(
                 &self.root.join("entries/demo").join(key.to_hex()),
-                &format!("tinymold-action 1\noutput {object} 0 0 lib{n}.rlib\n"),
+                &format!(
+                    "tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {object} 0 0 lib{n}.rlib\n"
+                ),
             );
             let pre = Digest::of_bytes(format!("pre {n}").as_bytes());
             write(
