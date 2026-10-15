@@ -51,14 +51,6 @@ fn nothing_set_means_no_location() {
 
 #[test]
 fn the_server_dir_prefers_its_own_variable_and_never_the_wrapper_store() {
-    let env = |vars: &'static [(&'static str, &'static str)]| {
-        move |name: &str| {
-            vars.iter()
-                .find(|(key, _)| *key == name)
-                .map(|(_, value)| OsString::from(value))
-        }
-    };
-
     assert_eq!(
         default_server_dir(env(&[("TINYMOLD_SERVER_DIR", "/srv/cache"), ("HOME", "/h")])),
         Some(PathBuf::from("/srv/cache"))
