@@ -153,6 +153,26 @@ fn push_overlaps_its_calls_over_a_slow_link() {
 }
 
 #[test]
+fn a_fetch_reads_an_actions_objects_together() {
+    let server = Server::start();
+    let local = Local::new();
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fresh = Store::open(elsewhere.path()).unwrap();
+    let text = cache.fetch_action(&local.key, &fresh).unwrap().unwrap();
+    assert_eq!(text, local.action_text());
+    for object in &local.objects {
+        assert!(fresh.contains(object));
+    }
+    assert!(
+        server.with(|state| state.peak_in_flight["Read"]) > 1,
+        "objects were read one at a time"
+    );
+}
+
+#[test]
 fn every_action_goes_up_before_any_pre_key() {
     // A reader finds actions through pre-keys, so a pre-key must never land
     // before the actions it leads to.
