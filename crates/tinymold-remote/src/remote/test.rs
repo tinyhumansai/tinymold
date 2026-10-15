@@ -108,6 +108,71 @@ fn pushing_again_uploads_no_blob_twice() {
     assert_eq!(server.with(|state| state.writes), 4);
 }
 
+impl Local {
+    /// Adds `count` more actions, each with an object of its own and a
+    /// pre-key record pointing at nothing in particular.
+    fn with_actions(self, count: usize) -> Self {
+        for n in 0..count {
+            let object = self
+                .store
+                .insert_bytes(format!("object {n}").as_bytes())
+                .unwrap();
+            let key = Digest::of_bytes(format!("key {n}").as_bytes());
+            write(
+                &self.root.join("entries/demo").join(key.to_hex()),
+                &format!("tinymold-action 1\noutput {object} 0 0 lib{n}.rlib\n"),
+            );
+            let pre = Digest::of_bytes(format!("pre {n}").as_bytes());
+            write(
+                &self.root.join("prekeys").join(pre.to_hex()),
+                &format!("tinymold-prekey 1\nset {n}\n"),
+            );
+        }
+        self
+    }
+}
+
+#[test]
+fn push_overlaps_its_calls_over_a_slow_link() {
+    // Every call waits 50 ms, as across an ocean: one at a time, 40 actions
+    // would cost seconds of round trips.
+    let server = Server::start();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let local = Local::new().with_actions(40);
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.prekeys, report.failed), (41, 41, 0));
+    let peak = |method: &str| server.with(|state| state.peak_in_flight[method]);
+    assert!(peak("Write") > 1, "uploads ran one at a time");
+    assert!(
+        peak("UpdateActionResult") > 1,
+        "entries went up one at a time"
+    );
+}
+
+#[test]
+fn every_action_goes_up_before_any_pre_key() {
+    // A reader finds actions through pre-keys, so a pre-key must never land
+    // before the actions it leads to.
+    let server = Server::start();
+    let local = Local::new().with_actions(20);
+    remote(&server).push(&local.root, None).unwrap();
+    let prekeys: HashSet<String> = (0..20)
+        .map(|n| naming::prekey_key(&Digest::of_bytes(format!("pre {n}").as_bytes())).hash)
+        .chain([naming::prekey_key(&local.pre).hash])
+        .collect();
+    let updates = server.with(|state| state.updates.clone());
+    let first_prekey = updates
+        .iter()
+        .position(|key| prekeys.contains(key))
+        .unwrap();
+    assert!(
+        updates[first_prekey..]
+            .iter()
+            .all(|key| prekeys.contains(key))
+    );
+    assert_eq!(updates.len(), 42);
+}
+
 #[test]
 fn push_since_skips_records_not_used_since() {
     let server = Server::start();
