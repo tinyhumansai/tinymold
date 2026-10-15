@@ -180,3 +180,60 @@ fn entries_and_index_files_are_sharded_by_their_first_byte() {
         store.root().join("ac").join(&hex[..2]).join(&hex[2..])
     );
 }
+
+#[test]
+fn a_damaged_index_file_is_a_miss() {
+    let (_dir, store) = store();
+    let ingested = store.ingest(&b"artifact"[..], None).unwrap();
+    fs::write(store.sha256_path(&ingested.sha256), b"short").unwrap();
+
+    assert_eq!(store.find_sha256(&ingested.sha256).unwrap(), None);
+}
+
+#[test]
+fn an_entry_that_cannot_be_written_is_an_io_error_and_leaves_no_pending_file() {
+    let (_dir, store) = store();
+    let blob = store.ingest(&b"x"[..], None).unwrap().digest;
+    let key = key(FrontEnd::Turbo, b"blocked");
+    let shard = store.entry_path(&key).parent().unwrap().to_path_buf();
+    fs::write(&shard, b"a file where the shard directory goes").unwrap();
+
+    let error = store.put(&key, &Entry::new(vec![blob])).unwrap_err();
+
+    assert!(
+        matches!(
+            error,
+            Error::Io {
+                action: "create",
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+    assert_eq!(
+        fs::read_dir(store.root().join("pending")).unwrap().count(),
+        0
+    );
+}
+
+#[test]
+fn an_unreadable_entry_is_an_io_error() {
+    let (_dir, store) = store();
+    let key = key(FrontEnd::Turbo, b"directory");
+    fs::create_dir_all(store.entry_path(&key)).unwrap();
+
+    assert!(matches!(
+        store.get(&key),
+        Err(Error::Io { action: "read", .. })
+    ));
+}
+
+#[test]
+fn claims_display_their_function_and_digest() {
+    let blake3 = Claim::Blake3(Digest::of_bytes(b"x"));
+
+    assert_eq!(
+        blake3.to_string(),
+        format!("blake3:{}", Digest::of_bytes(b"x"))
+    );
+}

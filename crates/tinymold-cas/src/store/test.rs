@@ -364,3 +364,59 @@ fn a_failing_stream_is_a_stream_error_and_leaves_no_staging_file() {
     assert!(matches!(error, Error::Stream(_)), "{error:?}");
     assert_eq!(store.staging_files().unwrap(), Vec::new());
 }
+
+#[test]
+fn an_interrupted_read_is_retried() {
+    struct Interrupting {
+        interrupted: bool,
+        rest: &'static [u8],
+    }
+    impl io::Read for Interrupting {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            if !self.interrupted {
+                self.interrupted = true;
+                return Err(io::Error::from(io::ErrorKind::Interrupted));
+            }
+            let len = buffer.len().min(self.rest.len());
+            buffer[..len].copy_from_slice(&self.rest[..len]);
+            self.rest = &self.rest[len..];
+            Ok(len)
+        }
+    }
+
+    let (_dir, store) = store();
+    let reader = Interrupting {
+        interrupted: false,
+        rest: b"after a signal",
+    };
+    let staged = store.stage(reader).unwrap();
+
+    assert_eq!(staged.digest(), Digest::of_bytes(b"after a signal"));
+}
+
+#[test]
+fn a_staging_write_failure_is_reported_as_a_write_error() {
+    let (dir, _store) = store();
+    let path = dir.path().join("read-only");
+    fs::write(&path, b"").unwrap();
+    let mut tee = Tee {
+        reader: &b"bytes"[..],
+        file: File::open(&path).unwrap(),
+        size: 0,
+        failure: None,
+    };
+    let mut buffer = [0_u8; 8];
+
+    assert!(io::Read::read(&mut tee, &mut buffer).is_err());
+    let error = tee.failure.take().unwrap().into_error(&path);
+    assert!(
+        matches!(
+            error,
+            Error::Io {
+                action: "write",
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+}
