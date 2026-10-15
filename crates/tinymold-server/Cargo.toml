@@ -24,11 +24,18 @@ base64 = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "signal"] }
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
+# The REAPI front-end (src/front/reapi/): tonic's generic gRPC server with
+# prost messages declared by hand, as the client in tinymold-remote does,
+# and tower's `service_fn` to turn each handler into a gRPC service.
+tonic = { workspace = true, features = ["server"] }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+tower = { workspace = true }
+tokio-stream = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1", "http2"] }
-tokio-stream = { workspace = true }
 
 [lints]
 workspace = true
