@@ -36,8 +36,9 @@ reasoning, with sources, is in [`docs/research/`](docs/research/README.md).
 
 > **Status: a working unit cache.** The content-addressed store, the hashing
 > layer, `tinymold doctor`, `tinymold fresh`, `tinymold snapshot` and the
-> rustc wrapper (`RUSTC_WRAPPER=tinymold`) work today. The cache server and its
-> protocol front-ends are specified but not built yet. See the
+> rustc wrapper (`RUSTC_WRAPPER=tinymold`) and the test result cache
+> (`tinymold run-test`) work today. The cache server and its protocol
+> front-ends are specified but not built yet. See the
 > [roadmap](docs/plans/roadmap.md).
 
 ## Install
@@ -65,6 +66,9 @@ tinymold fresh restore
 # Cache every rustc invocation by content, across worktrees.
 RUSTC_WRAPPER=tinymold cargo build
 
+# Replay passing test runs whose binary and inputs did not change.
+CARGO_TARGET_<TRIPLE>_RUNNER="tinymold run-test" RUSTC_WRAPPER=tinymold cargo test
+
 # Keep a warm target/ per commit; start a new worktree from the best match.
 tinymold snapshot save              # in the worktree you built
 tinymold snapshot restore           # in a new worktree, before cargo build
@@ -85,6 +89,19 @@ The wrapper is specified in
 `snapshot` are specified in
 [`docs/specs/freshness.md`](docs/specs/freshness.md), including why a restore
 can never make cargo reuse an output built from different content.
+
+As a runner, set once in `.cargo/config.toml`:
+
+```toml
+[target.'cfg(all())']
+runner = ["tinymold", "run-test"]
+```
+
+`tinymold run-test` keys a run by the test binary's digest, its arguments,
+the files under its package, and its environment, and replays only passes
+([`docs/specs/test-cache.md`](docs/specs/test-cache.md)). A package whose
+tests read files outside it declares them under
+`[package.metadata.tinymold.test]`, or opts out with `cache = false`.
 
 The store defaults to `$TINYMOLD_STORE`, then `$XDG_CACHE_HOME/tinymold`, then
 `~/.cache/tinymold`. Keep it on the same filesystem as your checkouts: that is
@@ -113,6 +130,8 @@ steps:
 ```
 
 By default the store travels in GitHub's own cache, so no server is needed.
+Cargo's crate downloads get a cache entry of their own, keyed by
+`Cargo.lock`.
 For many repositories or runners, run a shared
 [bazel-remote](deploy/bazel-remote/README.md) and use the action's `remote`
 backend (`remote-url`, plus `remote-auth` from a secret). Every local miss

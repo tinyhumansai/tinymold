@@ -18,6 +18,7 @@ use tinymold_hash::Digest;
 use crate::Result;
 use crate::error::io;
 use crate::record::{self, Action};
+use crate::test_record::TestRun;
 
 pub use types::{ActionInfo, RecordFile, RecordKind};
 
@@ -64,6 +65,19 @@ pub fn records(store: &Path) -> Result<Vec<RecordFile>> {
             },
         };
         push(&mut found, &entry, kind);
+    }
+    for (dir, run) in [("run", true), ("bin", false)] {
+        for entry in entries(&store.join("tests").join(dir))? {
+            let kind = match Digest::from_str(&entry.file_name().to_string_lossy()) {
+                Ok(key) if run => RecordKind::TestRun { key },
+                Ok(digest) => RecordKind::TestBinary { digest },
+                Err(_) => match temporary(&entry) {
+                    Some(kind) => kind,
+                    None => continue,
+                },
+            };
+            push(&mut found, &entry, kind);
+        }
     }
     for dir in ["stat", "rustc"] {
         caches(&store.join(dir), &mut found)?;
@@ -116,6 +130,24 @@ pub fn action_info(path: &Path) -> Result<ActionInfo> {
 /// parse, or is gone.
 pub fn action_references(path: &Path) -> Result<Vec<Digest>> {
     Ok(action_info(path)?.references)
+}
+
+/// Every object the test run recorded at `path` needs to be replayed: its
+/// stdout and stderr.
+///
+/// # Errors
+///
+/// Returns [`Error::Io`](crate::Error::Io) when the record cannot be read,
+/// and [`Error::CorruptRecord`](crate::Error::CorruptRecord) when it does not
+/// parse, or is gone.
+pub fn test_run_references(path: &Path) -> Result<Vec<Digest>> {
+    let Some(text) = record::read(path)? else {
+        return Err(crate::Error::CorruptRecord {
+            path: path.to_path_buf(),
+            line: 0,
+        });
+    };
+    Ok(TestRun::decode(&text, path)?.references())
 }
 
 /// The entries of `dir`; empty when it does not exist.

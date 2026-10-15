@@ -9,16 +9,27 @@
 
 ## Problem
 
-CI jobs build and test the same crates over and over. The common setup
-(`Swatinem/rust-cache`) restores `target/` per lockfile, so:
+CI jobs build and test the same crates over and over. The common setup,
+`Swatinem/rust-cache`, archives `target/` and the cargo registry once per
+job. Before saving it deletes the workspace crates, and it leaves cargo's
+mtime fingerprints to decide what to rebuild after a restore. As a result:
 
-- any change to `Cargo.lock` starts cold;
-- the restore ignores which units actually changed;
-- a checkout's fresh mtimes make cargo recompile workspace crates anyway.
+- **Workspace crates are always rebuilt.** That covers clippy and coverage
+  runs too.
+- **Changing the compiler or a build setting starts cold.** The archive's
+  fallback key leaves out only the lockfile hash. A new rustc, `RUSTFLAGS`
+  or any other `CARGO*`/`RUST*` variable needs a different archive.
+- **Jobs don't share by default.** Each job gets its own archive unless it
+  sets `shared-key`.
 
-tinymold's unit cache keys every rustc call by content, so a job that
-starts with a populated store recompiles only the units whose inputs
+A lockfile change does not start cold there: the fallback key restores the
+previous lockfile's archive, and cargo rebuilds the dependencies that
 changed.
+
+tinymold's unit cache keys every rustc call by content. A job that starts
+with a populated store recompiles only the units whose inputs changed,
+workspace crates included. Builds with different settings keep their
+entries side by side in one store.
 
 ## Goals and non-goals
 
@@ -81,6 +92,7 @@ With a remote server:
 | `backend` | `github` | `github`, `remote`, `both`, or `none` (local store only, for self-hosted runners with a persistent `store`) |
 | `store` | `~/.cache/tinymold` | Store directory (`TINYMOLD_STORE`) |
 | `cache-key` | `''` | Extra text mixed into the GitHub cache key, to separate jobs that build different things |
+| `cache-registry` | `true` | With `github` and `both`, also keep cargo's downloads (`registry/index`, `registry/cache`, `git/db` under `CARGO_HOME`) in a GitHub cache entry of their own |
 | `remote-url`, `remote-auth`, `remote-instance` | `''` | See [`remote.md`](remote.md) |
 
 The setup step also runs `tinymold doctor`, which shows the store and the
@@ -93,7 +105,7 @@ remote without the credential.
 | `max-age` | `7d` | `tinymold gc --max-age` before saving |
 | `max-size` | `4G` | `tinymold gc --max-size` before saving |
 | `push` | `auto` | `auto` pushes when `remote-auth` was given; `true` and `false` force the choice |
-| `save-cache` | `true` | Whether the `github` and `both` backends save the store |
+| `save-cache` | `true` | Whether the `github` and `both` backends save the store and the registry |
 
 ## Behavior
 
@@ -116,6 +128,13 @@ remote without the credential.
      run, then without the lockfile hash, then without the rustc hash.
 
    A job restores the newest store of the closest lockfile.
+4. For `github` and `both` with `cache-registry`, restore cargo's downloads
+   the same way, from their own entry:
+   - key: `tinymold-cargo-v1-<os>-<arch>-<hash of Cargo.lock files>`;
+   - restore key: the same without the lockfile hash.
+
+   `registry/src` and `git/checkouts` are left out: cargo unpacks them
+   again faster than the cache would download them.
 
 **Save:**
 
@@ -127,9 +146,25 @@ remote without the credential.
 3. Run `tinymold gc` with `max-age` and `max-size`, for every backend: a
    self-hosted runner keeps its store between jobs whichever backend it
    uses.
-4. For `github` and `both`, save the store with `actions/cache/save` under
-   the setup step's exact key, but only when the job stored something new.
-   A job that only hit would upload the same store it restored.
+4. For `github` and `both`, save the store with `actions/cache/save`, but
+   only when the job stored something new. A job that only hit would upload
+   the same store it restored.
+
+   The key is the setup step's key, then the job id, then the first 12 hex
+   digits of a hash of the store files written since setup. Every job of a
+   run shares the setup key, and GitHub keeps only the first entry saved
+   under a key, so without the suffix only the first job's new units would
+   survive. Matrix legs share a job id but store different units, so the
+   hash keeps them apart too. Two jobs that store the same units get the
+   same key, and losing one of the two loses nothing.
+5. With `cache-registry`, save cargo's downloads when no entry for this
+   exact lockfile was restored. First, delete every crate archive in
+   `registry/cache` that no `Cargo.lock` in the workspace names, so the
+   entry does not grow with each lockfile it was restored across. With no
+   lockfile, nothing is deleted. Jobs that race to save it save the same
+   crates, so losing that race costs nothing. The first job to save a
+   lockfile's entry decides what it holds; a job that builds only part of
+   the workspace may save only part of the crates.
 
 ## Why one archive per job, not one GitHub cache entry per object
 
@@ -148,7 +183,11 @@ one run to the next.
 
 GitHub evicts whole cache entries least recently used first, once a
 repository exceeds 10 GB. With `max-size: 4G`, about two generations of
-the store fit beside each other.
+the store fit beside each other. Each job that stores something saves an
+entry of its own. A workflow with many such jobs should give them a
+smaller `max-size`, or save only from the default branch with
+`save-cache: ${{ github.ref == 'refs/heads/main' }}`. Pull requests can
+still restore entries from the default branch.
 
 ## Coverage, clippy, and incremental
 
@@ -185,5 +224,8 @@ the store fit beside each other.
      commit;
   3. that second build reaches ≥ 90% hits, checked with
      `tinymold stats --min-hit-rate 90`.
+- The `action-scripts` job runs `action/test.sh` on Linux and macOS.
+  The test checks that jobs storing different units name different
+  entries, and which crate archives the registry keeps.
 - The `remote-e2e` job does the same through a bazel-remote
   container, with the local store wiped in between.

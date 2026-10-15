@@ -39,10 +39,19 @@ def mib(n: int | None) -> str:
     return "n/a" if n is None else f"{n / 2**20:,.0f} MiB"
 
 
+def runs_of(result: dict, row: dict) -> int:
+    """How many runs a row's numbers come from: its own count, which a merged
+    file records per row, or else the file's."""
+    return row.get("runs", result["runs"])
+
+
 def describe(result: dict) -> str:
     m = result["machine"]
+    counts = sorted({runs_of(result, r) for r in result.get("results", [])}) or [result["runs"]]
+    runs = (f"{counts[0]} runs" if len(counts) == 1
+            else f"{'/'.join(map(str, counts))} runs by row")
     return (f"{m['os']} {m['arch']}, {m['cpus']} CPUs, {m['rustc']}, "
-            f"{result['runs']} runs, {result['date']}")
+            f"{runs}, {result['date']}")
 
 
 def chart(title: str, bars: list[tuple[str, float]], path: Path) -> None:
@@ -402,6 +411,39 @@ def hit_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def retest_section(result: dict) -> list[str]:
+    """`cargo test` run again, with and without `tinymold run-test`."""
+    rows = result["results"]
+    lines = [f"### Running tests again ({describe(result)})", "",
+             "`cargo test` for the project's package, built through `RUSTC_WRAPPER=tinymold` "
+             "on both sides; only the runner differs. *again*: nothing changed. "
+             "*private_body*: a one-line private edit before every run. Cells are median wall "
+             "time (min–max) and test binaries replayed / run by `tinymold run-test`; "
+             "*runs* is how many measurements each side took.", ""]
+    settings = result.get("settings", {})
+    if settings:
+        lines += ["Settings: " + "; ".join(f"{k.replace('_', ' ')}: {v}"
+                                          for k, v in settings.items()) + ".", ""]
+    lines += ["| Project | Case | runs | cargo | run-test | replayed / ran | change |",
+              "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+
+    def cell(stats: dict) -> str:
+        return f"{stats['median_s']:.2f}s ({stats['min_s']:.2f}–{stats['max_s']:.2f})"
+
+    for project in dict.fromkeys(r["project"] for r in rows):
+        for case in dict.fromkeys(r["case"] for r in rows if r["project"] == project):
+            pick = {r["mode"]: r for r in rows if r["project"] == project and r["case"] == case}
+            if not {"cargo", "run-test"} <= set(pick):
+                continue
+            old, new = pick["cargo"], pick["run-test"]
+            change = f"{new['wall']['median_s'] / old['wall']['median_s'] - 1:+.0%}"
+            runs = "/".join(map(str, dict.fromkeys((runs_of(result, old), runs_of(result, new)))))
+            lines.append(f"| {project} {old['rev']} | {case} | {runs} | {cell(old['wall'])} | "
+                         f"{cell(new['wall'])} | {new['replayed']:.0f} / {new['ran']:.0f} | "
+                         f"{change} |")
+    return lines + [""]
+
+
 EDIT_COMMANDS = (("build", "build"), ("clippy", "clippy"), ("test_build", "test build"),
                  ("test_run", "test run"), ("coverage", "coverage"))
 
@@ -521,8 +563,8 @@ def main() -> None:
     sections: list[str] = []
     edit_sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "hit": 6, "openhuman": 7, "edits": 8, "dedup": 8, "link": 9, "native": 10,
-             "cas": 11}
+             "hit": 6, "retest": 7, "openhuman": 8, "edits": 9, "dedup": 9, "link": 10,
+             "native": 11, "cas": 12}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -547,6 +589,8 @@ def main() -> None:
             sections += ci_section(result)
         elif result["benchmark"] == "hit":
             sections += hit_section(result)
+        elif result["benchmark"] == "retest":
+            sections += retest_section(result)
         elif result["benchmark"] == "openhuman-docker":
             sections += openhuman_section(result)
         elif result["benchmark"] == "edits":

@@ -81,6 +81,10 @@ binary="${bin_dir}/tinymold${exe}"
 
 store="${INPUT_STORE:-${HOME}/.cache/tinymold}"
 mkdir -p "${store}"
+# Anything in the store newer than this file was written by this job. The
+# restore that follows keeps the archive's mtimes, which are older.
+start_marker="${RUNNER_TEMP}/tinymold-start"
+touch "${start_marker}"
 
 {
   echo "RUSTC_WRAPPER=${binary}"
@@ -88,6 +92,7 @@ mkdir -p "${store}"
   echo "TINYMOLD_LOG=${RUNNER_TEMP}/tinymold.log"
   echo "TINYMOLD_BACKEND=${INPUT_BACKEND}"
   echo "TINYMOLD_SAVE_START=$(date +%s)"
+  echo "TINYMOLD_START_MARKER=${start_marker}"
   # Incremental artifacts only help the job that wrote them.
   echo "CARGO_INCREMENTAL=0"
 } >> "${GITHUB_ENV}"
@@ -101,11 +106,14 @@ if [[ "${INPUT_BACKEND}" == remote || "${INPUT_BACKEND}" == both ]]; then
 fi
 
 # The cache key: the store format, the platform, the caller's text and the
-# compiler. The lockfile hash, run and attempt are appended in action.yml.
+# compiler. The lockfile hash, run and attempt are appended in action.yml, and
+# the job and what it stored in save.sh.
 rustc_hash="$(rustc -vV | sha256 | cut -c1-16)"
 prefix="tinymold-v1-${RUNNER_OS}-${RUNNER_ARCH}"
 [[ -n "${INPUT_CACHE_KEY}" ]] && prefix="${prefix}-${INPUT_CACHE_KEY}"
 {
   echo "store=${store}"
   echo "key-prefix=${prefix}-${rustc_hash}"
+  echo "registry-key-prefix=tinymold-cargo-v1-${RUNNER_OS}-${RUNNER_ARCH}"
+  echo "cargo-home=${CARGO_HOME:-${HOME}/.cargo}"
 } >> "${GITHUB_OUTPUT}"

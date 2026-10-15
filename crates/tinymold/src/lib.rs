@@ -58,7 +58,7 @@ mod tree;
 mod wrapper;
 
 pub use cli::{
-    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, RemoteCommand,
+    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, RemoteCommand, RunTestArgs,
     SnapshotCommand, StatsArgs, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};

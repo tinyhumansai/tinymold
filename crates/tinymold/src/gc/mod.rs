@@ -136,7 +136,29 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
                     }
                 }
             }
-            RecordKind::PreKey { .. } | RecordKind::Cache => {
+            // A recorded test run is kept, and evicted, like an action: it
+            // needs the objects holding its output. It compiles no unit, so
+            // generations never evict it.
+            RecordKind::TestRun { .. } => {
+                match tinymold_wrap::test_run_references(&record.path) {
+                    Ok(references) if !policy.older_than(record.last_used, policy.max_age) => {
+                        actions.push(Action {
+                            record,
+                            references,
+                            unit: None,
+                        });
+                    }
+                    // A record that is there but cannot be read is not
+                    // garbage: removing it would free the output it needs.
+                    Err(error @ tinymold_wrap::Error::Io { .. }) => return Err(error.into()),
+                    // Expired, corrupt, or gone since the walk.
+                    _ => {
+                        remove_file(&record.path, policy)?;
+                        report.actions_removed += 1;
+                    }
+                }
+            }
+            RecordKind::PreKey { .. } | RecordKind::TestBinary { .. } | RecordKind::Cache => {
                 if policy.older_than(record.last_used, policy.max_age) {
                     remove_file(&record.path, policy)?;
                     if matches!(record.kind, RecordKind::PreKey { .. }) {
