@@ -1,8 +1,12 @@
 # tinymold
 
-tinymold makes Rust builds fast and small. It is a build accelerator for cargo
-in the spirit of [mold](https://github.com/rui314/mold): measure where the time
-goes, then remove that work rather than doing it slightly faster.
+tinymold is a fast content-addressed build cache: one server and one store,
+with adapters for each ecosystem's cache protocol. Rust gets the deepest
+integration, through a rustc wrapper that caches every compile by content.
+Turborepo, Nx, Gradle, ccache, Bazel and Go are served through their own
+remote-cache protocols ([ADR 0009](docs/adr/0009-a-cache-server-with-protocol-front-ends.md)).
+In the spirit of [mold](https://github.com/rui314/mold): measure where the
+time goes, then remove that work rather than doing it slightly faster.
 
 
 > [!WARNING]
@@ -25,15 +29,16 @@ A Rust edit-build-test loop pays the same costs over and over:
   dependency artifact, and every test binary carries its own copy of every
   dependency's debug info. A medium project reaches 4–5 GB per checkout.
 
-tinymold attacks these four costs: **caching**, **linking**, a **hot cache
-server**, and **hashing**, with **disk footprint** as a first-class goal. The
+For Rust, tinymold attacks the compile, cold-process and disk costs by
+**caching** and **hashing**. A link that has to run still runs; linked
+binaries whose inputs did not change come back from the cache. The
 reasoning, with sources, is in [`docs/research/`](docs/research/README.md).
 
 > **Status: a working unit cache.** The content-addressed store, the hashing
 > layer, `tinymold doctor`, `tinymold fresh`, `tinymold snapshot` and the
 > rustc wrapper (`RUSTC_WRAPPER=tinymold`) and the test result cache
-> (`tinymold run-test`) work today. The cache server and
-> linker work are designed but not built yet. See the
+> (`tinymold run-test`) work today. The cache server and its protocol
+> front-ends are specified but not built yet. See the
 > [roadmap](docs/plans/roadmap.md).
 
 ## Install
@@ -159,38 +164,31 @@ and how to reproduce them are in [`bench/`](bench/README.md).
 ## How it will work
 
 ```text
-cargo ──▶ tinymold wrap (RUSTC_WRAPPER + linker shim)
-              │  ActionKey = BLAKE3(normalized rustc invocation, input digests)
-              ▼
-         tinymold server (per-machine daemon, hot)
-              │  stat cache + FS events: no rehashing unchanged files
-              │  single-flight: N worktrees asking for one artifact build it once
-              ▼
-         ActionKey ─▶ ActionResult (output digests) ─▶ CAS blobs
-              │                                         │
-              │  early cutoff: dependents key on the    │  reflink/hardlink into
-              │  dependency's .rmeta digest, so an edit │  target/, zstd for cold
-              │  that leaves the interface unchanged    │  tiers, LAN/remote tier
-              │  rebuilds nothing downstream            │  over the Remote Execution API
+ Turbo   Nx   Gradle   ccache   Bazel/Buck2   rustc wrapper   go (GOCACHEPROG)
+   └──────┴──────┴────────┴──────────┴──────────────┴──────────────┘
+                                  │ each speaks its own protocol
+                                  ▼
+          tinymold serve: front-ends (Turbo, Nx, Gradle, Bazel HTTP, REAPI, native)
+                                  │
+          tinymold-store: namespaces, ActionCache, BLAKE3 ↔ SHA-256 index, LRU budget
+                                  │
+          tinymold-cas: immutable objects by BLAKE3, reflink/hardlink restore
 ```
 
-- **Caching:** a two-level, content-addressed cache in the style of Go's build
-  cache and Bazel's Remote Execution API, with path normalization so worktrees
-  at different paths share artifacts
-  ([cache-key spec](docs/specs/cache-key.md)).
-- **Linking:** pick the fastest linker per platform, skip links whose inputs
-  didn't change, link tests once instead of once per file, and build
-  dependencies as one shared dev dylib. Longer term, contribute incremental
-  linking to [wild](https://github.com/davidlattimore/wild) rather than write a
-  new linker.
-- **Hot cache server:** a per-machine daemon that keeps the stat cache, file
-  watcher, and hot artifacts in memory, with plain one-shot mode as the
-  correctness fallback.
+- **One store for every language.** Each toolchain keeps computing its own
+  keys; the server stores and serves the results, and identical bytes are
+  stored once whichever protocol they arrived through.
+- **Runs anywhere.** On a developer machine, as a shared service, or inside a
+  GitHub Actions job on `localhost` with the store carried in `actions/cache`.
+- **Rust goes deeper.** The rustc wrapper caches every unit by content, with
+  path normalization so worktrees at different paths share artifacts
+  ([cache-key spec](docs/specs/cache-key.md)), and replays passing test runs.
 - **Hashing:** BLAKE3-256 for anything stored or shared
   ([ADR 0002](docs/adr/0002-blake3-for-content-digests.md)), and a stat cache so
   unchanged files are never read at all.
 
-The full design is in [`docs/specs/architecture.md`](docs/specs/architecture.md).
+The server design is in [`docs/specs/cache-server.md`](docs/specs/cache-server.md),
+the Rust side in [`docs/specs/architecture.md`](docs/specs/architecture.md).
 
 ## Crates
 

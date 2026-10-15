@@ -32,4 +32,5 @@ the contract; production code still belongs under `src/`.
 | [`remote.md`](remote.md) | Implemented | The remote tier: REAPI v2 against bazel-remote, lookups on local miss, batch push |
 | [`test-cache.md`](test-cache.md) | Draft | Affected work: which tests an edit reaches, the test result cache behind `tinymold run-test`, and flag scoping across check, clippy, test and coverage |
 | [`edit-rebuild.md`](edit-rebuild.md) | Accepted | The edit loop: carried-over outputs, cached clippy, bounded store generations, incremental sessions, and the edit-sequence benchmark |
+| [`cache-server.md`](cache-server.md) | Accepted | `tinymold serve`: one store behind REAPI, Bazel HTTP, Turbo, Nx, Gradle and native front-ends, plus the Go adapter |
 | [`github-actions.md`](github-actions.md) | Implemented | The setup and save actions: the stateless GitHub-cache backend, the remote backend, coverage |

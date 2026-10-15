@@ -1,6 +1,10 @@
 # tinymold architecture
 
 - **Status:** Draft (target architecture; refined per phase before implementation)
+- **Scope since 2026-10-15:** this document now describes the **Rust
+  adapter**. The server it talks to is [`cache-server.md`](cache-server.md),
+  and linking is out of scope
+  ([ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)).
 - **Owner:** Steven Enamakel
 - **Date:** 2026-10-14
 
@@ -53,9 +57,10 @@ the `tinymold` binary is a thin CLI over them.
 | `tinymold-key` | Phase 3 | The rustc ActionKey and ActionResult schema, argument classification, and path normalization ([cache-key spec](cache-key.md)). Pure functions, no I/O beyond reading inputs. |
 | `tinymold-wrap` | Phase 3 (wrapper); linker shim planned for Phase 4 | The `RUSTC_WRAPPER` ([spec](rustc-wrapper.md)) and, later, the linker shim. Short-lived, native, starts in a few ms. Talks to the server when one is running and runs the same lookup in-process when not. |
 | `tinymold run-test` | Planned (Phase 4) | The test result cache: a cargo `runner` that replays recorded passes keyed by the test binary's digest and its run-time inputs ([test-cache spec](test-cache.md)). Lives in `tinymold-wrap` beside the wrapper. |
-| `tinymold-server` | Planned (Phase 6) | The hot cache daemon: stat cache, FSEvents/inotify dirty set, Unix-socket protocol, single-flight dedup, per-key incremental-dir store, storage tiers and eviction. |
+| `tinymold-store` | Planned ([cache-server](cache-server.md)) | Namespaces, ActionCache entries, the BLAKE3 ↔ SHA-256 digest index, last use and eviction, shared by every protocol. |
+| `tinymold-server` | Planned ([cache-server](cache-server.md)) | `tinymold serve`: the transport, authentication and the protocol front-ends, including the `native` Unix socket this adapter uses for single-flight and materialization. |
 | `tinymold-remote` | Planned (Phase 6) | REAPI v2 client for the LAN/remote tier, with zstd-compressed transfers and `FindMissingBlobs` batching. |
-| `tinymold-link` | Planned (Phase 4) | Linker autoselect, link-skip, link concurrency governor, test-binary consolidation, dylib dev mode, prelinked dependency archive. |
+| `tinymold-link` | Out of scope ([ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)) | Was: linker autoselect, link-skip, link concurrency governor, test-binary consolidation, dylib dev mode, prelinked dependency archive. |
 | `tinymold-bench` | Phase 1 (as the Python harness in `bench/`) | Pinned benchmark harness: filesystem, output reuse, fork mode and thread count are fixed and recorded per run ([linkers §2](../research/linkers.md#2-benchmarks-with-sources)). |
 
 Dependency direction is strictly downward: `hash` ← `cas` ← `key` ← `wrap` /
@@ -237,6 +242,10 @@ instead of 2.5 GB per worktree.
 
 ## The hot server
 
+> The server is now specified in [`cache-server.md`](cache-server.md) as
+> one process for every protocol. The behaviour below is what its `native`
+> front-end provides to the Rust adapter.
+
 `tinymold-server` is one process per user per machine (see open questions),
 reached over a Unix socket. Its protocol carries keys, paths and digests,
 never artifact bytes: the server materializes files directly into the
@@ -270,6 +279,10 @@ Expected effect: key computation drops from tens or hundreds of ms to about
 1 ms per action, which zccache reports for a similar design [vendor].
 
 ## Linking
+
+> **Out of scope since [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md).**
+> Kept as a record of the design. Linked binaries are cached as rustc
+> outputs by the wrapper; nothing below is planned.
 
 `tinymold-link` treats the link as another cacheable action and attacks the
 links that remain.
@@ -366,6 +379,7 @@ A cache that is wrong once gets switched off. tinymold builds trust with:
 
 ## Out of scope
 
+- **Linker work of any kind** ([ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)).
 - **Writing a linker.** tinymold configures and wraps existing linkers and
   contributes incremental-linking work to wild or mold.
 - **Forking rustc or depending on unstable rustc internals by default.**

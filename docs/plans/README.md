@@ -29,4 +29,5 @@ into the plan.
 | [`freshness.md`](freshness.md) | Phase 2: the spike, the implementation order, and the measured results for content freshness and target snapshots |
 | [`edit-rebuild.md`](edit-rebuild.md) | The edit-sequence benchmark and the four changes it led to, with measured results |
 | [`test-cache.md`](test-cache.md) | Phase 4: the test key, `tinymold run-test`, clippy-driver caching, and the pipeline benchmark |
+| [`cache-server.md`](cache-server.md) | The store and server crates, each protocol front-end, the Action's `serve: true`, and the benchmark against bazel-remote |
 | [`remote-and-ci.md`](remote-and-ci.md) | Last-use GC, `tinymold stats`, the REAPI remote tier, and the GitHub Action |
