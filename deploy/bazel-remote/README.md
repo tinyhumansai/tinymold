@@ -32,6 +32,29 @@ requests. tinymold re-hashes every object it fetches, so a remote can only
 make a build miss, never restore bytes other than the ones the entry names.
 The entry itself is trusted as much as whoever wrote it.
 
+## Signed entries
+
+A credential protects the cache only while the server is set up right. Sign
+entries too, and a cache that ends up writable by anyone can at worst make
+builds miss ([remote spec](../../docs/specs/remote.md#signed-entries)):
+
+```sh
+tinymold remote keygen
+# TINYMOLD_REMOTE_SIGNING_KEY=…   secret: trusted writers only (CI on main)
+# TINYMOLD_REMOTE_TRUSTED_KEYS=…  public: every reader, pull requests included
+```
+
+`tinymold remote check` fails against a server that accepts anonymous
+writes unless `TINYMOLD_REMOTE_TRUSTED_KEYS` is set, so a missing htpasswd
+file shows up before anything is pushed.
+
+## Network exposure
+
+bazel-remote has no notion of who may connect, only of who may write. Bind
+it to the narrowest address that works, and firewall the port: on Linux a
+socket bound to one interface's address still accepts packets for it that
+arrive on any other interface, such as a bridge full of untrusted VMs.
+
 ## TLS
 
 The credential is sent with every call. Anything that crosses an untrusted
@@ -58,6 +81,8 @@ debug builds are usually a few GiB per toolchain and lockfile generation.
 ```sh
 export TINYMOLD_REMOTE_URL=grpcs://cache.example.com   # grpc://host:9092 without TLS
 export TINYMOLD_REMOTE_AUTH=ci:password                # omit for anonymous reads
+export TINYMOLD_REMOTE_TRUSTED_KEYS=<public key>       # use only signed entries
+export TINYMOLD_REMOTE_SIGNING_KEY=<secret key>        # trusted writers only
 tinymold remote check                                  # reachable? credential accepted?
 RUSTC_WRAPPER=tinymold cargo build                     # misses consult the remote
 tinymold remote push                                   # upload what this machine built
