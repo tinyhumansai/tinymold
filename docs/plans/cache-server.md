@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-7 done)
+- **Status:** In progress (slices 1-8 done)
 
 ## Goal
 
@@ -160,6 +160,14 @@ store, which the server refuses to share.
 - A workflow in `.github/workflows/` runs the Turbo fixture under the
   action twice and asserts the second run is fully cached.
 - Update [`../specs/github-actions.md`](../specs/github-actions.md).
+- **As built:** the server is open on loopback (no token file), started
+  after the restore so its first collection never races it, and its
+  shutdown runs a final collection with no grace period, so the save step
+  needs no separate GC command. The server's store rides in the same cache
+  entry as the wrapper store. Without `rustc` the key uses `no-rustc`, so
+  JavaScript-only jobs can use the action. CI's `action-serve-fill` and
+  `action-serve-reuse` jobs check a cross-job `FULL TURBO`. Read-through to
+  a remote is left for later.
 
 ### 9. `native` socket and the Rust adapter
 
@@ -214,7 +222,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 5. `reapi` front-end and the CI switch
 - [x] 6. `turbo` front-end
 - [x] 7. `nx` and `gradle` front-ends
-- [ ] 8. GitHub Action `serve: true`
+- [x] 8. GitHub Action `serve: true`
 - [ ] 9. Native socket and the Rust adapter
 - [ ] 10. `gocacheprog` adapter
 - [ ] 11. Benchmark and the switch

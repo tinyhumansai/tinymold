@@ -247,10 +247,11 @@ tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 
 ### In GitHub Actions
 
-The setup action gains `serve: true`. It starts `tinymold serve` on
-`localhost` for the rest of the job, with its store restored from
-`actions/cache` as the store is today, and exports each enabled front-end's
-client settings, for example:
+The setup action gains `serve: true`
+([`github-actions.md`](github-actions.md#serving-other-tools)). It starts
+`tinymold serve` on `localhost` for the rest of the job, with its store
+restored from `actions/cache` as the store is today, and exports each
+front-end's client settings, for example:
 
 ```text
 TURBO_API=http://127.0.0.1:9090  TURBO_TOKEN=…  TURBO_TEAM=ci
@@ -258,10 +259,9 @@ NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090
 CCACHE_REMOTE_STORAGE=http://127.0.0.1:9090|layout=bazel
 ```
 
-The save action stops the server, runs GC to the budget, and saves the
-store. With `remote-url` set, the local server reads through to the remote
-on a miss and the save step pushes new entries, as `tinymold remote push`
-does for Rust today.
+The save action stops the server, whose shutdown collects garbage to the
+budget, and saves the store. Reading through to a remote on a miss, with
+`remote-url` set, is not built yet (see open questions).
 
 ## Invariants
 
