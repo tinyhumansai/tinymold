@@ -195,7 +195,7 @@ one directory. The recipe, in any CI:
    ```sh
    export RUSTC_WRAPPER=tinymold
    export TINYMOLD_STORE="$CI_PROJECT_DIR/.tinymold"   # any path your CI can cache
-   export TINYMOLD_LOG="$TINYMOLD_STORE/../tinymold.log"
+   export TINYMOLD_LOG="$PWD/tinymold.log"
    export CARGO_INCREMENTAL=0
    export TINYMOLD_SAVE_START="$(date +%s)"
    ```
@@ -228,10 +228,11 @@ test:
   cache:
     key:
       files: [Cargo.lock]
-      prefix: tinymold-$CI_RUNNER_EXECUTABLE_ARCH
+      prefix: tinymold-$CI_JOB_NAME
     paths: [.tinymold/]
   before_script:
-    - cargo install --locked tinymold
+    # RUSTC_WRAPPER is already set, and tinymold does not exist yet.
+    - env -u RUSTC_WRAPPER cargo install --locked tinymold
   script:
     - cargo clippy --all-targets -- -D warnings
     - cargo test
@@ -240,9 +241,8 @@ test:
     - tinymold --store .tinymold gc --max-age 7d --max-size 4G --grace 0s
 ```
 
-`cargo install` itself runs with `RUSTC_WRAPPER=tinymold` in that job, before
-tinymold exists; run it with `env -u RUSTC_WRAPPER cargo install --locked tinymold`,
-or download the release binary instead, when the variable is set globally.
+Installing with `cargo install` costs a compile on every job; a release
+binary, or an image with tinymold baked in, avoids it.
 
 Runners with a persistent disk (bare metal, long-lived VMs, a Kubernetes
 node with a host path) need no CI cache at all: point `TINYMOLD_STORE` at a
