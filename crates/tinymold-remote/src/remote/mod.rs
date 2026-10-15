@@ -628,19 +628,24 @@ where
     }
 }
 
-/// Whether `error` may not happen again: a call that timed out, or a server
-/// that said it is unavailable, overloaded or aborted the call. A refusal,
-/// such as a missing write credential, is not.
+/// Whether `error` may not happen again: a call that timed out, a server
+/// that said it is unavailable, overloaded or aborted the call, or a
+/// connection it closed under the call (an HTTP/2 GOAWAY, which a proxy such
+/// as nginx sends after its per-connection request limit; the channel
+/// reconnects). A refusal, such as a missing write credential, is not.
 fn transient(error: &Error) -> bool {
     match error {
         Error::Timeout(_) => true,
-        Error::Status { status, .. } => matches!(
-            status.code(),
-            tonic::Code::Unavailable
-                | tonic::Code::DeadlineExceeded
-                | tonic::Code::ResourceExhausted
-                | tonic::Code::Aborted
-        ),
+        Error::Status { status, .. } => {
+            matches!(
+                status.code(),
+                tonic::Code::Unavailable
+                    | tonic::Code::DeadlineExceeded
+                    | tonic::Code::ResourceExhausted
+                    | tonic::Code::Aborted
+            ) || (status.code() == tonic::Code::Internal
+                && status.message().starts_with("h2 protocol error"))
+        }
         _ => false,
     }
 }
