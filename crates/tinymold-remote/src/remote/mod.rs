@@ -119,7 +119,7 @@ impl RemoteCache {
         let authenticated = self.config.authorization.is_some();
         let writable = match self
             .runtime
-            .block_on(self.client.write(&naming::blob(probe), probe.to_vec()))
+            .block_on(self.client.write(&naming::blob(probe), probe))
         {
             Ok(()) => true,
             Err(error) if authenticated => return Err(error),
@@ -135,7 +135,7 @@ impl RemoteCache {
                 Client::new(&anonymous)?
             };
             self.runtime
-                .block_on(client.write(&naming::blob(probe), probe.to_vec()))
+                .block_on(client.write(&naming::blob(probe), probe))
                 .is_ok()
         } else {
             writable

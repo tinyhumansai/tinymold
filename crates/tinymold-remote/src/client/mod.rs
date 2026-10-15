@@ -202,7 +202,7 @@ impl Client {
     }
 
     /// Uploads `data`, whose digest is `digest`.
-    pub(crate) async fn write(&self, digest: &Digest, data: Vec<u8>) -> Result<()> {
+    pub(crate) async fn write(&self, digest: &Digest, data: &[u8]) -> Result<()> {
         const CALL: &str = "Write";
         let resource = naming::write_resource(&self.instance, digest);
         let mut chunks = Vec::with_capacity(data.len().div_ceil(CHUNK).max(1));
