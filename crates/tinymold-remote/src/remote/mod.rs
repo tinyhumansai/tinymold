@@ -31,6 +31,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
+use futures_util::{StreamExt as _, future, stream};
 use tinymold_cas::Store;
 use tinymold_hash::Digest;
 use tinymold_wrap::{RecordKind, RemoteError};
@@ -46,6 +47,17 @@ pub use types::{Capabilities, PushReport};
 
 /// How many digests one `FindMissingBlobs` call asks about.
 const FIND_BATCH: usize = 1000;
+
+/// How many calls `push` and a fetch keep in flight at once. Each is a round
+/// trip; a CI runner an ocean away from its cache spends most of a call
+/// waiting, and one at a time leaves the link nearly idle.
+const IN_FLIGHT_CALLS: usize = 32;
+
+/// How many blob bytes may be in flight at once. Each transfer holds its
+/// blob in memory, and they share the link: this bounds the memory, and
+/// every transfer's deadline allows for this many bytes beside it. A blob
+/// larger than this goes alone.
+const IN_FLIGHT_BYTES: u64 = if cfg!(test) { 64 << 10 } else { 32 << 20 };
 
 /// How long `push` waits before each retry of a call that timed out or
 /// found the server unavailable. A server behind a saturated disk can stall
@@ -237,65 +249,9 @@ impl RemoteCache {
             }
         }
 
-        let failure = self.runtime.block_on(async {
-            // Blobs whose upload still failed after its retries, and why.
-            let mut failed = HashSet::new();
-            let mut last = None;
-            let digests: Vec<proto::Digest> = blobs.keys().cloned().collect();
-            for batch in digests.chunks(FIND_BATCH) {
-                let missing = retrying(|| self.client.find_missing(batch.to_vec())).await?;
-                for missing in missing {
-                    let data = match blobs.get(&missing) {
-                        Some(Source::Bytes(bytes)) => bytes.clone(),
-                        Some(Source::Object(object)) => store.read(object)?,
-                        // The server asked about a blob nobody sent it.
-                        None => continue,
-                    };
-                    match retrying(|| self.client.write(&missing, &data)).await {
-                        Ok(()) => {
-                            report.blobs += 1;
-                            report.bytes += data.len() as u64;
-                        }
-                        Err(error) if transient(&error) => {
-                            failed.insert(missing);
-                            last = Some(error);
-                        }
-                        Err(error) => return Err(error),
-                    }
-                }
-            }
-            // An entry goes up only once every blob it names is there.
-            let entries = actions
-                .into_iter()
-                .map(|entry| (entry, true))
-                .chain(prekeys.into_iter().map(|entry| (entry, false)));
-            for ((key, result), action) in entries {
-                let complete = result
-                    .output_files
-                    .iter()
-                    .filter_map(|file| file.digest.as_ref())
-                    .all(|digest| !failed.contains(digest));
-                if !complete {
-                    report.failed += 1;
-                    continue;
-                }
-                match retrying(|| {
-                    self.client
-                        .update_action_result(key.clone(), result.clone())
-                })
-                .await
-                {
-                    Ok(()) if action => report.actions += 1,
-                    Ok(()) => report.prekeys += 1,
-                    Err(error) if transient(&error) => {
-                        report.failed += 1;
-                        last = Some(error);
-                    }
-                    Err(error) => return Err(error),
-                }
-            }
-            Ok::<_, Error>(last)
-        })?;
+        let failure =
+            self.runtime
+                .block_on(self.send(&store, &blobs, actions, prekeys, &mut report))?;
         // Pushing part of a store is worth something. A push that left no
         // action, or no pre-key record, cannot serve a single hit: a reader
         // finds actions only through pre-keys.
@@ -303,6 +259,105 @@ impl RemoteCache {
             Some(error) if report.actions == 0 || report.prekeys == 0 => Err(error),
             _ => Ok(report),
         }
+    }
+
+    /// Uploads the `blobs` the server lacks, then the `actions` and
+    /// `prekeys` whose blobs all went up, counting them in `report`. Returns
+    /// the last transient failure, if any call still failed after its
+    /// retries.
+    async fn send(
+        &self,
+        store: &Store,
+        blobs: &HashMap<proto::Digest, Source>,
+        actions: Vec<(proto::Digest, ActionResult)>,
+        prekeys: Vec<(proto::Digest, ActionResult)>,
+        report: &mut PushReport,
+    ) -> Result<Option<Error>> {
+        // Blobs whose upload still failed after its retries, and why.
+        let mut failed = HashSet::new();
+        let mut last = None;
+        let digests: Vec<proto::Digest> = blobs.keys().cloned().collect();
+        let mut missing = Vec::new();
+        for batch in digests.chunks(FIND_BATCH) {
+            missing.extend(retrying(|| self.client.find_missing(batch.to_vec())).await?);
+        }
+        let missing = missing
+            .into_iter()
+            .map(|digest| (blob_size(&digest), digest))
+            .collect();
+        in_flight(
+            missing,
+            |digest| async move {
+                let data = match blobs.get(&digest) {
+                    Some(Source::Bytes(bytes)) => bytes.clone(),
+                    Some(Source::Object(object)) => store.read(object)?,
+                    // The server asked about a blob nobody sent it.
+                    None => return Ok(None),
+                };
+                let result =
+                    retrying(|| self.client.write_sharing(&digest, &data, IN_FLIGHT_BYTES)).await;
+                Ok::<_, Error>(Some((digest, data.len(), result)))
+            },
+            |upload| {
+                let Some((digest, size, result)) = upload? else {
+                    return Ok(());
+                };
+                match result {
+                    Ok(()) => {
+                        report.blobs += 1;
+                        report.bytes += size as u64;
+                    }
+                    Err(error) if transient(&error) => {
+                        failed.insert(digest);
+                        last = Some(error);
+                    }
+                    Err(error) => return Err(error),
+                }
+                Ok(())
+            },
+        )
+        .await?;
+        // An entry goes up only once every blob it names is there, and
+        // every action before any pre-key record.
+        for (entries, action) in [(actions, true), (prekeys, false)] {
+            let mut ready = Vec::new();
+            for (key, result) in entries {
+                let complete = result
+                    .output_files
+                    .iter()
+                    .filter_map(|file| file.digest.as_ref())
+                    .all(|digest| !failed.contains(digest));
+                if complete {
+                    ready.push((key, result));
+                } else {
+                    report.failed += 1;
+                }
+            }
+            let ready = ready.into_iter().map(|entry| (0, entry)).collect();
+            in_flight(
+                ready,
+                |(key, result)| {
+                    retrying(move || {
+                        self.client
+                            .update_action_result(key.clone(), result.clone())
+                    })
+                },
+                |update| {
+                    match update {
+                        Ok(()) if action => report.actions += 1,
+                        Ok(()) => report.prekeys += 1,
+                        Err(error) if transient(&error) => {
+                            report.failed += 1;
+                            last = Some(error);
+                        }
+                        Err(error) => return Err(error),
+                    }
+                    Ok(())
+                },
+            )
+            .await?;
+        }
+        Ok(last)
     }
 
     /// With a signing key, adds the signature of the entry `result` under
@@ -365,8 +420,14 @@ impl RemoteCache {
                 return Ok(None);
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
-            self.verify(Kind::Prekey, &key, &digest, &result).await?;
-            let bytes = self.client.read(&digest).await?;
+            // The record is only used once the signature checks out, but
+            // reading both at once saves a round trip. A refused signature
+            // drops the read at once, whatever the server is sending.
+            let ((), bytes) = future::try_join(
+                self.verify(Kind::Prekey, &key, &digest, &result),
+                self.client.read(&digest),
+            )
+            .await?;
             String::from_utf8(bytes)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
@@ -385,14 +446,15 @@ impl RemoteCache {
             let record = find_file(&result, ACTION_FILE, &key)?;
             // Before any object: an untrusted entry fetches nothing.
             self.verify(Kind::Action, &key, &record, &result).await?;
+            let malformed = |reason| Error::Malformed {
+                key: key.hash.clone(),
+                reason,
+            };
+            let mut wanted = Vec::new();
             for file in &result.output_files {
                 if file.path == ACTION_FILE || file.path == SIGNATURE_FILE {
                     continue;
                 }
-                let malformed = |reason| Error::Malformed {
-                    key: key.hash.clone(),
-                    reason,
-                };
                 let name = Digest::from_str(&file.path)
                     .map_err(|_| malformed("an output is not named by its digest"))?;
                 if store.contains(&name) {
@@ -402,12 +464,43 @@ impl RemoteCache {
                     .digest
                     .clone()
                     .ok_or_else(|| malformed("an output has no digest"))?;
-                let bytes = self.client.read(&digest).await?;
-                if store.insert_bytes(&bytes)? != name {
-                    return Err(malformed("an output does not match its name"));
-                }
+                wanted.push((name, digest));
             }
-            let text = self.client.read(&record).await?;
+            // Every object, and the record, in flight together under one
+            // limit: each read is a round trip. Each object goes into the
+            // store as it arrives, so memory holds only what is in flight.
+            let reads = std::iter::once((blob_size(&record), None))
+                .chain(
+                    wanted
+                        .into_iter()
+                        .map(|(name, digest)| (blob_size(&digest), Some((name, digest)))),
+                )
+                .collect();
+            let mut text = None;
+            in_flight(
+                reads,
+                |object| {
+                    let record = &record;
+                    async move {
+                        let (name, digest) = match object {
+                            Some((name, digest)) => (Some(name), digest),
+                            None => (None, record.clone()),
+                        };
+                        let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
+                        (name, bytes)
+                    }
+                },
+                |(name, bytes)| match name {
+                    None => {
+                        text = Some(bytes?);
+                        Ok(())
+                    }
+                    Some(name) if store.insert_bytes(&bytes?)? == name => Ok(()),
+                    Some(_) => Err(malformed("an output does not match its name")),
+                },
+            )
+            .await?;
+            let text = text.ok_or_else(|| malformed("its action record was never read"))?;
             String::from_utf8(text)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
@@ -470,6 +563,49 @@ fn output(path: &str, digest: proto::Digest) -> OutputFile {
         path: path.to_owned(),
         digest: Some(digest),
         is_executable: false,
+    }
+}
+
+/// The size a digest declares, for the in-flight byte budget; 0 when it
+/// declares none.
+fn blob_size(digest: &proto::Digest) -> u64 {
+    u64::try_from(digest.size_bytes).unwrap_or(0)
+}
+
+/// Runs `start` on every item, oldest first, keeping up to
+/// [`IN_FLIGHT_CALLS`] of them and [`IN_FLIGHT_BYTES`] of their sizes in
+/// flight; an item larger than the budget runs alone. Hands each output to
+/// `done` as it finishes, and stops at the first error `done` returns.
+async fn in_flight<I, T, Fut>(
+    items: Vec<(u64, I)>,
+    mut start: impl FnMut(I) -> Fut,
+    mut done: impl FnMut(T) -> Result<()>,
+) -> Result<()>
+where
+    Fut: Future<Output = T>,
+{
+    let mut queue = items.into_iter().peekable();
+    let mut running = stream::FuturesUnordered::new();
+    let mut bytes: u64 = 0;
+    loop {
+        while let Some(&(size, _)) = queue.peek() {
+            let full =
+                running.len() >= IN_FLIGHT_CALLS || bytes.saturating_add(size) > IN_FLIGHT_BYTES;
+            if full && !running.is_empty() {
+                break;
+            }
+            let Some((size, item)) = queue.next() else {
+                break;
+            };
+            bytes = bytes.saturating_add(size);
+            let work = start(item);
+            running.push(async move { (size, work.await) });
+        }
+        let Some((size, output)) = running.next().await else {
+            return Ok(());
+        };
+        bytes -= size;
+        done(output)?;
     }
 }
 

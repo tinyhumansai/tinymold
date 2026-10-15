@@ -94,7 +94,12 @@ sharing a key.
    outcome is `remote`.
 
 Calls go through ByteStream `Read` for blobs, so blob size is not limited
-by the gRPC message size. Each call has the configured timeout, and blob
+by the gRPC message size. Once an entry's signature checks out, its
+objects and its record are read together, within the same limits as a
+push's uploads (below), and a pre-key
+lookup reads its signature and record together: each read is a round trip,
+and a runner far from its cache would otherwise pay one per object on every
+hit. Each call has the configured timeout, and blob
 transfers get one more second per 4 MiB. **Any
 error, timeout or verification failure is logged and becomes a miss**, and
 rustc runs.
@@ -112,6 +117,13 @@ tinymold remote push [--since <unix-seconds>]
 3. Upload the missing blobs with ByteStream `Write`, then `UpdateActionResult`
    for the action. Pre-key entries go last, so a reader that finds an input
    set can find its action.
+
+Up to 32 uploads, and at most 32 MiB of blobs, are in flight at once (a
+larger blob goes alone), then up to 32 entry updates, every action's before
+any pre-key's. The byte budget bounds the memory a push holds, and because
+the transfers share the link, each one's deadline allows for the whole
+32 MiB beside it at the 4 MiB/s floor: 8 s more than a transfer alone.
+One at a time, each call would wait out a full round trip to the server.
 
 The command reports how many entries and bytes it uploaded. It fails, with
 exit 1, on the first rejected write, such as missing write credentials.

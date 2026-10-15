@@ -163,6 +163,12 @@ impl Client {
 
     /// Reads the blob `digest`, checking that its content hashes to it.
     pub(crate) async fn read(&self, digest: &Digest) -> Result<Vec<u8>> {
+        self.read_sharing(digest, 0).await
+    }
+
+    /// [`Client::read`], for a transfer that shares the link with up to
+    /// `shared` bytes of others: its deadline allows for all of them.
+    pub(crate) async fn read_sharing(&self, digest: &Digest, shared: u64) -> Result<Vec<u8>> {
         const CALL: &str = "Read";
         let declared = declared_size(digest)?;
         let request = ReadRequest {
@@ -191,7 +197,9 @@ impl Client {
             }
             Ok(data)
         };
-        let data = self.within(CALL, self.allowance(digest), transfer).await?;
+        let data = self
+            .within(CALL, self.allowance(digest, shared), transfer)
+            .await?;
         if naming::blob(&data) == *digest {
             Ok(data)
         } else {
@@ -203,6 +211,17 @@ impl Client {
 
     /// Uploads `data`, whose digest is `digest`.
     pub(crate) async fn write(&self, digest: &Digest, data: &[u8]) -> Result<()> {
+        self.write_sharing(digest, data, 0).await
+    }
+
+    /// [`Client::write`], for a transfer that shares the link with up to
+    /// `shared` bytes of others: its deadline allows for all of them.
+    pub(crate) async fn write_sharing(
+        &self,
+        digest: &Digest,
+        data: &[u8],
+        shared: u64,
+    ) -> Result<()> {
         const CALL: &str = "Write";
         let resource = naming::write_resource(&self.instance, digest);
         let mut chunks = Vec::with_capacity(data.len().div_ceil(CHUNK).max(1));
@@ -235,7 +254,8 @@ impl Client {
             .await
             .map_err(status(CALL))
         };
-        self.within(CALL, self.allowance(digest), transfer).await?;
+        self.within(CALL, self.allowance(digest, shared), transfer)
+            .await?;
         Ok(())
     }
 
@@ -284,9 +304,11 @@ impl Client {
         request
     }
 
-    /// The timeout plus a second for every [`SLOWEST_RATE`] bytes of blob.
-    fn allowance(&self, digest: &Digest) -> Duration {
-        let bytes = declared_size(digest).unwrap_or(0);
+    /// The timeout plus a second for every [`SLOWEST_RATE`] bytes of blob,
+    /// or of the `shared` bytes in flight beside it when that is more: a
+    /// transfer sharing the link moves at the pace of everything on it.
+    pub(crate) fn allowance(&self, digest: &Digest, shared: u64) -> Duration {
+        let bytes = declared_size(digest).unwrap_or(0).max(shared);
         self.timeout + Duration::from_secs(bytes / SLOWEST_RATE)
     }
 

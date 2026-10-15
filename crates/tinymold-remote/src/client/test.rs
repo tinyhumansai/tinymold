@@ -217,10 +217,30 @@ fn transfers_get_time_in_proportion_to_their_size() {
         hash: small.hash.clone(),
         size_bytes: 40 << 20,
     };
-    assert_eq!(client.allowance(&small), DEFAULT_TIMEOUT);
+    assert_eq!(client.allowance(&small, 0), DEFAULT_TIMEOUT);
     assert_eq!(
-        client.allowance(&large),
+        client.allowance(&large, 0),
         DEFAULT_TIMEOUT + Duration::from_secs(10)
+    );
+}
+
+#[test]
+fn a_transfer_sharing_the_link_gets_time_for_everything_in_flight() {
+    // One 1-byte blob among 40 MiB of others moves at their pace, not its own.
+    let runtime = runtime();
+    let client = client(&runtime, &RemoteConfig::new("grpc://cache:1").unwrap());
+    let small = naming::blob(b"x");
+    assert_eq!(
+        client.allowance(&small, 40 << 20),
+        DEFAULT_TIMEOUT + Duration::from_secs(10)
+    );
+    let large = Digest {
+        hash: small.hash.clone(),
+        size_bytes: 80 << 20,
+    };
+    assert_eq!(
+        client.allowance(&large, 40 << 20),
+        DEFAULT_TIMEOUT + Duration::from_secs(20)
     );
 }
 
@@ -260,7 +280,7 @@ fn a_blob_declared_too_large_or_negative_is_refused_before_reading() {
             matches!(&result, Err(Error::BlobSize { size, .. }) if *size == size_bytes),
             "{result:?}"
         );
-        assert_eq!(client.allowance(&poisoned), DEFAULT_TIMEOUT);
+        assert_eq!(client.allowance(&poisoned, 0), DEFAULT_TIMEOUT);
     }
 }
 

@@ -3,13 +3,14 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use tinymold_wrap::Remote as _;
 
 use super::*;
-use crate::fake::Server;
+use crate::fake::{STALL, Server};
 use crate::{SigningKey, TrustedKeys};
 
 /// A local store holding one action of two objects and its pre-key record.
@@ -106,6 +107,215 @@ fn pushing_again_uploads_no_blob_twice() {
     assert_eq!(again.blobs, 0);
     assert_eq!(again.actions, 1);
     assert_eq!(server.with(|state| state.writes), 4);
+}
+
+impl Local {
+    /// Adds `count` more actions, each with an object of its own and a
+    /// pre-key record pointing at nothing in particular.
+    fn with_actions(self, count: usize) -> Self {
+        for n in 0..count {
+            let object = self
+                .store
+                .insert_bytes(format!("object {n}").as_bytes())
+                .unwrap();
+            let empty = self.store.insert_bytes(b"").unwrap();
+            let key = Digest::of_bytes(format!("key {n}").as_bytes());
+            write(
+                &self.root.join("entries/demo").join(key.to_hex()),
+                &format!(
+                    "tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {object} 0 0 lib{n}.rlib\n"
+                ),
+            );
+            let pre = Digest::of_bytes(format!("pre {n}").as_bytes());
+            write(
+                &self.root.join("prekeys").join(pre.to_hex()),
+                &format!("tinymold-prekey 1\nset {n}\n"),
+            );
+        }
+        self
+    }
+}
+
+#[test]
+fn push_overlaps_its_calls_over_a_slow_link() {
+    // Every call waits 50 ms, as across an ocean: one at a time, 40 actions
+    // would cost seconds of round trips.
+    let server = Server::start();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let local = Local::new().with_actions(40);
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.prekeys, report.failed), (41, 41, 0));
+    let peak = |method: &str| server.with(|state| state.peak_in_flight[method]);
+    assert!(peak("Write") > 1, "uploads ran one at a time");
+    assert!(
+        peak("UpdateActionResult") > 1,
+        "entries went up one at a time"
+    );
+}
+
+#[test]
+fn a_fetch_reads_an_actions_objects_together() {
+    let server = Server::start();
+    let local = Local::new();
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fresh = Store::open(elsewhere.path()).unwrap();
+    let text = cache.fetch_action(&local.key, &fresh).unwrap().unwrap();
+    assert_eq!(text, local.action_text());
+    for object in &local.objects {
+        assert!(fresh.contains(object));
+    }
+    assert!(
+        server.with(|state| state.peak_in_flight["Read"]) > 1,
+        "objects were read one at a time"
+    );
+}
+
+/// Runs `sizes` through [`in_flight`] as jobs that each take 10 ms, and
+/// returns the most bytes and the most jobs that were running at once.
+fn peaks(sizes: &[u64]) -> (u64, usize) {
+    use std::cell::Cell;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .unwrap();
+    let (bytes, jobs) = (Cell::new(0), Cell::new(0));
+    let (peak_bytes, peak_jobs) = (Cell::new(0), Cell::new(0));
+    let items = sizes.iter().map(|&size| (size, size)).collect();
+    runtime
+        .block_on(in_flight(
+            items,
+            |size| {
+                let (bytes, jobs) = (&bytes, &jobs);
+                let (peak_bytes, peak_jobs) = (&peak_bytes, &peak_jobs);
+                async move {
+                    bytes.set(bytes.get() + size);
+                    jobs.set(jobs.get() + 1);
+                    peak_bytes.set(peak_bytes.get().max(bytes.get()));
+                    peak_jobs.set(peak_jobs.get().max(jobs.get()));
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                    bytes.set(bytes.get() - size);
+                    jobs.set(jobs.get() - 1);
+                }
+            },
+            |()| Ok(()),
+        ))
+        .unwrap();
+    (peak_bytes.get(), peak_jobs.get())
+}
+
+#[test]
+fn in_flight_keeps_small_jobs_together_up_to_the_call_limit() {
+    assert_eq!(peaks(&[1; 100]), (IN_FLIGHT_CALLS as u64, IN_FLIGHT_CALLS));
+}
+
+#[test]
+fn in_flight_keeps_the_bytes_in_flight_within_the_budget() {
+    let half = IN_FLIGHT_BYTES / 2 + 1;
+    let (bytes, jobs) = peaks(&[half, half, half, 1, 1, half]);
+    assert!(bytes <= IN_FLIGHT_BYTES, "{bytes} bytes in flight");
+    assert_eq!(jobs, 3, "a big job, and the small ones beside it");
+}
+
+#[test]
+fn in_flight_runs_a_job_over_the_budget_alone() {
+    assert_eq!(peaks(&[IN_FLIGHT_BYTES * 3, 1]), (IN_FLIGHT_BYTES * 3, 1));
+}
+
+#[test]
+fn in_flight_stops_at_the_first_failure() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let mut seen = 0;
+    let result = runtime.block_on(in_flight(
+        vec![(1, 1), (1, 2), (1, 3)],
+        |n| async move { n },
+        |n| {
+            seen += 1;
+            if n == 1 {
+                Err(Error::Timeout("Write"))
+            } else {
+                Ok(())
+            }
+        },
+    ));
+    assert!(matches!(result, Err(Error::Timeout("Write"))));
+    assert_eq!(seen, 1);
+}
+
+#[test]
+fn a_blob_over_the_budget_still_goes_up_alone() {
+    let server = Server::start();
+    let local = Local::new();
+    let object = local
+        .store
+        .insert_bytes(&vec![7; usize::try_from(IN_FLIGHT_BYTES * 2).unwrap()])
+        .unwrap();
+    let empty = local.store.insert_bytes(b"").unwrap();
+    let key = Digest::of_bytes(b"huge");
+    write(
+        &local.root.join("entries/demo").join(key.to_hex()),
+        &format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {object} 0 0 huge\n"),
+    );
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.failed), (2, 0));
+}
+
+#[test]
+fn a_fetch_keeps_its_record_within_the_call_limit() {
+    // One action of 40 outputs: its record is read under the same limit as
+    // the objects, not as one call beyond it.
+    let server = Server::start();
+    let local = Local::new();
+    let empty = local.store.insert_bytes(b"").unwrap();
+    let mut record = format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\n");
+    for n in 0..40 {
+        let object = local
+            .store
+            .insert_bytes(format!("part {n}").as_bytes())
+            .unwrap();
+        writeln!(record, "output {object} 0 0 part{n}").unwrap();
+    }
+    let key = Digest::of_bytes(b"many parts");
+    write(&local.root.join("entries/demo").join(key.to_hex()), &record);
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fresh = Store::open(elsewhere.path()).unwrap();
+    assert_eq!(
+        cache.fetch_action(&key, &fresh).unwrap().as_deref(),
+        Some(record.as_str())
+    );
+    let peak = server.with(|state| state.peak_in_flight["Read"]);
+    assert_eq!(peak, IN_FLIGHT_CALLS as u64);
+}
+
+#[test]
+fn every_action_goes_up_before_any_pre_key() {
+    // A reader finds actions through pre-keys, so a pre-key must never land
+    // before the actions it leads to.
+    let server = Server::start();
+    let local = Local::new().with_actions(20);
+    remote(&server).push(&local.root, None).unwrap();
+    let prekeys: HashSet<String> = (0..20)
+        .map(|n| naming::prekey_key(&Digest::of_bytes(format!("pre {n}").as_bytes())).hash)
+        .chain([naming::prekey_key(&local.pre).hash])
+        .collect();
+    let updates = server.with(|state| state.updates.clone());
+    let first_prekey = updates
+        .iter()
+        .position(|key| prekeys.contains(key))
+        .unwrap();
+    assert!(
+        updates[first_prekey..]
+            .iter()
+            .all(|key| prekeys.contains(key))
+    );
+    assert_eq!(updates.len(), 42);
 }
 
 #[test]
@@ -341,6 +551,20 @@ fn a_signed_entry_is_fetched_by_a_reader_that_trusts_its_key() {
 }
 
 #[test]
+fn a_signed_pre_key_reads_its_signature_and_record_together() {
+    let server = Server::start();
+    let local = Local::new();
+    let signer = SigningKey::generate();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let reader = configured(&server, trusting(&signer));
+    assert!(reader.input_sets(&local.pre).unwrap().is_some());
+    assert_eq!(server.with(|state| state.peak_in_flight["Read"]), 2);
+}
+
+#[test]
 fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
     let server = Server::start();
     let local = Local::new();
@@ -374,6 +598,43 @@ fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
         ),
         "{result:?}"
     );
+}
+
+#[test]
+fn an_unsigned_pre_key_is_refused_without_waiting_for_its_record() {
+    // The record never arrives: a reader that waited for it would hang for
+    // the stall, or buffer whatever an untrusted server chose to send.
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+    let record = naming::blob(b"tinymold-prekey 1\nset 1\n");
+    server.with(|state| state.stalled_reads.insert(record.hash));
+    let reader = configured(&server, trusting(&SigningKey::generate()));
+    let started = std::time::Instant::now();
+    let result = reader.input_sets_of(&local.pre);
+    assert!(matches!(result, Err(Error::Untrusted { .. })), "{result:?}");
+    assert!(
+        started.elapsed() < STALL / 2,
+        "waited {:?}",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn each_object_is_stored_as_soon_as_it_arrives() {
+    // One object stalls past the timeout; the one that did arrive is already
+    // in the store rather than held in memory until every read is done.
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+    let rlib = naming::blob(b"rlib bytes");
+    server.with(|state| state.stalled_reads.insert(rlib.hash));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fresh = Store::open(elsewhere.path()).unwrap();
+    let result = impatient(&server).fetch_action_into(&local.key, &fresh);
+    assert!(matches!(result, Err(Error::Timeout("Read"))), "{result:?}");
+    let empty = tinymold_hash::Digest::of_bytes(b"");
+    assert!(fresh.contains(&empty));
 }
 
 #[test]
