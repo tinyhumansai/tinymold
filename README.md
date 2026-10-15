@@ -36,8 +36,8 @@ reasoning, with sources, is in [`docs/research/`](docs/research/README.md).
 
 > **Status: a working unit cache.** The content-addressed store, the hashing
 > layer, `tinymold doctor`, `tinymold fresh`, `tinymold snapshot` and the
-> rustc wrapper (`RUSTC_WRAPPER=tinymold`) work today. The cache server and
-> linker work are designed but not built yet. See the
+> rustc wrapper (`RUSTC_WRAPPER=tinymold`) work today. The cache server and its
+> protocol front-ends are specified but not built yet. See the
 > [roadmap](docs/plans/roadmap.md).
 
 ## Install
