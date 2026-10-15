@@ -50,7 +50,11 @@ pub(crate) fn parse(path: &str) -> Option<Target> {
 }
 
 /// Answers one Gradle request.
-pub(crate) async fn handle<B>(state: &Arc<State>, request: Request<B>, target: Target) -> Response<Body>
+pub(crate) async fn handle<B>(
+    state: &Arc<State>,
+    request: Request<B>,
+    target: Target,
+) -> Response<Body>
 where
     B: hyper::body::Body<Data = Bytes> + Send + Unpin + 'static,
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
@@ -101,9 +105,13 @@ where
         Err(error) => {
             record(state, Outcome::Other, received, 0);
             match error {
-                UploadError::TooLarge => route::text(StatusCode::PAYLOAD_TOO_LARGE, "cache entry too large\n"),
+                UploadError::TooLarge => {
+                    route::text(StatusCode::PAYLOAD_TOO_LARGE, "cache entry too large\n")
+                }
                 UploadError::Body => route::text(StatusCode::BAD_REQUEST, "upload failed\n"),
-                UploadError::Store(_) => route::text(StatusCode::INTERNAL_SERVER_ERROR, "store failed\n"),
+                UploadError::Store(_) => {
+                    route::text(StatusCode::INTERNAL_SERVER_ERROR, "store failed\n")
+                }
             }
         }
     }
@@ -115,7 +123,9 @@ fn miss(state: &State) -> Response<Body> {
 }
 
 fn record(state: &State, outcome: Outcome, bytes_in: u64, bytes_out: u64) {
-    state.metrics.record(FrontEnd::Gradle, outcome, bytes_in, bytes_out);
+    state
+        .metrics
+        .record(FrontEnd::Gradle, outcome, bytes_in, bytes_out);
 }
 
 #[cfg(test)]

@@ -12,7 +12,14 @@ use std::process::Command;
 fn build(repo: &Path, server: &str) -> String {
     common::run(
         Command::new("npx")
-            .args(["--no-install", "nx", "run-many", "-t", "build", "--outputStyle=static"])
+            .args([
+                "--no-install",
+                "nx",
+                "run-many",
+                "-t",
+                "build",
+                "--outputStyle=static",
+            ])
             .current_dir(repo)
             .env("NX_SELF_HOSTED_REMOTE_CACHE_SERVER", server)
             .env("NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN", "nx-token")
@@ -49,7 +56,13 @@ async fn live_nx_restores_a_task_from_the_server() {
     .await
     .unwrap();
 
-    assert!(!first.contains("remote cache"), "the first run had nothing to restore:\n{first}");
-    assert!(second.contains("[remote cache]"), "the second run missed the server:\n{second}");
+    assert!(
+        !first.contains("remote cache"),
+        "the first run had nothing to restore:\n{first}"
+    );
+    assert!(
+        second.contains("[remote cache]"),
+        "the second run missed the server:\n{second}"
+    );
     assert_eq!(restored, "built a");
 }

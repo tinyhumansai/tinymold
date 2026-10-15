@@ -56,7 +56,13 @@ async fn live_turbo_replays_every_task_from_the_server() {
     .await
     .unwrap();
 
-    assert!(!first.contains("FULL TURBO"), "the first run had nothing to replay:\n{first}");
-    assert!(second.contains("FULL TURBO"), "the second run missed the server:\n{second}");
+    assert!(
+        !first.contains("FULL TURBO"),
+        "the first run had nothing to replay:\n{first}"
+    );
+    assert!(
+        second.contains("FULL TURBO"),
+        "the second run missed the server:\n{second}"
+    );
     assert_eq!(restored, "built b");
 }

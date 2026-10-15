@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-6 done)
+- **Status:** In progress (slices 1-7 done)
 
 ## Goal
 
@@ -146,6 +146,12 @@ store, which the server refuses to share.
   `PUT` over an existing entry, pinned by a test.
 - Gradle: `/gradle/{key}`, `Expect: 100-continue`, `413` over the limit.
 - `live_nx` and `live_gradle` tests on fixtures, as in slice 6.
+- **As built:** Nx records are immutable, as its spec requires: a `PUT` to
+  a stored hash is `409` before the body is read. The three
+  single-artifact protocols (Turbo, Nx, Gradle) share
+  `src/front/artifact/`, and the live tests share `tests/common/`. Both
+  live tests pass: Nx 21 restores `[remote cache]` with a write token, and
+  Gradle 9.8.1 loads `:compileJava` from the server with basic auth.
 
 ### 8. GitHub Action `serve: true`
 
@@ -207,7 +213,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 4. `bazel-http` front-end
 - [x] 5. `reapi` front-end and the CI switch
 - [x] 6. `turbo` front-end
-- [ ] 7. `nx` and `gradle` front-ends
+- [x] 7. `nx` and `gradle` front-ends
 - [ ] 8. GitHub Action `serve: true`
 - [ ] 9. Native socket and the Rust adapter
 - [ ] 10. `gocacheprog` adapter

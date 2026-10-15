@@ -47,7 +47,11 @@ pub(crate) fn parse(path: &str) -> Option<Target> {
 }
 
 /// Answers one Nx request.
-pub(crate) async fn handle<B>(state: &Arc<State>, request: Request<B>, target: Target) -> Response<Body>
+pub(crate) async fn handle<B>(
+    state: &Arc<State>,
+    request: Request<B>,
+    target: Target,
+) -> Response<Body>
 where
     B: hyper::body::Body<Data = Bytes> + Send + Unpin + 'static,
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
@@ -78,9 +82,10 @@ where
         };
         record(state, Outcome::Hit, 0, if head { 0 } else { len });
         let mut response = route::sized(body, len, head);
-        response
-            .headers_mut()
-            .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/octet-stream"));
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        );
         return response;
     }
 
@@ -101,9 +106,13 @@ where
         Err(error) => {
             record(state, Outcome::Other, received, 0);
             match error {
-                UploadError::TooLarge => route::text(StatusCode::PAYLOAD_TOO_LARGE, "task output too large\n"),
+                UploadError::TooLarge => {
+                    route::text(StatusCode::PAYLOAD_TOO_LARGE, "task output too large\n")
+                }
                 UploadError::Body => route::text(StatusCode::BAD_REQUEST, "upload failed\n"),
-                UploadError::Store(_) => route::text(StatusCode::INTERNAL_SERVER_ERROR, "store failed\n"),
+                UploadError::Store(_) => {
+                    route::text(StatusCode::INTERNAL_SERVER_ERROR, "store failed\n")
+                }
             }
         }
     }
@@ -115,7 +124,9 @@ fn miss(state: &State) -> Response<Body> {
 }
 
 fn record(state: &State, outcome: Outcome, bytes_in: u64, bytes_out: u64) {
-    state.metrics.record(FrontEnd::Nx, outcome, bytes_in, bytes_out);
+    state
+        .metrics
+        .record(FrontEnd::Nx, outcome, bytes_in, bytes_out);
 }
 
 #[cfg(test)]

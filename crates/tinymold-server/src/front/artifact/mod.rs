@@ -42,7 +42,9 @@ pub(crate) async fn find(state: &Arc<State>, key: Key) -> Option<Found> {
 /// Whether an artifact is stored under `key`.
 pub(crate) async fn exists(state: &Arc<State>, key: Key) -> bool {
     let store = state.store.clone();
-    blocking(move || store.contains(&key)).await.unwrap_or(false)
+    blocking(move || store.contains(&key))
+        .await
+        .unwrap_or(false)
 }
 
 /// Streams `body` into the store as the artifact under `key`, with `meta`,

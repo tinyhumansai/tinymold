@@ -12,7 +12,13 @@ use std::process::Command;
 fn compile(project: &Path, cache: &str) -> String {
     common::run(
         Command::new("gradle")
-            .args(["clean", "compileJava", "--build-cache", "--no-daemon", "--console=plain"])
+            .args([
+                "clean",
+                "compileJava",
+                "--build-cache",
+                "--no-daemon",
+                "--console=plain",
+            ])
             .arg("--info")
             .current_dir(project)
             .env("TINYMOLD_GRADLE_CACHE", cache)
@@ -39,6 +45,12 @@ async fn live_gradle_loads_compiled_classes_from_the_server() {
     .await
     .unwrap();
 
-    assert!(first.contains("Stored cache entry for task ':compileJava'"), "the first build stored nothing:\n{first}");
-    assert!(second.contains("Loaded cache entry for task ':compileJava'"), "the second build missed the server:\n{second}");
+    assert!(
+        first.contains("Stored cache entry for task ':compileJava'"),
+        "the first build stored nothing:\n{first}"
+    );
+    assert!(
+        second.contains("Loaded cache entry for task ':compileJava'"),
+        "the second build missed the server:\n{second}"
+    );
 }
