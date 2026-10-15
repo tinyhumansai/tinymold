@@ -3,6 +3,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -276,7 +277,7 @@ fn a_fetch_keeps_its_record_within_the_call_limit() {
             .store
             .insert_bytes(format!("part {n}").as_bytes())
             .unwrap();
-        record.push_str(&format!("output {object} 0 0 part{n}\n"));
+        writeln!(record, "output {object} 0 0 part{n}").unwrap();
     }
     let key = Digest::of_bytes(b"many parts");
     write(&local.root.join("entries/demo").join(key.to_hex()), &record);
