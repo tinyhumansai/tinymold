@@ -51,19 +51,21 @@ mod doctor;
 mod error;
 pub mod fresh;
 pub mod gc;
+pub mod gocacheprog;
 mod location;
+mod serve;
 pub mod snapshot;
 pub mod stats;
 mod tree;
 mod wrapper;
 
 pub use cli::{
-    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, RemoteCommand, RunTestArgs,
-    SnapshotCommand, StatsArgs, StrategyArg, run,
+    CasCommand, Cli, Command, FreshCommand, GcArgs, GoCacheProgArgs, Location, Outcome,
+    RemoteCommand, RunTestArgs, ServeArgs, SnapshotCommand, StatsArgs, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
-pub use location::default_store;
+pub use location::{default_server_dir, default_store};
 pub use tinymold_cas;
 pub use tinymold_hash;
 #[cfg(feature = "remote")]

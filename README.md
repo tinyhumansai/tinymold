@@ -106,6 +106,20 @@ Inputs, cache keys and runners are in
 [`docs/specs/github-actions.md`](docs/specs/github-actions.md), and the remote
 tier in [`docs/specs/remote.md`](docs/specs/remote.md).
 
+**For Turborepo, Nx, ccache or Go in the same job**, add `serve: true`: the
+action runs `tinymold serve` on loopback for the job, points those tools at
+it, and carries its store in the same GitHub cache entry. No Rust toolchain
+is needed for that.
+
+```yaml
+  - uses: tinyhumansai/tinymold@v0
+    with:
+      serve: true
+  - run: npm ci && npx turbo run build test
+  - uses: tinyhumansai/tinymold/save@v0
+    if: always()
+```
+
 **Anywhere else** (GitLab, Buildkite, Jenkins, custom runners), set
 `RUSTC_WRAPPER=tinymold`, cache the `TINYMOLD_STORE` directory between jobs,
 and run `tinymold gc` before saving it.
@@ -132,7 +146,21 @@ tinymold fresh restore                     # after a checkout: undo mtime-only c
 # The store itself.
 tinymold hash src/main.rs                  # BLAKE3 digests, b3sum format
 tinymold cas put target/debug/deps/libfoo-*.rlib
+
+# The cache server, for every other build tool.
+tinymold serve                             # http://127.0.0.1:9090, store in tinymold-server/
+CCACHE_REMOTE_STORAGE="http://127.0.0.1:9090|layout=bazel" ccache cc -c unit.c
+TURBO_API=http://127.0.0.1:9090 TURBO_TOKEN=local TURBO_TEAM=me npx turbo run build
+NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090 npx nx run-many -t build
+# Gradle: remote<HttpBuildCache> { url = uri("http://127.0.0.1:9090/gradle/") }
+# Bazel:  --remote_cache=grpc://127.0.0.1:9090
+GOCACHEPROG="tinymold gocacheprog" go build ./...   # Go, straight from the store
 ```
+
+`tinymold serve` is specified in
+[`docs/specs/cache-server.md`](docs/specs/cache-server.md); against bazel-remote
+it serves 4 MiB blobs about 1.4× faster and starts in 17 ms whatever the store
+holds ([benchmark](bench/README.md#results)).
 
 The store defaults to `$TINYMOLD_STORE`, then `$XDG_CACHE_HOME/tinymold`, then
 `~/.cache/tinymold`. Keep it on the same filesystem as your checkouts: that is
@@ -192,13 +220,14 @@ is still relinked in full, while unchanged crates, binaries and test
 executables are restored without compiling or linking. Every benchmark, the
 machine it ran on, and how to reproduce it are in [`bench/`](bench/README.md).
 
-> **Status: a working Rust cache.** The content-addressed store, the hashing
+> **Status: a working cache.** The content-addressed store, the hashing
 > layer, the rustc wrapper (`RUSTC_WRAPPER=tinymold`), the test result cache
 > (`tinymold run-test`), `fresh`, `snapshot`, `gc` and the REAPI remote tier
-> work today. The cache server and its protocol front-ends are specified but
-> not built yet. See the [roadmap](docs/plans/roadmap.md).
+> work today, and so does `tinymold serve` with its REAPI, Bazel HTTP,
+> Turborepo, Nx and Gradle front-ends and the Go adapter. See the
+> [cache-server plan](docs/plans/cache-server.md) for what remains.
 
-## How it will work
+## How it works
 
 ```text
  Turbo   Nx   Gradle   ccache   Bazel/Buck2   rustc wrapper   go (GOCACHEPROG)
@@ -234,6 +263,8 @@ the reasoning, with sources, in [`docs/research/`](docs/research/README.md).
 | --- | --- |
 | [`tinymold`](crates/tinymold) | The `tinymold` binary and its library half |
 | [`tinymold-cas`](crates/tinymold-cas) | Local content-addressed store: atomic insert, read-only objects, reflink → hardlink → copy restore |
+| [`tinymold-server`](crates/tinymold-server) | `tinymold serve`: one store behind REAPI v2 (tinymold, Bazel, Buck2), Bazel's HTTP cache protocol (and ccache), Turborepo, Nx and Gradle's HTTP build cache |
+| [`tinymold-store`](crates/tinymold-store) | The cache server's core: namespaced entries over the CAS, and a SHA-256 index so every protocol finds the same blob |
 | [`tinymold-hash`](crates/tinymold-hash) | The BLAKE3-256 `Digest` type, streaming file hashing, and a field hasher for cache keys |
 | [`tinymold-key`](crates/tinymold-key) | rustc argument parsing, path roots, dep-info, and the two cache keys |
 | [`tinymold-wrap`](crates/tinymold-wrap) | The `RUSTC_WRAPPER`: lookup, restore, run and store, plus the record catalog GC uses |

@@ -18,7 +18,7 @@
 //! the same bytes at once both succeed, and the store ends up with one object.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -27,7 +27,7 @@ use tinymold_hash::Digest;
 
 mod types;
 
-pub use types::{ObjectInfo, StagingFile};
+pub use types::{ObjectInfo, Staged, StagingFile};
 
 use crate::materialize::{self, Method, Strategy};
 
@@ -145,6 +145,50 @@ impl Store {
             Err(error) => {
                 // Best effort: a stale staging file is garbage, not a fault.
                 let _ = fs::remove_file(&staging);
+                Err(error)
+            }
+        }
+    }
+
+    /// Streams `reader` into a private staging file and hashes it on the way,
+    /// without storing it yet.
+    ///
+    /// The returned [`Staged`] body knows its digest and size, so a caller
+    /// can check them against what a client claimed before deciding.
+    /// [`Staged::commit`] stores it; dropping it discards it. The bytes are
+    /// read once and never held in memory as a whole, which is what lets a
+    /// server accept an upload of any size.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Stream`] when `reader` fails, and [`Error::Io`] when
+    /// the staging file cannot be written. Neither leaves a staging file.
+    pub fn stage(&self, reader: impl Read) -> Result<Staged<'_>> {
+        let path = self.staging_path();
+        let file = create_new(&path)?;
+        let mut tee = Tee {
+            reader,
+            file,
+            size: 0,
+            failure: None,
+        };
+        let hashed = Digest::of_reader(&mut tee);
+        let Tee { size, failure, .. } = tee;
+        // Every read error passes through the tee, which keeps its cause.
+        let outcome = match failure {
+            Some(failure) => Err(failure.into_error(&path)),
+            None => hashed.map_err(Error::from),
+        };
+        match outcome {
+            Ok(digest) => Ok(Staged {
+                store: self,
+                path,
+                digest,
+                size,
+            }),
+            Err(error) => {
+                // Best effort: a stale staging file is garbage, not a fault.
+                let _ = fs::remove_file(&path);
                 Err(error)
             }
         }
@@ -355,6 +399,94 @@ impl Store {
                 source,
             }),
         }
+    }
+}
+
+impl Staged<'_> {
+    /// The BLAKE3 digest of the staged bytes.
+    #[must_use]
+    pub fn digest(&self) -> Digest {
+        self.digest
+    }
+
+    /// The number of staged bytes.
+    #[must_use]
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+
+    /// Seals the staged bytes and stores them under their digest.
+    ///
+    /// Committing bytes the store already holds keeps the existing object
+    /// and discards the staged copy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Io`] when the object cannot be sealed or renamed
+    /// into place.
+    pub fn commit(mut self) -> Result<Digest> {
+        let path = std::mem::take(&mut self.path);
+        self.store.commit(&path, self.digest)?;
+        Ok(self.digest)
+    }
+}
+
+impl Drop for Staged<'_> {
+    fn drop(&mut self) {
+        // An empty path means `commit` already took the file. Otherwise the
+        // body was abandoned, and its staging file is removed best effort.
+        if !self.path.as_os_str().is_empty() {
+            let _ = fs::remove_file(&self.path);
+        }
+    }
+}
+
+/// Copies everything read through it into a staging file, so one pass over
+/// a stream both hashes it and stores it.
+struct Tee<R> {
+    reader: R,
+    file: File,
+    size: u64,
+    /// The first failure, kept apart from the hasher's error so a broken
+    /// stream and a broken disk are reported as what they are.
+    failure: Option<TeeFailure>,
+}
+
+enum TeeFailure {
+    Read(io::Error),
+    Write(io::Error),
+}
+
+impl TeeFailure {
+    fn into_error(self, staging: &Path) -> Error {
+        match self {
+            Self::Read(source) => Error::Stream(source),
+            Self::Write(source) => io_error("write", staging)(source),
+        }
+    }
+}
+
+impl<R: Read> Read for Tee<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        let read = loop {
+            match self.reader.read(buffer) {
+                Ok(read) => break read,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                Err(error) => {
+                    let reported = io::Error::new(error.kind(), "stream failed");
+                    self.failure = Some(TeeFailure::Read(error));
+                    return Err(reported);
+                }
+            }
+        };
+        if let Err(error) = self.file.write_all(&buffer[..read]) {
+            let reported = io::Error::new(error.kind(), "staging write failed");
+            self.failure = Some(TeeFailure::Write(error));
+            return Err(reported);
+        }
+        // `usize` is at most 64 bits on every supported target.
+        self.size += read as u64;
+        Ok(read)
     }
 }
 

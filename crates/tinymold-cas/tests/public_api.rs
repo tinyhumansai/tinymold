@@ -43,3 +43,17 @@ fn a_second_handle_on_the_same_root_sees_the_same_objects() {
     assert!(reader.contains(&digest));
     reader.verify(&digest).unwrap();
 }
+
+#[test]
+fn a_streamed_upload_is_checked_before_it_is_stored() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path().join("store")).unwrap();
+    let claimed = Digest::of_bytes(b"what the client said it sent");
+
+    let staged = store.stage(&b"what actually arrived"[..]).unwrap();
+    assert_ne!(staged.digest(), claimed);
+    let rejected = staged.digest();
+    drop(staged);
+
+    assert!(!store.contains(&rejected));
+}
