@@ -339,6 +339,7 @@ fn run_via(
             args: &[],
             cwd: root,
             env,
+            stdin_has_input: false,
         },
     )
 }
@@ -383,6 +384,7 @@ fn a_via_program_that_cannot_start_fails_the_run() {
             args: &[],
             cwd: &root,
             env: &env(&[]),
+            stdin_has_input: false,
         }),
         1
     );
@@ -402,6 +404,7 @@ fn run_test_uncached_runs_the_binary_as_asked() {
             args: &[],
             cwd: &root,
             env: &env,
+            stdin_has_input: false,
         });
         assert_eq!(code, 0);
     }
@@ -479,6 +482,7 @@ fn arguments_and_env_vars_that_are_not_utf8_pass_through() {
             args: &args[..1],
             cwd: &root,
             env: &[(OsString::from("ODD"), odd)],
+            stdin_has_input: false,
         },
     );
     assert_eq!(code, 0);
@@ -491,6 +495,7 @@ fn arguments_and_env_vars_that_are_not_utf8_pass_through() {
             args: &filtered,
             cwd: &root,
             env: &env(&[]),
+            stdin_has_input: false,
         },
     );
     assert_eq!(
