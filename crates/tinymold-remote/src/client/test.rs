@@ -62,7 +62,7 @@ fn an_action_result_round_trips_and_a_missing_one_is_none() {
             client.find_missing(vec![blob.clone()]).await.unwrap(),
             std::slice::from_ref(&blob)
         );
-        client.write(&blob, b"bytes".to_vec()).await.unwrap();
+        client.write(&blob, b"bytes").await.unwrap();
         assert_eq!(client.find_missing(vec![blob.clone()]).await.unwrap(), []);
         client
             .update_action_result(key.clone(), result.clone())
@@ -83,7 +83,7 @@ fn large_and_empty_blobs_survive_chunked_transfers() {
     for data in [large, Vec::new()] {
         let digest = naming::blob(&data);
         runtime.block_on(async {
-            client.write(&digest, data.clone()).await.unwrap();
+            client.write(&digest, &data).await.unwrap();
             assert_eq!(client.read(&digest).await.unwrap(), data);
         });
     }
@@ -95,9 +95,7 @@ fn a_blob_whose_content_does_not_match_is_rejected() {
     let runtime = runtime();
     let client = client(&runtime, &config(&server));
     let digest = naming::blob(b"real");
-    runtime
-        .block_on(client.write(&digest, b"real".to_vec()))
-        .unwrap();
+    runtime.block_on(client.write(&digest, b"real")).unwrap();
     server.with(|state| state.corrupt.insert(digest.hash.clone()));
 
     let result = runtime.block_on(client.read(&digest));
@@ -135,7 +133,7 @@ fn the_credential_is_sent_on_every_call() {
     runtime.block_on(async {
         client.capabilities().await.unwrap();
         let digest = naming::blob(b"x");
-        client.write(&digest, b"x".to_vec()).await.unwrap();
+        client.write(&digest, b"x").await.unwrap();
         assert_eq!(client.read(&digest).await.unwrap(), b"x");
     });
 }
@@ -147,7 +145,7 @@ fn a_read_only_server_refuses_writes() {
     let runtime = runtime();
     let client = client(&runtime, &config(&server));
     let digest = naming::blob(b"x");
-    let write = runtime.block_on(client.write(&digest, b"x".to_vec()));
+    let write = runtime.block_on(client.write(&digest, b"x"));
     assert!(
         matches!(&write, Err(Error::Status { call: "Write", status }) if status.code() == Code::PermissionDenied),
         "{write:?}"
@@ -273,7 +271,7 @@ fn a_stream_longer_than_its_declared_size_is_cut_off() {
     let client = client(&runtime, &config(&server));
     let digest = naming::blob(b"twelve bytes");
     runtime
-        .block_on(client.write(&digest, b"twelve bytes".to_vec()))
+        .block_on(client.write(&digest, b"twelve bytes"))
         .unwrap();
     let understated = Digest {
         hash: digest.hash.clone(),

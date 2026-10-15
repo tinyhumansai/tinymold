@@ -29,7 +29,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use tinymold_cas::Store;
 use tinymold_hash::Digest;
@@ -46,6 +46,20 @@ pub use types::{Capabilities, PushReport};
 
 /// How many digests one `FindMissingBlobs` call asks about.
 const FIND_BATCH: usize = 1000;
+
+/// How long `push` waits before each retry of a call that timed out or
+/// found the server unavailable. A server behind a saturated disk can stall
+/// a write for seconds; giving up on the first stall throws away the whole
+/// push.
+const RETRY_DELAYS: [Duration; 3] = if cfg!(test) {
+    [Duration::from_millis(10); 3]
+} else {
+    [
+        Duration::from_secs(1),
+        Duration::from_secs(4),
+        Duration::from_secs(15),
+    ]
+};
 
 /// A remote REAPI cache, called synchronously.
 #[derive(Debug)]
@@ -119,7 +133,7 @@ impl RemoteCache {
         let authenticated = self.config.authorization.is_some();
         let writable = match self
             .runtime
-            .block_on(self.client.write(&naming::blob(probe), probe.to_vec()))
+            .block_on(self.client.write(&naming::blob(probe), probe))
         {
             Ok(()) => true,
             Err(error) if authenticated => return Err(error),
@@ -135,7 +149,7 @@ impl RemoteCache {
                 Client::new(&anonymous)?
             };
             self.runtime
-                .block_on(client.write(&naming::blob(probe), probe.to_vec()))
+                .block_on(client.write(&naming::blob(probe), probe))
                 .is_ok()
         } else {
             writable
@@ -170,11 +184,18 @@ impl RemoteCache {
     /// input set can find its action, and one that finds an action can fetch
     /// every object it names.
     ///
+    /// A call that times out, or that the server answers as unavailable or
+    /// overloaded, is retried after 1 s, 4 s and 15 s. When one still
+    /// fails, only the entries that need it are left out, and
+    /// [`PushReport::failed`] counts them: the rest of the store is pushed.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Wrap`] or [`Error::Cas`] when the local store cannot
-    /// be read, and [`Error::Status`] or [`Error::Timeout`] on the first call
-    /// the server refuses, such as a write without write credentials.
+    /// be read, [`Error::Status`] on the first call the server refuses, such
+    /// as a write without write credentials, and the last [`Error::Timeout`]
+    /// or [`Error::Status`] when transient failures left no action or no
+    /// pre-key record pushed, since a reader then finds nothing.
     pub fn push(&self, store_dir: &Path, since: Option<SystemTime>) -> Result<PushReport> {
         let store = Store::open(store_dir)?;
         let recent = |when: SystemTime| since.is_none_or(|since| when >= since);
@@ -216,32 +237,72 @@ impl RemoteCache {
             }
         }
 
-        self.runtime.block_on(async {
+        let failure = self.runtime.block_on(async {
+            // Blobs whose upload still failed after its retries, and why.
+            let mut failed = HashSet::new();
+            let mut last = None;
             let digests: Vec<proto::Digest> = blobs.keys().cloned().collect();
             for batch in digests.chunks(FIND_BATCH) {
-                for missing in self.client.find_missing(batch.to_vec()).await? {
+                let missing = retrying(|| self.client.find_missing(batch.to_vec())).await?;
+                for missing in missing {
                     let data = match blobs.get(&missing) {
                         Some(Source::Bytes(bytes)) => bytes.clone(),
                         Some(Source::Object(object)) => store.read(object)?,
                         // The server asked about a blob nobody sent it.
                         None => continue,
                     };
-                    report.blobs += 1;
-                    report.bytes += data.len() as u64;
-                    self.client.write(&missing, data).await?;
+                    match retrying(|| self.client.write(&missing, &data)).await {
+                        Ok(()) => {
+                            report.blobs += 1;
+                            report.bytes += data.len() as u64;
+                        }
+                        Err(error) if transient(&error) => {
+                            failed.insert(missing);
+                            last = Some(error);
+                        }
+                        Err(error) => return Err(error),
+                    }
                 }
             }
-            for (key, result) in actions {
-                self.client.update_action_result(key, result).await?;
-                report.actions += 1;
+            // An entry goes up only once every blob it names is there.
+            let entries = actions
+                .into_iter()
+                .map(|entry| (entry, true))
+                .chain(prekeys.into_iter().map(|entry| (entry, false)));
+            for ((key, result), action) in entries {
+                let complete = result
+                    .output_files
+                    .iter()
+                    .filter_map(|file| file.digest.as_ref())
+                    .all(|digest| !failed.contains(digest));
+                if !complete {
+                    report.failed += 1;
+                    continue;
+                }
+                match retrying(|| {
+                    self.client
+                        .update_action_result(key.clone(), result.clone())
+                })
+                .await
+                {
+                    Ok(()) if action => report.actions += 1,
+                    Ok(()) => report.prekeys += 1,
+                    Err(error) if transient(&error) => {
+                        report.failed += 1;
+                        last = Some(error);
+                    }
+                    Err(error) => return Err(error),
+                }
             }
-            for (key, result) in prekeys {
-                self.client.update_action_result(key, result).await?;
-                report.prekeys += 1;
-            }
-            Ok::<(), Error>(())
+            Ok::<_, Error>(last)
         })?;
-        Ok(report)
+        // Pushing part of a store is worth something. A push that left no
+        // action, or no pre-key record, cannot serve a single hit: a reader
+        // finds actions only through pre-keys.
+        match failure {
+            Some(error) if report.actions == 0 || report.prekeys == 0 => Err(error),
+            _ => Ok(report),
+        }
     }
 
     /// With a signing key, adds the signature of the entry `result` under
@@ -409,6 +470,42 @@ fn output(path: &str, digest: proto::Digest) -> OutputFile {
         path: path.to_owned(),
         digest: Some(digest),
         is_executable: false,
+    }
+}
+
+/// Runs `call`, and again after each of [`RETRY_DELAYS`] while it fails in a
+/// way that may pass: a timeout, or a server that is unavailable or busy.
+async fn retrying<T, F, Fut>(mut call: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T>>,
+{
+    let mut delays = RETRY_DELAYS.iter();
+    loop {
+        match call().await {
+            Err(error) if transient(&error) => match delays.next() {
+                Some(delay) => tokio::time::sleep(*delay).await,
+                None => return Err(error),
+            },
+            done => return done,
+        }
+    }
+}
+
+/// Whether `error` may not happen again: a call that timed out, or a server
+/// that said it is unavailable, overloaded or aborted the call. A refusal,
+/// such as a missing write credential, is not.
+fn transient(error: &Error) -> bool {
+    match error {
+        Error::Timeout(_) => true,
+        Error::Status { status, .. } => matches!(
+            status.code(),
+            tonic::Code::Unavailable
+                | tonic::Code::DeadlineExceeded
+                | tonic::Code::ResourceExhausted
+                | tonic::Code::Aborted
+        ),
+        _ => false,
     }
 }
 

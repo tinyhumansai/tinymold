@@ -116,6 +116,15 @@ tinymold remote push [--since <unix-seconds>]
 The command reports how many entries and bytes it uploaded. It fails, with
 exit 1, on the first rejected write, such as missing write credentials.
 
+A call that times out, or that the server answers as `UNAVAILABLE`,
+`DEADLINE_EXCEEDED`, `RESOURCE_EXHAUSTED` or `ABORTED`, is retried after 1 s,
+4 s and 15 s. A server sharing a saturated disk with the builds can stall a
+write for seconds, and before the retries one stall threw the whole push
+away: blobs went up, but no action did. A blob that still fails leaves out
+only the entries that name it; the report counts them as "not pushed after
+upload failures". The push exits 1 when those failures left no action or
+no pre-key record pushed, since readers find actions only through pre-keys.
+
 `tinymold remote check` calls `GetCapabilities`, then uploads a small probe
 blob. It reports the server's digest functions and whether the client can
 write, and exits 1 when the server is unreachable or a configured credential

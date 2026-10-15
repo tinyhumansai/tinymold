@@ -128,6 +128,91 @@ fn an_action_whose_object_is_gone_is_skipped() {
     assert_eq!(report.actions, 0);
 }
 
+/// A client that gives up on a call after 300 ms, well before a stalled
+/// upload on the fake server answers.
+fn impatient(server: &Server) -> RemoteCache {
+    configured(server, |config| config.timeout = Duration::from_millis(300))
+}
+
+#[test]
+fn an_upload_that_times_out_once_is_retried() {
+    let server = Server::start();
+    server.with(|state| state.stall_writes = 1);
+    let local = Local::new();
+    let report = impatient(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.prekeys, report.failed), (1, 1, 0));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fetched = Store::open(elsewhere.path()).unwrap();
+    assert!(
+        remote(&server)
+            .fetch_action(&local.key, &fetched)
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
+fn an_upload_that_keeps_failing_skips_only_the_entries_that_need_it() {
+    let server = Server::start();
+    let local = Local::new();
+    // A second action whose only object the server will never accept.
+    let stuck = local.store.insert_bytes(b"stuck rlib").unwrap();
+    let stuck_key = Digest::of_bytes(b"stuck key");
+    write(
+        &local.root.join("entries/stuck").join(stuck_key.to_hex()),
+        &format!(
+            "tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {stuck} 0 0 libstuck.rlib\n",
+            empty = local.objects[0]
+        ),
+    );
+    server.with(|state| {
+        state.stalled_blobs.insert(naming::blob(b"stuck rlib").hash);
+    });
+    let report = impatient(&server).push(&local.root, None).unwrap();
+    assert_eq!(
+        (
+            report.actions,
+            report.prekeys,
+            report.failed,
+            report.skipped
+        ),
+        (1, 1, 1, 0)
+    );
+    assert!(
+        report.to_string().contains("1 entries not pushed"),
+        "{report}"
+    );
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fetched = Store::open(elsewhere.path()).unwrap();
+    let cache = remote(&server);
+    assert!(cache.fetch_action(&local.key, &fetched).unwrap().is_some());
+    assert_eq!(cache.fetch_action(&stuck_key, &fetched).unwrap(), None);
+}
+
+#[test]
+fn a_push_whose_every_upload_fails_is_an_error() {
+    let server = Server::start();
+    server.with(|state| state.stall_writes = u64::MAX);
+    let local = Local::new();
+    let result = impatient(&server).push(&local.root, None);
+    assert!(matches!(result, Err(Error::Timeout("Write"))), "{result:?}");
+}
+
+#[test]
+fn a_push_that_left_no_pre_key_is_an_error() {
+    let server = Server::start();
+    // The pre-key record's blob never goes up, so no reader could find the
+    // action that did.
+    server.with(|state| {
+        state
+            .stalled_blobs
+            .insert(naming::blob(b"tinymold-prekey 1\nset 1\n").hash);
+    });
+    let local = Local::new();
+    let result = impatient(&server).push(&local.root, None);
+    assert!(matches!(result, Err(Error::Timeout("Write"))), "{result:?}");
+}
+
 #[test]
 fn a_corrupt_action_record_is_skipped() {
     let server = Server::start();
