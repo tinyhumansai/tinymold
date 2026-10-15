@@ -324,7 +324,7 @@ jobs:
             echo "CARGO_REGISTRY_TOKEN is not set; add it as a repository secret" >&2
             exit 1
           fi
-          crates=(tinymold-hash tinymold-cas tinymold-store tinymold-key tinymold-wrap tinymold-remote tinymold)
+          crates=(tinymold-hash tinymold-cas tinymold-store tinymold-server tinymold-key tinymold-wrap tinymold-remote tinymold)
           # A member missing from the list would never reach crates.io, and
           # publishing anything that depends on it would then fail.
           members="$(cargo metadata --format-version 1 --no-deps \

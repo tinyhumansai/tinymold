@@ -17,7 +17,7 @@
 //! names is committed.
 
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -27,6 +27,7 @@ mod types;
 
 pub use types::{Claim, Ingested};
 
+use crate::disk::{io_error, read_if_present};
 use crate::sha256::Sha256Reader;
 use crate::{Entry, Error, Key, Result, Sha256};
 
@@ -154,17 +155,28 @@ impl Store {
         self.write_atomic(&self.entry_path(key), &encoded)
     }
 
-    /// The entry stored under `key`, if any.
+    /// The entry stored under `key`, if any. A read counts as a use of the
+    /// entry and of every object it names.
     ///
     /// # Errors
     ///
     /// Returns [`Error::MalformedEntry`] when the stored bytes do not decode,
     /// and [`Error::Io`] when they cannot be read.
     pub fn get(&self, key: &Key) -> Result<Option<Entry>> {
-        match read_if_present(&self.entry_path(key))? {
-            Some(bytes) => Entry::decode(&bytes).map(Some),
-            None => Ok(None),
+        let path = self.entry_path(key);
+        let Some(bytes) = read_if_present(&path)? else {
+            return Ok(None);
+        };
+        let entry = Entry::decode(&bytes)?;
+        // A read is a use: refresh the entry's mtime, and each object's, so
+        // the collector evicts least recently *used* first.
+        touch(&path);
+        for blob in &entry.blobs {
+            // An object already gone makes the caller's read of it miss,
+            // which is the safe outcome; nothing to do here.
+            let _ = self.cas.keep(blob);
         }
+        Ok(Some(entry))
     }
 
     /// Whether an entry is stored under `key`.
@@ -181,7 +193,7 @@ impl Store {
         sharded(&self.root.join("ac"), &key.to_string())
     }
 
-    fn sha256_path(&self, sha256: &Sha256) -> PathBuf {
+    pub(crate) fn sha256_path(&self, sha256: &Sha256) -> PathBuf {
         sharded(&self.root.join("sha256"), &sha256.to_hex())
     }
 
@@ -214,24 +226,11 @@ fn sharded(dir: &Path, hex: &str) -> PathBuf {
     dir.join(&hex[..2]).join(&hex[2..])
 }
 
-fn read_if_present(path: &Path) -> Result<Option<Vec<u8>>> {
-    match fs::read(path) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(source) => Err(Error::Io {
-            action: "read",
-            path: path.to_path_buf(),
-            source,
-        }),
-    }
-}
-
-fn io_error(action: &'static str, path: &Path) -> impl FnOnce(io::Error) -> Error {
-    let path = path.to_path_buf();
-    move |source| Error::Io {
-        action,
-        path,
-        source,
+/// Sets an entry file's mtime to now, best effort: a missed refresh only
+/// makes the entry look older to the collector.
+fn touch(path: &Path) {
+    if let Ok(file) = fs::File::options().write(true).open(path) {
+        let _ = file.set_modified(std::time::SystemTime::now());
     }
 }
 
