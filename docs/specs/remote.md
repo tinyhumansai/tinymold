@@ -130,7 +130,10 @@ exit 1, on the first rejected write, such as missing write credentials.
 
 A call that times out, or that the server answers as `UNAVAILABLE`,
 `DEADLINE_EXCEEDED`, `RESOURCE_EXHAUSTED` or `ABORTED`, is retried after 1 s,
-4 s and 15 s. A server sharing a saturated disk with the builds can stall a
+4 s and 15 s. So is a call cut off by an HTTP/2 GOAWAY (tonic reports it as
+an `INTERNAL` "h2 protocol error"): a TLS proxy in front of the server, such
+as nginx, closes a connection after its per-connection request limit, and
+the channel reconnects for the retry. A server sharing a saturated disk with the builds can stall a
 write for seconds, and before the retries one stall threw the whole push
 away: blobs went up, but no action did. A blob that still fails leaves out
 only the entries that name it; the report counts them as "not pushed after
