@@ -102,7 +102,7 @@ remote without the credential.
 
 | Input | Default | Meaning |
 |---|---|---|
-| `max-age` | `7d` | `tinymold gc --max-age` before saving |
+| `max-age` | `48h` | `tinymold gc --max-age` before saving |
 | `max-size` | `4G` | `tinymold gc --max-size` before saving |
 | `push` | `auto` | `auto` pushes when `remote-auth` was given; `true` and `false` force the choice |
 | `save-cache` | `true` | Whether the `github` and `both` backends save the store and the registry |
