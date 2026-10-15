@@ -1,3 +1,5 @@
+![tinymold](https://raw.githubusercontent.com/tinyhumansai/tinymold/refs/heads/main/docs/tinymold.jpeg)
+
 # tinymold
 
 tinymold is a fast content-addressed build cache: one server and one store,
