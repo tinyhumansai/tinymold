@@ -362,6 +362,19 @@ fn an_upload_that_times_out_once_is_retried() {
 }
 
 #[test]
+fn a_connection_the_server_closed_is_retried() {
+    // nginx ends an HTTP/2 connection after keepalive_requests calls with a
+    // GOAWAY; tonic reports the calls in flight as internal h2 errors. The
+    // channel reconnects, so a retry goes through.
+    let status = |message: &str| Error::Status {
+        call: "Write",
+        status: Box::new(tonic::Status::internal(message.to_owned())),
+    };
+    assert!(transient(&status("h2 protocol error: http2 error")));
+    assert!(!transient(&status("the store is broken")));
+}
+
+#[test]
 fn an_upload_that_keeps_failing_skips_only_the_entries_that_need_it() {
     let server = Server::start();
     let local = Local::new();
