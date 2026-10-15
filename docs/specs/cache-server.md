@@ -214,6 +214,12 @@ ships in the `tinymold` binary and talks to the server:
   basic auth (Gradle, REAPI, Bazel HTTP) are both accepted, the password of
   basic auth being the token. `--allow-anonymous-reads` keeps today's
   bazel-remote setup for forks.
+- **Secure by default.** Without `--tokens`, `serve` refuses any `--listen`
+  address that is not loopback. No option allows anonymous writes; the
+  server starts only when every network listener needs a write token.
+  Writers' entries for the REAPI front-end are signed as the
+  [remote spec](remote.md#signed-entries) describes, and the server stores
+  signatures unchanged.
 - **The native socket** is created with mode `0600` in the user's runtime
   directory and is trusted as the user. It is never exposed on a network.
 - Credentials never appear in logs, `status` output or error messages.

@@ -42,6 +42,8 @@ Non-goals:
 | `TINYMOLD_REMOTE_AUTH` | `user:password`, sent as HTTP basic auth on every call. Unset: anonymous |
 | `TINYMOLD_REMOTE_INSTANCE` | REAPI instance name; default empty |
 | `TINYMOLD_REMOTE_TIMEOUT` | Per-call timeout, as a `tinymold gc` age (`2s`); default `5s` |
+| `TINYMOLD_REMOTE_SIGNING_KEY` | A writer's ed25519 secret key, 64 hex digits. `push` signs every entry with it |
+| `TINYMOLD_REMOTE_TRUSTED_KEYS` | Comma-separated ed25519 public keys, 64 hex digits each. When set, an entry not signed by one of them is a miss |
 
 `tinymold doctor` shows whether a remote is configured. It never prints the
 credential.
@@ -128,7 +130,56 @@ reads answers `GetCapabilities` whatever the credential.
 - **A remote can only make a build miss.** Everything it returns is
   re-hashed and checked against digests in records the client parsed itself.
   A server that returns a wrong record for a key is trusted as much as the
-  CI that wrote it, which is why writes are restricted.
+  CI that wrote it, which is why writes are restricted, and why readers
+  should name trusted keys (see [Signed entries](#signed-entries)) so that
+  a misconfigured server cannot change that.
+
+## Signed entries
+
+Restricting writes protects a cache only while the server is configured
+right. One bad bind address or a missing credential file lets anyone who
+can reach the server plant an entry that decides what a later build links.
+Signed entries make the client independent of that: a reader that names
+its trusted keys uses only entries those keys signed, so a server open to
+the world can at worst make a build miss.
+
+- **Keys.** `tinymold remote keygen` prints a fresh ed25519 key pair as the
+  two variables above. The secret goes only to trusted writers, such as CI
+  on pushes to `main`; the public key goes to every reader, including
+  pull-request jobs, which therefore cannot sign.
+- **What is signed.** Each `ActionResult` gains a third kind of output file,
+  `.tinymold/signature`, whose blob is
+
+  ```text
+  tinymold-signature 1
+  key <public key, 64 hex>
+  sig <ed25519 signature, 128 hex>
+  ```
+
+  over the message
+
+  ```text
+  tinymold/remote/entry/v1
+  <action | prekey>
+  <ActionCache key hash>
+  <record blob SHA-256>/<record size>
+  ```
+
+  The record names every object by BLAKE3, and lookup already refuses an
+  object whose content does not match its name, so signing the record's
+  digest under its key binds the whole entry. The kind line keeps an action
+  signature from validating a pre-key entry and the other way round.
+- **Verification** happens before any object is fetched. With
+  `TINYMOLD_REMOTE_TRUSTED_KEYS` set, an entry with no signature, a
+  malformed one, an untrusted key or a bad signature is refused
+  (`Error::Untrusted`), which the wrapper logs and turns into a miss.
+  Without it, entries are used unsigned, as before.
+
+`remote check` also probes the server anonymously. A server that accepts an
+anonymous write while this client trusts no keys is refused with
+`Error::OpenToAnonymousWrites` and exit 1: anyone who can reach it could
+poison the cache. Either require a credential for writes or configure
+trusted keys.
 
 ## Acceptance criteria
 
@@ -140,3 +191,8 @@ reads answers `GetCapabilities` whatever the credential.
   compiles.
 - A wrong credential makes `remote check` and `remote push` exit 1 and
   leaves builds working.
+- With trusted keys set, an unsigned, forged or foreign-signed entry is a
+  miss and none of its objects is fetched; an entry signed by a trusted key
+  is a hit.
+- `remote check` exits 1 against a server that accepts anonymous writes,
+  unless trusted keys are set.
