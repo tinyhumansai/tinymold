@@ -65,7 +65,7 @@ where
     });
 
     let mut body = body;
-    let mut received: u64 = 0;
+    let mut total: u64 = 0;
     let mut failure = None;
     while let Some(frame) = body.frame().await {
         let Ok(frame) = frame else {
@@ -75,8 +75,8 @@ where
         let Ok(data) = frame.into_data() else {
             continue; // trailers carry nothing the store needs
         };
-        received += data.len() as u64;
-        if received > limit {
+        total += data.len() as u64;
+        if total > limit {
             failure = Some(UploadError::TooLarge);
             break;
         }
@@ -95,8 +95,8 @@ where
         Err(_) => Err(UploadError::Body),
     };
     match failure {
-        Some(failure) => (Err(failure), received),
-        None => (result, received),
+        Some(failure) => (Err(failure), total),
+        None => (result, total),
     }
 }
 

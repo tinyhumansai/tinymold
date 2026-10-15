@@ -54,7 +54,7 @@ async fn small_and_large_files_download_whole() {
     let dir = tempfile::tempdir().unwrap();
     for len in [10_usize, 1 << 20] {
         let path = dir.path().join(format!("{len}"));
-        let bytes: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+        let bytes: Vec<u8> = (0..len).map(|i| u8::try_from(i % 251).unwrap()).collect();
         std::fs::write(&path, &bytes).unwrap();
 
         let (body, size) = download(path).await.unwrap();

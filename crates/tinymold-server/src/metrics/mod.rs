@@ -29,6 +29,9 @@ pub(crate) enum Outcome {
     Other,
 }
 
+/// A counter family: its name, help text, and which counter it reads.
+type Family = (&'static str, &'static str, fn(&Counters) -> &AtomicU64);
+
 #[derive(Debug, Default)]
 struct Counters {
     requests: AtomicU64,
@@ -106,7 +109,7 @@ impl Metrics {
     #[must_use]
     pub(crate) fn render(&self) -> String {
         let mut out = String::new();
-        let families: [(&str, &str, fn(&Counters) -> &AtomicU64); 7] = [
+        let families: [Family; 7] = [
             ("tinymold_requests_total", "Requests received.", |c| {
                 &c.requests
             }),

@@ -18,7 +18,7 @@ fn live() -> bool {
 /// `cache_dir`, and returns ccache's remote read hits.
 fn compile(source: &Path, cache_dir: &Path, remote: &str) -> u64 {
     let object = source.with_extension("o");
-    let status = Command::new("ccache")
+    let compiled = Command::new("ccache")
         .args(["cc", "-c"])
         .arg(source)
         .arg("-o")
@@ -27,7 +27,7 @@ fn compile(source: &Path, cache_dir: &Path, remote: &str) -> u64 {
         .env("CCACHE_REMOTE_STORAGE", remote)
         .status()
         .unwrap();
-    assert!(status.success());
+    assert!(compiled.success());
     let stats = Command::new("ccache")
         .arg("--print-stats")
         .env("CCACHE_DIR", cache_dir)

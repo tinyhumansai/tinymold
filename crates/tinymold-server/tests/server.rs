@@ -33,7 +33,7 @@ fn config(dir: &tempfile::TempDir) -> Config {
     config
 }
 
-async fn start() -> Running {
+fn start() -> Running {
     let dir = tempfile::tempdir().unwrap();
     let server = Server::bind(&config(&dir)).unwrap();
     let addr = server.local_addr();
@@ -82,7 +82,7 @@ async fn http1(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn serves_http1() {
-    let server = start().await;
+    let server = start();
 
     let (status, body) = http1(server.addr, Method::GET, "/healthz", Vec::new()).await;
 
@@ -95,7 +95,7 @@ async fn serves_http1() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn serves_plaintext_http2() {
-    let server = start().await;
+    let server = start();
     let stream = TcpStream::connect(server.addr).await.unwrap();
     let (mut sender, connection) =
         hyper::client::conn::http2::handshake(TokioExecutor::new(), TokioIo::new(stream))
@@ -116,7 +116,7 @@ async fn serves_plaintext_http2() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_large_blob_streams_both_ways() {
-    let server = start().await;
+    let server = start();
     let blob: Vec<u8> = (0..3 << 20).map(|i: u32| (i % 253) as u8).collect();
     let path = format!("/cas/{}", Sha256::of_bytes(&blob));
 

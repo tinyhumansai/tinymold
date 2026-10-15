@@ -97,7 +97,7 @@ async fn head_reports_the_length_without_a_body() {
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(headers[header::CONTENT_LENGTH], "10");
-    assert!(body.is_empty());
+    assert_eq!(body, b"");
 }
 
 #[tokio::test]
@@ -108,7 +108,7 @@ async fn a_cas_body_that_does_not_match_its_name_is_refused_and_not_stored() {
     let (status, _, _) = send(&state, Method::PUT, &path, b"something else", None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(state.store.cas().objects().unwrap().is_empty());
+    assert_eq!(state.store.cas().objects().unwrap(), Vec::new());
 }
 
 #[tokio::test]
@@ -188,7 +188,7 @@ async fn bodies_over_the_limit_are_refused() {
         send(&state, Method::PUT, &path, &big, None).await.0,
         StatusCode::PAYLOAD_TOO_LARGE
     );
-    assert!(state.store.cas().objects().unwrap().is_empty());
+    assert_eq!(state.store.cas().objects().unwrap(), Vec::new());
 }
 
 #[tokio::test]
