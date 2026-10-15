@@ -1299,6 +1299,646 @@
           }
         }
       }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "baseline",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 13.186,
+            "min_s": 11.0115,
+            "max_s": 29.3261,
+            "samples_s": [
+              13.186,
+              11.0115,
+              29.3261
+            ]
+          },
+          "link_s": 1.3943,
+          "compiled": 104,
+          "rss_mb": 422.8,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 15.4879,
+            "min_s": 14.8744,
+            "max_s": 20.7617,
+            "samples_s": [
+              15.4879,
+              14.8744,
+              20.7617
+            ]
+          },
+          "link_s": 1.3067,
+          "compiled": 104,
+          "rss_mb": 422.6,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "baseline",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 8.8957,
+            "min_s": 6.8259,
+            "max_s": 11.0895,
+            "samples_s": [
+              6.8259,
+              8.8957,
+              11.0895
+            ]
+          },
+          "link_s": 1.0799,
+          "compiled": 110,
+          "rss_mb": 371.8,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 6.5272,
+            "min_s": 5.9027,
+            "max_s": 9.516,
+            "samples_s": [
+              6.5272,
+              5.9027,
+              9.516
+            ]
+          },
+          "link_s": 0.9452,
+          "compiled": 110,
+          "rss_mb": 371.7,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "baseline",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 10.3512,
+            "min_s": 8.4463,
+            "max_s": 14.3847,
+            "samples_s": [
+              10.3512,
+              8.4463,
+              14.3847
+            ]
+          },
+          "link_s": 1.6932,
+          "compiled": 110,
+          "rss_mb": 420.1,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 5.1185,
+            "min_s": 5.1119,
+            "max_s": 9.5541,
+            "samples_s": [
+              5.1119,
+              5.1185,
+              9.5541
+            ]
+          },
+          "link_s": 0.0699,
+          "compiled": 0,
+          "rss_mb": 189.1,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 8.7873,
+            "min_s": 8.5453,
+            "max_s": 17.1206,
+            "samples_s": [
+              8.7873,
+              8.5453,
+              17.1206
+            ]
+          },
+          "link_s": 1.3682,
+          "compiled": 110,
+          "rss_mb": 420.4,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 4.9816,
+            "min_s": 4.9654,
+            "max_s": 7.1372,
+            "samples_s": [
+              4.9816,
+              4.9654,
+              7.1372
+            ]
+          },
+          "link_s": 0.0738,
+          "compiled": 0,
+          "rss_mb": 189.5,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "baseline",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 15.2915,
+            "min_s": 14.0493,
+            "max_s": 19.6175,
+            "samples_s": [
+              15.2915,
+              14.0493,
+              19.6175
+            ]
+          },
+          "link_s": 1.3842,
+          "compiled": 110,
+          "rss_mb": 421.2,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 17.3575,
+            "min_s": 13.6874,
+            "max_s": 18.3248,
+            "samples_s": [
+              13.6874,
+              18.3248,
+              17.3575
+            ]
+          },
+          "link_s": 1.426,
+          "compiled": 110,
+          "rss_mb": 423.6,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "sccache",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 16.8774,
+            "min_s": 9.9244,
+            "max_s": 19.9818,
+            "samples_s": [
+              16.8774,
+              9.9244,
+              19.9818
+            ]
+          },
+          "link_s": 1.0881,
+          "compiled": 104,
+          "rss_mb": 228.0,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 5.4778,
+            "min_s": 5.0687,
+            "max_s": 8.4773,
+            "samples_s": [
+              5.4778,
+              5.0687,
+              8.4773
+            ]
+          },
+          "link_s": 1.1923,
+          "compiled": 104,
+          "rss_mb": 227.8,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "sccache",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 9.6437,
+            "min_s": 8.1541,
+            "max_s": 14.4307,
+            "samples_s": [
+              8.1541,
+              9.6437,
+              14.4307
+            ]
+          },
+          "link_s": 0.9277,
+          "compiled": 110,
+          "rss_mb": 226.6,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 3.3082,
+            "min_s": 3.3026,
+            "max_s": 6.9963,
+            "samples_s": [
+              3.3082,
+              3.3026,
+              6.9963
+            ]
+          },
+          "link_s": 0.8958,
+          "compiled": 110,
+          "rss_mb": 227.4,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "sccache",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 10.7615,
+            "min_s": 10.5559,
+            "max_s": 23.2237,
+            "samples_s": [
+              10.7615,
+              10.5559,
+              23.2237
+            ]
+          },
+          "link_s": 1.3317,
+          "compiled": 110,
+          "rss_mb": 287.9,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 4.8418,
+            "min_s": 3.5116,
+            "max_s": 5.6626,
+            "samples_s": [
+              4.8418,
+              3.5116,
+              5.6626
+            ]
+          },
+          "link_s": 0.0664,
+          "compiled": 0,
+          "rss_mb": 179.6,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 4.0437,
+            "min_s": 3.6168,
+            "max_s": 6.5951,
+            "samples_s": [
+              3.6168,
+              4.0437,
+              6.5951
+            ]
+          },
+          "link_s": 1.2241,
+          "compiled": 110,
+          "rss_mb": 281.9,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 3.5174,
+            "min_s": 3.4932,
+            "max_s": 13.7629,
+            "samples_s": [
+              3.4932,
+              3.5174,
+              13.7629
+            ]
+          },
+          "link_s": 0.0718,
+          "compiled": 0,
+          "rss_mb": 180.2,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "sccache",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 19.9442,
+            "min_s": 17.7106,
+            "max_s": 30.6353,
+            "samples_s": [
+              17.7106,
+              30.6353,
+              19.9442
+            ]
+          },
+          "link_s": 1.3872,
+          "compiled": 110,
+          "rss_mb": 281.3,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 8.9198,
+            "min_s": 7.1057,
+            "max_s": 26.6561,
+            "samples_s": [
+              7.1057,
+              26.6561,
+              8.9198
+            ]
+          },
+          "link_s": 1.3348,
+          "compiled": 110,
+          "rss_mb": 282.6,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "tinymold",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 11.9031,
+            "min_s": 8.9596,
+            "max_s": 13.6929,
+            "samples_s": [
+              11.9031,
+              8.9596,
+              13.6929
+            ]
+          },
+          "link_s": 1.0217,
+          "compiled": 104,
+          "rss_mb": 421.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 357
+          }
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 2.6477,
+            "min_s": 2.2492,
+            "max_s": 2.7792,
+            "samples_s": [
+              2.6477,
+              2.2492,
+              2.7792
+            ]
+          },
+          "link_s": 0,
+          "compiled": 104,
+          "rss_mb": 85.3,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 348,
+            "misses": 9
+          }
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "tinymold",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 11.4605,
+            "min_s": 9.4053,
+            "max_s": 17.0127,
+            "samples_s": [
+              17.0127,
+              9.4053,
+              11.4605
+            ]
+          },
+          "link_s": 1.1226,
+          "compiled": 110,
+          "rss_mb": 372.5,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 396
+          }
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 4.1607,
+            "min_s": 2.1302,
+            "max_s": 5.5146,
+            "samples_s": [
+              5.5146,
+              2.1302,
+              4.1607
+            ]
+          },
+          "link_s": 0,
+          "compiled": 110,
+          "rss_mb": 87.4,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 387,
+            "misses": 9
+          }
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "tinymold",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 9.1207,
+            "min_s": 8.7575,
+            "max_s": 16.5288,
+            "samples_s": [
+              9.1207,
+              8.7575,
+              16.5288
+            ]
+          },
+          "link_s": 1.4252,
+          "compiled": 110,
+          "rss_mb": 424.9,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 396
+          }
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 5.0466,
+            "min_s": 4.9527,
+            "max_s": 6.6541,
+            "samples_s": [
+              4.9527,
+              5.0466,
+              6.6541
+            ]
+          },
+          "link_s": 0.0821,
+          "compiled": 0,
+          "rss_mb": 188.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 0
+          }
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 3.0533,
+            "min_s": 2.4973,
+            "max_s": 3.9624,
+            "samples_s": [
+              3.0533,
+              2.4973,
+              3.9624
+            ]
+          },
+          "link_s": 0,
+          "compiled": 110,
+          "rss_mb": 89.8,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 387,
+            "misses": 9
+          }
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 5.4616,
+            "min_s": 5.319,
+            "max_s": 10.3905,
+            "samples_s": [
+              5.319,
+              5.4616,
+              10.3905
+            ]
+          },
+          "link_s": 0.1063,
+          "compiled": 0,
+          "rss_mb": 189.7,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 0
+          }
+        }
+      }
+    },
+    {
+      "project": "tinymold",
+      "rev": "2b41d65",
+      "mode": "tinymold",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 22.7276,
+            "min_s": 19.5219,
+            "max_s": 40.8211,
+            "samples_s": [
+              19.5219,
+              40.8211,
+              22.7276
+            ]
+          },
+          "link_s": 1.7256,
+          "compiled": 110,
+          "rss_mb": 420.5,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 393
+          }
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 10.6574,
+            "min_s": 5.7437,
+            "max_s": 16.563,
+            "samples_s": [
+              10.6574,
+              16.563,
+              5.7437
+            ]
+          },
+          "link_s": 0,
+          "compiled": 110,
+          "rss_mb": 88.4,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 384,
+            "misses": 9
+          }
+        }
+      }
     }
   ],
   "machine": {
