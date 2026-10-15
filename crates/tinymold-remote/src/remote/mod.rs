@@ -408,14 +408,15 @@ impl RemoteCache {
             let record = find_file(&result, ACTION_FILE, &key)?;
             // Before any object: an untrusted entry fetches nothing.
             self.verify(Kind::Action, &key, &record, &result).await?;
+            let malformed = |reason| Error::Malformed {
+                key: key.hash.clone(),
+                reason,
+            };
+            let mut wanted = Vec::new();
             for file in &result.output_files {
                 if file.path == ACTION_FILE || file.path == SIGNATURE_FILE {
                     continue;
                 }
-                let malformed = |reason| Error::Malformed {
-                    key: key.hash.clone(),
-                    reason,
-                };
                 let name = Digest::from_str(&file.path)
                     .map_err(|_| malformed("an output is not named by its digest"))?;
                 if store.contains(&name) {
@@ -425,12 +426,25 @@ impl RemoteCache {
                     .digest
                     .clone()
                     .ok_or_else(|| malformed("an output has no digest"))?;
-                let bytes = self.client.read(&digest).await?;
+                wanted.push((name, digest));
+            }
+            // Every object, and the record, in flight together: each read is
+            // a round trip.
+            let objects = stream::iter(wanted)
+                .map(|(name, digest)| async move {
+                    let bytes = self.client.read(&digest).await?;
+                    Ok::<_, Error>((name, bytes))
+                })
+                .buffer_unordered(IN_FLIGHT)
+                .collect::<Vec<_>>();
+            let (objects, text) = futures_util::join!(objects, self.client.read(&record));
+            for object in objects {
+                let (name, bytes) = object?;
                 if store.insert_bytes(&bytes)? != name {
                     return Err(malformed("an output does not match its name"));
                 }
             }
-            let text = self.client.read(&record).await?;
+            let text = text?;
             String::from_utf8(text)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
