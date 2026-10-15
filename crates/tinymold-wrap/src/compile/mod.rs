@@ -401,13 +401,18 @@ impl Unit<'_> {
 
     /// The arguments rustc runs with on a miss: cargo's, plus the remapping
     /// of the profile directory (see [`Roots::remap_profile_flag`]) unless
-    /// the command line already remaps paths itself.
+    /// the command line already remaps paths itself. The flag goes before a
+    /// `--`, after which rustc reads every argument as an input.
     fn compile_args(&self, args: &[OsString]) -> Vec<OsString> {
         let mut args = args.to_vec();
         if !self.invocation.remaps_paths()
             && let Some(flag) = self.roots.remap_profile_flag()
         {
-            args.push(flag.into());
+            let end = args
+                .iter()
+                .position(|arg| arg == "--")
+                .unwrap_or(args.len());
+            args.insert(end, flag.into());
         }
         args
     }
