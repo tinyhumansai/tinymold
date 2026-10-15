@@ -37,7 +37,7 @@ use crate::flight::{self, Claim};
 use crate::parallel;
 use crate::placed::{Placed, Placement};
 use crate::record::{
-    self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
+    self, Action, EnvDep, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
     write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
@@ -165,7 +165,8 @@ pub(crate) fn serve(
         }
     }
 
-    let captured = trace.span("rustc", || exec::run_captured(program, args))?;
+    let args = unit.compile_args(args);
+    let captured = trace.span("rustc", || exec::run_captured(program, &args))?;
     let stored = if captured.code == 0 {
         let ingesting = std::time::Instant::now();
         trace
@@ -385,9 +386,79 @@ impl Unit<'_> {
         let env: Vec<(String, Option<String>)> = set
             .env
             .iter()
-            .map(|name| (name.clone(), std::env::var(name).ok()))
+            .map(|dep| {
+                let value = std::env::var(&dep.name).ok();
+                let value = if dep.normalized {
+                    value.map(|value| self.roots.normalize(&value))
+                } else {
+                    value
+                };
+                (dep.name.clone(), value)
+            })
             .collect();
         Some(full_key(pre, &inputs, &env))
+    }
+
+    /// The arguments rustc runs with on a miss: cargo's, plus the remapping
+    /// of the profile directory (see [`Roots::remap_profile_flag`]) unless
+    /// the command line already remaps paths itself.
+    fn compile_args(&self, args: &[OsString]) -> Vec<OsString> {
+        let mut args = args.to_vec();
+        if !self.invocation.remaps_paths()
+            && let Some(flag) = self.roots.remap_profile_flag()
+        {
+            args.push(flag.into());
+        }
+        args
+    }
+
+    /// The env vars a compile read, each marked with whether the key may take
+    /// its value with roots replaced.
+    ///
+    /// A value under a root, such as `OUT_DIR`, differs in every worktree.
+    /// It is only safe to key it without the root when the path cannot have
+    /// reached the outputs except through files rustc read, which the key
+    /// covers by content. So a value is normalized only when none of the
+    /// compile's binary outputs contains it: `include!(concat!(env!("OUT_DIR"),
+    /// ...))` qualifies once the profile directory is remapped, while
+    /// `const DIR: &str = env!("OUT_DIR")` leaves the path in the `.rlib` and
+    /// keeps a key of its own per worktree.
+    fn env_deps(
+        &self,
+        env: &[(String, Option<String>)],
+    ) -> std::result::Result<Vec<EnvDep>, Unstorable> {
+        let rooted: Vec<&str> = env
+            .iter()
+            .filter_map(|(_, value)| value.as_deref())
+            .filter(|value| self.roots.normalize(value) != *value)
+            .collect();
+        let mut embedded = vec![false; rooted.len()];
+        if !rooted.is_empty() {
+            for (name, path) in self.unit_files()? {
+                if Path::new(&name).extension().and_then(|ext| ext.to_str()) == Some("d") {
+                    continue;
+                }
+                let bytes = fs::read(&path).map_err(io("read", &path))?;
+                for (found, value) in embedded.iter_mut().zip(&rooted) {
+                    *found = *found || contains(&bytes, value.as_bytes());
+                }
+            }
+        }
+        Ok(env
+            .iter()
+            .map(|(name, value)| {
+                let normalized = value.as_deref().is_some_and(|value| {
+                    rooted
+                        .iter()
+                        .position(|candidate| *candidate == value)
+                        .is_some_and(|index| !embedded[index])
+                });
+                EnvDep {
+                    name: name.clone(),
+                    normalized,
+                }
+            })
+            .collect())
     }
 
     /// Places every output of `action` and replays rustc's output.
@@ -530,7 +601,20 @@ impl Unit<'_> {
             .iter()
             .map(|input| (input.path.clone(), input.digest))
             .collect();
-        let key = full_key(pre, &key_inputs, &info.env);
+        let env = self.env_deps(&info.env)?;
+        let key_env: Vec<(String, Option<String>)> = info
+            .env
+            .iter()
+            .zip(&env)
+            .map(|((name, value), dep)| {
+                let value = match value {
+                    Some(value) if dep.normalized => Some(self.roots.normalize(value)),
+                    other => other.clone(),
+                };
+                (name.clone(), value)
+            })
+            .collect();
+        let key = full_key(pre, &key_inputs, &key_env);
 
         let (outputs, placements) = self.ingest_outputs()?;
         let action = Action {
@@ -544,7 +628,7 @@ impl Unit<'_> {
         let set = InputSet {
             recorded_ns: self.now_ns,
             inputs,
-            env: info.env.into_iter().map(|(name, _)| name).collect(),
+            env,
         };
         self.remember_set(pre, set)?;
         Ok(())
@@ -701,6 +785,14 @@ impl Unit<'_> {
 }
 
 /// Whether dependents read the output `name` as an `--extern`.
+/// Whether `needle` occurs anywhere in `haystack`.
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    !needle.is_empty()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window == needle)
+}
+
 fn is_library(name: &str) -> bool {
     matches!(
         Path::new(name).extension().and_then(|ext| ext.to_str()),

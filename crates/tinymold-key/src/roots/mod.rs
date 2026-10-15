@@ -55,6 +55,22 @@ impl Roots {
             })
     }
 
+    /// The rustc flag that writes the profile directory into outputs as
+    /// `${PROFILE}`, or `None` when the out-dir has no profile directory.
+    ///
+    /// Build-script outputs live under the profile directory, so a crate that
+    /// `include!`s one from `OUT_DIR` would otherwise record this worktree's
+    /// absolute path in its `.rmeta` and debuginfo, and no other worktree
+    /// could reuse it or anything built on it. Dep-info keeps real paths:
+    /// rustc does not remap them, and cargo reads them.
+    #[must_use]
+    pub fn remap_profile_flag(&self) -> Option<String> {
+        self.pairs
+            .iter()
+            .find(|(_, name)| *name == "${PROFILE}")
+            .map(|(path, name)| format!("--remap-path-prefix={path}={name}"))
+    }
+
     /// `text` with every placeholder replaced by this worktree's path; the
     /// inverse of [`normalize`](Self::normalize).
     #[must_use]

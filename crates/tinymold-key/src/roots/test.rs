@@ -69,3 +69,23 @@ fn a_root_without_a_usable_path_is_skipped() {
     let roots = Roots::new(Path::new("/"), Path::new("/out"), None);
     assert_eq!(roots.normalize("/out/x"), "${OUT}/x");
 }
+
+#[test]
+fn the_profile_directory_is_remapped_to_its_placeholder() {
+    assert_eq!(
+        roots().remap_profile_flag().as_deref(),
+        Some("--remap-path-prefix=/work/rg/target/debug=${PROFILE}")
+    );
+    let build_script = Roots::new(
+        Path::new("/work/rg"),
+        Path::new("target/debug/build/x-1"),
+        None,
+    );
+    assert_eq!(
+        build_script.remap_profile_flag().as_deref(),
+        Some("--remap-path-prefix=/work/rg/target/debug=${PROFILE}")
+    );
+    // An out-dir outside cargo's layout has no profile directory to remap.
+    let elsewhere = Roots::new(Path::new("/work/rg"), Path::new("out"), None);
+    assert_eq!(elsewhere.remap_profile_flag(), None);
+}

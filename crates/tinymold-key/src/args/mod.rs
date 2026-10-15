@@ -99,6 +99,16 @@ impl Invocation {
             .is_some_and(|setting| !matches!(setting, "=no" | "=n" | "=off" | "=false"))
     }
 
+    /// Whether the command line already remaps source paths with
+    /// `--remap-path-prefix`, as cargo's `trim-paths` does. tinymold then
+    /// leaves path remapping to it rather than adding its own.
+    #[must_use]
+    pub fn remaps_paths(&self) -> bool {
+        self.key_args
+            .iter()
+            .any(|arg| matches!(arg, KeyArg::Text(text) if text.starts_with("--remap-path-prefix")))
+    }
+
     /// The name prefixes every output of this invocation starts with:
     /// `<crate><extra>` and `lib<crate><extra>`. Cargo makes `extra` unique
     /// per unit, so a file in the out-dir with one of these prefixes belongs
