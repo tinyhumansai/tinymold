@@ -29,7 +29,7 @@ use tinymold_key::{Roots, TestKeyInputs, test_key, tree_digest};
 
 use crate::clock::filesystem_now;
 use crate::declared::{self, Declared};
-use crate::exec;
+use crate::exec::{self, Stream};
 use crate::package_tree::{declared_files, named_files, package_files};
 use crate::record::{self, write_atomically};
 use crate::stat;
@@ -171,9 +171,52 @@ fn replay(store: &Store, path: &Path) -> Result<Option<i32>> {
     let run = TestRun::decode(&text, path)?;
     let stdout = store.read(&run.stdout)?;
     let stderr = store.read(&run.stderr)?;
-    let _ = io::stdout().lock().write_all(&stdout);
-    let _ = io::stderr().lock().write_all(&stderr);
+    let Some(writes) = interleave(&stdout, &stderr, &run.segments) else {
+        return Ok(None);
+    };
+    for (stream, bytes) in writes {
+        // Flushed one by one, so streams that share a destination, as
+        // under `2>&1`, read in the order the run wrote them.
+        let _ = match stream {
+            Stream::Stdout => io::stdout()
+                .lock()
+                .write_all(bytes)
+                .and_then(|()| io::stdout().flush()),
+            Stream::Stderr => io::stderr()
+                .lock()
+                .write_all(bytes)
+                .and_then(|()| io::stderr().flush()),
+        };
+    }
     Ok(Some(0))
+}
+
+/// The writes that replay `stdout` and `stderr` in the order `segments`
+/// records, or `None` when the lengths do not add up to the streams.
+fn interleave<'a>(
+    stdout: &'a [u8],
+    stderr: &'a [u8],
+    segments: &[u64],
+) -> Option<Vec<(Stream, &'a [u8])>> {
+    let mut rest = [stdout, stderr];
+    let mut writes = Vec::new();
+    for (index, &len) in segments.iter().enumerate() {
+        let (stream, which) = if index % 2 == 0 {
+            (Stream::Stdout, 0)
+        } else {
+            (Stream::Stderr, 1)
+        };
+        let len = usize::try_from(len).ok()?;
+        if len > rest[which].len() {
+            return None;
+        }
+        let (bytes, tail) = rest[which].split_at(len);
+        rest[which] = tail;
+        if !bytes.is_empty() {
+            writes.push((stream, bytes));
+        }
+    }
+    rest.iter().all(|tail| tail.is_empty()).then_some(writes)
 }
 
 /// Stores a passing run, unless a file it may have read changed while it
@@ -199,6 +242,7 @@ fn record_run(
     let run = TestRun {
         stdout: prepared.store.insert_bytes(&captured.stdout)?,
         stderr: prepared.store.insert_bytes(&captured.stderr)?,
+        segments: captured.segments.clone(),
     };
     write_atomically(path, &run.encode())?;
     Ok(Ok(()))

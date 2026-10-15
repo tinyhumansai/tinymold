@@ -38,8 +38,7 @@ fn the_test_run_encoding_is_pinned() {
         segments: vec![0, 4, 12],
         ..run
     };
-    let expected =
-        format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder 0 4 12\n");
+    let expected = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder 0 4 12\n");
     assert_eq!(interleaved.encode(), expected);
     assert_eq!(
         TestRun::decode(&expected, Path::new("r")).unwrap(),

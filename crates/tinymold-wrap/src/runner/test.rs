@@ -593,7 +593,12 @@ fn a_shared_library_in_a_native_search_path_of_the_build_turns_caching_off() {
     let (root, config) = package(dir.path(), "");
     let native = root.join("target/debug/build/native-1/out");
     fs::create_dir_all(&native).unwrap();
-    let search = |dir: &Path| [OsString::from("-L"), format!("native={}", dir.display()).into()];
+    let search = |dir: &Path| {
+        [
+            OsString::from("-L"),
+            format!("native={}", dir.display()).into(),
+        ]
+    };
 
     // A static library is part of the binary.
     fs::write(native.join("libnative.a"), "archive").unwrap();

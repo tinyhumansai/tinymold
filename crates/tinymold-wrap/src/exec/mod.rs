@@ -48,8 +48,9 @@ fn note_segment(segments: &mut Vec<u64>, stream: Stream, len: u64) {
     }
     // Runs at even indexes are stdout's, at odd ones stderr's.
     let parity = usize::from(stream == Stream::Stderr);
+    let runs = segments.len();
     match segments.last_mut() {
-        Some(last) if (segments.len() - 1) % 2 == parity => *last += len,
+        Some(last) if (runs - 1) % 2 == parity => *last += len,
         _ => segments.push(len),
     }
 }

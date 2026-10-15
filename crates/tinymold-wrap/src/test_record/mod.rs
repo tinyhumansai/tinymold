@@ -10,8 +10,9 @@
 //! tinymold never saw out.
 //!
 //! A **test-run record** (`tests/run/<test key>`) says that a run with that
-//! key passed, and names its stdout and stderr in the store, to replay. Only
-//! passes are recorded, so the exit code is always 0 and not stored.
+//! key passed, and names its stdout and stderr in the store, to replay,
+//! with the order the two were written in. Only passes are recorded, so the
+//! exit code is always 0 and not stored.
 //!
 //! Both are line-based text, like the compile records, and pinned in the
 //! tests. See `docs/specs/test-cache.md`.
@@ -43,12 +44,15 @@ pub(crate) struct TestBinary {
 }
 
 /// A recorded passing run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TestRun {
     /// The run's stdout.
     pub(crate) stdout: Digest,
     /// The run's stderr.
     pub(crate) stderr: Digest,
+    /// How the two streams interleaved, as [`crate::exec::Captured`]
+    /// records it: lengths of alternating runs, starting with stdout.
+    pub(crate) segments: Vec<u64>,
 }
 
 impl TestBinary {
@@ -121,10 +125,15 @@ impl TestRun {
     }
 
     pub(crate) fn encode(&self) -> String {
-        format!(
-            "{RUN_HEADER}\nstdout {}\nstderr {}\n",
+        let mut text = format!(
+            "{RUN_HEADER}\nstdout {}\nstderr {}\norder",
             self.stdout, self.stderr
-        )
+        );
+        for len in &self.segments {
+            let _ = write!(text, " {len}");
+        }
+        text.push('\n');
+        text
     }
 
     /// Every object replaying this run reads.
@@ -147,10 +156,24 @@ impl TestRun {
         };
         let stdout = digest_line("stdout ", 2)?;
         let stderr = digest_line("stderr ", 3)?;
+        let segments = lines
+            .next()
+            .and_then(|line| line.strip_prefix("order"))
+            .filter(|rest| rest.is_empty() || rest.starts_with(' '))
+            .and_then(|rest| {
+                rest.split_whitespace()
+                    .map(|len| len.parse().ok())
+                    .collect::<Option<Vec<u64>>>()
+            })
+            .ok_or_else(|| corrupt(4))?;
         if lines.next().is_some() {
-            return Err(corrupt(4));
+            return Err(corrupt(5));
         }
-        Ok(Self { stdout, stderr })
+        Ok(Self {
+            stdout,
+            stderr,
+            segments,
+        })
     }
 }
 
