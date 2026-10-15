@@ -284,8 +284,8 @@ impl RemoteCache {
                 })
                 .await
                 {
-                    Ok(_) if action => report.actions += 1,
-                    Ok(_) => report.prekeys += 1,
+                    Ok(()) if action => report.actions += 1,
+                    Ok(()) => report.prekeys += 1,
                     Err(error) if transient(&error) => {
                         report.failed += 1;
                         last = Some(error);
