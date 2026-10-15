@@ -128,7 +128,7 @@ where
     };
     response.map(|body| {
         body.map_err(|status| io::Error::other(status.message().to_owned()))
-            .boxed()
+            .boxed_unsync()
     })
 }
 

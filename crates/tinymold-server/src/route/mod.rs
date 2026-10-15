@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use bytes::Bytes;
 use http::{Method, Request, Response, StatusCode, header};
-use http_body_util::combinators::BoxBody;
+use http_body_util::combinators::UnsyncBoxBody;
 use http_body_util::{BodyExt as _, Empty, Full};
 use tinymold_store::Store;
 
@@ -19,7 +19,7 @@ use crate::front::{bazel_http, reapi};
 use crate::metrics::Metrics;
 
 /// The body of every response: streamed, with I/O errors.
-pub(crate) type Body = BoxBody<Bytes, std::io::Error>;
+pub(crate) type Body = UnsyncBoxBody<Bytes, std::io::Error>;
 
 /// What every request handler shares.
 #[derive(Debug)]
@@ -73,7 +73,7 @@ where
 
 /// A response with no body.
 pub(crate) fn empty(status: StatusCode) -> Response<Body> {
-    let mut response = Response::new(Empty::new().map_err(|never| match never {}).boxed());
+    let mut response = Response::new(Empty::new().map_err(|never| match never {}).boxed_unsync());
     *response.status_mut() = status;
     response
 }
@@ -97,7 +97,7 @@ pub(crate) fn text(status: StatusCode, body: impl Into<Bytes>) -> Response<Body>
     let mut response = Response::new(
         Full::new(body.into())
             .map_err(|never| match never {})
-            .boxed(),
+            .boxed_unsync(),
     );
     *response.status_mut() = status;
     response

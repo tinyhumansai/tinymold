@@ -155,7 +155,7 @@ pub(crate) async fn download(path: PathBuf) -> Option<(route::Body, u64)> {
         (Some(bytes), _, len) => Some((
             http_body_util::Full::new(bytes)
                 .map_err(|never| match never {})
-                .boxed(),
+                .boxed_unsync(),
             len,
         )),
         (None, Some(file), len) => {
@@ -166,7 +166,7 @@ pub(crate) async fn download(path: PathBuf) -> Option<(route::Body, u64)> {
                     receiver,
                     remaining: len,
                 }
-                .boxed(),
+                .boxed_unsync(),
                 len,
             ))
         }
