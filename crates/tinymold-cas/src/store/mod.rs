@@ -468,13 +468,15 @@ impl TeeFailure {
 
 impl<R: Read> Read for Tee<R> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        let read = match self.reader.read(buffer) {
-            Ok(read) => read,
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => return Err(error),
-            Err(error) => {
-                let reported = io::Error::new(error.kind(), "stream failed");
-                self.failure = Some(TeeFailure::Read(error));
-                return Err(reported);
+        let read = loop {
+            match self.reader.read(buffer) {
+                Ok(read) => break read,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                Err(error) => {
+                    let reported = io::Error::new(error.kind(), "stream failed");
+                    self.failure = Some(TeeFailure::Read(error));
+                    return Err(reported);
+                }
             }
         };
         if let Err(error) = self.file.write_all(&buffer[..read]) {

@@ -46,5 +46,5 @@ mod store;
 
 pub use error::{Error, Result};
 pub use materialize::{Method, Strategy};
-pub use store::{ObjectInfo, StagingFile, Store};
+pub use store::{ObjectInfo, Staged, StagingFile, Store};
 pub use tinymold_hash::Digest;
