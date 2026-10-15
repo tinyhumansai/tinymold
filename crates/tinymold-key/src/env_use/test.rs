@@ -92,9 +92,11 @@ fn uses_add_up_across_the_files_of_one_compile() {
     assert!(lib.merge(generated).only_picks_included_files());
     let leaky = EnvUse::scan(b"static L: usize = env!(\"OUT_DIR\").len();\n", "OUT_DIR");
     assert!(!lib.merge(leaky).only_picks_included_files());
-    assert!(!lib.merge(EnvUse {
-        opaque: true,
-        ..EnvUse::default()
-    })
-    .only_picks_included_files());
+    assert!(
+        !lib.merge(EnvUse {
+            opaque: true,
+            ..EnvUse::default()
+        })
+        .only_picks_included_files()
+    );
 }

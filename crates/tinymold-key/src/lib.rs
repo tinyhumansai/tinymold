@@ -12,6 +12,8 @@
 //!   placeholders and back;
 //! - [`DepInfo::parse`] reads which files and env vars a compile actually
 //!   used;
+//! - [`EnvUse::scan`] tells whether an env var such as `OUT_DIR` only picks
+//!   the files a compile includes, so its value may be keyed by root;
 //! - [`content_digest`] names a static archive by its members, not its
 //!   build stamps;
 //! - [`pre_key`] and [`full_key`] compute the two digests of the two-phase
@@ -43,6 +45,7 @@
 mod archive;
 mod args;
 mod depinfo;
+mod env_use;
 mod error;
 mod key;
 mod roots;
@@ -51,6 +54,7 @@ mod test_key;
 pub use archive::content_digest;
 pub use args::{Classified, Extern, Invocation, SearchPath};
 pub use depinfo::DepInfo;
+pub use env_use::EnvUse;
 pub use error::{Error, Result};
 pub use key::{KEY_ENV, PreKeyInputs, full_key, pre_key};
 pub use roots::Roots;

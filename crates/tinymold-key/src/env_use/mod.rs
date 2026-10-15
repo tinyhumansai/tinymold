@@ -40,7 +40,13 @@ pub struct EnvUse {
 }
 
 /// The macros the include idiom relies on, which a source must not redefine.
-const IDIOM_MACROS: &[&[u8]] = &[b"include", b"include_str", b"include_bytes", b"concat", b"env"];
+const IDIOM_MACROS: &[&[u8]] = &[
+    b"include",
+    b"include_str",
+    b"include_bytes",
+    b"concat",
+    b"env",
+];
 
 impl EnvUse {
     /// Scans one source file for the uses of the env var `name`.
@@ -52,7 +58,10 @@ impl EnvUse {
         for at in 0..code.len() {
             let rest = &code[at..];
             let starts_word = at == 0 || !is_ident(code[at - 1]);
-            if starts_word && rest.starts_with(name) && !rest.get(name.len()).is_some_and(|&b| is_ident(b)) {
+            if starts_word
+                && rest.starts_with(name)
+                && !rest.get(name.len()).is_some_and(|&b| is_ident(b))
+            {
                 found.mentions += 1;
             }
             if starts_word && include_path(rest, name) {
@@ -170,7 +179,12 @@ fn include_path(text: &[u8], name: &[u8]) -> bool {
     if !(at.eat(b"!") && at.eat(b"(") && at.eat(b"concat") && at.eat(b"!") && at.eat(b"(")) {
         return false;
     }
-    if !(at.eat(b"env") && at.eat(b"!") && at.eat(b"(") && at.plain_literal() == Some(name) && at.eat(b")")) {
+    if !(at.eat(b"env")
+        && at.eat(b"!")
+        && at.eat(b"(")
+        && at.plain_literal() == Some(name)
+        && at.eat(b")"))
+    {
         return false;
     }
     let mut suffixes = 0;
