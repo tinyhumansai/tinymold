@@ -400,7 +400,7 @@ fn json_string(text: &str) -> String {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
             control if control.is_control() => {
-                out.push_str(&format!("\\u{:04x}", u32::from(control)))
+                let _ = write!(out, "\\u{:04x}", u32::from(control));
             }
             other => out.push(other),
         }
