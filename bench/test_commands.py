@@ -90,11 +90,11 @@ class Report(unittest.TestCase):
     def test_the_root_readme_table_is_replaced_between_its_markers(self):
         with tempfile.TemporaryDirectory() as tmp:
             readme = Path(tmp) / "README.md"
-            readme.write_text(f"intro\n{report.COMMANDS_START}\nold\n{report.COMMANDS_END}\nend\n")
+            readme.write_text(f"intro\n{report.COMMANDS_START}\nstale table\n{report.COMMANDS_END}\nend\n")
             with unittest.mock.patch.object(report, "ROOT_README", readme):
                 report.render_root_readme(report.commands_summary("commands-x", RESULT))
             text = readme.read_text()
-        self.assertNotIn("old", text)
+        self.assertNotIn("stale table", text)
         self.assertIn("| rg v1 | `clippy` | 6.00s | 2.00s | 3.0× |", text)
         self.assertTrue(text.startswith("intro\n") and text.endswith("end\n"))
 
