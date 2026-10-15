@@ -283,6 +283,23 @@ running the same compile twice.
 - units whose inputs changed mid-compile;
 - units whose inputs lie outside every known root and are not regular files.
 
+### Test binaries
+
+After a hit, a remote hit, or a stored miss of a `--test` unit that links,
+the wrapper writes `tests/bin/<digest of the executable>`: the crate name;
+the dynamic libraries beside it that the compile linked against; the
+package binaries cargo passed as `CARGO_BIN_EXE_<name>`, which an
+integration test runs; and the build script's `OUT_DIR`, which a test may
+read at run time. The last two are stored as `${PROFILE}/…` or `${OUT}/…`
+paths. It also remembers the executable's digest in the stat cache.
+`tinymold run-test` caches only the runs of binaries with such a record,
+and keys every file the record names ([test-cache spec](test-cache.md)).
+No record is written for `-C prefer-dynamic`, when a dynamic library is
+linked from another directory, when a `-L native=` or `-L all=` directory
+inside the build holds a shared library, or when a package binary or
+`OUT_DIR` lies outside the build: those binaries run or read code the
+runner could not find again from the binary.
+
 ## Invariants
 
 - **After a hit, the out-dir holds exactly the stored outputs for the

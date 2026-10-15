@@ -296,6 +296,19 @@ Every source file touched, then rebuilt through the wrapper, so each workspace u
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_remote` restore (191 files) | 33.1 ms (31.8–33.7) | 5.4 ms (5.1–5.6) | -84% |
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_wrap` restore (169 files) | 28.8 ms (27.9–30.1) | 5.1 ms (4.7–5.6) | -82% |
 
+### Running tests again (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3/5 runs by row, 2026-10-15)
+
+`cargo test` for the project's package, built through `RUSTC_WRAPPER=tinymold` on both sides; only the runner differs. *again*: nothing changed. *private_body*: a one-line private edit before every run. Cells are median wall time (min–max) and test binaries replayed / run by `tinymold run-test`; *runs* is how many measurements each side took.
+
+Settings: cargo build jobs: 18; target filesystem: apfs; rustc wrapper: tinymold on both sides, one fresh store per project; cargo runner: cargo side: none, any CARGO_TARGET_<triple>_RUNNER removed; run-test side: CARGO_TARGET_<host>_RUNNER="tinymold run-test"; linker: cc, rustc's default, with no timing wrapper; incremental: on (CARGO_INCREMENTAL=1); tmpdir: one per project, emptied before every measurement; doctests: run on both sides; rustdoc does not go through the runner.
+
+| Project | Case | runs | cargo | run-test | replayed / ran | change |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| ripgrep 14.1.1 | again | 5 | 1.29s (1.03–1.60) | 0.09s (0.07–0.11) | 2 / 0 | -93% |
+| ripgrep 14.1.1 | private_body | 5 | 5.39s (4.82–6.21) | 4.68s (4.61–6.76) | 0 / 2 | -13% |
+| tinymold bb944ae | again | 3 | 18.09s (11.83–18.27) | 1.97s (1.53–4.74) | 5 / 0 | -89% |
+| tinymold bb944ae | private_body | 3 | 15.45s (15.38–21.73) | 20.69s (13.96–21.17) | 0 / 5 | +34% |
+
 ### OpenHuman `openhuman-core` in Docker (linux aarch64, 12 CPUs, 16 GiB, rustc 1.96.1 (31fca3adb 2026-06-26), 2026-10-15)
 
 OpenHuman 9a0a654, dev profile, `-j 12`, sources and store on ext4 in a Docker volume (mold 3.0.0, GNU ld (GNU Binutils for Debian) 2.40, sccache 0.18.0; host: darwin arm64, 18 CPUs). Each cell: median wall time of 3 runs (one for a cold build), link time, units compiled, and cache hits (summed over runs). `ld` and `mold` have no cache, so their warm and second-checkout builds would be their cold build. A second checkout's repeat runs reuse what its first run stored at that path, so the first run is shown when it differs.

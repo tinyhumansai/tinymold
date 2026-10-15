@@ -44,6 +44,7 @@ use crate::record::{
 use crate::remote::{Remote, RemoteError};
 use crate::session;
 use crate::stat;
+use crate::test_record::{TestBinary, is_build_path};
 use crate::trace::Trace;
 use crate::{Error, Result};
 
@@ -160,6 +161,7 @@ pub(crate) fn serve(
                 if trace.span("restore", || unit.restore(&action)).is_ok() =>
             {
                 record::touch(&entry);
+                unit.note_test_binary(&action.outputs);
                 return Ok(Served::RemoteHit { waited });
             }
             Ok(_) => {}
@@ -336,6 +338,7 @@ impl Unit<'_> {
             return false;
         }
         record::touch(&entry);
+        self.note_test_binary(&action.outputs);
         record::touch(&self.prekey_path(pre));
         true
     }
@@ -577,6 +580,104 @@ impl Unit<'_> {
         Ok(Some((output.name.clone(), identity, output.digest)))
     }
 
+    /// Records that this unit's executable is a test binary the runner may
+    /// cache (`docs/specs/test-cache.md`), and remembers its digest so the
+    /// runner need not read it. The record names what the binary can run or
+    /// read from the build besides its own bytes: the dynamic-library
+    /// externs beside it, the package binaries cargo passed as
+    /// `CARGO_BIN_EXE_<name>`, and the build script's `OUT_DIR`. Only for
+    /// `--test` units that link `std` statically and where each of those is
+    /// inside the build. Best effort: without a record, the binary's runs
+    /// are not cached.
+    fn note_test_binary(&self, outputs: &[Output]) {
+        let invocation = self.invocation;
+        if !invocation.test || !invocation.links() || invocation.prefers_dynamic() {
+            return;
+        }
+        let [_, stem] = invocation.output_prefixes();
+        let exe = format!("{stem}.exe");
+        let Some(binary) = outputs
+            .iter()
+            .find(|output| output.name == stem || output.name == exe)
+        else {
+            return;
+        };
+        let mut dylibs = Vec::new();
+        for path in invocation
+            .externs
+            .iter()
+            .filter_map(|ext| ext.path.as_ref())
+        {
+            if !is_dylib(path) {
+                continue;
+            }
+            let path = self.cwd.join(path);
+            match path.file_name().and_then(|name| name.to_str()) {
+                Some(name) if path.parent() == Some(self.out_dir.as_path()) => {
+                    dylibs.push(name.to_owned());
+                }
+                // Loaded from somewhere the runner would not look.
+                _ => return,
+            }
+        }
+        if self.links_build_shared_library() {
+            return;
+        }
+        let mut exes = Vec::new();
+        let mut out_dirs = Vec::new();
+        for (name, value) in std::env::vars_os() {
+            let name = name.to_string_lossy();
+            let list = if name.starts_with("CARGO_BIN_EXE_") {
+                &mut exes
+            } else if name == "OUT_DIR" {
+                &mut out_dirs
+            } else {
+                continue;
+            };
+            let path = self.roots.normalize(&value.to_string_lossy());
+            if !is_build_path(&path) {
+                // Something the runner could not find again from the binary.
+                return;
+            }
+            list.push(path);
+        }
+        exes.sort();
+        let record = TestBinary {
+            crate_name: invocation.crate_name.clone(),
+            dylibs,
+            exes,
+            out_dirs,
+        };
+        let path = self.out_dir.join(&binary.name);
+        if let Ok(identity) = stat::identity(&path) {
+            let _ = stat::remember(self.store_dir, &path, identity, binary.digest);
+        }
+        let _ = write_atomically(
+            &TestBinary::path(self.store_dir, &binary.digest),
+            &record.encode(),
+        );
+    }
+
+    /// Whether a native search path inside the build holds a shared
+    /// library, as a build script's `-L native=` directory may: the binary
+    /// can load it at run time, and its own bytes do not change when the
+    /// library does.
+    fn links_build_shared_library(&self) -> bool {
+        self.invocation
+            .search_paths
+            .iter()
+            .filter(|search| matches!(search.kind.as_str(), "native" | "all"))
+            .map(|search| self.cwd.join(&search.path))
+            .filter(|dir| is_build_path(&self.roots.normalize(&dir.to_string_lossy())))
+            .any(|dir| {
+                fs::read_dir(dir).is_ok_and(|entries| {
+                    entries
+                        .filter_map(std::result::Result::ok)
+                        .any(|entry| is_dylib(&entry.path()))
+                })
+            })
+    }
+
     /// Where this unit records the outputs it left in its out-dir.
     fn placed_path(&self) -> PathBuf {
         let [_, stem] = self.invocation.output_prefixes();
@@ -642,6 +743,7 @@ impl Unit<'_> {
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
         Placed::save(&self.placed_path(), &placements)?;
+        self.note_test_binary(&action.outputs);
 
         let set = InputSet {
             recorded_ns: self.now_ns,
@@ -866,6 +968,14 @@ fn is_library(name: &str) -> bool {
     matches!(
         Path::new(name).extension().and_then(|ext| ext.to_str()),
         Some("rlib" | "rmeta" | "dylib" | "so" | "dll")
+    )
+}
+
+/// Whether `path` is a dynamic library: a proc macro, or a `dylib` crate.
+fn is_dylib(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("dylib" | "so" | "dll")
     )
 }
 

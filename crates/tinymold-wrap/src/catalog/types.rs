@@ -22,6 +22,19 @@ pub enum RecordKind {
         /// The pre-key.
         key: Digest,
     },
+    /// A test-run record, `tests/run/<test key>`: a passing test run to
+    /// replay. Like an action, it needs the objects it names.
+    TestRun {
+        /// Its test key.
+        key: Digest,
+    },
+    /// A test-binary record, `tests/bin/<binary digest>`: a test executable
+    /// the wrapper built. Losing one only stops that binary's runs from
+    /// being cached until it is built or restored again.
+    TestBinary {
+        /// The binary's content digest.
+        digest: Digest,
+    },
     /// A digest-cache file under `stat/` or `rustc/`. Losing one costs a
     /// rehash, never a wrong hit.
     Cache,

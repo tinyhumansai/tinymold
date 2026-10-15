@@ -6,6 +6,10 @@
 //! running rustc, and on a miss runs rustc with its output streamed through
 //! and stores what it produced. Anything it cannot key, it runs unchanged.
 //!
+//! [`run_test`] is the same idea one step later: as cargo's test runner, it
+//! replays a recorded passing run of a test binary the wrapper built, when
+//! nothing the run can observe has changed (`docs/specs/test-cache.md`).
+//!
 //! The cache lives in the same store as `tinymold cas`: objects under
 //! `objects/`, actions under `entries/<crate>/`, input sets under
 //! `prekeys/`, and the digest cache under `stat/`. [`records`] lists them,
@@ -32,16 +36,20 @@
 mod catalog;
 mod clock;
 mod compile;
+mod declared;
 mod driver;
 mod error;
 mod exec;
 mod flight;
+mod package_tree;
 mod parallel;
 mod placed;
 mod record;
 mod remote;
+mod runner;
 mod session;
 mod stat;
+mod test_record;
 mod trace;
 
 use std::ffi::OsString;
@@ -52,12 +60,16 @@ use std::time::{Duration, Instant};
 
 use tinymold_key::{Classified, Invocation};
 
-pub use catalog::{ActionInfo, RecordFile, RecordKind, action_info, action_references, records};
+pub use catalog::{
+    ActionInfo, RecordFile, RecordKind, action_info, action_references, records,
+    test_run_references,
+};
 pub use clock::{filesystem_now, written_before};
 use compile::Served;
 pub use error::{Error, Result};
 pub use flight::lock_held;
 pub use remote::{Remote, RemoteError};
+pub use runner::{TestCommand, run_test, run_test_uncached, stdin_has_input};
 use trace::Trace;
 
 /// Where the wrapper keeps its cache and reports what it did.
@@ -236,7 +248,13 @@ fn utf8(args: &[OsString]) -> Option<Vec<String>> {
         .collect()
 }
 
-fn log(config: &Config, started: Instant, outcome: &str, crate_name: &str, detail: &str) {
+pub(crate) fn log(
+    config: &Config,
+    started: Instant,
+    outcome: &str,
+    crate_name: &str,
+    detail: &str,
+) {
     let Some(path) = &config.log else {
         return;
     };

@@ -100,14 +100,15 @@ impl fmt::Display for StoreUsage {
 pub struct Report {
     /// Whether nothing was actually deleted.
     pub dry_run: bool,
-    /// Actions removed, because they expired, did not fit the size budget,
-    /// or were corrupt.
+    /// Actions and recorded test runs removed, because they expired, did
+    /// not fit the size budget, or were corrupt.
     pub actions_removed: u64,
-    /// Actions kept.
+    /// Actions and recorded test runs kept.
     pub actions_kept: u64,
     /// Pre-key records removed.
     pub prekeys_removed: u64,
-    /// Digest-cache files and stale temporaries removed.
+    /// Digest-cache files, test-binary records and stale temporaries
+    /// removed.
     pub caches_removed: u64,
     /// Objects removed, and their bytes.
     pub objects_removed: StoreUsage,
