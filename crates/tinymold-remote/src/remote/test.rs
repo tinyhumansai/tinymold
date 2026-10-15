@@ -173,6 +173,48 @@ fn a_fetch_reads_an_actions_objects_together() {
 }
 
 #[test]
+fn large_blobs_go_up_a_few_at_a_time() {
+    // Each object is over half the in-flight byte budget, so only one is in
+    // flight at once and memory stays bounded by the budget.
+    let server = Server::start();
+    server.with(|state| state.delay = Some(Duration::from_millis(20)));
+    let local = Local::new();
+    let big = usize::try_from(IN_FLIGHT_BYTES / 2 + 1).unwrap();
+    for n in 0..4u8 {
+        let object = local.store.insert_bytes(&vec![n; big]).unwrap();
+        let empty = local.store.insert_bytes(b"").unwrap();
+        let key = Digest::of_bytes(&[b'k', n]);
+        write(
+            &local.root.join("entries/demo").join(key.to_hex()),
+            &format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {object} 0 0 big{n}\n"),
+        );
+    }
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.failed), (5, 0));
+    // The four big objects never overlap each other; small blobs may
+    // still ride alongside one.
+    assert!(server.with(|state| state.peak_in_flight["Write"]) <= 2);
+}
+
+#[test]
+fn a_blob_over_the_budget_still_goes_up_alone() {
+    let server = Server::start();
+    let local = Local::new();
+    let object = local
+        .store
+        .insert_bytes(&vec![7; usize::try_from(IN_FLIGHT_BYTES * 2).unwrap()])
+        .unwrap();
+    let empty = local.store.insert_bytes(b"").unwrap();
+    let key = Digest::of_bytes(b"huge");
+    write(
+        &local.root.join("entries/demo").join(key.to_hex()),
+        &format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {object} 0 0 huge\n"),
+    );
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.failed), (2, 0));
+}
+
+#[test]
 fn every_action_goes_up_before_any_pre_key() {
     // A reader finds actions through pre-keys, so a pre-key must never land
     // before the actions it leads to.
