@@ -52,6 +52,12 @@ pub(crate) struct State {
     pub(crate) stall_writes: u64,
     /// Blobs, by SHA-256 hash, whose every upload hangs for [`STALL`].
     pub(crate) stalled_blobs: HashSet<String>,
+    /// Calls being answered right now, by method name (`Write`).
+    pub(crate) in_flight: HashMap<String, u64>,
+    /// The most calls of each method answered at once.
+    pub(crate) peak_in_flight: HashMap<String, u64>,
+    /// The key hash of every `UpdateActionResult`, in the order they landed.
+    pub(crate) updates: Vec<String>,
 }
 
 /// How long a stalled upload hangs: longer than any test client waits.
@@ -153,10 +159,32 @@ impl tower_service::Service<http::Request<Body>> for Service {
     fn call(&mut self, request: http::Request<Body>) -> BoxFuture {
         let state = Arc::clone(&self.state);
         Box::pin(async move {
+            let method = request.uri().path().rsplit('/').next().unwrap_or("").to_owned();
             let (required, delay) = {
-                let state = state.lock().unwrap();
+                let mut state = state.lock().unwrap();
+                let now = state.in_flight.entry(method.clone()).or_default();
+                *now += 1;
+                let now = *now;
+                let peak = state.peak_in_flight.entry(method.clone()).or_default();
+                *peak = (*peak).max(now);
                 (state.required_auth.clone(), state.delay)
             };
+            let response = answer(&state, request, required, delay).await;
+            *state.lock().unwrap().in_flight.entry(method).or_default() -= 1;
+            Ok(response)
+        })
+    }
+}
+
+/// Waits out the configured delay, checks the credential, and routes.
+async fn answer(
+    state: &Arc<Mutex<State>>,
+    request: http::Request<Body>,
+    required: Option<String>,
+    delay: Option<Duration>,
+) -> http::Response<Body> {
+    {
+        {
             if let Some(delay) = delay {
                 tokio::time::sleep(delay).await;
             }
@@ -166,11 +194,11 @@ impl tower_service::Service<http::Request<Body>> for Service {
                     .get("authorization")
                     .and_then(|value| value.to_str().ok());
                 if given != Some(required.as_str()) {
-                    return Ok(Status::unauthenticated("bad credential").into_http());
+                    return Status::unauthenticated("bad credential").into_http();
                 }
             }
-            Ok(route(state, request).await)
-        })
+            route(Arc::clone(state), request).await
+        }
     }
 }
 
