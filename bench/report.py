@@ -39,10 +39,19 @@ def mib(n: int | None) -> str:
     return "n/a" if n is None else f"{n / 2**20:,.0f} MiB"
 
 
+def runs_of(result: dict, row: dict) -> int:
+    """How many runs a row's numbers come from: its own count, which a merged
+    file records per row, or else the file's."""
+    return row.get("runs", result["runs"])
+
+
 def describe(result: dict) -> str:
     m = result["machine"]
+    counts = sorted({runs_of(result, r) for r in result.get("results", [])}) or [result["runs"]]
+    runs = (f"{counts[0]} runs" if len(counts) == 1
+            else f"{'/'.join(map(str, counts))} runs by row")
     return (f"{m['os']} {m['arch']}, {m['cpus']} CPUs, {m['rustc']}, "
-            f"{result['runs']} runs, {result['date']}")
+            f"{runs}, {result['date']}")
 
 
 def chart(title: str, bars: list[tuple[str, float]], path: Path) -> None:
@@ -409,9 +418,14 @@ def retest_section(result: dict) -> list[str]:
              "`cargo test` for the project's package, built through `RUSTC_WRAPPER=tinymold` "
              "on both sides; only the runner differs. *again*: nothing changed. "
              "*private_body*: a one-line private edit before every run. Cells are median wall "
-             "time (min–max) and test binaries replayed / run by `tinymold run-test`.", "",
-             "| Project | Case | cargo | run-test | replayed / ran | change |",
-             "| --- | --- | ---: | ---: | ---: | ---: |"]
+             "time (min–max) and test binaries replayed / run by `tinymold run-test`; "
+             "*runs* is how many measurements each side took.", ""]
+    settings = result.get("settings", {})
+    if settings:
+        lines += ["Settings: " + "; ".join(f"{k.replace('_', ' ')}: {v}"
+                                          for k, v in settings.items()) + ".", ""]
+    lines += ["| Project | Case | runs | cargo | run-test | replayed / ran | change |",
+              "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
 
     def cell(stats: dict) -> str:
         return f"{stats['median_s']:.2f}s ({stats['min_s']:.2f}–{stats['max_s']:.2f})"
@@ -423,7 +437,8 @@ def retest_section(result: dict) -> list[str]:
                 continue
             old, new = pick["cargo"], pick["run-test"]
             change = f"{new['wall']['median_s'] / old['wall']['median_s'] - 1:+.0%}"
-            lines.append(f"| {project} {old['rev']} | {case} | {cell(old['wall'])} | "
+            runs = "/".join(map(str, dict.fromkeys((runs_of(result, old), runs_of(result, new)))))
+            lines.append(f"| {project} {old['rev']} | {case} | {runs} | {cell(old['wall'])} | "
                          f"{cell(new['wall'])} | {new['replayed']:.0f} / {new['ran']:.0f} | "
                          f"{change} |")
     return lines + [""]
