@@ -37,6 +37,9 @@ pub struct Invocation {
     pub linker: Option<PathBuf>,
     /// Whether `--test` was passed.
     pub test: bool,
+    /// `-C incremental=`, the directory rustc keeps incremental state in,
+    /// when given. Not part of the key: where the state lives is not an input.
+    pub incremental: Option<PathBuf>,
     /// Every argument, in order, with the ones that only say where outputs go
     /// (`--out-dir`, `-C incremental=`, `-L dependency=`) removed and
     /// `--extern` and `-L` paths left for the key to replace by digests. Paths

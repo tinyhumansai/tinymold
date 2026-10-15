@@ -111,6 +111,7 @@ fn action_references_names_outputs_and_replayed_text() {
             executable: false,
             text: false,
         }],
+        session: None,
     };
     write(&path, &action.encode());
 
@@ -153,6 +154,7 @@ fn action_info_names_the_unit_by_its_dep_info_output() {
         stdout: Digest::of_bytes(b"out"),
         stderr: Digest::of_bytes(b"err"),
         outputs: vec![output("demo-1.d", true), output("libdemo-1.rlib", false)],
+        session: None,
     };
     write(&path, &action.encode());
     let info = action_info(&path).unwrap();
