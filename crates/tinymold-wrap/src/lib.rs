@@ -184,8 +184,10 @@ fn serve(
         program,
         args,
         &invocation,
-        compile::LOCK_WAIT,
-        config.max_executable,
+        compile::Limits {
+            max_executable: config.max_executable,
+            ..compile::Limits::default()
+        },
         trace,
     );
     match served {

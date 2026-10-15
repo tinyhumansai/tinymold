@@ -61,6 +61,24 @@ const PARALLEL_RESTORE_MIN: usize = 16;
 /// compiling it too.
 pub(crate) const LOCK_WAIT: Duration = Duration::from_secs(600);
 
+/// What a miss may cost: how long it waits for another build compiling the
+/// same unit, and the largest executable output it stores.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Limits {
+    pub(crate) lock_wait: Duration,
+    /// `None` stores executables of every size.
+    pub(crate) max_executable: Option<u64>,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            lock_wait: LOCK_WAIT,
+            max_executable: None,
+        }
+    }
+}
+
 /// How a cacheable invocation was served. `waited` is how long it waited
 /// for another build compiling the same unit, when it did.
 #[derive(Debug)]
@@ -108,9 +126,9 @@ struct Unit<'a> {
 }
 
 /// Serves `invocation` from the cache in `store_dir`, or by running
-/// `program`, waiting up to `lock_wait` for another build compiling the same
-/// unit. A miss whose outputs include an executable larger than
-/// `max_executable` bytes is not stored (see [`crate::Config`]).
+/// `program`, waiting up to `limits.lock_wait` for another build compiling
+/// the same unit. A miss whose outputs include an executable larger than
+/// `limits.max_executable` bytes is not stored (see [`crate::Config`]).
 ///
 /// An error means rustc has not run and nothing was restored, so the caller
 /// can fall back to running rustc itself.
@@ -120,8 +138,7 @@ pub(crate) fn serve(
     program: &Path,
     args: &[OsString],
     invocation: &Invocation,
-    lock_wait: Duration,
-    max_executable: Option<u64>,
+    limits: Limits,
     trace: &mut Trace,
 ) -> Result<Served> {
     let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
@@ -136,7 +153,7 @@ pub(crate) fn serve(
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
         now_ns: filesystem_now(&store_dir.join("stat"))?,
-        max_executable,
+        max_executable: limits.max_executable,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program, args))?;
     let found = trace.span("lookup", || unit.lookup(&pre))?;
@@ -146,20 +163,21 @@ pub(crate) fn serve(
     // Held until the compile is stored, so that a build wanting the same
     // unit waits for it rather than compiling it again.
     let lock_key = found.likely.unwrap_or(pre);
-    let (_flight, waited) =
-        match trace.span("wait", || flight::claim(store_dir, &lock_key, lock_wait)) {
-            Claim::Held(flight) => (Some(flight), None),
-            Claim::Waited(flight, waited) => {
-                let again = trace.span("lookup", || unit.lookup(&pre))?;
-                if unit.restore_hit(&pre, again.hit, trace) {
-                    return Ok(Served::Hit {
-                        waited: Some(waited),
-                    });
-                }
-                (Some(flight), Some(waited))
+    let (_flight, waited) = match trace.span("wait", || {
+        flight::claim(store_dir, &lock_key, limits.lock_wait)
+    }) {
+        Claim::Held(flight) => (Some(flight), None),
+        Claim::Waited(flight, waited) => {
+            let again = trace.span("lookup", || unit.lookup(&pre))?;
+            if unit.restore_hit(&pre, again.hit, trace) {
+                return Ok(Served::Hit {
+                    waited: Some(waited),
+                });
             }
-            Claim::Unlocked => (None, None),
-        };
+            (Some(flight), Some(waited))
+        }
+        Claim::Unlocked => (None, None),
+    };
     let mut remote_failure = None;
     if let Some(remote) = remote {
         match trace.span("remote", || unit.remote_lookup(remote, &pre)) {

@@ -111,8 +111,10 @@ impl Crate {
             &rustc(),
             &args,
             &invocation,
-            wait,
-            None,
+            Limits {
+                lock_wait: wait,
+                ..Limits::default()
+            },
             &mut Trace::start(),
         )
     }
@@ -212,8 +214,7 @@ fn a_compile_without_dep_info_is_not_stored() {
         &rustc(),
         &args,
         &invocation,
-        LOCK_WAIT,
-        None,
+        Limits::default(),
         &mut Trace::start(),
     )
     .unwrap()
@@ -344,8 +345,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &rustc(),
             &args,
             &invocation,
-            LOCK_WAIT,
-            None,
+            Limits::default(),
             &mut Trace::start(),
         )
         .unwrap(),
@@ -359,8 +359,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &rustc(),
             &args,
             &invocation,
-            LOCK_WAIT,
-            None,
+            Limits::default(),
             &mut Trace::start()
         )
         .unwrap(),
@@ -678,8 +677,10 @@ fn serve_bin(unit: &Crate, max_executable: Option<u64>) -> Served {
         &rustc(),
         &args,
         &invocation,
-        LOCK_WAIT,
-        max_executable,
+        Limits {
+            max_executable,
+            ..Limits::default()
+        },
         &mut Trace::start(),
     )
     .unwrap()
@@ -739,8 +740,10 @@ fn the_executable_limit_leaves_libraries_alone() {
             &rustc(),
             &args,
             &invocation,
-            LOCK_WAIT,
-            Some(1),
+            Limits {
+                max_executable: Some(1),
+                ..Limits::default()
+            },
             &mut Trace::start(),
         )
         .unwrap(),
@@ -1127,8 +1130,7 @@ impl Crate {
             &crate::driver::test::clippy_driver(),
             &args,
             &invocation,
-            LOCK_WAIT,
-            None,
+            Limits::default(),
             &mut Trace::start(),
         )
         .unwrap()
