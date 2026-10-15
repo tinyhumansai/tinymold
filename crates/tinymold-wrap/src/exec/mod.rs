@@ -49,10 +49,10 @@ pub(crate) fn run_captured(program: &Path, args: &[OsString]) -> Result<Captured
 }
 
 /// Runs `command`, which runs `program`, streaming its stdout and stderr
-/// through to ours while keeping a copy of each.
+/// through to ours while keeping a copy of each. Its stdin is whatever
+/// `command` sets, or ours.
 pub(crate) fn capture(mut command: Command, program: &Path) -> Result<Captured> {
     let mut child = command
-        .stdin(Stdio::inherit())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

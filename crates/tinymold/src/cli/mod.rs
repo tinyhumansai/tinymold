@@ -351,6 +351,7 @@ fn run_test(cli: &Cli, args: &RunTestArgs) -> Outcome {
         args: &args.args,
         cwd: &cwd,
         env: &vars,
+        stdin_has_input: tinymold_wrap::stdin_has_input(),
     };
     let code = match crate::wrapper_config(env) {
         Some(mut config) => {

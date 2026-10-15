@@ -69,7 +69,7 @@ use compile::Served;
 pub use error::{Error, Result};
 pub use flight::lock_held;
 pub use remote::{Remote, RemoteError};
-pub use runner::{TestCommand, run_test, run_test_uncached};
+pub use runner::{TestCommand, run_test, run_test_uncached, stdin_has_input};
 use trace::Trace;
 
 /// Where the wrapper keeps its cache and reports what it did.

@@ -11,9 +11,8 @@
 //!    host, the package tree, the declared inputs and the environment;
 //! 3. on a hit, replay the recorded stdout and stderr and exit 0;
 //! 4. on a miss, run the binary with an empty stdin and its output streamed
-//!    through, and
-//!    record the run if it passed and no file under the package changed
-//!    while it ran.
+//!    through, and record the run if it passed and no file under the
+//!    package changed while it ran.
 //!
 //! Whatever goes wrong inside the cache, the test runs as cargo asked.
 
