@@ -54,7 +54,13 @@ pub(crate) struct Metrics {
 
 impl Metrics {
     /// Counts one request through `front_end`.
-    pub(crate) fn record(&self, front_end: FrontEnd, outcome: Outcome, bytes_in: u64, bytes_out: u64) {
+    pub(crate) fn record(
+        &self,
+        front_end: FrontEnd,
+        outcome: Outcome,
+        bytes_in: u64,
+        bytes_out: u64,
+    ) {
         let Some(index) = FrontEnd::ALL.iter().position(|front| *front == front_end) else {
             return;
         };
@@ -101,13 +107,31 @@ impl Metrics {
     pub(crate) fn render(&self) -> String {
         let mut out = String::new();
         let families: [(&str, &str, fn(&Counters) -> &AtomicU64); 7] = [
-            ("tinymold_requests_total", "Requests received.", |c| &c.requests),
-            ("tinymold_hits_total", "Lookups that found their entry or blob.", |c| &c.hits),
-            ("tinymold_misses_total", "Lookups that did not.", |c| &c.misses),
+            ("tinymold_requests_total", "Requests received.", |c| {
+                &c.requests
+            }),
+            (
+                "tinymold_hits_total",
+                "Lookups that found their entry or blob.",
+                |c| &c.hits,
+            ),
+            ("tinymold_misses_total", "Lookups that did not.", |c| {
+                &c.misses
+            }),
             ("tinymold_writes_total", "Uploads stored.", |c| &c.writes),
-            ("tinymold_denied_total", "Requests refused for their credential.", |c| &c.denied),
-            ("tinymold_received_bytes_total", "Body bytes received.", |c| &c.bytes_in),
-            ("tinymold_sent_bytes_total", "Body bytes sent.", |c| &c.bytes_out),
+            (
+                "tinymold_denied_total",
+                "Requests refused for their credential.",
+                |c| &c.denied,
+            ),
+            (
+                "tinymold_received_bytes_total",
+                "Body bytes received.",
+                |c| &c.bytes_in,
+            ),
+            ("tinymold_sent_bytes_total", "Body bytes sent.", |c| {
+                &c.bytes_out
+            }),
         ];
         for (name, help, counter) in families {
             let _ = writeln!(out, "# HELP {name} {help}\n# TYPE {name} counter");
@@ -130,15 +154,36 @@ impl Metrics {
         let micros = self.latency_micros.load(Ordering::Relaxed);
         let (seconds, fraction) = (micros / 1_000_000, micros % 1_000_000);
         let _ = writeln!(out, "{name}_bucket{{le=\"+Inf\"}} {count}");
-        let _ = writeln!(out, "{name}_sum {seconds}.{fraction:06}\n{name}_count {count}");
+        let _ = writeln!(
+            out,
+            "{name}_sum {seconds}.{fraction:06}\n{name}_count {count}"
+        );
 
         for (name, help, kind, value) in [
-            ("tinymold_store_entries", "Entries kept at the last collection.", "gauge", &self.store_entries),
-            ("tinymold_store_bytes", "Object bytes kept at the last collection.", "gauge", &self.store_bytes),
-            ("tinymold_evicted_entries_total", "Entries removed by collections.", "counter", &self.evicted),
+            (
+                "tinymold_store_entries",
+                "Entries kept at the last collection.",
+                "gauge",
+                &self.store_entries,
+            ),
+            (
+                "tinymold_store_bytes",
+                "Object bytes kept at the last collection.",
+                "gauge",
+                &self.store_bytes,
+            ),
+            (
+                "tinymold_evicted_entries_total",
+                "Entries removed by collections.",
+                "counter",
+                &self.evicted,
+            ),
         ] {
             let value = value.load(Ordering::Relaxed);
-            let _ = writeln!(out, "# HELP {name} {help}\n# TYPE {name} {kind}\n{name} {value}");
+            let _ = writeln!(
+                out,
+                "# HELP {name} {help}\n# TYPE {name} {kind}\n{name} {value}"
+            );
         }
         out
     }

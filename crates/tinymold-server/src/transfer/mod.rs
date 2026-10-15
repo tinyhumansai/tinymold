@@ -153,7 +153,14 @@ pub(crate) async fn download(path: PathBuf) -> Option<(route::Body, u64)> {
         (None, Some(file), len) => {
             let (sender, receiver) = mpsc::channel(DEPTH);
             tokio::task::spawn_blocking(move || stream_file(file, &sender));
-            Some((ChannelBody { receiver, remaining: len }.boxed(), len))
+            Some((
+                ChannelBody {
+                    receiver,
+                    remaining: len,
+                }
+                .boxed(),
+                len,
+            ))
         }
         (None, None, _) => None,
     }

@@ -31,7 +31,10 @@ async fn send(state: &Arc<State>, method: Method, path: &str) -> (StatusCode, St
 async fn health_answers_ok() {
     let (_dir, state) = state();
 
-    assert_eq!(send(&state, Method::GET, "/healthz").await, (StatusCode::OK, "ok\n".into()));
+    assert_eq!(
+        send(&state, Method::GET, "/healthz").await,
+        (StatusCode::OK, "ok\n".into())
+    );
 }
 
 #[tokio::test]
@@ -41,13 +44,22 @@ async fn metrics_render_and_count_latency() {
     let (status, body) = send(&state, Method::GET, "/metrics").await;
 
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("tinymold_request_duration_seconds_count 1"), "{body}");
+    assert!(
+        body.contains("tinymold_request_duration_seconds_count 1"),
+        "{body}"
+    );
 }
 
 #[tokio::test]
 async fn unknown_paths_are_not_found() {
     let (_dir, state) = state();
 
-    assert_eq!(send(&state, Method::GET, "/v8/nothing").await.0, StatusCode::NOT_FOUND);
-    assert_eq!(send(&state, Method::POST, "/healthz").await.0, StatusCode::NOT_FOUND);
+    assert_eq!(
+        send(&state, Method::GET, "/v8/nothing").await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        send(&state, Method::POST, "/healthz").await.0,
+        StatusCode::NOT_FOUND
+    );
 }

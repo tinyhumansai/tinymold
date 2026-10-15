@@ -49,7 +49,12 @@ async fn start() -> Running {
     }
 }
 
-async fn http1(addr: SocketAddr, method: Method, path: &str, body: Vec<u8>) -> (StatusCode, Vec<u8>) {
+async fn http1(
+    addr: SocketAddr,
+    method: Method,
+    path: &str,
+    body: Vec<u8>,
+) -> (StatusCode, Vec<u8>) {
     let stream = TcpStream::connect(addr).await.unwrap();
     let (mut sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
         .await
@@ -63,7 +68,16 @@ async fn http1(addr: SocketAddr, method: Method, path: &str, body: Vec<u8>) -> (
         .unwrap();
     let response = sender.send_request(request).await.unwrap();
     let status = response.status();
-    (status, response.into_body().collect().await.unwrap().to_bytes().to_vec())
+    (
+        status,
+        response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -72,7 +86,10 @@ async fn serves_http1() {
 
     let (status, body) = http1(server.addr, Method::GET, "/healthz", Vec::new()).await;
 
-    assert_eq!((status, body.as_slice()), (StatusCode::OK, b"ok\n".as_slice()));
+    assert_eq!(
+        (status, body.as_slice()),
+        (StatusCode::OK, b"ok\n".as_slice())
+    );
     server.stop().await;
 }
 
@@ -118,7 +135,10 @@ fn an_open_server_refuses_a_non_loopback_address() {
     let mut config = config(&dir);
     config.listen = "0.0.0.0:0".parse().unwrap();
 
-    assert!(matches!(Server::bind(&config), Err(Error::OpenNonLoopback(_))));
+    assert!(matches!(
+        Server::bind(&config),
+        Err(Error::OpenNonLoopback(_))
+    ));
 }
 
 #[test]
@@ -141,12 +161,18 @@ fn bad_configuration_files_are_reported() {
 
     let mut missing_tokens = config(&dir);
     missing_tokens.tokens = Some(dir.path().join("absent"));
-    assert!(matches!(Server::bind(&missing_tokens), Err(Error::ReadFile { .. })));
+    assert!(matches!(
+        Server::bind(&missing_tokens),
+        Err(Error::ReadFile { .. })
+    ));
 
     let mut bad_tokens = config(&dir);
     std::fs::write(dir.path().join("bad"), "token turbo:own\n").unwrap();
     bad_tokens.tokens = Some(dir.path().join("bad"));
-    assert!(matches!(Server::bind(&bad_tokens), Err(Error::TokenFile { line: 1, .. })));
+    assert!(matches!(
+        Server::bind(&bad_tokens),
+        Err(Error::TokenFile { line: 1, .. })
+    ));
 
     let mut bad_cert = config(&dir);
     bad_cert.tls = Some(TlsFiles {
@@ -160,7 +186,10 @@ fn bad_configuration_files_are_reported() {
         cert: dir.path().join("absent.pem"),
         key: garbage,
     });
-    assert!(matches!(Server::bind(&missing_cert), Err(Error::ReadFile { .. })));
+    assert!(matches!(
+        Server::bind(&missing_cert),
+        Err(Error::ReadFile { .. })
+    ));
 }
 
 #[test]

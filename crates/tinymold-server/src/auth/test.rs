@@ -70,11 +70,19 @@ fn basic_auth_presents_the_password_as_the_token() {
     let access = access(false);
 
     assert_eq!(
-        access.check(&basic("gradle", "writer"), &ns(FrontEnd::Gradle, ""), Permission::Write),
+        access.check(
+            &basic("gradle", "writer"),
+            &ns(FrontEnd::Gradle, ""),
+            Permission::Write
+        ),
         Ok(())
     );
     assert_eq!(
-        access.check(&basic("writer", "nope"), &ns(FrontEnd::Gradle, ""), Permission::Read),
+        access.check(
+            &basic("writer", "nope"),
+            &ns(FrontEnd::Gradle, ""),
+            Permission::Read
+        ),
         Err(Denied::Unauthenticated)
     );
 }
@@ -103,7 +111,10 @@ fn anonymous_reads_allow_reading_but_never_writing() {
     let access = access(true);
     let namespace = ns(FrontEnd::Turbo, "team-b");
 
-    assert_eq!(access.check(&HeaderMap::new(), &namespace, Permission::Read), Ok(()));
+    assert_eq!(
+        access.check(&HeaderMap::new(), &namespace, Permission::Read),
+        Ok(())
+    );
     assert_eq!(
         access.check(&HeaderMap::new(), &namespace, Permission::Write),
         Err(Denied::Unauthenticated)

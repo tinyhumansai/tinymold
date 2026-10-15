@@ -52,11 +52,17 @@ fn nothing_set_means_no_location() {
 #[test]
 fn the_server_dir_prefers_its_own_variable_and_never_the_wrapper_store() {
     assert_eq!(
-        default_server_dir(env(&[("TINYMOLD_SERVER_DIR", "/srv/cache"), ("HOME", "/h")])),
+        default_server_dir(env(&[
+            ("TINYMOLD_SERVER_DIR", "/srv/cache"),
+            ("HOME", "/h")
+        ])),
         Some(PathBuf::from("/srv/cache"))
     );
     assert_eq!(
-        default_server_dir(env(&[("XDG_CACHE_HOME", "/c"), ("TINYMOLD_STORE", "/c/tinymold")])),
+        default_server_dir(env(&[
+            ("XDG_CACHE_HOME", "/c"),
+            ("TINYMOLD_STORE", "/c/tinymold")
+        ])),
         Some(PathBuf::from("/c/tinymold-server"))
     );
     assert_eq!(

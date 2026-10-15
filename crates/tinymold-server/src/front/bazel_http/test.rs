@@ -58,7 +58,10 @@ fn paths_parse_with_and_without_a_tenant() {
     assert_eq!((plain.tenant.as_str(), plain.kind), ("", Kind::ActionCache));
 
     let nested = parse(&format!("/team/ccache/cas/{digest}")).unwrap();
-    assert_eq!((nested.tenant.as_str(), nested.kind), ("team/ccache", Kind::Cas));
+    assert_eq!(
+        (nested.tenant.as_str(), nested.kind),
+        ("team/ccache", Kind::Cas)
+    );
     assert_eq!(nested.digest, digest);
 
     assert_eq!(parse("/cas/not-a-digest"), None);
@@ -71,7 +74,12 @@ async fn a_blob_round_trips_through_cas() {
     let (_dir, state) = state();
     let path = cas(b"blob bytes");
 
-    assert_eq!(send(&state, Method::PUT, &path, b"blob bytes", None).await.0, StatusCode::OK);
+    assert_eq!(
+        send(&state, Method::PUT, &path, b"blob bytes", None)
+            .await
+            .0,
+        StatusCode::OK
+    );
     let (status, headers, body) = send(&state, Method::GET, &path, b"", None).await;
 
     assert_eq!(status, StatusCode::OK);
@@ -111,16 +119,29 @@ async fn an_action_result_round_trips_and_is_scoped_to_its_tenant() {
 
     send(&state, Method::PUT, &path, b"opaque result", None).await;
 
-    assert_eq!(send(&state, Method::GET, &path, b"", None).await.2, b"opaque result");
+    assert_eq!(
+        send(&state, Method::GET, &path, b"", None).await.2,
+        b"opaque result"
+    );
     let other = format!("/team-b/ac/{digest}");
-    assert_eq!(send(&state, Method::GET, &other, b"", None).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(
+        send(&state, Method::GET, &other, b"", None).await.0,
+        StatusCode::NOT_FOUND
+    );
 }
 
 #[tokio::test]
 async fn an_action_value_is_also_a_cas_blob() {
     let (_dir, state) = state();
     let digest = Sha256::of_bytes(b"action");
-    send(&state, Method::PUT, &format!("/ac/{digest}"), b"value", None).await;
+    send(
+        &state,
+        Method::PUT,
+        &format!("/ac/{digest}"),
+        b"value",
+        None,
+    )
+    .await;
 
     let (status, _, body) = send(&state, Method::GET, &cas(b"value"), b"", None).await;
 
@@ -132,8 +153,18 @@ async fn an_action_value_is_also_a_cas_blob() {
 async fn a_miss_is_not_found_and_counted() {
     let (_dir, state) = state();
 
-    assert_eq!(send(&state, Method::GET, &cas(b"absent"), b"", None).await.0, StatusCode::NOT_FOUND);
-    assert!(state.metrics.render().contains("tinymold_misses_total{front_end=\"bazel-http\"} 1"));
+    assert_eq!(
+        send(&state, Method::GET, &cas(b"absent"), b"", None)
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+    assert!(
+        state
+            .metrics
+            .render()
+            .contains("tinymold_misses_total{front_end=\"bazel-http\"} 1")
+    );
 }
 
 #[tokio::test]
@@ -153,7 +184,10 @@ async fn bodies_over_the_limit_are_refused() {
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 
     // Undeclared: refused while streaming.
-    assert_eq!(send(&state, Method::PUT, &path, &big, None).await.0, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        send(&state, Method::PUT, &path, &big, None).await.0,
+        StatusCode::PAYLOAD_TOO_LARGE
+    );
     assert!(state.store.cas().objects().unwrap().is_empty());
 }
 
@@ -175,18 +209,39 @@ async fn credentials_are_checked() {
 
     let (status, headers, _) = send(&state, Method::PUT, &path, b"secret build output", None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(headers[header::WWW_AUTHENTICATE].to_str().unwrap().starts_with("Basic"));
+    assert!(
+        headers[header::WWW_AUTHENTICATE]
+            .to_str()
+            .unwrap()
+            .starts_with("Basic")
+    );
 
     let read_only = Some("Bearer reader");
-    let status = send(&state, Method::PUT, &path, b"secret build output", read_only).await.0;
+    let status = send(
+        &state,
+        Method::PUT,
+        &path,
+        b"secret build output",
+        read_only,
+    )
+    .await
+    .0;
     assert_eq!(status, StatusCode::FORBIDDEN);
 
     let writer = Some("Bearer writer");
-    let status = send(&state, Method::PUT, &path, b"secret build output", writer).await.0;
+    let status = send(&state, Method::PUT, &path, b"secret build output", writer)
+        .await
+        .0;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(send(&state, Method::GET, &path, b"", read_only).await.0, StatusCode::OK);
+    assert_eq!(
+        send(&state, Method::GET, &path, b"", read_only).await.0,
+        StatusCode::OK
+    );
 
     let metrics = state.metrics.render();
-    assert!(metrics.contains("tinymold_denied_total{front_end=\"bazel-http\"} 2"), "{metrics}");
+    assert!(
+        metrics.contains("tinymold_denied_total{front_end=\"bazel-http\"} 2"),
+        "{metrics}"
+    );
     assert!(!metrics.contains("writer"));
 }

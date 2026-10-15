@@ -53,7 +53,9 @@ struct Scope {
 impl Scope {
     fn allows(&self, namespace: &Namespace, need: Permission) -> bool {
         self.permission >= need
-            && self.front_end.is_none_or(|front| front == namespace.front_end())
+            && self
+                .front_end
+                .is_none_or(|front| front == namespace.front_end())
             && self
                 .tenant
                 .as_deref()
