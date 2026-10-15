@@ -281,7 +281,6 @@ impl RemoteCache {
                     Err(error) => return Err(error),
                 }
             }
-            drop(uploads);
             // An entry goes up only once every blob it names is there, and
             // every action before any pre-key record.
             for (entries, action) in [(actions, true), (prekeys, false)] {
