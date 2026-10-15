@@ -156,7 +156,7 @@ def summarize(samples: list[float]) -> dict:
     }
 
 
-def machine() -> dict:
+def machine(cargo_settings: str | None = None) -> dict:
     """Everything that moves a benchmark result, recorded with the result.
 
     Wild's author showed the filesystem, output reuse, fork mode, and thread
@@ -170,8 +170,9 @@ def machine() -> dict:
         "cpus": os.cpu_count(),
         "rustc": output(["rustc", "-V"]),
         "python": platform.python_version(),
-        "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, "
-                          f"jobs={os.cpu_count()}, no RUSTFLAGS beyond the linker's",
+        "cargo_settings": cargo_settings or (
+            "stock: no rustc wrapper, incremental on, full debuginfo, "
+            f"jobs={os.cpu_count()}, no RUSTFLAGS beyond the linker's"),
         # Set by `bench.py docker`, so a container's numbers are never read as
         # a bare-metal Linux machine's.
         **({"host": os.environ["TINYMOLD_BENCH_HOST"]}
@@ -1386,7 +1387,34 @@ def bench_retest(args: argparse.Namespace) -> dict:
                   f"replayed/ran per run {results[-1]['counts']}", file=sys.stderr)
         shutil.rmtree(store, ignore_errors=True)
         shutil.rmtree(tmp, ignore_errors=True)
-    return {"benchmark": "retest", "pins": pins(), "results": results}
+    return {"benchmark": "retest", "settings": retest_settings(),
+            "cargo_settings": RETEST_CARGO_SETTINGS.format(jobs=os.cpu_count()),
+            "results": results}
+
+
+# What `bench_retest` sets up, recorded in place of the machine's stock cargo
+# settings, which say no rustc wrapper is in use.
+RETEST_CARGO_SETTINGS = ("RUSTC_WRAPPER=tinymold on both sides, incremental on, full debuginfo, "
+                         "jobs={jobs}, no RUSTFLAGS")
+
+
+def retest_settings() -> dict:
+    """What the retest numbers depend on: exactly what `bench_retest` configures.
+
+    Unlike `pins()`, there is no timing linker wrapper and no sccache here:
+    both sides build through tinymold, and only the test runner differs.
+    """
+    return {
+        "cargo_build_jobs": os.cpu_count(),
+        "target_filesystem": fs_type(WORK),
+        "rustc_wrapper": "tinymold on both sides, one fresh store per project",
+        "cargo_runner": "cargo side: none, any CARGO_TARGET_<triple>_RUNNER removed; "
+                        "run-test side: CARGO_TARGET_<host>_RUNNER=\"tinymold run-test\"",
+        "linker": "cc, rustc's default, unwrapped",
+        "incremental": "on, cargo's default for the test profile",
+        "tmpdir": "one per project, emptied before every measurement",
+        "doctests": "run on both sides; rustdoc does not go through the runner",
+    }
 
 
 def pins() -> dict:
@@ -1564,7 +1592,10 @@ def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
     """Folds the rows a run did not measure back in from the previous file.
 
     A run limited to one project replaces exactly the rows it measured, by
-    project and, for scenarios, mode and case; the rest are kept. Experiments
+    project and, for scenarios, mode and case; the rest are kept. Each row of
+    a merged file carries its own `runs`, since the kept rows may come from a
+    run with a different `--runs` than the file-level value, which describes
+    only the latest run. Experiments
     always merge, because each run usually tries a different subset of
     variants and they share one file; their variant settings and toolchains
     merge with them, so every kept row can still be compared.
@@ -1575,6 +1606,10 @@ def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
     measured = {(r["project"], r.get("mode"), r.get("case")) for r in result["results"]}
     kept = [r for r in previous["results"]
             if (r["project"], r.get("mode"), r.get("case")) not in measured]
+    for rows, source in ((kept, previous), (result["results"], result)):
+        if "runs" in source:
+            for r in rows:
+                r.setdefault("runs", source["runs"])
     result["results"] = kept + result["results"]
     if experiments:
         for key in ("variants", "toolchains"):
@@ -1635,7 +1670,7 @@ def main() -> None:
 
     benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "retest": bench_retest, "edits": edits.bench_edits}
     result = benchmarks[args.benchmark](args)
-    result["machine"] = machine()
+    result["machine"] = machine(result.pop("cargo_settings", None))
     result["date"] = dt.date.today().isoformat()
     result["runs"] = getattr(args, "runs", 1)
 
