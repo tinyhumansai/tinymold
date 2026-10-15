@@ -9,8 +9,8 @@ use std::time::Duration;
 use tinymold_wrap::Remote as _;
 
 use super::*;
-use crate::{SigningKey, TrustedKeys};
 use crate::fake::Server;
+use crate::{SigningKey, TrustedKeys};
 
 /// A local store holding one action of two objects and its pre-key record.
 struct Local {
@@ -266,7 +266,13 @@ fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
     let store = Store::open(empty.path()).unwrap();
     let result = reader.fetch_action_into(&local.key, &store);
     assert!(
-        matches!(result, Err(Error::Untrusted { reason: "it is not signed", .. })),
+        matches!(
+            result,
+            Err(Error::Untrusted {
+                reason: "it is not signed",
+                ..
+            })
+        ),
         "{result:?}"
     );
     for object in &local.objects {
@@ -274,7 +280,13 @@ fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
     }
     let result = reader.input_sets_of(&local.pre);
     assert!(
-        matches!(result, Err(Error::Untrusted { reason: "it is not signed", .. })),
+        matches!(
+            result,
+            Err(Error::Untrusted {
+                reason: "it is not signed",
+                ..
+            })
+        ),
         "{result:?}"
     );
 }
@@ -326,7 +338,13 @@ fn a_signed_entry_whose_record_is_swapped_is_refused() {
     let store = Store::open(empty.path()).unwrap();
     let result = reader.fetch_action_into(&local.key, &store);
     assert!(
-        matches!(result, Err(Error::Untrusted { reason: "its signature does not match it", .. })),
+        matches!(
+            result,
+            Err(Error::Untrusted {
+                reason: "its signature does not match it",
+                ..
+            })
+        ),
         "{result:?}"
     );
 }
@@ -340,7 +358,12 @@ fn a_reader_without_trusted_keys_still_uses_signed_entries() {
         .unwrap();
     let empty = tempfile::tempdir().unwrap();
     let store = Store::open(empty.path()).unwrap();
-    assert!(remote(&server).fetch_action(&local.key, &store).unwrap().is_some());
+    assert!(
+        remote(&server)
+            .fetch_action(&local.key, &store)
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[test]

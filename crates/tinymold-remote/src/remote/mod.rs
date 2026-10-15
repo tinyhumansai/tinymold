@@ -257,7 +257,11 @@ impl RemoteCache {
         let Some(signer) = self.signing_key() else {
             return;
         };
-        let Some(record) = result.output_files.first().and_then(|file| file.digest.clone()) else {
+        let Some(record) = result
+            .output_files
+            .first()
+            .and_then(|file| file.digest.clone())
+        else {
             return;
         };
         let signature = signer.sign(kind, key, &record);

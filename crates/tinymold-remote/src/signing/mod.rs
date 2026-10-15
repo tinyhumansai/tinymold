@@ -75,7 +75,9 @@ impl SigningKey {
     /// `tinymold remote keygen`.
     #[must_use]
     pub fn generate() -> Self {
-        Self { seed: *Seed::generate() }
+        Self {
+            seed: *Seed::generate(),
+        }
     }
 
     /// The key written as 64 hex digits.
@@ -139,7 +141,11 @@ impl TrustedKeys {
     /// none.
     pub fn from_list(text: &str) -> Result<Self> {
         let mut keys = Vec::new();
-        for item in text.split(',').map(str::trim).filter(|item| !item.is_empty()) {
+        for item in text
+            .split(',')
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+        {
             let key = parse_hex(item)
                 .filter(|key| PublicKey::from_slice(key).is_ok())
                 .ok_or_else(|| Error::InvalidTrustedKey(item.to_owned()))?;
