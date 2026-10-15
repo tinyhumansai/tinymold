@@ -81,9 +81,13 @@ KeyInputs = PreKeyInputs + {
                      and -Zbinary-dep-depinfo extras included),
   env:               sorted {name: value} for every env var the recorded
                      dep-info lists as env-dep, plus CARGO_PKG_*,
-                     CARGO_MANIFEST_DIR (normalized), CARGO_CRATE_NAME,
-                     OUT_DIR (normalized), RUSTC_BOOTSTRAP, SOURCE_DATE_EPOCH,
-                     CARGO_CFG_*
+                     CARGO_MANIFEST_DIR, CARGO_CRATE_NAME, OUT_DIR,
+                     RUSTC_BOOTSTRAP, SOURCE_DATE_EPOCH, CARGO_CFG_*.
+                     A path-valued value (OUT_DIR, CARGO_MANIFEST_DIR) is
+                     normalized only when the sources use it solely to
+                     include files and no output contains it; otherwise
+                     it is raw, and the key is specific to the worktree
+                     (rustc-wrapper.md#the-key)
 }
 
 ActionResult = {
@@ -164,7 +168,7 @@ names and therefore output bytes.
 
 | # | Breaks reuse | Effect | Mitigation |
 |---|---|---|---|
-| 1 | **Absolute paths** in debuginfo, `file!()`, `.rmeta` spans and dep-info | Two worktrees produce different bytes and keys | Normalize paths in the key; inject `--remap-path-prefix` per root; scan outputs for residual absolute paths and refuse to share them; an input outside every root makes the action uncacheable with an explained reason. Implemented for the profile directory: it is remapped on every miss, and a path-valued env-dep is keyed normalized only when the outputs do not contain it ([rustc-wrapper](rustc-wrapper.md#the-key)) |
+| 1 | **Absolute paths** in debuginfo, `file!()`, `.rmeta` spans and dep-info | Two worktrees produce different bytes and keys | Normalize paths in the key; inject `--remap-path-prefix` per root; scan outputs for residual absolute paths and refuse to share them; an input outside every root makes the action uncacheable with an explained reason. Implemented for the profile directory: it is remapped on every miss, and a path-valued env-dep is keyed normalized only when the sources use it solely as `include!(concat!(env!(..), ".."))` and the outputs do not contain it ([rustc-wrapper](rustc-wrapper.md#the-key)) |
 | 2 | **Incremental compilation** (dev default for workspace members) | Outputs depend on prior session state and are not reproducible | Cache them locally with `verified: false`; never share to the remote tier unless verification confirms them; keep incremental dirs in the per-key incremental-dir store so a switch does not start cold |
 | 3 | **Crate types sccache refuses** (`bin`, `dylib`, `cdylib`, `proc-macro`) | Depend on the linker and system libraries | Add linker path, digest and version to the key, and use upstream `.rlib` digests for linking actions |
 | 4 | **Proc macros reading undeclared files, env or time** | A hit can return a stale expansion | Key on the proc-macro's identity (its producing ActionKey) plus everything dep-info records; verification sampling catches impure macros; a denylist marks known-impure macros uncacheable |

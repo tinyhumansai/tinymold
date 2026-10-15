@@ -28,7 +28,7 @@ use std::time::{Duration, SystemTime};
 
 use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
-use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
+use tinymold_key::{DepInfo, EnvUse, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
 use crate::clock::{filesystem_now, written_before};
 use crate::driver;
@@ -420,13 +420,18 @@ impl Unit<'_> {
 
     /// The arguments rustc runs with on a miss: cargo's, plus the remapping
     /// of the profile directory (see [`Roots::remap_profile_flag`]) unless
-    /// the command line already remaps paths itself.
+    /// the command line already remaps paths itself. The flag goes before a
+    /// `--`, after which rustc reads every argument as an input.
     fn compile_args(&self, args: &[OsString]) -> Vec<OsString> {
         let mut args = args.to_vec();
         if !self.invocation.remaps_paths()
             && let Some(flag) = self.roots.remap_profile_flag()
         {
-            args.push(flag.into());
+            let end = args
+                .iter()
+                .position(|arg| arg == "--")
+                .unwrap_or(args.len());
+            args.insert(end, flag.into());
         }
         args
     }
@@ -435,47 +440,66 @@ impl Unit<'_> {
     /// its value with roots replaced.
     ///
     /// A value under a root, such as `OUT_DIR`, differs in every worktree.
-    /// It is only safe to key it without the root when the path cannot have
-    /// reached the outputs except through files rustc read, which the key
-    /// covers by content. So a value is normalized only when none of the
-    /// compile's binary outputs contains it: `include!(concat!(env!("OUT_DIR"),
-    /// ...))` qualifies once the profile directory is remapped, while
-    /// `const DIR: &str = env!("OUT_DIR")` leaves the path in the `.rlib` and
-    /// keeps a key of its own per worktree.
+    /// It is only safe to key it without the root when the value cannot have
+    /// changed the outputs except through files rustc read, which the key
+    /// covers by content. So a value is normalized only when both hold:
+    ///
+    /// - every use of the variable in the compile's `sources` is
+    ///   `include!(concat!(env!("OUT_DIR"), ...))` or its `include_str!` and
+    ///   `include_bytes!` forms (see [`EnvUse`]), which rules out
+    ///   `env!("OUT_DIR").len()` and anything else that could carry
+    ///   something derived from the path into the output;
+    /// - none of the compile's binary outputs contains the value, which
+    ///   catches a path that reached them all the same, as it does when the
+    ///   command line remaps paths itself and leaves the profile directory
+    ///   unmapped.
     fn env_deps(
         &self,
         env: &[(String, Option<String>)],
+        sources: &[PathBuf],
     ) -> std::result::Result<Vec<EnvDep>, Unstorable> {
-        let rooted: Vec<&str> = env
+        let mut candidates: Vec<(&str, &str)> = env
             .iter()
-            .filter_map(|(_, value)| value.as_deref())
-            .filter(|value| self.roots.normalize(value) != *value)
+            .filter_map(|(name, value)| Some((name.as_str(), value.as_deref()?)))
+            .filter(|(_, value)| self.roots.normalize(value) != *value)
             .collect();
-        let mut embedded = vec![false; rooted.len()];
-        if !rooted.is_empty() {
+        if !candidates.is_empty() {
+            let mut uses = vec![EnvUse::default(); candidates.len()];
+            for path in sources {
+                let text = fs::read(path).map_err(io("read", path))?;
+                for (found, (name, _)) in uses.iter_mut().zip(&candidates) {
+                    *found = found.merge(EnvUse::scan(&text, name));
+                }
+            }
+            let mut uses = uses.iter();
+            candidates.retain(|_| uses.next().is_some_and(EnvUse::only_picks_included_files));
+        }
+        if !candidates.is_empty() {
+            let needles: Vec<&[u8]> = candidates
+                .iter()
+                .map(|(_, value)| value.as_bytes())
+                .collect();
+            let mut embedded = vec![false; candidates.len()];
             for (name, path) in self.unit_files()? {
                 if Path::new(&name).extension().and_then(|ext| ext.to_str()) == Some("d") {
                     continue;
                 }
-                let bytes = fs::read(&path).map_err(io("read", &path))?;
-                for (found, value) in embedded.iter_mut().zip(&rooted) {
-                    *found = *found || contains(&bytes, value.as_bytes());
+                let found =
+                    file_contains(&path, &needles, SCAN_CHUNK).map_err(io("read", &path))?;
+                for (embedded, found) in embedded.iter_mut().zip(found) {
+                    *embedded |= found;
                 }
             }
+            let mut embedded = embedded.into_iter();
+            candidates.retain(|_| embedded.next() == Some(false));
         }
         Ok(env
             .iter()
-            .map(|(name, value)| {
-                let normalized = value.as_deref().is_some_and(|value| {
-                    rooted
-                        .iter()
-                        .position(|candidate| *candidate == value)
-                        .is_some_and(|index| !embedded[index])
-                });
-                EnvDep {
-                    name: name.clone(),
-                    normalized,
-                }
+            .map(|(name, value)| EnvDep {
+                name: name.clone(),
+                normalized: value
+                    .as_deref()
+                    .is_some_and(|value| candidates.contains(&(name.as_str(), value))),
             })
             .collect())
     }
@@ -719,7 +743,12 @@ impl Unit<'_> {
             .iter()
             .map(|input| (input.path.clone(), input.digest))
             .collect();
-        let env = self.env_deps(&info.env)?;
+        let sources: Vec<PathBuf> = info
+            .inputs
+            .iter()
+            .map(|written| self.cwd.join(written))
+            .collect();
+        let env = self.env_deps(&info.env, &sources)?;
         let key_env: Vec<(String, Option<String>)> = info
             .env
             .iter()
@@ -955,7 +984,39 @@ impl Unit<'_> {
     }
 }
 
-/// Whether dependents read the output `name` as an `--extern`.
+/// How many bytes of an output [`file_contains`] holds in memory at once.
+const SCAN_CHUNK: usize = 1 << 20;
+
+/// Whether each of `needles` occurs anywhere in the file at `path`, read
+/// `chunk` bytes at a time, so a large output never has to fit in memory.
+/// Each read keeps the last `longest - 1` bytes of the one before, so a
+/// needle split across two reads is still found.
+fn file_contains(path: &Path, needles: &[&[u8]], chunk: usize) -> io::Result<Vec<bool>> {
+    let mut found = vec![false; needles.len()];
+    let keep = needles
+        .iter()
+        .map(|needle| needle.len())
+        .max()
+        .unwrap_or(0)
+        .saturating_sub(1);
+    let mut file = fs::File::open(path)?;
+    let mut window: Vec<u8> = Vec::with_capacity(keep + chunk);
+    loop {
+        let start = window.len();
+        window.resize(start + chunk, 0);
+        let read = io::Read::read(&mut file, &mut window[start..])?;
+        window.truncate(start + read);
+        for (found, needle) in found.iter_mut().zip(needles) {
+            *found = *found || contains(&window, needle);
+        }
+        if read == 0 || found.iter().all(|&found| found) {
+            return Ok(found);
+        }
+        let drop = window.len().saturating_sub(keep);
+        window.drain(..drop);
+    }
+}
+
 /// Whether `needle` occurs anywhere in `haystack`.
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty()
@@ -964,6 +1025,7 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
             .any(|window| window == needle)
 }
 
+/// Whether dependents read the output `name` as an `--extern`.
 fn is_library(name: &str) -> bool {
     matches!(
         Path::new(name).extension().and_then(|ext| ext.to_str()),

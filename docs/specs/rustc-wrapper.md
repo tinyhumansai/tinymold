@@ -126,29 +126,51 @@ on OpenHuman, a first build at a new path missed 127 of 474 compiles this way
 (`bench/DOCKER.md`).
 
 So an env value is keyed with its roots replaced (`OUT_DIR` as
-`${PROFILE}/build/<pkg>-<hash>/out`) when both hold:
+`${PROFILE}/build/<pkg>-<hash>/out`) when all three hold:
 
-1. the value lies under a root, so normalizing changes it; and
-2. no binary output of the compile contains the value's bytes.
+1. the value lies under a root, so normalizing changes it;
+2. every use of the variable in the files the compile read is the include
+   idiom: `include!`, `include_str!` or `include_bytes!` of
+   `concat!(env!("NAME"), "<literal>", ...)` or of `env!("NAME")` alone; and
+3. no binary output of the compile contains the value's bytes.
 
-Condition 2 is checked when the compile is stored, by scanning its outputs.
-The input set records the decision per variable (`envpath NAME` rather than
-`env NAME`), and a lookup normalizes exactly the variables recorded that way.
-A value that is embedded fails the scan and stays raw. That covers a string
-constant, and also an `include!` under a root tinymold does not remap.
+Condition 2 is what makes the rule sound for uses that never put the path
+itself into the output. `static LEN: usize = env!("OUT_DIR").len()` leaves no
+path in the `.rlib`, yet its output differs between worktrees whose paths
+differ in length. The check (`tinymold_key::EnvUse`) is textual and strict:
+it reads every input file the dep-info lists, skips lines that are only a
+comment, and requires each remaining mention of the name to be part of the
+idiom. It also refuses when any `env!` takes an argument other than a plain
+string literal (`concat!("OUT", "_DIR")`, an escape, a raw string, a macro
+argument), since that could name the variable unseen. It refuses when the
+text redefines `include`, `include_str`, `include_bytes`, `concat` or `env`
+with `macro_rules!`, and when the name is not mentioned at all, as when only
+another crate's macro reads it. Measured over the crates in one registry
+cache, 58 of the 72 that use the idiom pass. The rest are build-time codegen
+crates that only mention `OUT_DIR` in documentation and never read it with
+`env!`.
 
-**What the scan cannot see.** A value transformed before it reaches the
-output, such as only its length or a hash of it, passes the scan. That is the
+Condition 3 catches a path that reached the outputs all the same, as an
+`include!` under a root tinymold does not remap does, or any use when the
+command line remaps paths itself (below). Outputs are scanned when the
+compile is stored, in bounded reads, so a large output need not fit in
+memory. The input set records the decision per variable (`envpath NAME`
+rather than `env NAME`), and a lookup normalizes exactly the variables
+recorded that way.
+
+**What the checks cannot see.** A macro from another crate, brought in by a
+glob or named import or applied as an attribute, can expand a transformed use
+of the variable into a crate whose own text shows only the idiom. That is the
 accepted residual risk of this rule. A workspace crate that reads
-`CARGO_MANIFEST_DIR` to include a file is expected to stay raw as well: its
-source paths under `${CWD}` are not remapped, so they appear in its `.rmeta`.
+`CARGO_MANIFEST_DIR` to include a file is expected to stay raw: its source
+paths under `${CWD}` are not remapped, so they appear in its `.rmeta`.
 
 **The profile directory is remapped on every miss.** Without it the `include!`
-case fails condition 2: rustc records the included file's absolute path in the
-`.rmeta` and debuginfo. On a miss, tinymold therefore appends
-`--remap-path-prefix=<profile dir>=${PROFILE}` to the command line, unless the
-command line already has a `--remap-path-prefix` of its own (cargo's
-`trim-paths`), in which case it adds nothing. With the remap, a crate that only
+case fails condition 3: rustc records the included file's absolute path in the
+`.rmeta` and debuginfo. On a miss, tinymold therefore adds
+`--remap-path-prefix=<profile dir>=${PROFILE}` to the command line, before any
+`--` that ends its options. When the command line already has a
+`--remap-path-prefix` of its own (cargo's `trim-paths`), it adds nothing. With the remap, a crate that only
 includes generated files builds byte-identical outputs in every worktree, so
 its dependents hit as well. Dep-info keeps real paths, because rustc does not
 remap them and cargo reads them. The remap changes only where generated files
@@ -307,8 +329,8 @@ runner could not find again from the binary.
 - **A hit is only served when every input matches.** Every input file named
   by the recorded dep-info matches by content, and every recorded env-dep
   value matches. Absolute workspace paths never enter the key except through
-  env values that reach the outputs, which then make the key path-specific,
-  and for compiles
+  env values that may reach the outputs, which then make the key
+  path-specific, and for compiles
   instrumented with `-C instrument-coverage`, whose coverage mappings embed
   the workspace path, so their pre-key includes the current directory.
 - **The store is never written in place.** Restored files are private
