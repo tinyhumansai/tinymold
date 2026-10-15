@@ -13,6 +13,10 @@
 //! - one output file per object the record names. Its path is the object's
 //!   BLAKE3 digest, and its digest is the object's SHA-256.
 //!
+//! - with a signing key, one more output file, [`SIGNATURE_FILE`], holds the
+//!   entry's signature (see `crate::signing`). A reader that trusts keys
+//!   checks it before fetching anything else.
+//!
 //! Listing the objects as outputs makes servers that check an entry's
 //! dependencies (bazel-remote does) vouch for every blob, and keep each one
 //! as long as the entry lives. The fetching side re-derives every object's
@@ -35,7 +39,8 @@ use crate::client::Client;
 use crate::config::RemoteConfig;
 use crate::naming::{self, ACTION_FILE, PREKEY_FILE};
 use crate::proto::{self, ActionResult, OutputFile};
-use crate::{Error, Result};
+use crate::signing::{Kind, SIGNATURE_FILE};
+use crate::{Error, Result, SigningKey, TrustedKeys};
 
 pub use types::{Capabilities, PushReport};
 
@@ -47,8 +52,8 @@ const FIND_BATCH: usize = 1000;
 pub struct RemoteCache {
     runtime: tokio::runtime::Runtime,
     client: Client,
-    /// Whether a credential is configured.
-    authenticated: bool,
+    /// What the client was made from, for the anonymous probe in `check`.
+    config: RemoteConfig,
 }
 
 /// Where the bytes of a blob to upload come from.
@@ -79,12 +84,21 @@ impl RemoteCache {
         Ok(Self {
             runtime,
             client,
-            authenticated: config.authorization.is_some(),
+            config: config.clone(),
         })
     }
 
+    fn signing_key(&self) -> Option<&SigningKey> {
+        self.config.signing_key.as_ref()
+    }
+
+    fn trusted_keys(&self) -> Option<&TrustedKeys> {
+        self.config.trusted_keys.as_ref()
+    }
+
     /// Asks the server what it supports, then uploads a small probe blob to
-    /// learn whether `push` would be allowed. This is `tinymold remote check`.
+    /// learn whether `push` would be allowed, and another with no credential
+    /// to learn whether anyone could write. This is `tinymold remote check`.
     ///
     /// A server that allows unauthenticated reads answers the first call
     /// whatever the credential, so only the probe tells a wrong credential
@@ -95,18 +109,40 @@ impl RemoteCache {
     /// Returns [`Error::Status`] or [`Error::Timeout`] when the server cannot
     /// be reached, and when a configured credential is refused for the probe.
     /// Without a credential, a refused probe only reports the cache read-only.
+    /// Returns [`Error::OpenToAnonymousWrites`] when the server accepts a
+    /// write with no credential and no trusted keys are configured, since
+    /// anyone who reaches it could then plant entries this client would use.
     pub fn check(&self) -> Result<Capabilities> {
         let capabilities = self.runtime.block_on(self.client.capabilities())?;
         let cache = capabilities.cache_capabilities.unwrap_or_default();
         let probe = b"tinymold remote check\n";
+        let authenticated = self.config.authorization.is_some();
         let writable = match self
             .runtime
             .block_on(self.client.write(&naming::blob(probe), probe.to_vec()))
         {
             Ok(()) => true,
-            Err(error) if self.authenticated => return Err(error),
+            Err(error) if authenticated => return Err(error),
             Err(_) => false,
         };
+        let anonymous_writes = if authenticated {
+            let anonymous = RemoteConfig {
+                authorization: None,
+                ..self.config.clone()
+            };
+            let client = {
+                let _entered = self.runtime.enter();
+                Client::new(&anonymous)?
+            };
+            self.runtime
+                .block_on(client.write(&naming::blob(probe), probe.to_vec()))
+                .is_ok()
+        } else {
+            writable
+        };
+        if anonymous_writes && self.trusted_keys().is_none() {
+            return Err(Error::OpenToAnonymousWrites);
+        }
         let digest_functions = cache
             .digest_functions
             .iter()
@@ -118,6 +154,7 @@ impl RemoteCache {
             .collect();
         Ok(Capabilities {
             writable,
+            anonymous_writes,
             digest_functions,
             updates_enabled: cache
                 .action_cache_update_capabilities
@@ -152,8 +189,12 @@ impl RemoteCache {
             }
             match record.kind {
                 RecordKind::Action { key, .. } => {
+                    let key = naming::action_key(&key);
                     match action_result(&store, &record.path, &mut blobs) {
-                        Some(result) => actions.push((naming::action_key(&key), result)),
+                        Some(mut result) => {
+                            self.sign(Kind::Action, &key, &mut result, &mut blobs);
+                            actions.push((key, result));
+                        }
                         None => report.skipped += 1,
                     }
                 }
@@ -163,11 +204,13 @@ impl RemoteCache {
                     };
                     let digest = naming::blob(&text);
                     blobs.insert(digest.clone(), Source::Bytes(text));
-                    let result = ActionResult {
+                    let mut result = ActionResult {
                         output_files: vec![output(PREKEY_FILE, digest)],
                         exit_code: 0,
                     };
-                    prekeys.push((naming::prekey_key(&key), result));
+                    let key = naming::prekey_key(&key);
+                    self.sign(Kind::Prekey, &key, &mut result, &mut blobs);
+                    prekeys.push((key, result));
                 }
                 _ => {}
             }
@@ -201,6 +244,55 @@ impl RemoteCache {
         Ok(report)
     }
 
+    /// With a signing key, adds the signature of the entry `result` under
+    /// `key` to it, and its blob to `blobs`. The entry's record is its first
+    /// output file.
+    fn sign(
+        &self,
+        kind: Kind,
+        key: &proto::Digest,
+        result: &mut ActionResult,
+        blobs: &mut HashMap<proto::Digest, Source>,
+    ) {
+        let Some(signer) = self.signing_key() else {
+            return;
+        };
+        let Some(record) = result.output_files.first().and_then(|file| file.digest.clone()) else {
+            return;
+        };
+        let signature = signer.sign(kind, key, &record);
+        let digest = naming::blob(&signature);
+        blobs
+            .entry(digest.clone())
+            .or_insert(Source::Bytes(signature));
+        result.output_files.push(output(SIGNATURE_FILE, digest));
+    }
+
+    /// With trusted keys, checks that the entry `result` under `key`, whose
+    /// record is the blob `record`, carries a signature by one of them.
+    async fn verify(
+        &self,
+        kind: Kind,
+        key: &proto::Digest,
+        record: &proto::Digest,
+        result: &ActionResult,
+    ) -> Result<()> {
+        let Some(trusted) = self.trusted_keys() else {
+            return Ok(());
+        };
+        let signature = result
+            .output_files
+            .iter()
+            .find(|file| file.path == SIGNATURE_FILE)
+            .and_then(|file| file.digest.clone())
+            .ok_or_else(|| Error::Untrusted {
+                key: key.hash.clone(),
+                reason: "it is not signed",
+            })?;
+        let blob = self.client.read(&signature).await?;
+        trusted.verify(kind, key, record, &blob)
+    }
+
     fn input_sets_of(&self, pre: &Digest) -> Result<Option<String>> {
         self.runtime.block_on(async {
             let key = naming::prekey_key(pre);
@@ -208,6 +300,7 @@ impl RemoteCache {
                 return Ok(None);
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
+            self.verify(Kind::Prekey, &key, &digest, &result).await?;
             let bytes = self.client.read(&digest).await?;
             String::from_utf8(bytes)
                 .map(Some)
@@ -225,8 +318,10 @@ impl RemoteCache {
                 return Ok(None);
             };
             let record = find_file(&result, ACTION_FILE, &key)?;
+            // Before any object: an untrusted entry fetches nothing.
+            self.verify(Kind::Action, &key, &record, &result).await?;
             for file in &result.output_files {
-                if file.path == ACTION_FILE {
+                if file.path == ACTION_FILE || file.path == SIGNATURE_FILE {
                     continue;
                 }
                 let malformed = |reason| Error::Malformed {
