@@ -847,6 +847,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinymold-store"
+version = "0.0.1"
+dependencies = [
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tinymold-cas",
+ "tinymold-hash",
+]
+
+[[package]]
 name = "tinymold-wrap"
 version = "0.0.1"
 dependencies = [
