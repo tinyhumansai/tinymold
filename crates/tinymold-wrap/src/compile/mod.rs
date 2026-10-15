@@ -102,11 +102,15 @@ struct Unit<'a> {
     /// moment an input must have been written before for the compile to be
     /// stored.
     now_ns: u64,
+    /// The largest executable output a miss may store, in bytes; `None`
+    /// stores any size.
+    max_executable: Option<u64>,
 }
 
 /// Serves `invocation` from the cache in `store_dir`, or by running
 /// `program`, waiting up to `lock_wait` for another build compiling the same
-/// unit.
+/// unit. A miss whose outputs include an executable larger than
+/// `max_executable` bytes is not stored (see [`crate::Config`]).
 ///
 /// An error means rustc has not run and nothing was restored, so the caller
 /// can fall back to running rustc itself.
@@ -117,6 +121,7 @@ pub(crate) fn serve(
     args: &[OsString],
     invocation: &Invocation,
     lock_wait: Duration,
+    max_executable: Option<u64>,
     trace: &mut Trace,
 ) -> Result<Served> {
     let cwd = std::env::current_dir().map_err(io("read", Path::new(".")))?;
@@ -131,6 +136,7 @@ pub(crate) fn serve(
         roots: Roots::new(&cwd, &invocation.out_dir, cargo_home.as_deref()),
         cwd,
         now_ns: filesystem_now(&store_dir.join("stat"))?,
+        max_executable,
     };
     let pre = trace.span("pre_key", || unit.pre_key(program, args))?;
     let found = trace.span("lookup", || unit.lookup(&pre))?;
@@ -836,6 +842,17 @@ impl Unit<'_> {
         }
         if found.is_empty() {
             return Err(Unstorable::Reason("no outputs found"));
+        }
+        // Checked before anything is copied: the point of the limit is that
+        // a large test binary never takes up a second copy's worth of disk.
+        if let Some(limit) = self.max_executable
+            && found
+                .iter()
+                .any(|(_, _, meta)| is_executable(meta) && meta.len() > limit)
+        {
+            return Err(Unstorable::Reason(
+                "an executable is over TINYMOLD_MAX_EXECUTABLE_SIZE",
+            ));
         }
 
         // An incremental compile with split debuginfo writes hundreds of

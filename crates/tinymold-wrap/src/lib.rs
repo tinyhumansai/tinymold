@@ -86,6 +86,12 @@ pub struct Config {
     /// lookup, restore, rustc, storing), for profiling where a build's time
     /// goes. See `bench/profile_build.py`.
     pub trace: Option<PathBuf>,
+    /// Leave a compile unstored when one of its executable outputs (a binary,
+    /// a test harness, or anything else the linker marked executable) is
+    /// larger than this many bytes. It is compiled and linked again on its
+    /// next miss. This keeps large test binaries from doubling a build's disk
+    /// use where the store must copy them. `None` stores every size.
+    pub max_executable: Option<u64>,
 }
 
 impl Config {
@@ -96,6 +102,7 @@ impl Config {
             store: store.into(),
             log: None,
             trace: None,
+            max_executable: None,
         }
     }
 }
@@ -178,6 +185,7 @@ fn serve(
         args,
         &invocation,
         compile::LOCK_WAIT,
+        config.max_executable,
         trace,
     );
     match served {

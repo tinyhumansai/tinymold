@@ -112,6 +112,7 @@ impl Crate {
             &args,
             &invocation,
             wait,
+            None,
             &mut Trace::start(),
         )
     }
@@ -343,6 +344,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &args,
             &invocation,
             LOCK_WAIT,
+            None,
             &mut Trace::start(),
         )
         .unwrap(),
@@ -357,6 +359,7 @@ fn a_restored_binary_is_executable_and_fresh() {
             &args,
             &invocation,
             LOCK_WAIT,
+            None,
             &mut Trace::start()
         )
         .unwrap(),
@@ -676,6 +679,7 @@ fn unit_for<'a>(unit: &'a Crate, invocation: &'a Invocation) -> Unit<'a> {
         out_dir: unit.out(),
         roots: Roots::new(&unit.root, &invocation.out_dir, None),
         now_ns: crate::clock::filesystem_now(&unit.store.join("stat")).unwrap(),
+        max_executable: None,
     }
 }
 
@@ -1034,6 +1038,7 @@ impl Crate {
             &args,
             &invocation,
             LOCK_WAIT,
+            None,
             &mut Trace::start(),
         )
         .unwrap()
