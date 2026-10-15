@@ -616,7 +616,12 @@ fn a_miss_marks_the_test_binary_record_as_used() {
     let dir = tempfile::tempdir().unwrap();
     let (root, config) = package(dir.path(), "");
     let binary = build(&root, &config);
-    let record = files_under(&config.store.join("tests/bin")).pop().unwrap();
+    let record = fs::read_dir(config.store.join("tests/bin"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
     let old = SystemTime::now() - Duration::from_secs(3 * 24 * 3600);
     fs::File::options()
         .write(true)
