@@ -38,10 +38,11 @@ use crate::flight::{self, Claim};
 use crate::parallel;
 use crate::placed::{Placed, Placement};
 use crate::record::{
-    self, Action, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
-    write_atomically,
+    self, Action, Identity, Input, InputSet, MAX_SETS, Output, SessionRecord, decode_sets,
+    encode_sets, write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
+use crate::session;
 use crate::stat;
 use crate::trace::Trace;
 use crate::{Error, Result};
@@ -454,6 +455,7 @@ impl Unit<'_> {
         };
         let placements: Vec<Placement> = placements.into_iter().flatten().collect();
         Placed::save(&record, &placements)?;
+        self.restore_session(action);
         // Like rustc, report errors writing our own output only through the
         // exit status of whoever reads it.
         let _ = io::stdout().lock().write_all(stdout.as_bytes());
@@ -552,6 +554,7 @@ impl Unit<'_> {
             stdout: self.store_text(&captured.stdout)?,
             stderr: self.store_text(&captured.stderr)?,
             outputs,
+            session: self.ingest_session(&placements),
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
         Placed::save(&self.placed_path(), &placements)?;
@@ -563,6 +566,35 @@ impl Unit<'_> {
         };
         self.remember_set(pre, set)?;
         Ok(())
+    }
+
+    /// Stores the incremental session this compile left, when it was
+    /// incremental and wrote object files; `None` when there is none to
+    /// find or it cannot be stored, which only leaves a later hit's next
+    /// edit cold.
+    fn ingest_session(&self, placements: &[Placement]) -> Option<SessionRecord> {
+        let incremental = self.cwd.join(self.invocation.incremental.as_ref()?);
+        let known: HashMap<(u64, u64), Digest> = placements
+            .iter()
+            .filter(|(name, _, _)| is_object(name))
+            .map(|(_, identity, digest)| ((identity.dev, identity.ino), *digest))
+            .collect();
+        let inodes = known.keys().copied().collect();
+        let (crate_dir, name) = session::find(
+            &incremental,
+            &self.invocation.crate_name,
+            &inodes,
+            self.now_ns,
+        )?;
+        session::store(&self.store, &crate_dir, &name, &known).ok()
+    }
+
+    /// Restores the incremental session `action` carries, when this unit's
+    /// incremental directory has none of its own (see [`session`]).
+    fn restore_session(&self, action: &Action) {
+        if let (Some(record), Some(incremental)) = (&action.session, &self.invocation.incremental) {
+            let _ = session::restore(&self.store, record, &self.cwd.join(incremental));
+        }
     }
 
     /// Stores every output this compile wrote and describes them, with the

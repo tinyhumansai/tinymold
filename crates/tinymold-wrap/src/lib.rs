@@ -40,6 +40,7 @@ mod parallel;
 mod placed;
 mod record;
 mod remote;
+mod session;
 mod stat;
 mod trace;
 
@@ -51,7 +52,7 @@ use std::time::{Duration, Instant};
 
 use tinymold_key::{Classified, Invocation};
 
-pub use catalog::{RecordFile, RecordKind, action_references, records};
+pub use catalog::{ActionInfo, RecordFile, RecordKind, action_info, action_references, records};
 pub use clock::{filesystem_now, written_before};
 use compile::Served;
 pub use error::{Error, Result};
