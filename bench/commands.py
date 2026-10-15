@@ -38,6 +38,7 @@ import edits
 
 MODES = ("baseline", "sccache", "tinymold")
 CASES = ("cold", "warm")
+DEFAULT_PROJECTS = ("ripgrep", "bat", "tinymold")
 
 
 def aggregate(samples: list[dict]) -> dict:
@@ -104,7 +105,12 @@ def bench_commands(args: argparse.Namespace) -> dict:
     server = Sccache(sccache)
 
     results = []
-    for project in bench.load_corpus(args.project, needs=("edits",)):
+    names = args.project.split(",")
+    projects = [p for p in bench.load_corpus(None, needs=("edits",)) if p["name"] in names]
+    missing = set(names) - {p["name"] for p in projects}
+    if missing:
+        raise SystemExit(f"no corpus project with edits named {', '.join(sorted(missing))}")
+    for project in projects:
         src = bench.checkout(project)
         bench.run(["cargo", "fetch", "--locked"], cwd=src, env=bench.STOCK_ENV,
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -144,7 +150,10 @@ def add_parser(sub) -> None:
     parser = sub.add_parser("commands", help="build, clippy, tests and coverage: cold, then "
                             "warm from the cache with the target directory deleted")
     parser.add_argument("--runs", type=int, default=3)
-    parser.add_argument("--project", help="only this corpus project")
+    # tokio's full test suite and bevy's graph would take hours per command
+    # and mode; the default is the three projects the edit sequence runs.
+    parser.add_argument("--project", default=",".join(DEFAULT_PROJECTS),
+                        help="comma-separated corpus projects (default: %(default)s)")
     parser.add_argument("--modes", default="baseline,sccache,tinymold",
                         help=f"comma-separated, from: {', '.join(MODES)}")
     parser.add_argument("--commands", default=",".join(edits.COMMANDS),
