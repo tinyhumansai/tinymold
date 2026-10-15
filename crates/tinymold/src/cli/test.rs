@@ -474,28 +474,6 @@ fn remote(
     (result, String::from_utf8(out).unwrap())
 }
 
-#[cfg(feature = "remote")]
-#[test]
-fn remote_keygen_prints_a_matching_key_pair_without_a_remote() {
-    let dir = tempfile::tempdir().unwrap();
-    let (result, out) = remote(dir.path(), &["keygen"], &[]);
-    assert_eq!(result.unwrap(), Outcome::Success);
-    let mut lines = out.lines();
-    let secret = lines
-        .next()
-        .and_then(|line| line.strip_prefix("TINYMOLD_REMOTE_SIGNING_KEY="))
-        .unwrap();
-    let public = lines
-        .next()
-        .and_then(|line| line.strip_prefix("TINYMOLD_REMOTE_TRUSTED_KEYS="))
-        .unwrap();
-    assert_eq!(lines.next(), None);
-    let key = tinymold_remote::SigningKey::from_hex(secret).unwrap();
-    assert_eq!(key.public_hex(), public);
-    let (_, again) = remote(dir.path(), &["keygen"], &[]);
-    assert_ne!(again, out);
-}
-
 #[test]
 fn remote_commands_need_a_remote() {
     let dir = tempfile::tempdir().unwrap();

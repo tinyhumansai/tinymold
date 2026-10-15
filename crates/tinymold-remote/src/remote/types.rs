@@ -14,9 +14,6 @@ pub struct Capabilities {
     /// Whether this client's credential (or lack of one) could upload a
     /// probe blob, which is what `push` needs.
     pub writable: bool,
-    /// Whether a client with no credential could upload a probe blob, so
-    /// that anyone who reaches the server can write to it.
-    pub anonymous_writes: bool,
 }
 
 impl Capabilities {
@@ -32,11 +29,10 @@ impl fmt::Display for Capabilities {
         let yes = |flag: bool| if flag { "yes" } else { "no" };
         write!(
             f,
-            "digests {}, action cache updates {}, writable {}, anonymous writes {}",
+            "digests {}, action cache updates {}, writable {}",
             self.digest_functions.join(" "),
             yes(self.updates_enabled),
-            yes(self.writable),
-            yes(self.anonymous_writes)
+            yes(self.writable)
         )
     }
 }

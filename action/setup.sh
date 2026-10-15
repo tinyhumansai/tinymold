@@ -103,11 +103,6 @@ if [[ "${INPUT_BACKEND}" == remote || "${INPUT_BACKEND}" == both ]]; then
     echo "::add-mask::${INPUT_REMOTE_AUTH}"
     echo "TINYMOLD_REMOTE_AUTH=${INPUT_REMOTE_AUTH}" >> "${GITHUB_ENV}"
   fi
-  if [[ -n "${INPUT_REMOTE_SIGNING_KEY:-}" ]]; then
-    echo "::add-mask::${INPUT_REMOTE_SIGNING_KEY}"
-    echo "TINYMOLD_REMOTE_SIGNING_KEY=${INPUT_REMOTE_SIGNING_KEY}" >> "${GITHUB_ENV}"
-  fi
-  [[ -n "${INPUT_REMOTE_TRUSTED_KEYS:-}" ]] && echo "TINYMOLD_REMOTE_TRUSTED_KEYS=${INPUT_REMOTE_TRUSTED_KEYS}" >> "${GITHUB_ENV}"
 fi
 
 # The cache key: the store format, the platform, the caller's text and the

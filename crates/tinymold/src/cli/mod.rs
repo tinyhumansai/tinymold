@@ -96,13 +96,8 @@ pub enum RemoteCommand {
         since: Option<u64>,
     },
     /// Check that the server is reachable and accepts the credential, and
-    /// print what it supports. Fails when anyone could write to it and no
-    /// trusted keys are set.
+    /// print what it supports.
     Check,
-    /// Print a fresh ed25519 key pair for signed entries: the secret as
-    /// `TINYMOLD_REMOTE_SIGNING_KEY` for trusted writers, and the public key
-    /// as `TINYMOLD_REMOTE_TRUSTED_KEYS` for every reader.
-    Keygen,
 }
 
 /// What `tinymold stats` reads and how it reports.
@@ -434,18 +429,6 @@ fn run_remote(
     lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
     out: &mut impl Write,
 ) -> Result<Outcome> {
-    if matches!(command, RemoteCommand::Keygen) {
-        let key = tinymold_remote::SigningKey::generate();
-        line(
-            out,
-            format_args!("TINYMOLD_REMOTE_SIGNING_KEY={}", key.to_hex()),
-        )?;
-        line(
-            out,
-            format_args!("TINYMOLD_REMOTE_TRUSTED_KEYS={}", key.public_hex()),
-        )?;
-        return Ok(Outcome::Success);
-    }
     let config = tinymold_remote::RemoteConfig::from_env(lookup)?.ok_or(Error::NoRemote)?;
     let remote = tinymold_remote::RemoteCache::new(&config)?;
     match command {
@@ -463,8 +446,6 @@ fn run_remote(
                 format_args!("remote: {} reachable; {capabilities}", config.endpoint),
             )?;
         }
-        // Answered above, before any configuration is read.
-        RemoteCommand::Keygen => {}
     }
     Ok(Outcome::Success)
 }

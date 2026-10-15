@@ -76,46 +76,6 @@ fn every_variable_is_read() {
 }
 
 #[test]
-fn signing_and_trusted_keys_are_read() {
-    let signer = crate::SigningKey::generate();
-    let config = env(&[
-        ("TINYMOLD_REMOTE_URL", "grpc://cache:9092"),
-        ("TINYMOLD_REMOTE_SIGNING_KEY", &signer.to_hex()),
-        ("TINYMOLD_REMOTE_TRUSTED_KEYS", &signer.public_hex()),
-    ])
-    .unwrap()
-    .unwrap();
-    assert_eq!(config.signing_key, Some(signer.clone()));
-    assert!(config.trusted_keys.is_some());
-    assert!(!format!("{config:?}").contains(&signer.to_hex()));
-    let defaults = env(&[("TINYMOLD_REMOTE_URL", "grpc://cache:9092")])
-        .unwrap()
-        .unwrap();
-    assert_eq!(defaults.signing_key, None);
-    assert_eq!(defaults.trusted_keys, None);
-}
-
-#[test]
-fn malformed_keys_are_rejected() {
-    let result = env(&[
-        ("TINYMOLD_REMOTE_URL", "grpc://cache:9092"),
-        ("TINYMOLD_REMOTE_SIGNING_KEY", "secret"),
-    ]);
-    assert!(
-        matches!(result, Err(Error::InvalidSigningKey)),
-        "{result:?}"
-    );
-    let result = env(&[
-        ("TINYMOLD_REMOTE_URL", "grpc://cache:9092"),
-        ("TINYMOLD_REMOTE_TRUSTED_KEYS", "abc"),
-    ]);
-    assert!(
-        matches!(result, Err(Error::InvalidTrustedKey(_))),
-        "{result:?}"
-    );
-}
-
-#[test]
 fn the_credential_is_never_printed() {
     let config = env(&[
         ("TINYMOLD_REMOTE_URL", "grpc://cache:9092"),

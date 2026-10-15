@@ -94,7 +94,6 @@ With a remote server:
 | `cache-key` | `''` | Extra text mixed into the GitHub cache key, to separate jobs that build different things |
 | `cache-registry` | `true` | With `github` and `both`, also keep cargo's downloads (`registry/index`, `registry/cache`, `git/db` under `CARGO_HOME`) in a GitHub cache entry of their own |
 | `remote-url`, `remote-auth`, `remote-instance` | `''` | See [`remote.md`](remote.md) |
-| `remote-signing-key`, `remote-trusted-keys` | `''` | Signed entries; see [`remote.md`](remote.md#signed-entries). Give the signing key only to trusted writers |
 
 The setup step also runs `tinymold doctor`, which shows the store and the
 remote without the credential.

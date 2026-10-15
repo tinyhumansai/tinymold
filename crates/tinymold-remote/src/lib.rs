@@ -43,9 +43,7 @@ mod fake;
 mod naming;
 mod proto;
 mod remote;
-mod signing;
 
 pub use config::{DEFAULT_TIMEOUT, RemoteConfig};
 pub use error::{Error, Result};
 pub use remote::{Capabilities, PushReport, RemoteCache};
-pub use signing::{SigningKey, TrustedKeys};
