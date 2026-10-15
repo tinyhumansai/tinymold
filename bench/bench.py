@@ -1410,8 +1410,8 @@ def retest_settings() -> dict:
         "rustc_wrapper": "tinymold on both sides, one fresh store per project",
         "cargo_runner": "cargo side: none, any CARGO_TARGET_<triple>_RUNNER removed; "
                         "run-test side: CARGO_TARGET_<host>_RUNNER=\"tinymold run-test\"",
-        "linker": "cc, rustc's default, unwrapped",
-        "incremental": "on, cargo's default for the test profile",
+        "linker": "cc, rustc's default, with no timing wrapper",
+        "incremental": "on (CARGO_INCREMENTAL=1)",
         "tmpdir": "one per project, emptied before every measurement",
         "doctests": "run on both sides; rustdoc does not go through the runner",
     }
