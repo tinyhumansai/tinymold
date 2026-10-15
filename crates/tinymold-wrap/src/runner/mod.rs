@@ -117,7 +117,6 @@ struct Prepared {
     store: Store,
     key: Digest,
     crate_name: String,
-    binary_record: PathBuf,
     /// The package tree and listing the key was computed from, to check
     /// after the run.
     observed: (Digest, Digest),
@@ -280,7 +279,6 @@ fn prepare(
         store,
         key,
         crate_name: built.crate_name.clone(),
-        binary_record,
         observed: (package_tree, files),
         declared,
         built,
