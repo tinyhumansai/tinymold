@@ -18,6 +18,10 @@ http = { workspace = true }
 prost = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+# Ed25519 for signed remote entries (`src/signing/`): writers sign, readers
+# verify, so a cache open to writes can only cause misses. Pure Rust with no
+# dependencies beyond getrandom, which `remote keygen` needs for a seed.
+ed25519-compact = { version = "2", default-features = false, features = ["random"] }
 tokio = { workspace = true }
 tokio-stream = { workspace = true }
 tonic = { workspace = true }

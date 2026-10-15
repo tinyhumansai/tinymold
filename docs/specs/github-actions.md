@@ -94,6 +94,7 @@ With a remote server:
 | `cache-key` | `''` | Extra text mixed into the GitHub cache key, to separate jobs that build different things |
 | `cache-registry` | `true` | With `github` and `both`, also keep cargo's downloads (`registry/index`, `registry/cache`, `git/db` under `CARGO_HOME`) in a GitHub cache entry of their own |
 | `remote-url`, `remote-auth`, `remote-instance` | `''` | See [`remote.md`](remote.md) |
+| `remote-signing-key`, `remote-trusted-keys` | `''` | Signed entries; see [`remote.md`](remote.md#signed-entries). Give the signing key only to trusted writers |
 | `serve` | `false` | `true` runs `tinymold serve` for the rest of the job; see [Serving other tools](#serving-other-tools) |
 | `serve-dir` | `~/.cache/tinymold-server` | The server's store directory (`TINYMOLD_SERVER_DIR`) |
 | `serve-port` | `9090` | The loopback port it listens on |

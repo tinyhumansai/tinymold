@@ -6,12 +6,14 @@
 //! | `TINYMOLD_REMOTE_AUTH` | `user:password`, sent as HTTP basic auth |
 //! | `TINYMOLD_REMOTE_INSTANCE` | the REAPI instance name; empty by default |
 //! | `TINYMOLD_REMOTE_TIMEOUT` | per-call timeout, such as `5s` or `500ms`; 5 s by default |
+//! | `TINYMOLD_REMOTE_SIGNING_KEY` | a writer's ed25519 secret key; `push` signs every entry |
+//! | `TINYMOLD_REMOTE_TRUSTED_KEYS` | comma-separated public keys; only entries they signed are used |
 
 use std::ffi::OsString;
 use std::fmt;
 use std::time::Duration;
 
-use crate::{Error, Result};
+use crate::{Error, Result, SigningKey, TrustedKeys};
 
 /// How long one call may take by default.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -28,6 +30,12 @@ pub struct RemoteConfig {
     pub instance: String,
     /// How long one call may take.
     pub timeout: Duration,
+    /// The key `push` signs entries with, when this client is a trusted
+    /// writer.
+    pub signing_key: Option<SigningKey>,
+    /// The keys an entry must be signed by to be used. `None` uses entries
+    /// whether or not they are signed.
+    pub trusted_keys: Option<TrustedKeys>,
 }
 
 impl fmt::Debug for RemoteConfig {
@@ -38,6 +46,8 @@ impl fmt::Debug for RemoteConfig {
             .field("authorization", &self.authorization.as_ref().map(|_| "…"))
             .field("instance", &self.instance)
             .field("timeout", &self.timeout)
+            .field("signing_key", &self.signing_key)
+            .field("trusted_keys", &self.trusted_keys)
             .finish()
     }
 }
@@ -56,6 +66,8 @@ impl RemoteConfig {
             authorization: None,
             instance: String::new(),
             timeout: DEFAULT_TIMEOUT,
+            signing_key: None,
+            trusted_keys: None,
         })
     }
 
@@ -64,8 +76,9 @@ impl RemoteConfig {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidUrl`], [`Error::InvalidAuth`] or
-    /// [`Error::InvalidTimeout`] when a variable is set but malformed.
+    /// Returns [`Error::InvalidUrl`], [`Error::InvalidAuth`],
+    /// [`Error::InvalidTimeout`], [`Error::InvalidSigningKey`] or
+    /// [`Error::InvalidTrustedKey`] when a variable is set but malformed.
     pub fn from_env(lookup: impl Fn(&str) -> Option<OsString>) -> Result<Option<Self>> {
         let text = |name: &str| {
             lookup(name)
@@ -84,6 +97,12 @@ impl RemoteConfig {
         }
         if let Some(timeout) = text("TINYMOLD_REMOTE_TIMEOUT") {
             config.timeout = parse_timeout(&timeout)?;
+        }
+        if let Some(key) = text("TINYMOLD_REMOTE_SIGNING_KEY") {
+            config.signing_key = Some(SigningKey::from_hex(&key)?);
+        }
+        if let Some(keys) = text("TINYMOLD_REMOTE_TRUSTED_KEYS") {
+            config.trusted_keys = Some(TrustedKeys::from_list(&keys)?);
         }
         Ok(Some(config))
     }

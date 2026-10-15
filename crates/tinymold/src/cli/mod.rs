@@ -152,8 +152,13 @@ pub enum RemoteCommand {
         since: Option<u64>,
     },
     /// Check that the server is reachable and accepts the credential, and
-    /// print what it supports.
+    /// print what it supports. Fails when anyone could write to it and no
+    /// trusted keys are set.
     Check,
+    /// Print a fresh ed25519 key pair for signed entries: the secret as
+    /// `TINYMOLD_REMOTE_SIGNING_KEY` for trusted writers, and the public key
+    /// as `TINYMOLD_REMOTE_TRUSTED_KEYS` for every reader.
+    Keygen,
 }
 
 /// What `tinymold stats` reads and how it reports.
@@ -487,10 +492,20 @@ fn run_remote(
     lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
     out: &mut impl Write,
 ) -> Result<Outcome> {
-    let config = tinymold_remote::RemoteConfig::from_env(lookup)?.ok_or(Error::NoRemote)?;
-    let remote = tinymold_remote::RemoteCache::new(&config)?;
     match command {
+        // Needs no server, so no configuration is read.
+        RemoteCommand::Keygen => {
+            let key = tinymold_remote::SigningKey::generate();
+            write!(
+                out,
+                "TINYMOLD_REMOTE_SIGNING_KEY={}\nTINYMOLD_REMOTE_TRUSTED_KEYS={}\n",
+                key.to_hex(),
+                key.public_hex(),
+            )
+            .map_err(Error::Output)?;
+        }
         RemoteCommand::Push { since } => {
+            let (_, remote) = connect(lookup)?;
             let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
             let since = since
                 .map(|seconds| std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds));
@@ -498,6 +513,7 @@ fn run_remote(
             line(out, format_args!("remote: {report}"))?;
         }
         RemoteCommand::Check => {
+            let (config, remote) = connect(lookup)?;
             let capabilities = remote.check()?;
             line(
                 out,
@@ -506,6 +522,16 @@ fn run_remote(
         }
     }
     Ok(Outcome::Success)
+}
+
+/// Reads the remote configuration through `lookup` and opens a client for it.
+#[cfg(feature = "remote")]
+fn connect(
+    lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
+) -> Result<(tinymold_remote::RemoteConfig, tinymold_remote::RemoteCache)> {
+    let config = tinymold_remote::RemoteConfig::from_env(lookup)?.ok_or(Error::NoRemote)?;
+    let remote = tinymold_remote::RemoteCache::new(&config)?;
+    Ok((config, remote))
 }
 
 #[cfg(not(feature = "remote"))]

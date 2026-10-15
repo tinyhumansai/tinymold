@@ -68,6 +68,32 @@ pub enum Error {
         reason: &'static str,
     },
 
+    /// `TINYMOLD_REMOTE_SIGNING_KEY` is not 64 hex digits.
+    #[error("invalid remote signing key: use the 64 hex digits remote keygen printed")]
+    InvalidSigningKey,
+
+    /// An entry of `TINYMOLD_REMOTE_TRUSTED_KEYS` is not an ed25519 public
+    /// key of 64 hex digits, or the list is empty.
+    #[error("invalid trusted remote key {0:?}: use 64 hex digits, comma-separated")]
+    InvalidTrustedKey(String),
+
+    /// Trusted keys are configured and an entry is not signed by one of them.
+    #[error("remote entry {key} is not trusted: {reason}")]
+    Untrusted {
+        /// The `ActionCache` key.
+        key: String,
+        /// Why the signature was refused.
+        reason: &'static str,
+    },
+
+    /// The server accepted a write from a client with no credential, and no
+    /// trusted keys are configured, so anyone who reaches it could poison
+    /// the cache.
+    #[error(
+        "the remote cache accepts anonymous writes: require a credential for writes, or set TINYMOLD_REMOTE_TRUSTED_KEYS"
+    )]
+    OpenToAnonymousWrites,
+
     /// The local store failed.
     #[error(transparent)]
     Cas(#[from] tinymold_cas::Error),

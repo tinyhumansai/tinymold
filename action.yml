@@ -41,6 +41,12 @@ inputs:
   remote-instance:
     description: The REAPI instance name.
     default: ""
+  remote-signing-key:
+    description: The secret from tinymold remote keygen; push signs every entry with it. Pass it from a secret, to trusted writers only.
+    default: ""
+  remote-trusted-keys:
+    description: Comma-separated public keys from tinymold remote keygen; entries not signed by one of them are misses.
+    default: ""
   serve:
     description: "`true` runs `tinymold serve` on 127.0.0.1 for the rest of the job, its store kept in GitHub's cache with tinymold's, and points Turborepo, Nx and ccache at it."
     default: "false"
@@ -86,6 +92,8 @@ runs:
         INPUT_REMOTE_URL: ${{ inputs.remote-url }}
         INPUT_REMOTE_AUTH: ${{ inputs.remote-auth }}
         INPUT_REMOTE_INSTANCE: ${{ inputs.remote-instance }}
+        INPUT_REMOTE_SIGNING_KEY: ${{ inputs.remote-signing-key }}
+        INPUT_REMOTE_TRUSTED_KEYS: ${{ inputs.remote-trusted-keys }}
         INPUT_SERVE: ${{ inputs.serve }}
         INPUT_SERVE_DIR: ${{ inputs.serve-dir }}
         INPUT_SERVE_PORT: ${{ inputs.serve-port }}

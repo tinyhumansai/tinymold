@@ -223,6 +223,10 @@ ships in the `tinymold` binary and talks to the server:
   bazel-remote setup for forks. Without a token file every request is
   allowed, and the server then refuses to listen on anything but a
   loopback address.
+- **Signed entries.** Writers' entries for the REAPI front-end are signed
+  as the [remote spec](remote.md#signed-entries) describes, and the server
+  stores the signatures unchanged, so a reader trusting only the writers'
+  keys cannot be poisoned through an open or compromised server.
 - **The native socket** is created with mode `0600` in the user's runtime
   directory and is trusted as the user. It is never exposed on a network.
 - Credentials never appear in logs, `status` output or error messages.
