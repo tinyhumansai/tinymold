@@ -105,3 +105,81 @@ fn a_bind_failure_is_a_server_error() {
         Error::Server(tinymold_server::Error::OpenNonLoopback(_))
     ));
 }
+
+#[test]
+fn starting_binds_and_says_where_it_listens() {
+    let dir = tempfile::tempdir().unwrap();
+    let server_dir = dir.path().join("server");
+    let wrapper = dir.path().join("wrapper");
+    let (cli, args) = parse(&[
+        "tinymold",
+        "--store",
+        wrapper.to_str().unwrap(),
+        "serve",
+        "--dir",
+        server_dir.to_str().unwrap(),
+        "--listen",
+        "127.0.0.1:0",
+    ]);
+    let mut out = Vec::new();
+
+    let server = start(&cli, &args, &mut out).unwrap();
+
+    let printed = String::from_utf8(out).unwrap();
+    assert!(
+        printed.starts_with(&format!(
+            "tinymold serve: listening on http://{}",
+            server.local_addr()
+        )),
+        "{printed}"
+    );
+    assert!(printed.contains(server_dir.to_str().unwrap()));
+}
+
+#[test]
+fn the_scheme_follows_tls() {
+    let (_, plain) = parse(&["tinymold", "serve"]);
+    let (_, tls) = parse(&[
+        "tinymold",
+        "serve",
+        "--tls-cert",
+        "c.pem",
+        "--tls-key",
+        "k.pem",
+    ]);
+
+    assert_eq!(scheme(&config(&plain, PathBuf::from("/s"))), "http");
+    assert_eq!(scheme(&config(&tls, PathBuf::from("/s"))), "https");
+}
+
+#[test]
+fn a_closed_output_is_an_output_error() {
+    struct Closed;
+    impl Write for Closed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    let dir = tempfile::tempdir().unwrap();
+    let server_dir = dir.path().join("server");
+    let wrapper = dir.path().join("wrapper");
+    let (cli, args) = parse(&[
+        "tinymold",
+        "--store",
+        wrapper.to_str().unwrap(),
+        "serve",
+        "--dir",
+        server_dir.to_str().unwrap(),
+        "--listen",
+        "127.0.0.1:0",
+    ]);
+
+    assert!(matches!(
+        start(&cli, &args, &mut Closed),
+        Err(Error::Output(_))
+    ));
+}

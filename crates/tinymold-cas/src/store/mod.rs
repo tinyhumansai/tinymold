@@ -174,10 +174,10 @@ impl Store {
         };
         let hashed = Digest::of_reader(&mut tee);
         let Tee { size, failure, .. } = tee;
-        let outcome = match (failure, hashed) {
-            (Some(failure), _) => Err(failure.into_error(&path)),
-            (None, Err(error)) => Err(error.into()),
-            (None, Ok(digest)) => Ok(digest),
+        // Every read error passes through the tee, which keeps its cause.
+        let outcome = match failure {
+            Some(failure) => Err(failure.into_error(&path)),
+            None => hashed.map_err(Error::from),
         };
         match outcome {
             Ok(digest) => Ok(Staged {
