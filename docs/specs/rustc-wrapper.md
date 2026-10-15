@@ -131,7 +131,7 @@ So an env value is keyed with its roots replaced (`OUT_DIR` as
 1. the value lies under a root, so normalizing changes it;
 2. every use of the variable in the files the compile read is the include
    idiom: `include!`, `include_str!` or `include_bytes!` of
-   `concat!(env!("NAME"), "<literal>", ...)`; and
+   `concat!(env!("NAME"), "<literal>", ...)` or of `env!("NAME")` alone; and
 3. no binary output of the compile contains the value's bytes.
 
 Condition 2 is what makes the rule sound for uses that never put the path

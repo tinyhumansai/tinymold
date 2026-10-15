@@ -11,7 +11,9 @@
 //! include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 //! ```
 //!
-//! with `include_str!` or `include_bytes!` in place of `include!`. Anything
+//! with `include_str!` or `include_bytes!` in place of `include!`, and its
+//! shorter form `include!(env!("GENERATED_PATH"))`, where a build script
+//! sets the variable to the file itself. Anything
 //! else, such as `env!("OUT_DIR").len()`, may put something derived from the
 //! path into the output without putting the path itself there, so the
 //! caller's scan of the outputs cannot catch it.
@@ -28,7 +30,8 @@
 /// How the source of one compile uses one env var.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct EnvUse {
-    /// `include*!(concat!(env!("NAME"), "..."))` invocations.
+    /// `include*!(concat!(env!("NAME"), "..."))` and `include*!(env!("NAME"))`
+    /// invocations.
     pub include_paths: usize,
     /// Mentions of the name outside a comment line, the includes among
     /// them.
@@ -166,7 +169,8 @@ impl<'a> Cursor<'a> {
     }
 }
 
-/// Whether `text` starts with `include*!(concat!(env!("NAME"), "...", ...))`.
+/// Whether `text` starts with `include*!(concat!(env!("NAME"), "...", ...))`
+/// or `include*!(env!("NAME"))`.
 fn include_path(text: &[u8], name: &[u8]) -> bool {
     let mut at = Cursor(text);
     let Some(rest) = text.strip_prefix(b"include") else {
@@ -176,9 +180,10 @@ fn include_path(text: &[u8], name: &[u8]) -> bool {
         .strip_prefix(b"_bytes")
         .or_else(|| rest.strip_prefix(b"_str"))
         .unwrap_or(rest);
-    if !(at.eat(b"!") && at.eat(b"(") && at.eat(b"concat") && at.eat(b"!") && at.eat(b"(")) {
+    if !(at.eat(b"!") && at.eat(b"(")) {
         return false;
     }
+    let concatenated = at.eat(b"concat") && at.eat(b"!") && at.eat(b"(");
     if !(at.eat(b"env")
         && at.eat(b"!")
         && at.eat(b"(")
@@ -186,6 +191,9 @@ fn include_path(text: &[u8], name: &[u8]) -> bool {
         && at.eat(b")"))
     {
         return false;
+    }
+    if !concatenated {
+        return at.eat(b")");
     }
     let mut suffixes = 0;
     while at.eat(b",") {

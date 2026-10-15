@@ -31,7 +31,9 @@ fn including_the_value_itself_only_picks_a_file() {
         "MIME_TYPES_GENERATED_PATH",
     );
     assert!(found.only_picks_included_files(), "{found:?}");
-    assert!(picks_files("static B: &[u8] = include_bytes!(env!(\"OUT_DIR\"));\n"));
+    assert!(picks_files(
+        "static B: &[u8] = include_bytes!(env!(\"OUT_DIR\"));\n"
+    ));
     assert!(!picks_files("include!(env!(\"OUT_DIR\").trim());\n"));
 }
 
