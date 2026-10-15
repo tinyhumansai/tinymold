@@ -559,7 +559,10 @@ fn a_run_whose_stdin_may_carry_input_is_never_cached() {
     assert_eq!(runs(&marker), 2);
     assert_eq!(
         log_lines(&config),
-        ["test-pass stdin may carry input", "test-pass stdin may carry input"]
+        [
+            "test-pass stdin may carry input",
+            "test-pass stdin may carry input"
+        ]
     );
 }
 

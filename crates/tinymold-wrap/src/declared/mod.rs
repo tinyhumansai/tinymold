@@ -85,15 +85,28 @@ fn mentions_table(header: &str) -> bool {
     name.contains("metadata.tinymold")
 }
 
-/// Whether a key line in `table` sets tinymold metadata through a dotted key
-/// or an inline table.
+/// Whether a key line in `table` (the header, or empty at the document
+/// root) sets tinymold metadata through a dotted key or an inline table:
+/// its full key path names the table, or leads to it and the line mentions
+/// tinymold.
 fn declares_elsewhere(table: &str, line: &str) -> bool {
-    let key = line.split('=').next().unwrap_or("").trim();
-    match table {
-        "[package.metadata]" => key.starts_with("tinymold"),
-        "[package]" => key.starts_with("metadata") && line.contains("tinymold"),
-        _ => false,
-    }
+    let key = key_path(line.split('=').next().unwrap_or(""));
+    let table = key_path(table.trim_start_matches('[').trim_end_matches(']'));
+    let path = if table.is_empty() {
+        key
+    } else {
+        format!("{table}.{key}")
+    };
+    path.contains("metadata.tinymold")
+        || ("package.metadata.tinymold".starts_with(&path) && line.contains("tinymold"))
+}
+
+/// A dotted key without whitespace or quotes: `"package" . metadata` is
+/// `package.metadata`.
+fn key_path(key: &str) -> String {
+    key.chars()
+        .filter(|c| !c.is_whitespace() && !matches!(c, '"' | '\''))
+        .collect()
 }
 
 /// `value` without a trailing `# comment`, for values that hold no strings.
