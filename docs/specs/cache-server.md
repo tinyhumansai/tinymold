@@ -131,7 +131,8 @@ never removes an object that a write is about to reference: an object
 stored or used within the grace period (one hour by default) is kept even
 when no entry names it yet, which pins an upload until its entry is
 committed. A read that is streaming an object keeps its open file on Unix;
-elsewhere a removal that fails is skipped. Last use is the mtime of the
+elsewhere the removal fails, the collection reports it, and a later run
+retries. Last use is the mtime of the
 entry file and of each object, refreshed on every read and write. The
 server's store root is never the wrapper's local store root, so each has
 exactly one collector.
