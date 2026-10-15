@@ -847,6 +847,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinymold-server"
+version = "0.0.1"
+dependencies = [
+ "base64",
+ "bytes",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "rustls-pki-types",
+ "tempfile",
+ "thiserror",
+ "tinymold-cas",
+ "tinymold-hash",
+ "tinymold-store",
+ "tokio",
+ "tokio-rustls",
+]
+
+[[package]]
 name = "tinymold-store"
 version = "0.0.1"
 dependencies = [
