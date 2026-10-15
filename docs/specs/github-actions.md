@@ -151,7 +151,12 @@ remote without the credential.
    errors, and wrapper time.
 3. Run `tinymold gc` with `max-age` and `max-size`, for every backend: a
    self-hosted runner keeps its store between jobs whichever backend it
-   uses.
+   uses. For `github` and `both` it also passes `--grace 0s`. That store
+   belongs to this job alone, and everything the job stored is younger than
+   the default one-hour grace, so with the grace `max-size` would remove
+   actions but keep every object they referenced. `remote` and `none` keep
+   the grace, because a persistent store may be shared with a build still
+   running.
 4. For `github` and `both`, save the store with `actions/cache/save`, but
    only when the job stored something new. A job that only hit would upload
    the same store it restored.
