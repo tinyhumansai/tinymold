@@ -44,17 +44,23 @@ fn start(cli: &Cli, args: &ServeArgs, out: &mut impl Write) -> Result<tinymold_s
         out,
         format_args!(
             "tinymold serve: listening on {}://{} (store {})",
-            if config.tls.is_some() {
-                "https"
-            } else {
-                "http"
-            },
+            scheme(&config),
             server.local_addr(),
             config.store.display()
         ),
     )?;
     let _ = out.flush();
     Ok(server)
+}
+
+/// The URL scheme clients reach `config` at.
+#[cfg(feature = "server")]
+fn scheme(config: &tinymold_server::Config) -> &'static str {
+    if config.tls.is_some() {
+        "https"
+    } else {
+        "http"
+    }
 }
 
 /// Without the server feature there is nothing to run.
