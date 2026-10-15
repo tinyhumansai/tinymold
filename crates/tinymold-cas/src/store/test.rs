@@ -420,3 +420,20 @@ fn a_staging_write_failure_is_reported_as_a_write_error() {
         "{error:?}"
     );
 }
+
+#[test]
+fn a_rename_that_fails_is_an_io_error_naming_the_object() {
+    let (_dir, store) = store();
+    let digest = Digest::of_bytes(b"blocked");
+    // A non-empty directory where the object should go: no file can be
+    // renamed over it.
+    let object = store.object_path(&digest);
+    fs::create_dir_all(object.join("occupied")).unwrap();
+
+    let error = store.insert_bytes(b"blocked").unwrap_err();
+
+    assert!(
+        matches!(&error, Error::Io { action: "rename into place", path, .. } if *path == object),
+        "{error:?}"
+    );
+}
