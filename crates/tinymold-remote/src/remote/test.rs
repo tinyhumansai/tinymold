@@ -9,6 +9,7 @@ use std::time::Duration;
 use tinymold_wrap::Remote as _;
 
 use super::*;
+use crate::{SigningKey, TrustedKeys};
 use crate::fake::Server;
 
 /// A local store holding one action of two objects and its pre-key record.
@@ -159,23 +160,197 @@ fn a_read_only_server_fails_the_push() {
     assert!(matches!(result, Err(Error::Status { .. })), "{result:?}");
 }
 
+fn configured(server: &Server, change: impl FnOnce(&mut RemoteConfig)) -> RemoteCache {
+    let mut config = RemoteConfig::new(&server.url()).unwrap();
+    change(&mut config);
+    RemoteCache::new(&config).unwrap()
+}
+
+/// A server that needs `Basic Y2k6cHc=` (`ci:pw`) for every call, as
+/// bazel-remote does with an htpasswd file.
+fn guarded() -> Server {
+    let server = Server::start();
+    server.with(|state| state.required_auth = Some("Basic Y2k6cHc=".to_owned()));
+    server
+}
+
+fn with_credential(config: &mut RemoteConfig) {
+    config.authorization = Some("Basic Y2k6cHc=".to_owned());
+}
+
 #[test]
 fn check_reports_capabilities() {
-    let server = Server::start();
-    let capabilities = remote(&server).check().unwrap();
+    let server = guarded();
+    let capabilities = configured(&server, with_credential).check().unwrap();
     assert_eq!(
         capabilities,
         Capabilities {
             digest_functions: vec!["sha256"],
             updates_enabled: true,
             writable: true,
+            anonymous_writes: false,
         }
     );
     assert!(capabilities.sha256());
     assert_eq!(
         capabilities.to_string(),
-        "digests sha256, action cache updates yes, writable yes"
+        "digests sha256, action cache updates yes, writable yes, anonymous writes no"
     );
+}
+
+#[test]
+fn check_refuses_a_server_open_to_anonymous_writes() {
+    let server = Server::start();
+    let result = remote(&server).check();
+    assert!(
+        matches!(result, Err(Error::OpenToAnonymousWrites)),
+        "{result:?}"
+    );
+    // A credential does not make the server any less open.
+    server.with(|state| state.required_auth = None);
+    let result = configured(&server, with_credential).check();
+    assert!(
+        matches!(result, Err(Error::OpenToAnonymousWrites)),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn check_accepts_an_open_server_when_entries_must_be_signed() {
+    let server = Server::start();
+    let signer = SigningKey::generate();
+    let capabilities = configured(&server, |config| {
+        config.trusted_keys = Some(TrustedKeys::from_list(&signer.public_hex()).unwrap());
+    })
+    .check()
+    .unwrap();
+    assert!(capabilities.anonymous_writes);
+    assert!(capabilities.writable);
+}
+
+fn signing(signer: &SigningKey) -> impl FnOnce(&mut RemoteConfig) {
+    let signer = signer.clone();
+    move |config| config.signing_key = Some(signer)
+}
+
+fn trusting(signer: &SigningKey) -> impl FnOnce(&mut RemoteConfig) {
+    let public = signer.public_hex();
+    move |config| config.trusted_keys = Some(TrustedKeys::from_list(&public).unwrap())
+}
+
+#[test]
+fn a_signed_entry_is_fetched_by_a_reader_that_trusts_its_key() {
+    let server = Server::start();
+    let local = Local::new();
+    let signer = SigningKey::generate();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
+
+    let reader = configured(&server, trusting(&signer));
+    assert!(reader.input_sets(&local.pre).unwrap().is_some());
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let text = reader.fetch_action(&local.key, &store).unwrap();
+    assert_eq!(text.as_deref(), Some(local.action_text().as_str()));
+}
+
+#[test]
+fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+
+    let reader = configured(&server, trusting(&SigningKey::generate()));
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let result = reader.fetch_action_into(&local.key, &store);
+    assert!(
+        matches!(result, Err(Error::Untrusted { reason: "it is not signed", .. })),
+        "{result:?}"
+    );
+    for object in &local.objects {
+        assert!(!store.contains(object));
+    }
+    let result = reader.input_sets_of(&local.pre);
+    assert!(
+        matches!(result, Err(Error::Untrusted { reason: "it is not signed", .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn an_entry_signed_by_an_untrusted_key_is_refused() {
+    let server = Server::start();
+    let local = Local::new();
+    configured(&server, signing(&SigningKey::generate()))
+        .push(&local.root, None)
+        .unwrap();
+
+    let reader = configured(&server, trusting(&SigningKey::generate()));
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let result = reader.fetch_action_into(&local.key, &store);
+    assert!(matches!(result, Err(Error::Untrusted { .. })), "{result:?}");
+    assert!(!store.contains(&local.objects[1]));
+}
+
+#[test]
+fn a_signed_entry_whose_record_is_swapped_is_refused() {
+    let server = Server::start();
+    let local = Local::new();
+    let signer = SigningKey::generate();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
+
+    // An attacker with write access points the entry at a record of their own,
+    // keeping the original signature.
+    let forged = b"tinymold-action 1\nstdout 00\n".to_vec();
+    let digest = naming::blob(&forged);
+    server.with(|state| {
+        state.blobs.insert(digest.hash.clone(), forged);
+        let result = state
+            .actions
+            .get_mut(&naming::action_key(&local.key).hash)
+            .unwrap();
+        for file in &mut result.output_files {
+            if file.path == ACTION_FILE {
+                file.digest = Some(digest.clone());
+            }
+        }
+    });
+
+    let reader = configured(&server, trusting(&signer));
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let result = reader.fetch_action_into(&local.key, &store);
+    assert!(
+        matches!(result, Err(Error::Untrusted { reason: "its signature does not match it", .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn a_reader_without_trusted_keys_still_uses_signed_entries() {
+    let server = Server::start();
+    let local = Local::new();
+    configured(&server, signing(&SigningKey::generate()))
+        .push(&local.root, None)
+        .unwrap();
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    assert!(remote(&server).fetch_action(&local.key, &store).unwrap().is_some());
+}
+
+#[test]
+fn signed_pushes_are_idempotent() {
+    let server = Server::start();
+    let local = Local::new();
+    let writer = configured(&server, signing(&SigningKey::generate()));
+    writer.push(&local.root, None).unwrap();
+    let again = writer.push(&local.root, None).unwrap();
+    assert_eq!(again.blobs, 0);
 }
 
 #[test]
