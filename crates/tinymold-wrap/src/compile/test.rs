@@ -943,3 +943,24 @@ fn a_command_line_ending_its_options_with_a_terminator_still_compiles_and_hits()
     }
     assert!(matches!(unit.serve(&["--"]).unwrap(), Served::Hit { .. }));
 }
+
+#[test]
+fn a_needle_split_across_two_reads_of_an_output_is_still_found() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("libdemo-1.rlib");
+    fs::write(&path, b"0123/work/a/target/debug/build/x-1/out4567").unwrap();
+    let needles: [&[u8]; 3] = [
+        b"/work/a/target/debug/build/x-1/out",
+        b"4567",
+        b"/work/b/target",
+    ];
+    // Reads of 5 bytes split the path over seven of them.
+    for chunk in [1, 5, 64] {
+        assert_eq!(
+            file_contains(&path, &needles, chunk).unwrap(),
+            [true, true, false],
+            "chunk {chunk}"
+        );
+    }
+    assert!(file_contains(&dir.path().join("missing"), &needles, 5).is_err());
+}
