@@ -4,9 +4,11 @@
 //! rlib, binary and test executables are new objects. Nothing removes the
 //! older generations until `tinymold gc` runs, so a store used only through
 //! the wrapper grows by tens of megabytes an edit. After a wrapper call,
-//! [`spawn_if_due`] therefore starts `tinymold gc --keep-generations 3` in the
-//! background, at most once per [`INTERVAL`] for each store, unless
-//! `TINYMOLD_AUTO_GC=0`.
+//! [`spawn_if_due`] therefore starts
+//! `tinymold gc --keep-generations 3 --max-age 48h` in the background, at
+//! most once per [`INTERVAL`] for each store, unless `TINYMOLD_AUTO_GC=0`.
+//! Entries no build has used for [`MAX_AGE`] go too, so a store shared by
+//! many branches does not keep every one of them forever.
 //!
 //! The collection runs detached, with no standard streams, so cargo neither
 //! waits for it nor sees its output. Like every collection it only deletes,
@@ -26,6 +28,9 @@ pub const INTERVAL: Duration = Duration::from_secs(600);
 
 /// How many recent generations of each unit an automatic collection keeps.
 pub const KEEP_GENERATIONS: usize = 3;
+
+/// How long an entry may go unused before an automatic collection drops it.
+pub const MAX_AGE: Duration = Duration::from_secs(48 * 3600);
 
 /// The file whose mtime says when the last automatic collection started.
 fn stamp(store: &Path) -> PathBuf {
@@ -81,6 +86,8 @@ pub fn arguments(store: &Path) -> Vec<OsString> {
         "gc".into(),
         "--keep-generations".into(),
         KEEP_GENERATIONS.to_string().into(),
+        "--max-age".into(),
+        format!("{}s", MAX_AGE.as_secs()).into(),
     ]
 }
 

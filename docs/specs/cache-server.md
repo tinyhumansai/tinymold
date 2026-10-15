@@ -222,6 +222,9 @@ tinymold serve [--listen ADDR] [--store DIR] [--max-size SIZE] [--max-age AGE]
 tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 ```
 
+- **Expiry.** `--max-age` defaults to `48h`: an entry no client has read or
+  written for two days is evicted, and its objects with it once nothing
+  else names them. `--max-size` still caps the total.
 - **Persistence.** The index and last-use times live in the store directory
   and survive a restart. A restart serves hits immediately; it does not
   rebuild the index by scanning objects.
