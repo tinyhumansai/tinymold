@@ -31,7 +31,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
-use futures_util::{StreamExt as _, stream};
+use futures_util::{StreamExt as _, future, stream};
 use tinymold_cas::Store;
 use tinymold_hash::Digest;
 use tinymold_wrap::{RecordKind, RemoteError};
@@ -437,7 +437,7 @@ impl RemoteCache {
                 })
                 .buffer_unordered(IN_FLIGHT)
                 .collect::<Vec<_>>();
-            let (objects, text) = futures_util::join!(objects, self.client.read(&record));
+            let (objects, text) = future::join(objects, self.client.read(&record)).await;
             for object in objects {
                 let (name, bytes) = object?;
                 if store.insert_bytes(&bytes)? != name {
