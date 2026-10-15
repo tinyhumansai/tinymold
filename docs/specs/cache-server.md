@@ -131,6 +131,11 @@ never removes an object that a read is streaming or a write is about to
 reference: writers pin the objects they upload until their entry is
 committed or the upload is abandoned.
 
+Under pressure, plain LRU lets a burst of branch builds evict the entries
+the default branch last used, which every pull request starts from.
+[ADR 0010](../adr/0010-default-branch-builds-anchor-eviction.md) (proposed)
+keeps those entries as a reference set and evicts everything else first.
+
 Objects are stored uncompressed on disk ([ADR 0005](../adr/0005-trade-disk-for-time.md)).
 Compression happens on the wire only where a protocol negotiates it.
 

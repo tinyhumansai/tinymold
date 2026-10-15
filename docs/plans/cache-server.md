@@ -149,6 +149,31 @@ Each slice is one PR, test first, with the four contract commands green.
 - If every spec target is met, switch `deploy/` to `tinymold serve` and keep
   the bazel-remote files as an alternative.
 
+### 12. Reference sets and pressure eviction
+
+Only once [ADR 0010](../adr/0010-default-branch-builds-anchor-eviction.md)
+is accepted, and after slices 2, 3 and 8.
+
+- `tinymold-store`: reference sets per label, roots, and the watermark
+  eviction order. `tinymold-server`: session tokens and the `session` admin
+  calls. `tinymold`: `serve session begin|end` and `serve purge
+  --keep-references`. The setup and save actions open and commit a session
+  on the default branch.
+- Failing tests first:
+  - a committed set's encoding matches a pinned byte vector;
+  - an entry read, not written, under a session token joins its set;
+  - an abandoned or timed-out session commits no set;
+  - under pressure, an entry in no root is evicted before a root entry
+    used less recently;
+  - once a newer set is committed past `--keep-references`, entries only
+    the superseded set held become evictable;
+  - an entry in a label's newest set is never evicted, and a store whose
+    newest sets exceed the budget refuses new non-root entries;
+  - below the high watermark, nothing is evicted;
+  - a session token cannot read or write outside its minting token's scope;
+  - `serve purge --keep-references` leaves exactly the root entries, and a
+    build of the reference commit still hits.
+
 ## Verification
 
 Every slice:
@@ -179,3 +204,4 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [ ] 9. Native socket and the Rust adapter
 - [ ] 10. `gocacheprog` adapter
 - [ ] 11. Benchmark and the switch
+- [ ] 12. Reference sets and pressure eviction (ADR 0010)
