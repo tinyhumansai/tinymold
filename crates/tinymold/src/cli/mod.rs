@@ -492,37 +492,33 @@ fn run_remote(
     lookup: impl Fn(&str) -> Option<std::ffi::OsString>,
     out: &mut impl Write,
 ) -> Result<Outcome> {
+    // Keygen needs no server, so it is answered before any configuration
+    // is read.
     if matches!(command, RemoteCommand::Keygen) {
         let key = tinymold_remote::SigningKey::generate();
-        line(
+        write!(
             out,
-            format_args!("TINYMOLD_REMOTE_SIGNING_KEY={}", key.to_hex()),
-        )?;
-        line(
-            out,
-            format_args!("TINYMOLD_REMOTE_TRUSTED_KEYS={}", key.public_hex()),
-        )?;
+            "TINYMOLD_REMOTE_SIGNING_KEY={}\nTINYMOLD_REMOTE_TRUSTED_KEYS={}\n",
+            key.to_hex(),
+            key.public_hex(),
+        )
+        .map_err(Error::Output)?;
         return Ok(Outcome::Success);
     }
     let config = tinymold_remote::RemoteConfig::from_env(lookup)?.ok_or(Error::NoRemote)?;
     let remote = tinymold_remote::RemoteCache::new(&config)?;
-    match command {
-        RemoteCommand::Push { since } => {
-            let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
-            let since = since
-                .map(|seconds| std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds));
-            let report = remote.push(&store, since)?;
-            line(out, format_args!("remote: {report}"))?;
-        }
-        RemoteCommand::Check => {
-            let capabilities = remote.check()?;
-            line(
-                out,
-                format_args!("remote: {} reachable; {capabilities}", config.endpoint),
-            )?;
-        }
-        // Answered above, before any configuration is read.
-        RemoteCommand::Keygen => {}
+    if let RemoteCommand::Push { since } = command {
+        let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
+        let since =
+            since.map(|seconds| std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds));
+        let report = remote.push(&store, since)?;
+        line(out, format_args!("remote: {report}"))?;
+    } else {
+        let capabilities = remote.check()?;
+        line(
+            out,
+            format_args!("remote: {} reachable; {capabilities}", config.endpoint),
+        )?;
     }
     Ok(Outcome::Success)
 }
