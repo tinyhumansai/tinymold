@@ -1,8 +1,41 @@
 #!/usr/bin/env bash
 # The save half of the tinymold GitHub Action (../save/action.yml): push new
 # entries to the remote, summarize the hit rate, and trim the store before
-# actions/cache saves it.
+# actions/cache saves it. It also names the job's cache entry and trims the
+# cargo registry before that is saved.
 set -euo pipefail
+
+sha256() {
+  if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi
+}
+
+# Print the name of every crate archive the lockfiles given as arguments
+# still use, as cargo names it in registry/cache: `<name>-<version>.crate`.
+locked_crates() {
+  awk '
+    /^\[\[package\]\]/ { name = ""; next }
+    /^name = /    { name = $3; gsub(/"/, "", name); next }
+    /^version = / { v = $3; gsub(/"/, "", v); if (name != "") print name "-" v ".crate" }
+  ' "$@" | LC_ALL=C sort -u
+}
+
+# Delete crate archives no lockfile in the workspace uses any more, so the
+# registry entry does not grow with every Cargo.lock it was restored across.
+# Without a lockfile there is nothing to judge by, and nothing is deleted.
+prune_registry() {
+  local cache="$1/registry/cache" keep lockfiles=() dir
+  [[ -d "${cache}" ]] || return 0
+  while IFS= read -r -d '' lock; do lockfiles+=("${lock}"); done < <(
+    find "${GITHUB_WORKSPACE:-.}" -name Cargo.lock -not -path '*/target/*' -print0
+  )
+  [[ "${#lockfiles[@]}" -gt 0 ]] || return 0
+  keep="$(locked_crates "${lockfiles[@]}")"
+  for dir in "${cache}"/*/; do
+    [[ -d "${dir}" ]] || continue
+    (cd "${dir}" && ls | LC_ALL=C sort | LC_ALL=C comm -23 - <(printf '%s\n' "${keep}") |
+      while IFS= read -r stale; do rm -f -- "${stale}"; done)
+  done
+}
 
 backend="${TINYMOLD_BACKEND:-}"
 [[ -n "${backend}" ]] || {
@@ -41,4 +74,29 @@ if [[ "${INPUT_SAVE_CACHE}" == true ]] && [[ "${backend}" == github || "${backen
     echo "tinymold: nothing new was stored; not saving the cache"
   fi
 fi
-echo "save-cache=${save}" >> "${GITHUB_OUTPUT}"
+
+# Every job of a run shares the setup step's key, and GitHub keeps only the
+# first entry saved under a key. The job id and what this job wrote set the
+# entry apart: matrix legs share a job id, but not their new entries.
+key=""
+if [[ "${save}" == true ]]; then
+  stored="$(cd "${TINYMOLD_STORE}" &&
+    find . -type f -newer "${TINYMOLD_START_MARKER}" | LC_ALL=C sort | sha256 | cut -c1-12)"
+  key="${TINYMOLD_CACHE_KEY}-${GITHUB_JOB:-job}-${stored}"
+fi
+
+# The registry entry is keyed by Cargo.lock alone, so it is saved only when no
+# entry for this lockfile was restored. Jobs that race to save it would save
+# the same crates.
+save_registry=false
+if [[ "${INPUT_SAVE_CACHE}" == true && -n "${TINYMOLD_REGISTRY_KEY:-}" &&
+  "${TINYMOLD_REGISTRY_HIT:-}" != true && -d "${TINYMOLD_CARGO_HOME}/registry" ]]; then
+  prune_registry "${TINYMOLD_CARGO_HOME}"
+  save_registry=true
+fi
+
+{
+  echo "save-cache=${save}"
+  echo "key=${key}"
+  echo "save-registry=${save_registry}"
+} >> "${GITHUB_OUTPUT}"
