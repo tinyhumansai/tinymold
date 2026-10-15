@@ -4,7 +4,7 @@
 - **Decision:** [ADR 0008](../adr/0008-test-results-keyed-by-binary-digest.md)
 - **Roadmap:** slices 1–5 belong to Phase 4 (test builds and links), slice 6
   to Phase 7 (research bets).
-- **Status:** Not started.
+- **Status:** Slices 2 and 3 implemented.
 
 Each slice is its own pull request, written test first: a failing test for
 the behaviour, then the smallest change that passes it. Every slice ends
@@ -95,7 +95,39 @@ The cheapest win, independent of everything else.
     under `cargo test` with the runner; edit the library and assert that
     exactly the binaries linking it ran again.
 
+### Found while building slice 3
+
+- **A deadlock between the runner and `main`.** `main` held
+  `io::stdout().lock()` for the whole command, and the runner streams the
+  test's output from worker threads, which waited on that lock forever.
+  `main` now passes the unlocked `Stdout`. The end-to-end tests in
+  `crates/tinymold/tests/run_test.rs` hung before the fix.
+- **Declared inputs are paths, not globs.** There is no glob or TOML crate
+  in the tree, and neither is worth its build time here: a directory
+  stands for every file under it, and a strict reader handles the table.
+- **Nested packages stay in the package tree.** A test may read one as a
+  fixture; leaving them out would be a wrong hit.
+- **A wrong hit, caught before merge.** An integration test that runs its
+  package's binary (`CARGO_BIN_EXE_<name>`) does not change when that
+  binary does, so editing a crate only the binary links replayed a stale
+  pass (`an_integration_test_reruns_when_the_binary_it_runs_changes`
+  reproduced it). The test-binary record now names those binaries and the
+  build script's `OUT_DIR`, and their contents join the key. Found while
+  designing the slice 5 benchmark on ripgrep, whose integration tests run
+  `rg`.
+- **Early cutoff at the binary.** An edit rustc folds away (`1` to
+  `2 - 1`) left a dependent's test binary byte-identical, and its result
+  was replayed, as the design intends.
+
 ## Slice 4: clippy-driver calls
+
+**Status.** Built on the `clippy-cache` branch by another session, ahead
+of this plan, together with unrelated work (outputs carried over between
+compiles, benchmark changes). It keys `clippy-driver --version` and the
+config file clippy's own lookup finds, or `none`, which covers a
+`clippy.toml` created after a hit; clippy's dep-info already lists
+`clippy.toml`, `Cargo.toml`, `CLIPPY_ARGS` and `CLIPPY_CONF_DIR`
+(verified with clippy 0.1.99). Not duplicated here.
 
 - Verify, in a scratch crate, whether `clippy-driver` writes `clippy.toml`
   and `CLIPPY_ARGS` into dep-info. Record the result in the spec.
@@ -108,10 +140,13 @@ The cheapest win, independent of everything else.
 
 ## Slice 5: measure
 
-- `bench/bench.py`: a `pipeline` benchmark — `cargo fmt --check`, `cargo
-  clippy`, `cargo build`, `cargo test`, `cargo llvm-cov --no-report` — run
-  cold, warm, and after a one-line library edit, with and without the
-  runner. A `retest` case runs `cargo test` twice with no edit.
+- `bench/bench.py retest` (done): `cargo test` for a project's package,
+  both sides built through the wrapper into one `target/`, with and without
+  the runner, taking alternate turns. Cases `again` (no edit) and
+  `private_body` (a new one-line private edit before every measurement).
+- A `pipeline` benchmark — `cargo fmt --check`, `cargo clippy`, `cargo
+  build`, `cargo test`, `cargo llvm-cov --no-report` — remains, and waits
+  for slice 4 to merge so clippy is measured cached.
 - Commit the result JSON and the `python3 bench/report.py` output; quote the
   before and after numbers in each slice's pull request.
 
@@ -125,8 +160,8 @@ The cheapest win, independent of everything else.
 ## Completion checklist
 
 - [ ] Slice 1: lint flags leave capped keys
-- [ ] Slice 2: test key
-- [ ] Slice 3: records and `run-test`
-- [ ] Slice 4: clippy-driver caching
+- [x] Slice 2: test key
+- [x] Slice 3: records and `run-test`
+- [ ] Slice 4: clippy-driver caching (built on the `clippy-cache` branch, not merged)
 - [ ] Slice 5: pipeline and retest benchmarks
 - [ ] Slice 6: impact-analysis ADR

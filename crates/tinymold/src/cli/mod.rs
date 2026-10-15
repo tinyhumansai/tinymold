@@ -63,6 +63,24 @@ pub enum Command {
     /// Share the cache through a remote REAPI server (`TINYMOLD_REMOTE_URL`).
     #[command(subcommand)]
     Remote(RemoteCommand),
+    /// Run a test binary, replaying a recorded pass when nothing the run can
+    /// observe has changed. Set it as cargo's runner:
+    /// `[target.'cfg(all())'] runner = ["tinymold", "run-test"]`.
+    RunTest(RunTestArgs),
+}
+
+/// What `tinymold run-test` runs.
+#[derive(Debug, Clone, Args)]
+pub struct RunTestArgs {
+    /// Run the binary through this program, such as an emulator; its
+    /// identity becomes part of the cache key.
+    #[arg(long, value_name = "PROGRAM")]
+    pub via: Option<PathBuf>,
+    /// The test binary, as cargo passes it.
+    pub binary: PathBuf,
+    /// The binary's arguments, passed on unchanged.
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub args: Vec<std::ffi::OsString>,
 }
 
 /// Remote cache commands.
@@ -250,6 +268,9 @@ pub enum Outcome {
     /// The command ran, but the answer is "no" (for example `cas has` on an
     /// absent object). Exits with status 1, like `grep` without a match.
     Absent,
+    /// The command ran another program, whose exit status this is
+    /// (`run-test`).
+    Exit(u8),
 }
 
 impl From<Outcome> for ExitCode {
@@ -257,6 +278,7 @@ impl From<Outcome> for ExitCode {
         match outcome {
             Outcome::Success => Self::SUCCESS,
             Outcome::Absent => Self::from(1),
+            Outcome::Exit(code) => Self::from(code),
         }
     }
 }
@@ -299,8 +321,39 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         }
         Command::Stats(args) => return run_stats(args, out),
         Command::Remote(command) => return run_remote(cli, command, env, out),
+        Command::RunTest(args) => return Ok(run_test(cli, args)),
     }
     Ok(Outcome::Success)
+}
+
+/// Runs a test binary through the test result cache, or unchanged when no
+/// store can be found. The binary's output goes straight to this process's
+/// stdout and stderr, as cargo expects of a runner.
+fn run_test(cli: &Cli, args: &RunTestArgs) -> Outcome {
+    // Cargo runs tests in the package root; should the absolute path be
+    // unreadable, `.` still names it, only without normalizing paths.
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let vars: Vec<(std::ffi::OsString, std::ffi::OsString)> = std::env::vars_os().collect();
+    let command = tinymold_wrap::TestCommand {
+        via: args.via.as_deref(),
+        binary: &args.binary,
+        args: &args.args,
+        cwd: &cwd,
+        env: &vars,
+    };
+    let code = match crate::wrapper_config(env) {
+        Some(mut config) => {
+            if let Some(store) = &cli.store {
+                config.store.clone_from(store);
+            }
+            tinymold_wrap::run_test(&config, &command)
+        }
+        None => match &cli.store {
+            Some(store) => tinymold_wrap::run_test(&tinymold_wrap::Config::new(store), &command),
+            None => tinymold_wrap::run_test_uncached(&command),
+        },
+    };
+    Outcome::Exit(u8::try_from(code).unwrap_or(1))
 }
 
 fn run_stats(args: &StatsArgs, out: &mut impl Write) -> Result<Outcome> {

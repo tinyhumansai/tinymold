@@ -83,6 +83,7 @@ import socket
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -1259,6 +1260,105 @@ def bench_hit(args: argparse.Namespace) -> dict:
     return {"benchmark": "hit", "config": HIT_CONFIG, "pins": pins(), "results": results}
 
 
+RETEST_CASES = ("again", "private_body")
+
+
+def runner_env(tinymold: Path) -> dict:
+    """The variable that makes cargo run host tests through `tinymold run-test`."""
+    triple = host_triple().upper().replace("-", "_").replace(".", "_")
+    return {f"CARGO_TARGET_{triple}_RUNNER": f"{tinymold} run-test"}
+
+
+def runner_counts(log: Path) -> dict:
+    """How many test binaries `run-test` replayed and ran, from its log."""
+    lines = log.read_text().splitlines() if log.exists() else []
+    outcomes = [line.split(" ", 1)[0] for line in lines]
+    return {"replayed": outcomes.count("test-hit"), "ran": outcomes.count("test-miss")}
+
+
+def bench_retest(args: argparse.Namespace) -> dict:
+    """`cargo test` run again: every test binary run against `tinymold run-test`.
+
+    Both sides build through RUSTC_WRAPPER=tinymold into the same target/ and
+    store, so the runner is the only difference: plain cargo runs every test
+    binary, and `run-test` replays a recorded pass when a binary and what it
+    reads did not change (docs/specs/test-cache.md). Cases:
+
+    - `again`: nothing changed, so cargo builds nothing;
+    - `private_body`: the project's private-body edit, with a new value before
+      every measurement, so cargo rebuilds what depends on it and the runner
+      reruns only the binaries whose bytes or inputs changed.
+
+    The sides take alternate turns, so load drift hits both. Doctests run on
+    both sides: rustdoc does not go through the runner.
+    """
+    tinymold = tinymold_binary()
+    results = []
+    for project in load_corpus(args.project, needs=("edits",)):
+        src = checkout(project)
+        store = WORK / "tinymold-store" / f"retest-{project['name']}"
+        log = WORK / f"retest-{project['name']}.log"
+        shutil.rmtree(store, ignore_errors=True)
+        plain = {name: value for name, value in STOCK_ENV.items()
+                 if not (name.startswith("CARGO_TARGET_") and name.endswith("_RUNNER"))}
+        # Tests such as ripgrep's share fixed directories under TMPDIR, which
+        # another run on the machine can disturb; each project gets its own,
+        # emptied before every measurement. It sits outside any git checkout,
+        # since some tests need that, and its path stays the same for the
+        # whole run, since the runner keys on the environment.
+        tmp = Path(tempfile.mkdtemp(prefix=f"tinymold-retest-{project['name']}-"))
+        plain.update(RUSTC_WRAPPER=str(tinymold), TINYMOLD_STORE=str(store),
+                     TINYMOLD_LOG=str(log), TMPDIR=str(tmp))
+        sides = {"cargo": plain, "run-test": dict(plain, **runner_env(tinymold))}
+        command = cargo("test", "--locked", "--no-fail-fast", "--package", project["package"],
+                        *(["--features", project["features"]] if "features" in project else []))
+        edits = Edits(src, project["edits"])
+
+        def measure(side: str) -> dict:
+            log.unlink(missing_ok=True)
+            shutil.rmtree(tmp, ignore_errors=True)
+            tmp.mkdir(parents=True)
+            start = time.perf_counter()
+            done = subprocess.run(command, cwd=src, env=sides[side],
+                                  capture_output=True, text=True)
+            wall = time.perf_counter() - start
+            if done.returncode != 0:
+                sys.stderr.write(done.stdout[-3000:] + done.stderr[-3000:])
+                raise SystemExit(f"{project['name']}: cargo test failed on the {side} side")
+            return {"wall": wall, **runner_counts(log)}
+
+        samples = {(case, side): [] for case in RETEST_CASES for side in sides}
+        edit = 0
+        try:
+            for case in RETEST_CASES:
+                if case == "again":
+                    # Both sides build the unedited source and the runner
+                    # records every pass; the timed runs then change nothing.
+                    print(f"{project['name']}: building and recording", file=sys.stderr)
+                    edits.restore()
+                    for side in sides:
+                        measure(side)
+                for n in range(args.runs):
+                    for side in list(sides) if n % 2 == 0 else list(reversed(sides)):
+                        if case == "private_body":
+                            edit += 1
+                            edits.apply("private_body", edit)
+                        samples[(case, side)].append(measure(side))
+        finally:
+            edits.restore()
+        for (case, side), taken in samples.items():
+            results.append({"project": project["name"], "rev": project["rev"], "case": case,
+                            "mode": side, "wall": summarize([s["wall"] for s in taken]),
+                            "replayed": statistics.median(s["replayed"] for s in taken),
+                            "ran": statistics.median(s["ran"] for s in taken),
+                            "counts": [[s["replayed"], s["ran"]] for s in taken]})
+            print(f"  {case} {side}: {results[-1]['wall']['median_s']}s, "
+                  f"replayed/ran per run {results[-1]['counts']}", file=sys.stderr)
+        shutil.rmtree(store, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+    return {"benchmark": "retest", "pins": pins(), "results": results}
+
+
 def pins() -> dict:
     """What the scenario numbers depend on, pinned where cargo allows it."""
     return {
@@ -1454,12 +1554,15 @@ def main() -> None:
     hit.add_argument("--runs", type=int, default=7)
     hit.add_argument("--project", help="only this corpus project")
     hit.add_argument("--against", help="a git rev whose tinymold takes alternate turns")
+    retest = sub.add_parser("retest", help="cargo test again: every test run against run-test")
+    retest.add_argument("--runs", type=int, default=5)
+    retest.add_argument("--project", help="only this corpus project")
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "retest": bench_retest}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()

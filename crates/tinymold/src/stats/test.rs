@@ -85,3 +85,37 @@ fn an_empty_log_says_so() {
     assert!(stats.to_string().starts_with("no cacheable compiles"));
     assert!(!stats.markdown().contains("Slowest"));
 }
+
+#[test]
+fn test_runs_are_counted_apart_from_compiles() {
+    let log = "hit demo 1.0ms\n\
+               test-hit demo 0.8ms\n\
+               test-hit other 0.9ms\n\
+               test-miss demo 120.0ms recorded in 0.3ms\n\
+               test-pass - 0.1ms a bench run\n\
+               test-error - 0.1ms failed to read x\n";
+    let stats = Stats::parse(log);
+    assert_eq!(stats.hits, 1);
+    assert_eq!(stats.cacheable(), 1);
+    assert_eq!(stats.unparsed, 0);
+    assert_eq!(
+        (
+            stats.test_hits,
+            stats.test_misses,
+            stats.test_passes,
+            stats.test_errors
+        ),
+        (2, 1, 1, 1)
+    );
+    let text = stats.to_string();
+    assert!(
+        text.contains("tests replayed 2, run 1, not cacheable 1, errors 1"),
+        "{text}"
+    );
+    assert!(stats.markdown().contains("| Test runs replayed | 2 |"));
+
+    // A log without test runs says nothing about them.
+    let compiles = Stats::parse("hit demo 1.0ms\n");
+    assert!(!compiles.to_string().contains("tests"));
+    assert!(!compiles.markdown().contains("Test runs"));
+}

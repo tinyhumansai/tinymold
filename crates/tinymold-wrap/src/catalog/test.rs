@@ -138,3 +138,44 @@ fn action_references_rejects_a_corrupt_or_missing_record() {
         Err(crate::Error::CorruptRecord { line: 1, .. })
     ));
 }
+
+#[test]
+fn records_lists_test_runs_and_test_binaries() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path();
+    let key = Digest::of_bytes(b"run");
+    let binary = Digest::of_bytes(b"binary");
+    let run = store.join("tests/run").join(key.to_hex());
+    let bin = store.join("tests/bin").join(binary.to_hex());
+    let temp = store.join("tests/run/.x.7.tmp");
+    for path in [&run, &bin, &temp] {
+        write(path, "x");
+    }
+    write(&store.join("tests/run/notes"), "not a record");
+    assert_eq!(
+        kinds(store),
+        vec![
+            (RecordKind::TestBinary { digest: binary }, bin),
+            (RecordKind::Temporary, temp),
+            (RecordKind::TestRun { key }, run),
+        ]
+    );
+}
+
+#[test]
+fn test_run_references_name_both_streams() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("run");
+    let run = TestRun {
+        stdout: Digest::of_bytes(b"out"),
+        stderr: Digest::of_bytes(b"err"),
+    };
+    write(&path, &run.encode());
+    assert_eq!(
+        test_run_references(&path).unwrap(),
+        vec![run.stdout, run.stderr]
+    );
+    assert!(test_run_references(&dir.path().join("gone")).is_err());
+    write(&path, "garbage");
+    assert!(test_run_references(&path).is_err());
+}

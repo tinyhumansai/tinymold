@@ -71,12 +71,15 @@ tinymold gc [--max-age <age>] [--max-size <size>] [--snapshots-max-age <age>] [-
 
 It runs these steps in order:
 
-1. **Expire actions** whose last use is older than `--max-age`.
+1. **Expire actions**, and recorded test runs (`tests/run/<key>`), whose
+   last use is older than `--max-age`. A test run is kept and evicted like
+   an action: it references the objects holding its stdout and stderr.
 2. **Enforce `--max-size`.** Let the store size be the bytes of every object
    a surviving action references. While that exceeds the budget, evict the
    least recently used action. An object's bytes are freed only when no
    surviving action still references it.
-3. **Expire pre-key records** older than `--max-age`, and digest-cache files
+3. **Expire pre-key records** and test-binary records (`tests/bin/`)
+   older than `--max-age`, and digest-cache files
    (`stat/`, `rustc/`) older than `--max-age`. These are caches: losing one
    costs a rehash, never a wrong hit.
 4. **Sweep objects** that no surviving action references and that are older

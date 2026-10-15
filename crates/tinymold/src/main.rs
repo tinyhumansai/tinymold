@@ -27,7 +27,9 @@ fn main() -> ExitCode {
         return ExitCode::from(u8::try_from(code).unwrap_or(1));
     }
     let cli = Cli::parse();
-    match tinymold::run(&cli, &mut io::stdout().lock()) {
+    // Not `stdout().lock()`: `run-test` streams a test's output to stdout
+    // from worker threads, which would wait forever on a lock held here.
+    match tinymold::run(&cli, &mut io::stdout()) {
         Ok(outcome) => outcome.into(),
         Err(error) => {
             eprintln!("tinymold: {error}");

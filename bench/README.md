@@ -296,6 +296,17 @@ Every source file touched, then rebuilt through the wrapper, so each workspace u
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_remote` restore (191 files) | 33.1 ms (31.8–33.7) | 5.4 ms (5.1–5.6) | -84% |
 | tinymold 7312d99<br>tinymold 185d6ba → 7312d99 | `tinymold_wrap` restore (169 files) | 28.8 ms (27.9–30.1) | 5.1 ms (4.7–5.6) | -82% |
 
+### Running tests again (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3 runs, 2026-10-15)
+
+`cargo test` for the project's package, built through `RUSTC_WRAPPER=tinymold` on both sides; only the runner differs. *again*: nothing changed. *private_body*: a one-line private edit before every run. Cells are median wall time (min–max) and test binaries replayed / run by `tinymold run-test`.
+
+| Project | Case | cargo | run-test | replayed / ran | change |
+| --- | --- | ---: | ---: | ---: | ---: |
+| ripgrep 14.1.1 | again | 1.29s (1.03–1.60) | 0.09s (0.07–0.11) | 2 / 0 | -93% |
+| ripgrep 14.1.1 | private_body | 5.39s (4.82–6.21) | 4.68s (4.61–6.76) | 0 / 2 | -13% |
+| tinymold bb944ae | again | 18.09s (11.83–18.27) | 1.97s (1.53–4.74) | 5 / 0 | -89% |
+| tinymold bb944ae | private_body | 15.45s (15.38–21.73) | 20.69s (13.96–21.17) | 0 / 5 | +34% |
+
 ### Dedup probe: second worktree vs first (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 1 runs, 2026-10-14)
 
 Share of the second worktree's `target/` bytes that are byte-identical to something in the first's, at three granularities. Incremental state is excluded.
@@ -347,6 +358,7 @@ python3 bench/bench.py baseline --runs 5
 python3 bench/bench.py cache --runs 3         # needs sccache on PATH
 python3 bench/bench.py link --runs 5
 python3 bench/bench.py cas --runs 5 --size-mb 512
+python3 bench/bench.py retest --project ripgrep --runs 5   # cargo test again, with run-test
 python3 bench/report.py                       # refresh the tables and charts
 ```
 
