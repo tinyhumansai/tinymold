@@ -189,10 +189,10 @@ ships in the `tinymold` binary and talks to the server:
   remote is configured, and works with no server at all.
 - **Go:** `GOCACHEPROG="tinymold gocacheprog"`. Go runs it as a subprocess
   speaking JSON lines (`get`, `put`, `close`) on stdin and stdout. A `get`
-  hit must answer with a path on local disk, so the adapter materializes the
-  object into the local store and returns that path. Its namespace is
-  `native` with a Go tenant, and Go's `ActionID` and `OutputID` are kept in
-  the entry record.
+  hit must answer with a path on local disk; the adapter opens the server's
+  store directly and answers with the stored object's own read-only path.
+  Its namespace is `native/go`: the `ActionID` is the key and the
+  `OutputID` is kept in the entry's metadata. No server needs to run.
 
 ### Not yet supported
 

@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-8 done)
+- **Status:** In progress (slices 1-8 and 10 done)
 
 ## Goal
 
@@ -185,6 +185,12 @@ store, which the server refuses to share.
   `get` answering with a materialized local path.
 - Failing tests first: protocol fixtures for `get` hit, `get` miss, `put`
   and `close`. `live_go` test: `go build` twice hits on the second.
+- **As built:** the adapter opens the server's store directly (no server
+  has to run), keeps entries under `native/go`, and answers a hit's
+  `DiskPath` with the read-only object itself, so nothing is copied. Bodies
+  stream from their base64 line into the store; a failed `put` drains the
+  rest of the line so the session stays in step. Against go 1.26.3, a
+  second `go build` with an empty `GOCACHE` compiled nothing.
 
 ### 11. Benchmark and the switch
 
@@ -224,5 +230,5 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 7. `nx` and `gradle` front-ends
 - [x] 8. GitHub Action `serve: true`
 - [ ] 9. Native socket and the Rust adapter
-- [ ] 10. `gocacheprog` adapter
+- [x] 10. `gocacheprog` adapter
 - [ ] 11. Benchmark and the switch
