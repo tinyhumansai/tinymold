@@ -1,6 +1,6 @@
 //! Live test: Turborepo's remote cache against the server. Runs only with
 //! `TINYMOLD_LIVE=1` and `npm` on `PATH`; it installs `turbo` from npm into
-//! a copy of `tests/fixtures/turbo`.
+//! a copy of `tests/fixtures/turbo`, and needs `git`.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -68,6 +68,16 @@ async fn live_turbo_replays_every_task_from_the_server() {
     let repo = dir.path().join("repo");
     copy_tree(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/turbo"), &repo);
     let (first, second, restored) = tokio::task::spawn_blocking(move || {
+        // Turbo hashes the files git sees, so the copy is a repository that
+        // ignores build output, as a real one would. Outside git it would
+        // hash its own logs and never match a previous run.
+        std::fs::rename(repo.join("gitignore"), repo.join(".gitignore")).unwrap();
+        let initialized = Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(&repo)
+            .status()
+            .unwrap();
+        assert!(initialized.success(), "git init failed");
         let installed = Command::new("npm")
             .args(["install", "--no-audit", "--no-fund", "--loglevel=error"])
             .current_dir(&repo)
@@ -76,8 +86,11 @@ async fn live_turbo_replays_every_task_from_the_server() {
         assert!(installed.success(), "npm install failed");
 
         let first = build(&repo, &api);
+        // Nothing local survives: only the server can answer.
         for package in ["a", "b"] {
-            std::fs::remove_dir_all(repo.join("packages").join(package).join("dist")).unwrap();
+            let package = repo.join("packages").join(package);
+            std::fs::remove_dir_all(package.join("dist")).unwrap();
+            let _ = std::fs::remove_dir_all(package.join(".turbo"));
         }
         let _ = std::fs::remove_dir_all(repo.join(".turbo"));
         let second = build(&repo, &api);
