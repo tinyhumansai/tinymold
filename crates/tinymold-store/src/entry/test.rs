@@ -7,7 +7,9 @@ use super::*;
 fn sample() -> Entry {
     let mut entry = Entry::new(vec![Digest::of_bytes(b"one"), Digest::of_bytes(b"two")]);
     entry.body = b"action result".to_vec();
-    entry.meta.insert("x-artifact-duration".into(), "1200".into());
+    entry
+        .meta
+        .insert("x-artifact-duration".into(), "1200".into());
     entry.meta.insert("x-artifact-tag".into(), "sig".into());
     entry.written = 1_760_000_000;
     entry
@@ -62,7 +64,12 @@ fn metadata_over_the_limit_is_refused() {
 fn a_record_without_the_magic_is_malformed() {
     let error = Entry::decode(b"not an entry record").unwrap_err();
 
-    assert!(matches!(error, Error::MalformedEntry { reason: "unknown format" }));
+    assert!(matches!(
+        error,
+        Error::MalformedEntry {
+            reason: "unknown format"
+        }
+    ));
 }
 
 #[test]
@@ -70,7 +77,12 @@ fn a_truncated_record_is_malformed() {
     let encoded = sample().encode().unwrap();
     let error = Entry::decode(&encoded[..encoded.len() - 1]).unwrap_err();
 
-    assert!(matches!(error, Error::MalformedEntry { reason: "truncated" }));
+    assert!(matches!(
+        error,
+        Error::MalformedEntry {
+            reason: "truncated"
+        }
+    ));
 }
 
 #[test]
@@ -79,7 +91,12 @@ fn trailing_bytes_are_malformed() {
     encoded.push(0);
     let error = Entry::decode(&encoded).unwrap_err();
 
-    assert!(matches!(error, Error::MalformedEntry { reason: "trailing bytes" }));
+    assert!(matches!(
+        error,
+        Error::MalformedEntry {
+            reason: "trailing bytes"
+        }
+    ));
 }
 
 #[test]
@@ -96,7 +113,12 @@ fn metadata_keys_must_be_in_order() {
     }
     let error = Entry::decode(&encoded).unwrap_err();
 
-    assert!(matches!(error, Error::MalformedEntry { reason: "metadata out of order" }));
+    assert!(matches!(
+        error,
+        Error::MalformedEntry {
+            reason: "metadata out of order"
+        }
+    ));
 }
 
 #[test]
@@ -111,5 +133,10 @@ fn metadata_must_be_utf8() {
     encoded.extend(0_u32.to_le_bytes());
     let error = Entry::decode(&encoded).unwrap_err();
 
-    assert!(matches!(error, Error::MalformedEntry { reason: "metadata is not utf-8" }));
+    assert!(matches!(
+        error,
+        Error::MalformedEntry {
+            reason: "metadata is not utf-8"
+        }
+    ));
 }

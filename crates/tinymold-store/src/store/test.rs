@@ -38,7 +38,10 @@ fn the_sha256_index_finds_an_ingested_body() {
         store.find_sha256(&Sha256::of_bytes(b"artifact")).unwrap(),
         Some(ingested.digest)
     );
-    assert_eq!(store.find_sha256(&Sha256::of_bytes(b"other")).unwrap(), None);
+    assert_eq!(
+        store.find_sha256(&Sha256::of_bytes(b"other")).unwrap(),
+        None
+    );
 }
 
 #[test]
@@ -68,7 +71,12 @@ fn a_body_that_does_not_match_its_sha256_claim_is_refused_and_not_stored() {
 
     assert!(matches!(error, Error::DigestMismatch { .. }), "{error:?}");
     assert!(!store.cas().contains(&Digest::of_bytes(b"what arrived")));
-    assert_eq!(store.find_sha256(&Sha256::of_bytes(b"what arrived")).unwrap(), None);
+    assert_eq!(
+        store
+            .find_sha256(&Sha256::of_bytes(b"what arrived"))
+            .unwrap(),
+        None
+    );
     assert!(store.cas().staging_files().unwrap().is_empty());
 }
 
@@ -155,7 +163,10 @@ fn writes_leave_no_pending_files() {
         .put(&key(FrontEnd::Reapi, b"k"), &Entry::new(vec![blob]))
         .unwrap();
 
-    assert_eq!(fs::read_dir(store.root().join("pending")).unwrap().count(), 0);
+    assert_eq!(
+        fs::read_dir(store.root().join("pending")).unwrap().count(),
+        0
+    );
 }
 
 #[test]

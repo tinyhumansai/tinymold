@@ -31,5 +31,9 @@ fn a_digest_mismatch_names_both_digests() {
 fn a_missing_object_names_it() {
     let digest = Digest::of_bytes(b"gone");
 
-    assert!(Error::MissingObject(digest).to_string().contains(&digest.to_hex()));
+    assert!(
+        Error::MissingObject(digest)
+            .to_string()
+            .contains(&digest.to_hex())
+    );
 }

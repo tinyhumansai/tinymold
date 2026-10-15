@@ -201,9 +201,7 @@ impl Store {
                 let shard = path.parent().unwrap_or(&self.root);
                 fs::create_dir_all(shard).map_err(io_error("create", shard))
             })
-            .and_then(|()| {
-                fs::rename(&pending, path).map_err(io_error("rename into place", path))
-            });
+            .and_then(|()| fs::rename(&pending, path).map_err(io_error("rename into place", path)));
         if written.is_err() {
             // Best effort: a stale pending file is garbage, not a fault.
             let _ = fs::remove_file(&pending);

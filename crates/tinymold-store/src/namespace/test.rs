@@ -22,7 +22,10 @@ fn the_store_key_encoding_is_pinned() {
     assert_eq!(key.to_string(), PINNED_TURBO_KEY);
 }
 
-const PINNED_TURBO_KEY: &str = "PIN";
+/// BLAKE3 over the length-prefixed (u64 little-endian) fields
+/// `"tinymold/store/ac/v1"`, `"turbo"`, `"team_ci"`, `"7c6a9e3f0b1d2e4a"`,
+/// checked against `tinymold hash` of those bytes written to a file.
+const PINNED_TURBO_KEY: &str = "5135fd76a642f2644a56461ce0469dc02b00c06a3d46d3d600c22494626095aa";
 
 #[test]
 fn the_same_client_key_in_two_front_ends_is_two_store_keys() {
