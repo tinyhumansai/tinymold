@@ -20,14 +20,11 @@ use crate::Roots;
 /// The schema tag of every test key.
 const SCHEMA: &str = "tinymold/test/v1";
 
-/// Environment variables that only describe the terminal, the shell or
-/// tinymold itself, and so are left out of the key.
+/// Environment variables that only describe the terminal session, the
+/// shell or tinymold itself, and so are left out of the key. Those that
+/// decide how output is colored (`TERM`, `COLORTERM`, `CLICOLOR`,
+/// `CLICOLOR_FORCE`, `NO_COLOR`) stay in: a hit replays the output.
 pub const TEST_ENV_IGNORED: &[&str] = &[
-    "TERM",
-    "COLORTERM",
-    "CLICOLOR",
-    "CLICOLOR_FORCE",
-    "NO_COLOR",
     "COLUMNS",
     "LINES",
     "SHLVL",

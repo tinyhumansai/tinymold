@@ -168,11 +168,16 @@ The BLAKE3 digest of these fields in order, each length-prefixed with
    digest.
 9. **The environment** the test process receives, sorted by name, with
    absolute paths in values rewritten to `${WS}`, `${CARGO_HOME}` and
-   `${OUT}`, minus a pinned ignore list: `TERM`, `COLORTERM`, `CLICOLOR`,
-   `CLICOLOR_FORCE`, `NO_COLOR`, `COLUMNS`, `LINES`, `SHLVL`, `_`, `OLDPWD`,
-   `PWD`, `CARGO_MAKEFLAGS`, `MAKEFLAGS`, `MFLAGS`, `TERM_PROGRAM`,
-   `TERM_PROGRAM_VERSION`, `TERM_SESSION_ID`, `SSH_*`, and `TINYMOLD_*`.
-   The list is part of the encoding: changing it is a schema bump.
+   `${OUT}`, minus a pinned ignore list: `COLUMNS`, `LINES`, `SHLVL`, `_`,
+   `OLDPWD`, `PWD`, `CARGO_MAKEFLAGS`, `MAKEFLAGS`, `MFLAGS`,
+   `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `TERM_SESSION_ID`, `SSH_*`, and
+   `TINYMOLD_*`. The list is part of the encoding: changing it is a schema
+   bump. The variables that decide coloring (`TERM`, `COLORTERM`,
+   `CLICOLOR`, `CLICOLOR_FORCE`, `NO_COLOR`) are keyed, like `--color`,
+   since a hit replays the output. The ignored ones change with every
+   shell or login (`SSH_AUTH_SOCK` names a fresh socket each time), so
+   keying them would make every new shell miss. A test that depends on
+   one of them should set `cache = false` (below).
 
 `PATH` and `HOME` stay in. They make results machine-local, which is the
 v1 scope anyway.

@@ -103,6 +103,16 @@ fn every_keyed_field_moves_the_key() {
         ("--color value", |case| {
             case.args.extend(strings(&["--color", "never"]));
         }),
+        // So are the variables tools color their output by.
+        ("TERM", |case| {
+            case.env.push(("TERM".to_owned(), "xterm".to_owned()));
+        }),
+        ("NO_COLOR", |case| {
+            case.env.push(("NO_COLOR".to_owned(), "1".to_owned()));
+        }),
+        ("CLICOLOR_FORCE", |case| {
+            case.env.push(("CLICOLOR_FORCE".to_owned(), "1".to_owned()));
+        }),
         ("host", |case| case.host = "linux x86_64 6.8.0".to_owned()),
         ("package tree", |case| {
             case.package_tree = tree_digest(&[("src/lib.rs".to_owned(), Digest::of_bytes(b"x"))]);
@@ -130,9 +140,6 @@ fn ignored_env_vars_leave_the_key_alone() {
     let reference = Case::new().key();
     let changes: Vec<Change> = vec![
         ("env order", |case| case.env.reverse()),
-        ("TERM", |case| {
-            case.env.push(("TERM".to_owned(), "xterm".to_owned()));
-        }),
         ("PWD", |case| {
             case.env.push(("PWD".to_owned(), "/w/b".to_owned()));
         }),
@@ -201,8 +208,10 @@ fn a_tree_digest_does_not_depend_on_listing_order() {
 
 #[test]
 fn ignored_env_names_are_exact_or_prefixed() {
-    assert!(is_ignored_env("TERM"));
+    assert!(is_ignored_env("TERM_SESSION_ID"));
     assert!(is_ignored_env("SSH_TTY"));
+    assert!(!is_ignored_env("TERM"));
+    assert!(!is_ignored_env("NO_COLOR"));
     assert!(is_ignored_env("TINYMOLD_STORE"));
     assert!(!is_ignored_env("TERMINFO"));
     assert!(!is_ignored_env("HOME"));
