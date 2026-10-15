@@ -7,6 +7,9 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 failures=0
+roots=()
+cleanup() { [[ "${#roots[@]}" -eq 0 ]] || rm -rf "${roots[@]}"; }
+trap cleanup EXIT
 
 fail() {
   echo "FAIL ${current}: $*" >&2
@@ -18,6 +21,7 @@ fail() {
 new_runner() {
   current="$1"
   root="$(mktemp -d)"
+  roots+=("${root}")
   mkdir -p "${root}/bin" "${root}/store" "${root}/workspace" "${root}/cargo/registry/cache/index.crates.io-0"
   printf '#!/usr/bin/env bash\nexit 0\n' > "${root}/bin/tinymold"
   chmod +x "${root}/bin/tinymold"
