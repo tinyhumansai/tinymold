@@ -94,7 +94,9 @@ sharing a key.
    outcome is `remote`.
 
 Calls go through ByteStream `Read` for blobs, so blob size is not limited
-by the gRPC message size. Once an entry's signature checks out, its
+by the gRPC message size. The connection uses HTTP/2 adaptive flow-control
+windows, so reads from a distant cache are not held to a fixed window per
+round trip. Once an entry's signature checks out, its
 objects and its record are read together, within the same limits as a
 push's uploads (below), and a pre-key
 lookup reads its signature and record together: each read is a round trip,

@@ -60,7 +60,12 @@ impl Client {
     pub(crate) fn new(config: &RemoteConfig) -> Result<Self> {
         let mut endpoint = Endpoint::from_shared(config.endpoint.clone())
             .map_err(Error::Connect)?
-            .connect_timeout(config.timeout);
+            .connect_timeout(config.timeout)
+            // With hyper's fixed windows (2 MiB a stream, 5 MiB a
+            // connection), a read can move at most one window per round
+            // trip, however fast the link; adaptive windows grow to the
+            // bandwidth-delay product.
+            .http2_adaptive_window(true);
         if config.uses_tls() {
             endpoint = endpoint
                 .tls_config(ClientTlsConfig::new().with_webpki_roots())
