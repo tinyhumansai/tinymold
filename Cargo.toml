@@ -34,6 +34,7 @@ tinymold-key = { path = "crates/tinymold-key", version = "=0.0.1" }
 tinymold-wrap = { path = "crates/tinymold-wrap", version = "=0.0.1" }
 tinymold-remote = { path = "crates/tinymold-remote", version = "=0.0.1" }
 tinymold-store = { path = "crates/tinymold-store", version = "=0.0.1" }
+tinymold-server = { path = "crates/tinymold-server", version = "=0.0.1" }
 # BLAKE3 is the digest for every persisted or shared cache key and object (see
 # docs/adr/0002-blake3-for-content-digests.md). Default features keep the SIMD
 # backends and runtime CPU detection; `mmap` and `rayon` stay off until the
@@ -63,6 +64,21 @@ tokio = { version = "1", default-features = false, features = ["rt", "time", "ne
 http = { version = "1", default-features = false }
 # Turns a list of ByteStream write chunks into the request stream tonic sends.
 tokio-stream = { version = "0.1", default-features = false }
+# `tinymold serve`'s HTTP stack (docs/specs/cache-server.md): hyper serves
+# HTTP/1.1 and HTTP/2 on one listener through hyper-util's auto builder, and
+# http-body-util streams bodies. tonic already builds hyper, hyper-util,
+# http-body-util, bytes, base64 and tokio-rustls for the REAPI client, so the
+# server adds features to crates the workspace already compiles, not crates.
+hyper = { version = "1", default-features = false }
+hyper-util = { version = "0.1", default-features = false }
+http-body-util = { version = "0.1", default-features = false }
+bytes = { version = "1", default-features = false, features = ["std"] }
+# Basic-auth credentials (Gradle, Bazel HTTP, REAPI) arrive base64-encoded.
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+# TLS for `tinymold serve --tls-cert/--tls-key`, with the ring provider tonic
+# already uses; rustls-pki-types reads the PEM files.
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rustls-pki-types = { version = "1", default-features = false, features = ["std"] }
 # SHA-256 for blobs on REAPI servers that only accept it, such as bazel-remote
 # (the translation layer of docs/adr/0002-blake3-for-content-digests.md), and
 # for `tinymold-store`'s index of blobs by the SHA-256 that REAPI and Bazel
