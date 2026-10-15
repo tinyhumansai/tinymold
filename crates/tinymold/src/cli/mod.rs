@@ -63,10 +63,52 @@ pub enum Command {
     /// Share the cache through a remote REAPI server (`TINYMOLD_REMOTE_URL`).
     #[command(subcommand)]
     Remote(RemoteCommand),
+    /// Run the cache server: one store behind the remote-cache protocols of
+    /// Bazel, ccache and, as they land, REAPI, Turborepo, Nx and Gradle.
+    Serve(ServeArgs),
     /// Run a test binary, replaying a recorded pass when nothing the run can
     /// observe has changed. Set it as cargo's runner:
     /// `[target.'cfg(all())'] runner = ["tinymold", "run-test"]`.
     RunTest(RunTestArgs),
+}
+
+/// How `tinymold serve` runs.
+#[derive(Debug, Clone, Args)]
+pub struct ServeArgs {
+    /// The address to listen on. Anything but loopback needs `--tokens`.
+    #[arg(long, value_name = "ADDR", default_value = "127.0.0.1:9090")]
+    pub listen: std::net::SocketAddr,
+    /// The server's store directory. Defaults to `TINYMOLD_SERVER_DIR`, then
+    /// `tinymold-server` beside the default wrapper store; never the
+    /// wrapper's store itself.
+    #[arg(long, value_name = "DIR")]
+    pub dir: Option<PathBuf>,
+    /// The token file granting each token its scopes. Without it every
+    /// request is allowed.
+    #[arg(long, value_name = "FILE")]
+    pub tokens: Option<PathBuf>,
+    /// Let requests without a credential read.
+    #[arg(long)]
+    pub allow_anonymous_reads: bool,
+    /// Serve TLS with this PEM certificate chain.
+    #[arg(long, value_name = "FILE", requires = "tls_key")]
+    pub tls_cert: Option<PathBuf>,
+    /// The PEM private key for `--tls-cert`.
+    #[arg(long, value_name = "FILE", requires = "tls_cert")]
+    pub tls_key: Option<PathBuf>,
+    /// Evict the least recently used entries beyond this many bytes, such
+    /// as `50G`.
+    #[arg(long, value_name = "SIZE")]
+    pub max_size: Option<ByteSize>,
+    /// Remove entries unused for this long, such as `30d`.
+    #[arg(long, value_name = "AGE")]
+    pub max_age: Option<Age>,
+    /// Refuse uploads larger than this (default `4G`).
+    #[arg(long, value_name = "SIZE")]
+    pub max_body: Option<ByteSize>,
+    /// How often to collect garbage (default `10m`).
+    #[arg(long, value_name = "AGE")]
+    pub gc_interval: Option<Age>,
 }
 
 /// What `tinymold run-test` runs.
@@ -332,6 +374,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         }
         Command::Stats(args) => return run_stats(args, out),
         Command::Remote(command) => return run_remote(cli, command, env, out),
+        Command::Serve(args) => return crate::serve::run(cli, args, out),
         Command::RunTest(args) => return Ok(run_test(cli, args)),
     }
     Ok(Outcome::Success)
@@ -611,7 +654,7 @@ fn run_cas(command: &CasCommand, store: &Store, out: &mut impl Write) -> Result<
     Ok(Outcome::Success)
 }
 
-fn store_dir(cli: &Cli) -> Option<PathBuf> {
+pub(crate) fn store_dir(cli: &Cli) -> Option<PathBuf> {
     cli.store
         .clone()
         .or_else(|| default_store(|name| std::env::var_os(name)))
@@ -622,7 +665,7 @@ fn open_store(cli: &Cli) -> Result<Store> {
     Ok(Store::open(dir)?)
 }
 
-fn line(out: &mut impl Write, text: std::fmt::Arguments<'_>) -> Result<()> {
+pub(crate) fn line(out: &mut impl Write, text: std::fmt::Arguments<'_>) -> Result<()> {
     writeln!(out, "{text}").map_err(Error::Output)
 }
 

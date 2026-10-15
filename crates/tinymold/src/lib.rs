@@ -52,6 +52,7 @@ mod error;
 pub mod fresh;
 pub mod gc;
 mod location;
+mod serve;
 pub mod snapshot;
 pub mod stats;
 mod tree;

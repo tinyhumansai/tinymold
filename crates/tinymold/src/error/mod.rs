@@ -41,6 +41,25 @@ pub enum Error {
     #[error(transparent)]
     Remote(#[from] tinymold_remote::Error),
 
+    /// The cache server failed to start or stopped with an error.
+    #[cfg(feature = "server")]
+    #[error(transparent)]
+    Server(#[from] tinymold_server::Error),
+
+    /// `tinymold serve` was run on a binary built without the server.
+    #[error("this tinymold was built without the server feature")]
+    NoServer,
+
+    /// `tinymold serve` was given no directory and none could be derived
+    /// from the environment.
+    #[error("no server directory: pass --dir or set TINYMOLD_SERVER_DIR")]
+    NoServerDir,
+
+    /// `tinymold serve` was pointed at the wrapper's store, whose records
+    /// its collector would not know about.
+    #[error("refusing to serve the wrapper's store {0}: pass a separate --dir")]
+    SharedStoreDir(PathBuf),
+
     /// A remote command was run without a remote configured.
     #[error("no remote cache: set TINYMOLD_REMOTE_URL")]
     NoRemote,
