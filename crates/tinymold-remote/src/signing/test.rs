@@ -50,7 +50,7 @@ fn the_signed_message_is_pinned() {
 #[test]
 fn a_fixed_seed_gives_a_pinned_key_and_signature() {
     let signer = signer();
-    // RFC 8032 derivation of the public key for this seed.
+    // Cross-checked against the Python `cryptography` package (OpenSSL).
     assert_eq!(
         signer.public_hex(),
         "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8"
@@ -61,7 +61,7 @@ fn a_fixed_seed_gives_a_pinned_key_and_signature() {
         format!(
             "tinymold-signature 1\nkey {}\nsig {}\n",
             signer.public_hex(),
-            "PINNED"
+            "b86345bad079ce4f8c28e11f8535982acabc1916b5b1da9b2498804d30524d0e72b0d419ac639e7afeee06b07a2831df9f751efb9bdae2b1b8d35067ff2e1006"
         )
     );
 }
