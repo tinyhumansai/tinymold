@@ -8,11 +8,12 @@
 //! - [`upload`] runs a store operation on a blocking thread, feeding it the
 //!   request body chunk by chunk and stopping it when the body exceeds the
 //!   size limit;
-//! - [`download`] reads an object file on a blocking thread into a
-//!   response body.
+//! - [`open`] opens an object file on the blocking thread that looked it
+//!   up, and [`Opened::into_body`] sends it: small objects whole, larger
+//!   ones streamed from another blocking thread.
 
 use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -182,16 +183,6 @@ pub(crate) fn open(path: &Path) -> Option<Opened> {
     let mut bytes = Vec::with_capacity(usize::try_from(len).unwrap_or(0));
     file.read_to_end(&mut bytes).ok()?;
     Some(Opened::Small(Bytes::from(bytes)))
-}
-
-/// A response body holding the file at `path`, and its length, or `None`
-/// when the file is gone.
-pub(crate) async fn download(path: PathBuf) -> Option<(route::Body, u64)> {
-    let opened = tokio::task::spawn_blocking(move || open(&path))
-        .await
-        .ok()??;
-    let len = opened.len();
-    Some((opened.into_body(), len))
 }
 
 fn stream_file(mut file: std::fs::File, sender: &mpsc::Sender<io::Result<Bytes>>) {

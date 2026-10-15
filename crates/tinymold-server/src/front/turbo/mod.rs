@@ -32,7 +32,7 @@ use crate::auth::{Denied, Permission};
 use crate::front::{artifact, blocking, declared_length};
 use crate::metrics::Outcome;
 use crate::route::{self, Body, State};
-use crate::transfer::{self, UploadError};
+use crate::transfer::UploadError;
 
 /// The path prefix every Turbo endpoint lives under.
 const PREFIX: &str = "/v8/artifacts";
