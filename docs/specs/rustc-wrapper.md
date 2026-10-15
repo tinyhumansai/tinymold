@@ -151,12 +151,11 @@ accepted residual risk of this rule. A workspace crate that reads
 paths under `${CWD}` are not remapped, so they appear in its `.rmeta`.
 
 **The profile directory is remapped on every miss.** Without it the `include!`
-case fails condition 2: rustc records the included file's absolute path in the
+case fails condition 3: rustc records the included file's absolute path in the
 `.rmeta` and debuginfo. On a miss, tinymold therefore adds
 `--remap-path-prefix=<profile dir>=${PROFILE}` to the command line, before any
-`--` that ends its options, unless the
-command line already has a `--remap-path-prefix` of its own (cargo's
-`trim-paths`), in which case it adds nothing. With the remap, a crate that only
+`--` that ends its options. When the command line already has a
+`--remap-path-prefix` of its own (cargo's `trim-paths`), it adds nothing. With the remap, a crate that only
 includes generated files builds byte-identical outputs in every worktree, so
 its dependents hit as well. Dep-info keeps real paths, because rustc does not
 remap them and cargo reads them. The remap changes only where generated files
@@ -267,8 +266,8 @@ running the same compile twice.
 - **A hit is only served when every input matches.** Every input file named
   by the recorded dep-info matches by content, and every recorded env-dep
   value matches. Absolute workspace paths never enter the key except through
-  env values that reach the outputs, which then make the key path-specific,
-  and for compiles
+  env values that may reach the outputs, which then make the key
+  path-specific, and for compiles
   instrumented with `-C instrument-coverage`, whose coverage mappings embed
   the workspace path, so their pre-key includes the current directory.
 - **The store is never written in place.** Restored files are private

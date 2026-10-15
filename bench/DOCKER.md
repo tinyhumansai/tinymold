@@ -110,15 +110,18 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   a clean `target/` builds in 4.5s instead of 175s: 1410 of 1422 compiles
   hit, and the misses are build-script probes that fail by design. The
   critical path left is `libsqlite3-sys`'s build script (2.7s), which
-  tinymold does not cache. Filling the store cost nothing measurable on the
-  cold build (176s against 175s).
+  tinymold does not cache. Before the new-path fix below, filling the store
+  cost nothing measurable on the cold build (176s against 175s). With the fix
+  the cold build measured 193s; the gap is rustc compiling the core crate
+  (151s against 132s), while the fix's own work on a miss, the output scan,
+  summed to about 0.8s over the whole build.
 - **A new path missed about a quarter of the graph; fixed since.** The
   first build of a copy at another path hit 347 of 474 compiles and took
   165s. The cause: crates that `include!` a file their build script wrote
   read `env!("OUT_DIR")`, the key took that absolute path raw, and the path
   also landed in their `.rmeta`, so every dependent missed too. tinymold now
   remaps the profile directory on a miss and keys such a value normalized
-  when no output contains it ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md#the-key)).
+  when the crate uses it only to include files and no output contains it ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md#the-key)).
   Re-measured on the same machine with the fix: the first build at a new path
   takes 5.2s with 470 of 474 hits, the same as a warm build at the original
   path. The table above predates the fix.
