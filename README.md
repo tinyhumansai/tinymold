@@ -147,6 +147,20 @@ Inputs, cache keys and self-hosted runners are covered in
 [`docs/specs/github-actions.md`](docs/specs/github-actions.md), and the remote
 tier in [`docs/specs/remote.md`](docs/specs/remote.md).
 
+For Turborepo, Nx or ccache in the same job, add `serve: true`: the action
+runs `tinymold serve` on loopback for the job, points those tools at it, and
+carries its store in the same GitHub cache entry. No Rust toolchain is
+needed for that.
+
+```yaml
+  - uses: tinyhumansai/tinymold@v0
+    with:
+      serve: true
+  - run: npm ci && npx turbo run build test
+  - uses: tinyhumansai/tinymold/save@v0
+    if: always()
+```
+
 The cache never links for you. A binary that depends on the crate you edited
 is still relinked in full, while unchanged crates, binaries and test
 executables are restored without compiling or linking.
