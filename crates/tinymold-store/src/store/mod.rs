@@ -27,6 +27,7 @@ mod types;
 
 pub use types::{Claim, Ingested};
 
+use crate::disk::{io_error, read_if_present};
 use crate::sha256::Sha256Reader;
 use crate::{Entry, Error, Key, Result, Sha256};
 
@@ -230,27 +231,6 @@ fn sharded(dir: &Path, hex: &str) -> PathBuf {
 fn touch(path: &Path) {
     if let Ok(file) = fs::File::options().write(true).open(path) {
         let _ = file.set_modified(std::time::SystemTime::now());
-    }
-}
-
-fn read_if_present(path: &Path) -> Result<Option<Vec<u8>>> {
-    match fs::read(path) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(source) => Err(Error::Io {
-            action: "read",
-            path: path.to_path_buf(),
-            source,
-        }),
-    }
-}
-
-fn io_error(action: &'static str, path: &Path) -> impl FnOnce(io::Error) -> Error {
-    let path = path.to_path_buf();
-    move |source| Error::Io {
-        action,
-        path,
-        source,
     }
 }
 
