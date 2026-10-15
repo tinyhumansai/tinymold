@@ -620,6 +620,9 @@ impl Unit<'_> {
                 _ => return,
             }
         }
+        if self.links_build_shared_library() {
+            return;
+        }
         let mut exes = Vec::new();
         let mut out_dirs = Vec::new();
         for (name, value) in std::env::vars_os() {
@@ -653,6 +656,26 @@ impl Unit<'_> {
             &TestBinary::path(self.store_dir, &binary.digest),
             &record.encode(),
         );
+    }
+
+    /// Whether a native search path inside the build holds a shared
+    /// library, as a build script's `-L native=` directory may: the binary
+    /// can load it at run time, and its own bytes do not change when the
+    /// library does.
+    fn links_build_shared_library(&self) -> bool {
+        self.invocation
+            .search_paths
+            .iter()
+            .filter(|search| matches!(search.kind.as_str(), "native" | "all"))
+            .map(|search| self.cwd.join(&search.path))
+            .filter(|dir| is_build_path(&self.roots.normalize(&dir.to_string_lossy())))
+            .any(|dir| {
+                fs::read_dir(dir).is_ok_and(|entries| {
+                    entries
+                        .filter_map(std::result::Result::ok)
+                        .any(|entry| is_dylib(&entry.path()))
+                })
+            })
     }
 
     /// Where this unit records the outputs it left in its out-dir.
