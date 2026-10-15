@@ -35,7 +35,7 @@ async fn a_failing_body_is_reported_as_a_body_error() {
         Ok(Frame::data(Bytes::from_static(b"part"))),
         Err(io::Error::other("reset")),
     ];
-    let body = StreamBody::new(futures_lite_iter(chunks));
+    let body = StreamBody::new(tokio_stream::iter(chunks));
     let (result, _) = upload(body, 1024, read_all).await;
 
     assert!(matches!(result, Err(UploadError::Body)));
@@ -68,11 +68,4 @@ async fn a_missing_file_downloads_as_none() {
     let dir = tempfile::tempdir().unwrap();
 
     assert!(download(dir.path().join("gone")).await.is_none());
-}
-
-/// A stream over `items`, for building a body that fails partway.
-fn futures_lite_iter<T: Unpin>(
-    items: Vec<T>,
-) -> impl hyper::body::Body + Send + Unpin + 'static {
-    tokio_stream::iter(items)
 }
