@@ -582,14 +582,14 @@ where
     let mut bytes = 0;
     loop {
         while let Some(&(size, _)) = queue.peek() {
-            let full = running.len() >= IN_FLIGHT_CALLS || bytes + size > IN_FLIGHT_BYTES;
+            let full = running.len() >= IN_FLIGHT_CALLS || bytes.saturating_add(size) > IN_FLIGHT_BYTES;
             if full && !running.is_empty() {
                 break;
             }
             let Some((size, item)) = queue.next() else {
                 break;
             };
-            bytes += size;
+            bytes = bytes.saturating_add(size);
             let work = start(item);
             running.push(async move { (size, work.await) });
         }

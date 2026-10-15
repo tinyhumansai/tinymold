@@ -95,7 +95,8 @@ sharing a key.
 
 Calls go through ByteStream `Read` for blobs, so blob size is not limited
 by the gRPC message size. Once an entry's signature checks out, its
-objects and its record are read together, up to 32 at once, and a pre-key
+objects and its record are read together, within the same limits as a
+push's uploads (below), and a pre-key
 lookup reads its signature and record together: each read is a round trip,
 and a runner far from its cache would otherwise pay one per object on every
 hit. Each call has the configured timeout, and blob
@@ -117,8 +118,11 @@ tinymold remote push [--since <unix-seconds>]
    for the action. Pre-key entries go last, so a reader that finds an input
    set can find its action.
 
-Up to 32 uploads are in flight at once, and then up to 32 entry updates,
-every action's before any pre-key's. One at a time, a CI runner an ocean
+Up to 32 uploads, and at most 32 MiB of blobs, are in flight at once (a
+larger blob goes alone), then up to 32 entry updates, every action's before
+any pre-key's. The byte budget bounds the memory a push holds, and because
+the transfers share the link, each one's deadline allows for the whole
+32 MiB beside it at the 4 MiB/s floor: 8 s more than a transfer alone. One at a time, a CI runner an ocean
 away from its cache spent each call waiting on the round trip: chottu-core's
 first push on GitHub-hosted runners moved 1 MiB/s at about three writes a
 second.
