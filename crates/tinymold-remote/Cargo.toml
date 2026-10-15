@@ -22,6 +22,7 @@ thiserror = { workspace = true }
 # verify, so a cache open to writes can only cause misses. Pure Rust with no
 # dependencies beyond getrandom, which `remote keygen` needs for a seed.
 ed25519-compact = { version = "2", default-features = false, features = ["random"] }
+futures-util = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = { workspace = true }
 tonic = { workspace = true }

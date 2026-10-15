@@ -31,6 +31,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
+use futures_util::{StreamExt as _, stream};
 use tinymold_cas::Store;
 use tinymold_hash::Digest;
 use tinymold_wrap::{RecordKind, RemoteError};
@@ -46,6 +47,11 @@ pub use types::{Capabilities, PushReport};
 
 /// How many digests one `FindMissingBlobs` call asks about.
 const FIND_BATCH: usize = 1000;
+
+/// How many uploads, or entry updates, `push` keeps in flight at once. Each
+/// is a round trip; a CI runner an ocean away from its cache spends most of
+/// a call waiting, and one at a time leaves the link nearly idle.
+const IN_FLIGHT: usize = 32;
 
 /// How long `push` waits before each retry of a call that timed out or
 /// found the server unavailable. A server behind a saturated disk can stall
@@ -242,56 +248,74 @@ impl RemoteCache {
             let mut failed = HashSet::new();
             let mut last = None;
             let digests: Vec<proto::Digest> = blobs.keys().cloned().collect();
+            let mut missing = Vec::new();
             for batch in digests.chunks(FIND_BATCH) {
-                let missing = retrying(|| self.client.find_missing(batch.to_vec())).await?;
-                for missing in missing {
-                    let data = match blobs.get(&missing) {
+                missing.extend(retrying(|| self.client.find_missing(batch.to_vec())).await?);
+            }
+            let (store, blobs) = (&store, &blobs);
+            let mut uploads = stream::iter(missing)
+                .map(|digest| async move {
+                    let data = match blobs.get(&digest) {
                         Some(Source::Bytes(bytes)) => bytes.clone(),
                         Some(Source::Object(object)) => store.read(object)?,
                         // The server asked about a blob nobody sent it.
-                        None => continue,
+                        None => return Ok(None),
                     };
-                    match retrying(|| self.client.write(&missing, &data)).await {
-                        Ok(()) => {
-                            report.blobs += 1;
-                            report.bytes += data.len() as u64;
-                        }
+                    let result = retrying(|| self.client.write(&digest, &data)).await;
+                    Ok::<_, Error>(Some((digest, data.len(), result)))
+                })
+                .buffer_unordered(IN_FLIGHT);
+            while let Some(upload) = uploads.next().await {
+                let Some((digest, size, result)) = upload? else {
+                    continue;
+                };
+                match result {
+                    Ok(()) => {
+                        report.blobs += 1;
+                        report.bytes += size as u64;
+                    }
+                    Err(error) if transient(&error) => {
+                        failed.insert(digest);
+                        last = Some(error);
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+            drop(uploads);
+            // An entry goes up only once every blob it names is there, and
+            // every action before any pre-key record.
+            for (entries, action) in [(actions, true), (prekeys, false)] {
+                let mut ready = Vec::new();
+                for (key, result) in entries {
+                    let complete = result
+                        .output_files
+                        .iter()
+                        .filter_map(|file| file.digest.as_ref())
+                        .all(|digest| !failed.contains(digest));
+                    if complete {
+                        ready.push((key, result));
+                    } else {
+                        report.failed += 1;
+                    }
+                }
+                let mut updates = stream::iter(ready)
+                    .map(|(key, result)| {
+                        retrying(move || {
+                            self.client
+                                .update_action_result(key.clone(), result.clone())
+                        })
+                    })
+                    .buffer_unordered(IN_FLIGHT);
+                while let Some(update) = updates.next().await {
+                    match update {
+                        Ok(()) if action => report.actions += 1,
+                        Ok(()) => report.prekeys += 1,
                         Err(error) if transient(&error) => {
-                            failed.insert(missing);
+                            report.failed += 1;
                             last = Some(error);
                         }
                         Err(error) => return Err(error),
                     }
-                }
-            }
-            // An entry goes up only once every blob it names is there.
-            let entries = actions
-                .into_iter()
-                .map(|entry| (entry, true))
-                .chain(prekeys.into_iter().map(|entry| (entry, false)));
-            for ((key, result), action) in entries {
-                let complete = result
-                    .output_files
-                    .iter()
-                    .filter_map(|file| file.digest.as_ref())
-                    .all(|digest| !failed.contains(digest));
-                if !complete {
-                    report.failed += 1;
-                    continue;
-                }
-                match retrying(|| {
-                    self.client
-                        .update_action_result(key.clone(), result.clone())
-                })
-                .await
-                {
-                    Ok(()) if action => report.actions += 1,
-                    Ok(()) => report.prekeys += 1,
-                    Err(error) if transient(&error) => {
-                        report.failed += 1;
-                        last = Some(error);
-                    }
-                    Err(error) => return Err(error),
                 }
             }
             Ok::<_, Error>(last)
