@@ -5,11 +5,13 @@
 //! `docs/specs/test-cache.md`:
 //!
 //! 1. decide whether the run may be cached: not a bench or coverage run, not
-//!    opted out, and a binary the wrapper built from a `--test` compile;
+//!    opted out, no input on stdin, and a binary the wrapper built from a
+//!    `--test` compile;
 //! 2. compute the test key from the binary's digest, the arguments, the
 //!    host, the package tree, the declared inputs and the environment;
 //! 3. on a hit, replay the recorded stdout and stderr and exit 0;
-//! 4. on a miss, run the binary with its output streamed through, and
+//! 4. on a miss, run the binary with an empty stdin and its output streamed
+//!    through, and
 //!    record the run if it passed and no file under the package changed
 //!    while it ran.
 //!
@@ -19,7 +21,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::Instant;
 
 use tinymold_cas::Store;
@@ -49,6 +51,44 @@ pub struct TestCommand<'a> {
     pub cwd: &'a Path,
     /// The whole environment the binary runs with.
     pub env: &'a [(OsString, OsString)],
+    /// Whether the binary's stdin may carry input, as a pipe or a file does
+    /// (see [`stdin_has_input`]). The key does not cover stdin, so such a
+    /// run is never cached; any other run the cache serves reads an empty
+    /// stdin.
+    pub stdin_has_input: bool,
+}
+
+/// Whether this process's stdin may carry input for a test to read: true
+/// unless it is a terminal or the null device. A closed or unreadable stdin
+/// counts as input, since nothing says it is empty.
+#[must_use]
+pub fn stdin_has_input() -> bool {
+    use std::io::IsTerminal;
+    let stdin = io::stdin();
+    if stdin.is_terminal() {
+        return false;
+    }
+    !is_null_device(&stdin)
+}
+
+/// Whether `stdin` is the null device.
+#[cfg(unix)]
+fn is_null_device(stdin: &io::Stdin) -> bool {
+    use std::os::fd::AsFd;
+    use std::os::unix::fs::MetadataExt;
+    let Ok(fd) = stdin.as_fd().try_clone_to_owned() else {
+        return false;
+    };
+    match (fs::File::from(fd).metadata(), fs::metadata("/dev/null")) {
+        (Ok(stdin), Ok(null)) => stdin.dev() == null.dev() && stdin.ino() == null.ino(),
+        _ => false,
+    }
+}
+
+/// Whether `stdin` is the null device; never assumed off Unix.
+#[cfg(not(unix))]
+fn is_null_device(_stdin: &io::Stdin) -> bool {
+    false
 }
 
 /// Runs one test binary, replaying a recorded pass when nothing the run
@@ -97,7 +137,10 @@ fn serve(config: &Config, command: &TestCommand<'_>, prepared: &Prepared, starte
         return recorded;
     }
     let (program, args) = program_and_args(command);
-    let captured = match exec::capture(build(command, program, &args), program) {
+    // The key covers no stdin, so the run it describes reads none.
+    let mut process = build(command, program, &args);
+    process.stdin(Stdio::null());
+    let captured = match exec::capture(process, program) {
         Ok(captured) => captured,
         Err(error) => {
             eprintln!("tinymold: {error}");
@@ -186,6 +229,9 @@ fn prepare(
     };
     if var("TINYMOLD_TEST_CACHE") == Some("0") {
         return Ok(Err("TINYMOLD_TEST_CACHE=0"));
+    }
+    if command.stdin_has_input {
+        return Ok(Err("stdin may carry input"));
     }
     if args.iter().any(|arg| arg == "--bench") {
         return Ok(Err("a bench run"));

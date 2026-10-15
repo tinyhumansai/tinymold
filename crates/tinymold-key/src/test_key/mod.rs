@@ -84,9 +84,10 @@ pub fn test_key(inputs: &TestKeyInputs<'_>) -> Digest {
         None => hasher.field(b""),
     };
 
-    let args = keyed_args(inputs.args);
-    hasher.field(&(args.len() as u64).to_le_bytes());
-    for arg in args {
+    // Every argument, `--color` too: the replayed output is printed with
+    // whatever coloring the recorded run chose.
+    hasher.field(&(inputs.args.len() as u64).to_le_bytes());
+    for arg in inputs.args {
         hasher.field(roots.normalize(arg).as_bytes());
     }
     hasher.field(inputs.host.as_bytes());
@@ -131,21 +132,6 @@ pub fn is_ignored_env(name: &str) -> bool {
         || TEST_ENV_IGNORED_PREFIXES
             .iter()
             .any(|prefix| name.starts_with(prefix))
-}
-
-/// The arguments the key covers: all of them, in order, except `--color`
-/// and its value, which only change how output is printed.
-fn keyed_args(args: &[String]) -> Vec<&str> {
-    let mut keyed = Vec::with_capacity(args.len());
-    let mut rest = args.iter();
-    while let Some(arg) = rest.next() {
-        if arg == "--color" {
-            rest.next();
-        } else if !arg.starts_with("--color=") {
-            keyed.push(arg.as_str());
-        }
-    }
-    keyed
 }
 
 #[cfg(test)]
