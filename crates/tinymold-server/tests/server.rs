@@ -203,13 +203,20 @@ fn an_address_in_use_is_a_bind_error() {
     assert!(matches!(Server::bind(&taken), Err(Error::Bind { .. })));
 }
 
+/// A configuration serving TLS with a self-signed certificate for
+/// `localhost` and `127.0.0.1`, made for this test.
 fn tls_config(dir: &tempfile::TempDir) -> Config {
-    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tls");
+    let rcgen::CertifiedKey { cert, signing_key } =
+        rcgen::generate_simple_self_signed(vec!["localhost".to_owned(), "127.0.0.1".to_owned()])
+            .unwrap();
+    let files = TlsFiles {
+        cert: dir.path().join("cert.pem"),
+        key: dir.path().join("key.pem"),
+    };
+    std::fs::write(&files.cert, cert.pem()).unwrap();
+    std::fs::write(&files.key, signing_key.serialize_pem()).unwrap();
     let mut config = config(dir);
-    config.tls = Some(TlsFiles {
-        cert: fixtures.join("cert.pem"),
-        key: fixtures.join("key.pem"),
-    });
+    config.tls = Some(files);
     config
 }
 
