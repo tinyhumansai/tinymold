@@ -248,6 +248,12 @@ jobs:
           remote-url: grpc://127.0.0.1:9092
           remote-auth: ${{ env.REMOTE_AUTH }}
 
+      # Sign every pushed entry and trust only this key, so the build from
+      # the remote alone below proves signed entries verify against a real
+      # server. A throwaway key, like the credential above.
+      - name: Sign entries with a fresh key
+        run: tinymold remote keygen >> "${GITHUB_ENV}"
+
       - name: Check the server and the credential
         run: tinymold remote check
 
