@@ -264,6 +264,36 @@ fn a_blob_over_the_budget_still_goes_up_alone() {
 }
 
 #[test]
+fn a_fetch_keeps_its_record_within_the_call_limit() {
+    // One action of 40 outputs: its record is read under the same limit as
+    // the objects, not as one call beyond it.
+    let server = Server::start();
+    let local = Local::new();
+    let empty = local.store.insert_bytes(b"").unwrap();
+    let mut record = format!("tinymold-action 1\nstdout {empty}\nstderr {empty}\n");
+    for n in 0..40 {
+        let object = local
+            .store
+            .insert_bytes(format!("part {n}").as_bytes())
+            .unwrap();
+        record.push_str(&format!("output {object} 0 0 part{n}\n"));
+    }
+    let key = Digest::of_bytes(b"many parts");
+    write(&local.root.join("entries/demo").join(key.to_hex()), &record);
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    server.with(|state| state.delay = Some(Duration::from_millis(50)));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fresh = Store::open(elsewhere.path()).unwrap();
+    assert_eq!(
+        cache.fetch_action(&key, &fresh).unwrap().as_deref(),
+        Some(record.as_str())
+    );
+    let peak = server.with(|state| state.peak_in_flight["Read"]);
+    assert_eq!(peak, IN_FLIGHT_CALLS as u64);
+}
+
+#[test]
 fn every_action_goes_up_before_any_pre_key() {
     // A reader finds actions through pre-keys, so a pre-key must never land
     // before the actions it leads to.
