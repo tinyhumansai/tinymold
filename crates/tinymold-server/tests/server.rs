@@ -201,3 +201,31 @@ fn an_address_in_use_is_a_bind_error() {
 
     assert!(matches!(Server::bind(&taken), Err(Error::Bind { .. })));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stopping_the_server_trims_the_store_to_its_budget() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = config(&dir);
+    config.max_size = Some(1024);
+    let server = Server::bind(&config).unwrap();
+    let addr = server.local_addr();
+    let (stop, stopped) = oneshot::channel::<()>();
+    let task = tokio::spawn(server.run(async {
+        let _ = stopped.await;
+    }));
+
+    // Three 1 KiB action results against a 1 KiB budget.
+    for name in [b"one".as_slice(), b"two", b"three"] {
+        let path = format!("/ac/{}", Sha256::of_bytes(name));
+        let mut body = vec![0_u8; 1024];
+        body[0] = name[0];
+        body[1] = name[1];
+        assert_eq!(http1(addr, Method::PUT, &path, body).await.0, StatusCode::OK);
+    }
+    let _ = stop.send(());
+    task.await.unwrap().unwrap();
+
+    let store = tinymold_store::Store::open(&config.store).unwrap();
+    let bytes: u64 = store.cas().objects().unwrap().iter().map(|object| object.size).sum();
+    assert!(bytes <= 1024, "{bytes} bytes kept, over the 1024-byte budget");
+}
