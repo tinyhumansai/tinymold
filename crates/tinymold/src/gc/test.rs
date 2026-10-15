@@ -52,6 +52,24 @@ impl Fixture {
         path
     }
 
+    /// Writes an action of the unit whose dep-info is `unit`, naming
+    /// `outputs`, last used `age` ago.
+    fn unit_action(&self, name: &str, unit: &str, outputs: &[Digest], age: Duration) -> PathBuf {
+        let empty = self.object(b"", 2 * DAY);
+        let mut text = format!(
+            "tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {empty} 0 1 {unit}\n"
+        );
+        for (index, digest) in outputs.iter().enumerate() {
+            writeln!(text, "output {digest} 0 0 out{index}").unwrap();
+        }
+        let path = self
+            .root
+            .join("entries/demo")
+            .join(Digest::of_bytes(name.as_bytes()).to_hex());
+        write(&path, &text, self.now - age);
+        path
+    }
+
     fn policy(&self) -> Policy {
         Policy {
             now: self.now,
@@ -450,6 +468,77 @@ fn usage_of_a_missing_store_is_zero_and_creates_nothing() {
     let missing = dir.path().join("none");
     assert_eq!(usage(&missing).unwrap(), StoreUsage::default());
     assert!(!missing.exists());
+}
+
+#[test]
+fn each_unit_keeps_only_its_most_recent_generations() {
+    let fixture = Fixture::new();
+    let first = fixture.object(b"first edit", 3 * DAY);
+    let second = fixture.object(b"second edit", 3 * DAY);
+    let third = fixture.object(b"third edit", 3 * DAY);
+    let carried = fixture.object(b"carried over", 3 * DAY);
+    let oldest = fixture.unit_action("1", "demo-1.d", &[first, carried], Duration::from_secs(300));
+    let middle = fixture.unit_action(
+        "2",
+        "demo-1.d",
+        &[second, carried],
+        Duration::from_secs(200),
+    );
+    let newest = fixture.unit_action("3", "demo-1.d", &[third, carried], Duration::from_secs(100));
+    // Another unit of the same crate, and an action naming no unit: neither
+    // is a generation of `demo-1`.
+    let other = fixture.unit_action("4", "demo-2.d", &[first], Duration::from_secs(400));
+    let unnamed = fixture.action("5", &[second], Duration::from_secs(500));
+
+    let report = collect(
+        &fixture.root,
+        &Policy {
+            keep_generations: Some(2),
+            ..fixture.policy()
+        },
+    )
+    .unwrap();
+
+    assert!(!oldest.exists());
+    assert!(middle.exists() && newest.exists());
+    assert!(other.exists() && unnamed.exists());
+    assert_eq!(report.actions_removed, 1);
+    // `first` is still the other unit's, so no object is freed yet.
+    assert!(fixture.store.contains(&first));
+    assert!(fixture.store.contains(&carried));
+
+    let report = collect(
+        &fixture.root,
+        &Policy {
+            keep_generations: Some(1),
+            ..fixture.policy()
+        },
+    )
+    .unwrap();
+    assert!(!middle.exists() && newest.exists());
+    assert_eq!(report.actions_removed, 1);
+    // The unnamed action still needs `second`.
+    assert!(fixture.store.contains(&second));
+    assert!(fixture.store.contains(&third) && fixture.store.contains(&carried));
+}
+
+#[test]
+fn a_shorter_grace_sweeps_young_unreferenced_objects() {
+    let fixture = Fixture::new();
+    let young = fixture.object(b"just evicted", Duration::from_secs(60));
+    let policy = fixture.policy();
+    collect(&fixture.root, &policy).unwrap();
+    assert!(fixture.store.contains(&young));
+
+    collect(
+        &fixture.root,
+        &Policy {
+            grace: Duration::ZERO,
+            ..policy
+        },
+    )
+    .unwrap();
+    assert!(!fixture.store.contains(&young));
 }
 
 impl Fixture {

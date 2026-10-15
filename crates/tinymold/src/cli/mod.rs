@@ -121,6 +121,10 @@ pub struct GcArgs {
     /// Remove entries not used for this long, such as `14d` or `36h`.
     #[arg(long, value_name = "AGE")]
     pub max_age: Option<Age>,
+    /// Keep at most this many entries per compiled unit, the most recently
+    /// used; older edits of the same crate go.
+    #[arg(long, value_name = "N")]
+    pub keep_generations: Option<usize>,
     /// Evict the least recently used entries while the store is larger than
     /// this, such as `10G`.
     #[arg(long, value_name = "SIZE")]
@@ -128,6 +132,11 @@ pub struct GcArgs {
     /// Remove `target/` snapshots saved longer ago than this.
     #[arg(long, value_name = "AGE")]
     pub snapshots_max_age: Option<Age>,
+    /// Leave unreferenced objects and temporaries younger than this, in case
+    /// a build is storing them right now (default `1h`). Lower it only when
+    /// no build is running, as at the end of a CI job.
+    #[arg(long, value_name = "AGE")]
+    pub grace: Option<Age>,
     /// Report what would be removed without removing it.
     #[arg(long)]
     pub dry_run: bool,
@@ -311,9 +320,11 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
             let store = store_dir(cli).ok_or(Error::NoStoreLocation)?;
             let policy = gc::Policy {
                 max_age: args.max_age.map(|age| age.0),
+                keep_generations: args.keep_generations,
                 max_size: args.max_size.map(|size| size.0),
                 snapshots_max_age: args.snapshots_max_age.map(|age| age.0),
                 dry_run: args.dry_run,
+                grace: args.grace.map_or(gc::GRACE, |age| age.0),
                 ..gc::Policy::garbage_only()
             };
             let report = gc::collect(&store, &policy)?;

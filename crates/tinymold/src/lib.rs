@@ -45,6 +45,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+pub mod autogc;
 mod cli;
 mod doctor;
 mod error;

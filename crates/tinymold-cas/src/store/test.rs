@@ -295,3 +295,20 @@ fn storing_bytes_already_present_refreshes_the_objects_time() {
     store.insert_file(&source).unwrap();
     assert!(modified(&store) > old + Duration::from_secs(3600));
 }
+
+#[test]
+fn keeping_an_object_refreshes_its_time_and_reports_whether_it_exists() {
+    use std::time::{Duration, SystemTime};
+
+    let (_dir, store) = store();
+    let digest = store.insert_bytes(b"kept").unwrap();
+    let old = SystemTime::now() - Duration::from_secs(7 * 24 * 3600);
+    fs::File::open(store.object_path(&digest))
+        .unwrap()
+        .set_modified(old)
+        .unwrap();
+
+    assert!(store.keep(&digest));
+    assert!(store.objects().unwrap()[0].modified > old + Duration::from_secs(3600));
+    assert!(!store.keep(&Digest::of_bytes(b"never stored")));
+}

@@ -59,3 +59,15 @@ pub struct RecordFile {
     /// time they were written or last served a hit.
     pub last_used: SystemTime,
 }
+
+/// What one action needs and which compile it records.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ActionInfo {
+    /// Every object the action needs: its outputs and its replayed text.
+    pub references: Vec<Digest>,
+    /// The name of its dep-info output, such as `serde-1a2b3c4d5e6f7a8b.d`,
+    /// which names the cargo unit it compiled: successive compiles of one
+    /// unit, edit after edit, share it. `None` for an action without one.
+    pub unit: Option<String>,
+}

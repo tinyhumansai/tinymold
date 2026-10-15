@@ -158,6 +158,7 @@ struct Parser {
     search_paths: Vec<SearchPath>,
     linker: Option<PathBuf>,
     test: bool,
+    incremental: Option<PathBuf>,
     key_args: Vec<KeyArg>,
 }
 
@@ -222,6 +223,7 @@ impl Parser {
             search_paths: self.search_paths,
             linker: self.linker,
             test: self.test,
+            incremental: self.incremental,
             key_args: self.key_args,
         })
     }
@@ -300,7 +302,8 @@ impl Parser {
         match (key, setting) {
             // Where incremental state lives is not an input; whether the
             // compile is incremental is kept, since it changes output bytes.
-            ("incremental", _) => {
+            ("incremental", dir) => {
+                self.incremental = dir.map(PathBuf::from);
                 self.text("-C incremental".to_owned());
                 return;
             }

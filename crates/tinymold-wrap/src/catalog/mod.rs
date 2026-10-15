@@ -20,7 +20,7 @@ use crate::error::io;
 use crate::record::{self, Action};
 use crate::test_record::TestRun;
 
-pub use types::{RecordFile, RecordKind};
+pub use types::{ActionInfo, RecordFile, RecordKind};
 
 /// Lists every record and cache file in the store at `store`.
 ///
@@ -88,6 +88,38 @@ pub fn records(store: &Path) -> Result<Vec<RecordFile>> {
     Ok(found)
 }
 
+/// What the action at `path` needs and which unit it compiled; see
+/// [`ActionInfo`].
+///
+/// # Errors
+///
+/// Returns [`Error::CorruptRecord`](crate::Error::CorruptRecord) when the
+/// record is missing or does not parse, and [`Error::Io`](crate::Error::Io)
+/// when it cannot be read.
+pub fn action_info(path: &Path) -> Result<ActionInfo> {
+    let Some(text) = record::read(path)? else {
+        return Err(crate::Error::CorruptRecord {
+            path: path.to_path_buf(),
+            line: 0,
+        });
+    };
+    let action = Action::decode(&text, path)?;
+    let unit = action
+        .outputs
+        .iter()
+        .find(|output| {
+            output.text
+                && Path::new(&output.name)
+                    .extension()
+                    .is_some_and(|ext| ext == "d")
+        })
+        .map(|output| output.name.clone());
+    Ok(ActionInfo {
+        references: action.references(),
+        unit,
+    })
+}
+
 /// Every object the action recorded at `path` needs to be restored: its
 /// outputs and its replayed stdout and stderr.
 ///
@@ -97,13 +129,7 @@ pub fn records(store: &Path) -> Result<Vec<RecordFile>> {
 /// and [`Error::CorruptRecord`](crate::Error::CorruptRecord) when it does not
 /// parse, or is gone.
 pub fn action_references(path: &Path) -> Result<Vec<Digest>> {
-    let Some(text) = record::read(path)? else {
-        return Err(crate::Error::CorruptRecord {
-            path: path.to_path_buf(),
-            line: 0,
-        });
-    };
-    Ok(Action::decode(&text, path)?.references())
+    Ok(action_info(path)?.references)
 }
 
 /// Every object the test run recorded at `path` needs to be replayed: its

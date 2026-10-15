@@ -31,16 +31,18 @@ use tinymold_hash::Digest;
 use tinymold_key::{DepInfo, Invocation, KEY_ENV, PreKeyInputs, Roots, full_key, pre_key};
 
 use crate::clock::{filesystem_now, written_before};
+use crate::driver;
 use crate::error::io;
 use crate::exec::{self, Captured};
 use crate::flight::{self, Claim};
 use crate::parallel;
 use crate::placed::{Placed, Placement};
 use crate::record::{
-    self, Action, EnvDep, Identity, Input, InputSet, MAX_SETS, Output, decode_sets, encode_sets,
-    write_atomically,
+    self, Action, EnvDep, Identity, Input, InputSet, MAX_SETS, Output, SessionRecord, decode_sets,
+    encode_sets, write_atomically,
 };
 use crate::remote::{Remote, RemoteError};
+use crate::session;
 use crate::stat;
 use crate::test_record::{TestBinary, is_build_path};
 use crate::trace::Trace;
@@ -130,7 +132,7 @@ pub(crate) fn serve(
         cwd,
         now_ns: filesystem_now(&store_dir.join("stat"))?,
     };
-    let pre = trace.span("pre_key", || unit.pre_key(program))?;
+    let pre = trace.span("pre_key", || unit.pre_key(program, args))?;
     let found = trace.span("lookup", || unit.lookup(&pre))?;
     if unit.restore_hit(&pre, found.hit, trace) {
         return Ok(Served::Hit { waited: None });
@@ -209,9 +211,22 @@ impl<E: Into<Error>> From<E> for Unstorable {
 }
 
 impl Unit<'_> {
-    fn pre_key(&self, program: &Path) -> Result<Digest> {
+    fn pre_key(&self, program: &Path, args: &[OsString]) -> Result<Digest> {
         let invocation = self.invocation;
-        let rustc_version = stat::rustc_version(self.store_dir, program)?;
+        let first = args.first().and_then(|arg| arg.to_str()).unwrap_or("");
+        let (rustc, driver) = if driver::is_clippy(program, &[first]) {
+            let identity = driver::clippy_identity(
+                self.store_dir,
+                program,
+                &driver::config_start(&self.cwd),
+                &self.roots,
+                self.now_ns,
+            )?;
+            (Path::new(first), Some(identity))
+        } else {
+            (program, None)
+        };
+        let rustc_version = stat::rustc_version(self.store_dir, rustc)?;
         let externs = invocation
             .externs
             .iter()
@@ -243,6 +258,7 @@ impl Unit<'_> {
             externs: &externs,
             search_paths: &search_paths,
             linker: linker.as_deref(),
+            driver: driver.as_deref(),
         }))
     }
 
@@ -513,6 +529,7 @@ impl Unit<'_> {
         };
         let placements: Vec<Placement> = placements.into_iter().flatten().collect();
         Placed::save(&record, &placements)?;
+        self.restore_session(action);
         // Like rustc, report errors writing our own output only through the
         // exit status of whoever reads it.
         let _ = io::stdout().lock().write_all(stdout.as_bytes());
@@ -699,6 +716,7 @@ impl Unit<'_> {
             stdout: self.store_text(&captured.stdout)?,
             stderr: self.store_text(&captured.stderr)?,
             outputs,
+            session: self.ingest_session(&placements),
         };
         write_atomically(&self.action_path(&key), &action.encode())?;
         Placed::save(&self.placed_path(), &placements)?;
@@ -711,6 +729,35 @@ impl Unit<'_> {
         };
         self.remember_set(pre, set)?;
         Ok(())
+    }
+
+    /// Stores the incremental session this compile left, when it was
+    /// incremental and wrote object files; `None` when there is none to
+    /// find or it cannot be stored, which only leaves a later hit's next
+    /// edit cold.
+    fn ingest_session(&self, placements: &[Placement]) -> Option<SessionRecord> {
+        let incremental = self.cwd.join(self.invocation.incremental.as_ref()?);
+        let known: HashMap<(u64, u64), Digest> = placements
+            .iter()
+            .filter(|(name, _, _)| is_object(name))
+            .map(|(_, identity, digest)| ((identity.dev, identity.ino), *digest))
+            .collect();
+        let inodes = known.keys().copied().collect();
+        let (crate_dir, name) = session::find(
+            &incremental,
+            &self.invocation.crate_name,
+            &inodes,
+            self.now_ns,
+        )?;
+        session::store(&self.store, &crate_dir, &name, &known).ok()
+    }
+
+    /// Restores the incremental session `action` carries, when this unit's
+    /// incremental directory has none of its own (see [`session`]).
+    fn restore_session(&self, action: &Action) {
+        if let (Some(record), Some(incremental)) = (&action.session, &self.invocation.incremental) {
+            let _ = session::restore(&self.store, record, &self.cwd.join(incremental));
+        }
     }
 
     /// Stores every output this compile wrote and describes them, with the
@@ -742,7 +789,10 @@ impl Unit<'_> {
         // An incremental compile with split debuginfo writes hundreds of
         // object files; storing them one by one would hold cargo up for
         // longer than the compile's own link.
-        let mut outputs = parallel::map(&found, "storing outputs", |file| self.store_output(file))?;
+        let placed = Placed::load(&self.placed_path()).unwrap_or_default();
+        let mut outputs = parallel::map(&found, "storing outputs", |file| {
+            self.store_output(file, &placed)
+        })?;
         outputs.sort_by(|a, b| a.name.cmp(&b.name));
         let identities: HashMap<&str, Identity> = found
             .iter()
@@ -759,16 +809,20 @@ impl Unit<'_> {
         Ok((outputs, placements))
     }
 
-    /// Stores one output file.
+    /// Stores one output file, unless `placed` shows it is one the store
+    /// already holds and rustc left untouched.
     fn store_output(
         &self,
         (name, path, meta): &(String, PathBuf, fs::Metadata),
+        placed: &Placed,
     ) -> std::result::Result<Output, Unstorable> {
         let extension = Path::new(name).extension().and_then(|ext| ext.to_str());
         let text = extension == Some("d");
         let digest = if text {
             let content = fs::read(path).map_err(io("read", path))?;
             self.store_text(&content)?
+        } else if let Some(digest) = self.carried_over(name, meta, placed) {
+            digest
         } else {
             let digest = self.store.insert_file(path)?;
             if is_library(name) {
@@ -783,6 +837,21 @@ impl Unit<'_> {
             executable: is_executable(meta),
             text,
         })
+    }
+
+    /// The digest of an output this compile did not write: one the last hit
+    /// or miss placed, with the recorded identity, an mtime from before the
+    /// compile's clock reading, and its object still in the store. Incremental
+    /// rustc carries most objects over this way, and hashing them again
+    /// would cost an edit more than compiling the ones that changed.
+    fn carried_over(&self, name: &str, meta: &fs::Metadata, placed: &Placed) -> Option<Digest> {
+        carried_over(
+            &self.store,
+            placed,
+            name,
+            stat::identity_of(meta),
+            self.now_ns,
+        )
     }
 
     /// Every entry of the out-dir whose name starts with one of this unit's
@@ -916,6 +985,28 @@ fn set_mode(path: &Path, _executable: bool) -> Result<()> {
     #[allow(clippy::permissions_set_readonly_false)]
     permissions.set_readonly(false);
     fs::set_permissions(path, permissions).map_err(io("set the mode of", path))
+}
+
+/// The digest of the output `name`, whose identity is now `identity`, when
+/// `placed` records that very file and the store still holds its object,
+/// refreshed for `tinymold gc`'s grace period. `now_ns` is the compile's clock
+/// reading.
+fn carried_over(
+    store: &Store,
+    placed: &Placed,
+    name: &str,
+    identity: Identity,
+    now_ns: u64,
+) -> Option<Digest> {
+    // A file rustc rewrote during the compile may keep its size, and on a
+    // coarse clock its mtime; only one written before the compile began is
+    // known to be the recorded file.
+    if !written_before(identity.mtime_ns, now_ns) {
+        return None;
+    }
+    placed
+        .digest_of(name, identity)
+        .filter(|digest| store.keep(digest))
 }
 
 #[cfg(test)]
