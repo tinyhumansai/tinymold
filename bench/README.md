@@ -4,8 +4,8 @@ tinymold exists to make Rust builds faster and smaller, so every claim it makes
 has to come with a number anyone can reproduce. This directory holds the
 harness, the corpus it builds, and the results it has produced.
 
-Six benchmarks exist today. All of them measure plain cargo, sccache, or the
-store alone, so together they are the baseline every later phase has to beat:
+Each benchmark measures tinymold against plain cargo, sccache, or both, so
+together they are the baseline every later phase has to beat:
 
 - **`commands`**: what a warm cache saves each command developers, CI and
   agents run: `cargo build`, `cargo clippy --all-targets`, `cargo test`
