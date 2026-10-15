@@ -44,6 +44,8 @@ mod server;
 mod transfer;
 
 pub use auth::{Access, Denied, Permission, Tokens};
-pub use config::{Config, DEFAULT_GC_INTERVAL, DEFAULT_LISTEN, DEFAULT_MAX_BODY, TlsFiles};
+pub use config::{
+    Config, DEFAULT_GC_INTERVAL, DEFAULT_LISTEN, DEFAULT_MAX_AGE, DEFAULT_MAX_BODY, TlsFiles,
+};
 pub use error::{Error, Result};
 pub use server::{Server, shutdown_signal};

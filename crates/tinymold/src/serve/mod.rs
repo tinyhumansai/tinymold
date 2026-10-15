@@ -93,7 +93,9 @@ pub(crate) fn config(args: &ServeArgs, dir: PathBuf) -> tinymold_server::Config 
         });
     }
     config.max_size = args.max_size.map(|size| size.0);
-    config.max_age = args.max_age.map(|age| age.0);
+    if let Some(age) = args.max_age {
+        config.max_age = Some(age.0);
+    }
     if let Some(size) = args.max_body {
         config.max_body = size.0;
     }

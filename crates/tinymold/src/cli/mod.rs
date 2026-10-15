@@ -104,7 +104,7 @@ pub struct ServeArgs {
     /// as `50G`.
     #[arg(long, value_name = "SIZE")]
     pub max_size: Option<ByteSize>,
-    /// Remove entries unused for this long, such as `30d`.
+    /// Remove entries unused for this long, such as `30d` (default `48h`).
     #[arg(long, value_name = "AGE")]
     pub max_age: Option<Age>,
     /// Refuse uploads larger than this (default `4G`).

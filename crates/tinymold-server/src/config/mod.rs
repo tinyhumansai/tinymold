@@ -12,6 +12,10 @@ pub const DEFAULT_LISTEN: &str = "127.0.0.1:9090";
 /// artifact a cache should hold.
 pub const DEFAULT_MAX_BODY: u64 = 4 << 30;
 
+/// How long an entry no client reads or writes is kept by default: two
+/// days, as `docs/specs/cache-server.md` sets for `--max-age`.
+pub const DEFAULT_MAX_AGE: Duration = Duration::from_secs(48 * 3600);
+
 /// How often the server collects garbage by default.
 pub const DEFAULT_GC_INTERVAL: Duration = Duration::from_secs(600);
 
@@ -40,7 +44,8 @@ pub struct Config {
     pub tls: Option<TlsFiles>,
     /// Evict least recently used entries beyond this many object bytes.
     pub max_size: Option<u64>,
-    /// Remove entries unused for this long.
+    /// Remove entries unused for this long; `None` keeps them whatever
+    /// their age.
     pub max_age: Option<Duration>,
     /// How often to collect garbage.
     pub gc_interval: Duration,
@@ -51,7 +56,7 @@ pub struct Config {
 
 impl Config {
     /// A configuration serving `store` on [`DEFAULT_LISTEN`], open, without
-    /// TLS or limits.
+    /// TLS or a size budget, expiring entries after [`DEFAULT_MAX_AGE`].
     #[must_use]
     pub fn new(store: impl Into<PathBuf>) -> Self {
         Self {
@@ -61,7 +66,7 @@ impl Config {
             allow_anonymous_reads: false,
             tls: None,
             max_size: None,
-            max_age: None,
+            max_age: Some(DEFAULT_MAX_AGE),
             gc_interval: DEFAULT_GC_INTERVAL,
             max_body: DEFAULT_MAX_BODY,
         }
