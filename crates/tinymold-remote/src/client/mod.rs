@@ -61,9 +61,10 @@ impl Client {
         let mut endpoint = Endpoint::from_shared(config.endpoint.clone())
             .map_err(Error::Connect)?
             .connect_timeout(config.timeout)
-            // hyper's fixed windows (2 MiB a stream, 5 MiB a connection) cap
-            // reads from a cache an ocean away at ~40 MiB/s, however fast the
-            // link; adaptive windows grow to the bandwidth-delay product.
+            // With hyper's fixed windows (2 MiB a stream, 5 MiB a
+            // connection), a read can move at most one window per round
+            // trip, however fast the link; adaptive windows grow to the
+            // bandwidth-delay product.
             .http2_adaptive_window(true);
         if config.uses_tls() {
             endpoint = endpoint
