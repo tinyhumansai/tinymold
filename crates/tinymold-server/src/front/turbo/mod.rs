@@ -20,6 +20,7 @@
 //! Errors use the spec's `{"code": ..., "message": ...}` body. The API is
 //! described by Turborepo's [Remote Cache API](https://turborepo.dev/docs/openapi).
 
+use std::fmt::Write as _;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -268,7 +269,7 @@ where
         if index > 0 {
             out.push(',');
         }
-        out.push_str(&format!("\"{hash}\":"));
+        let _ = write!(out, "\"{hash}\":");
         match info {
             None => out.push_str("null"),
             Some((size, meta)) => {
@@ -276,9 +277,9 @@ where
                     .get("x-artifact-duration")
                     .and_then(|value| value.parse::<u64>().ok())
                     .unwrap_or(0);
-                out.push_str(&format!("{{\"size\":{size},\"taskDurationMs\":{duration}"));
+                let _ = write!(out, "{{\"size\":{size},\"taskDurationMs\":{duration}");
                 if let Some(tag) = meta.get("x-artifact-tag") {
-                    out.push_str(&format!(",\"tag\":{}", json_string(tag)));
+                    let _ = write!(out, ",\"tag\":{}", json_string(tag));
                 }
                 out.push('}');
             }
