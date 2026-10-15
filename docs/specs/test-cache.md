@@ -236,14 +236,22 @@ itself is cacheable: nextest lists every binary before running it.
 
 These keep dependency units on one key across tools.
 
-1. **Lint flags under `--cap-lints allow`.** Cargo passes `--cap-lints
-   allow` to every non-path dependency (verified in a `cargo build -v` log).
-   rustc then ignores `-A`, `-W`, `-D`, `-F` and their long forms. Verified:
-   adding `-D warnings -W unused -F deprecated` left the `.rlib` and `.rmeta`
-   byte-identical. Such units drop those flags from the pre-key, so
-   `RUSTFLAGS="-D warnings"` in CI stops re-keying every registry
-   dependency. `--force-warn` is kept. Without `--cap-lints allow`, lint
-   flags stay, because they change diagnostics and the exit status.
+1. **Lint flags: not scoped, because cargo already splits the unit.**
+   Cargo passes `--cap-lints allow` to every non-path dependency, and rustc
+   then ignores `-A`, `-W`, `-D` and `-F`: adding `-D warnings -W unused -F
+   deprecated` left the `.rlib` and `.rmeta` byte-identical. Dropping them
+   from the key was built and tested, and it worked with cargo 1.84, where
+   the dependency hit across `RUSTFLAGS="-D warnings"`. From cargo 1.88
+   (1.85–1.87 not checked), cargo hashes `RUSTFLAGS` into `-C
+   extra-filename` but not `-C metadata`. The unit then gets new output
+   names, and those names are in the output bytes: the `.rmeta` and the
+   object member names embed them, and `split-debuginfo=unpacked` debug
+   maps find objects by them. Serving one unit's outputs under another's
+   names is not sound, so the key keeps `extra-filename`, and lint flags
+   in `RUSTFLAGS` re-key dependencies on current cargo whatever tinymold
+   does. The change was dropped rather than shipped, since it would have
+   bumped the schema, and so orphaned every cache entry, for no gain on
+   the toolchains tinymold supports (rust-version 1.89).
 2. **Coverage.** `cargo llvm-cov` 0.8 already instruments only workspace
    crates. It sets itself as `RUSTC_WRAPPER`, chains to a pre-existing one
    (tinymold), and adds `-C instrument-coverage --cfg=coverage` only for
@@ -307,8 +315,6 @@ own spike and ADR before any code.
 - A failing test fails again on the next run, without being replayed.
 - `cargo bench`, `cargo run` and `cargo llvm-cov` behave exactly as without
   the runner.
-- `RUSTFLAGS="-D warnings" cargo build` after `cargo build` restores every
-  registry dependency from the cache.
 - `bench/bench.py` numbers, before and after, for a warm second `cargo test`
   and a one-line edit, on a named machine.
 

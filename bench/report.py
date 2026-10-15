@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import sys
 from html import escape
 from pathlib import Path
 
@@ -341,6 +342,15 @@ def cas_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def openhuman_section(result: dict) -> list[str]:
+    """The OpenHuman Docker benchmark's table; docker_openhuman.py owns its
+    layout so the report and the run print the same thing."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import docker_openhuman
+
+    return docker_openhuman.tables(result).splitlines() + [""]
+
+
 def hit_section(result: dict) -> list[str]:
     """Cache hits on many-output units: one tinymold revision against another."""
     rows = result["results"]
@@ -410,7 +420,8 @@ def retest_section(result: dict) -> list[str]:
 def main() -> None:
     sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
-             "hit": 6, "retest": 7, "dedup": 8, "link": 9, "native": 10, "cas": 11}
+             "hit": 6, "retest": 7, "openhuman": 8, "dedup": 9, "link": 10, "native": 11,
+             "cas": 12}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -437,6 +448,8 @@ def main() -> None:
             sections += hit_section(result)
         elif result["benchmark"] == "retest":
             sections += retest_section(result)
+        elif result["benchmark"] == "openhuman-docker":
+            sections += openhuman_section(result)
     body = "\n".join(sections).rstrip() or "No results recorded yet."
 
     text = README.read_text()

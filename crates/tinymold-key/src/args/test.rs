@@ -302,3 +302,24 @@ fn dynamic_linking_of_std_is_recognized_in_every_spelling() {
     assert!(!with(&["-C", "prefer-dynamic", "-C", "prefer-dynamic=off"]));
     assert!(!with(&["-C", "prefer-dynamic-not-really"]));
 }
+
+#[test]
+fn a_command_line_with_its_own_path_remapping_says_so() {
+    let base = [
+        "--crate-name",
+        "x",
+        "src/lib.rs",
+        "--emit=link",
+        "--out-dir",
+        "target",
+    ];
+    let with = |extra: &[&str]| {
+        let mut args = base.to_vec();
+        args.extend_from_slice(extra);
+        cacheable(&args).remaps_paths()
+    };
+    assert!(!with(&[]));
+    assert!(with(&["--remap-path-prefix=/work=."]));
+    assert!(with(&["--remap-path-prefix", "/work=."]));
+    assert!(!with(&["--cfg", "remap-path-prefix"]));
+}

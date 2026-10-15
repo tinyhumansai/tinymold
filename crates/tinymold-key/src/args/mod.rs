@@ -99,6 +99,16 @@ impl Invocation {
             .is_some_and(|setting| !matches!(setting, "=no" | "=n" | "=off" | "=false"))
     }
 
+    /// Whether the command line already remaps source paths with
+    /// `--remap-path-prefix`, as cargo's `trim-paths` does. tinymold then
+    /// leaves path remapping to it rather than adding its own.
+    #[must_use]
+    pub fn remaps_paths(&self) -> bool {
+        self.key_args
+            .iter()
+            .any(|arg| matches!(arg, KeyArg::Text(text) if text.starts_with("--remap-path-prefix")))
+    }
+
     /// Whether the compile links the standard library dynamically
     /// (`-C prefer-dynamic`). Such a binary loads `std` from the sysroot at
     /// run time, so its own bytes do not cover all the code it runs. As
