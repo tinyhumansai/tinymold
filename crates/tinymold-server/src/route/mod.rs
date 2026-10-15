@@ -15,7 +15,7 @@ use http_body_util::{BodyExt as _, Empty, Full};
 use tinymold_store::Store;
 
 use crate::auth::Access;
-use crate::front::bazel_http;
+use crate::front::{bazel_http, reapi};
 use crate::metrics::Metrics;
 
 /// The body of every response: streamed, with I/O errors.
@@ -51,6 +51,9 @@ where
     B: hyper::body::Body<Data = Bytes> + Send + Unpin + 'static,
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
+    if reapi::is_grpc(&request) {
+        return reapi::handle(state, request).await;
+    }
     if let Some(target) = bazel_http::parse(request.uri().path()) {
         return bazel_http::handle(state, request, target).await;
     }

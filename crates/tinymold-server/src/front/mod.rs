@@ -5,6 +5,7 @@
 //! answers in its protocol's terms. None of them keeps state of its own.
 
 pub(crate) mod bazel_http;
+pub(crate) mod reapi;
 
 use http::{HeaderValue, Response, StatusCode, header};
 

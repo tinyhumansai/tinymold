@@ -20,7 +20,6 @@
 
 mod types;
 
-use std::convert::Infallible;
 use std::io::{self, Read as _, Seek as _};
 use std::str::FromStr as _;
 use std::sync::Arc;
@@ -642,10 +641,6 @@ fn record(state: &State, outcome: Outcome, bytes_in: usize, bytes_out: usize) {
         bytes_out as u64,
     );
 }
-
-/// tonic's handlers take an infallible service error type.
-#[allow(dead_code)]
-type Never = Infallible;
 
 #[cfg(test)]
 mod test;

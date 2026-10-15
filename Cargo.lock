@@ -867,6 +867,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "prost",
  "rustls-pki-types",
  "tempfile",
  "thiserror",
@@ -876,6 +877,9 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-stream",
+ "tonic",
+ "tonic-prost",
+ "tower",
 ]
 
 [[package]]
