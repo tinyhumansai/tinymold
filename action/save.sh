@@ -5,8 +5,9 @@
 # cargo registry before that is saved.
 set -euo pipefail
 
+# The SHA-256 of standard input, with whichever tool the runner has.
 sha256() {
-  if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi
+  if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi
 }
 
 # Print the name of every crate archive the lockfiles given as arguments
