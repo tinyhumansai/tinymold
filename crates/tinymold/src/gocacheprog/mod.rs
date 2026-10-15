@@ -128,7 +128,10 @@ fn put(
         Err(error) => return Ok(failure(request.id, &format!("store failed: {error}"))),
     };
     if size != request.body_size {
-        return Ok(failure(request.id, "the body's size does not match BodySize"));
+        return Ok(failure(
+            request.id,
+            "the body's size does not match BodySize",
+        ));
     }
     let Ok(key) = namespace.key(&request.action_id) else {
         return Ok(failure(request.id, "ActionID too long"));

@@ -51,6 +51,7 @@ mod doctor;
 mod error;
 pub mod fresh;
 pub mod gc;
+pub mod gocacheprog;
 mod location;
 mod serve;
 pub mod snapshot;

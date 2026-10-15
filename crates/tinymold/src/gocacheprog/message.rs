@@ -174,7 +174,10 @@ impl Cursor<'_> {
                         b'b' => out.push(0x08),
                         b'f' => out.push(0x0c),
                         b'u' => {
-                            let (hex, rest) = self.0.split_at_checked(4).ok_or("a request has a short \\u escape")?;
+                            let (hex, rest) = self
+                                .0
+                                .split_at_checked(4)
+                                .ok_or("a request has a short \\u escape")?;
                             self.0 = rest;
                             let code = std::str::from_utf8(hex)
                                 .ok()
@@ -211,8 +214,16 @@ impl<'a, R: BufRead> BodyLine<'a, R> {
     }
 
     /// The decoded body, as a reader.
-    pub(crate) fn decoded(self) -> impl Read {
+    pub(crate) fn decoded(&mut self) -> impl Read + '_ {
         base64::read::DecoderReader::new(self, &base64::engine::general_purpose::STANDARD)
+    }
+
+    /// Reads whatever is left of the line, so the next request starts in
+    /// step even when the body was not read to its end.
+    pub(crate) fn finish(&mut self) -> io::Result<()> {
+        let mut sink = [0_u8; 8192];
+        while self.read(&mut sink)? != 0 {}
+        Ok(())
     }
 }
 
@@ -285,5 +296,8 @@ pub(crate) fn json_string(text: &str) -> String {
 
 /// `bytes` as Go's `encoding/json` writes a `[]byte`.
 pub(crate) fn json_bytes(bytes: &[u8]) -> String {
-    format!("\"{}\"", base64::engine::general_purpose::STANDARD.encode(bytes))
+    format!(
+        "\"{}\"",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    )
 }
