@@ -63,7 +63,7 @@ run_save() {
       TINYMOLD_BACKEND=github TINYMOLD_STORE="${root}/store" TINYMOLD_LOG="${root}/log" \
       TINYMOLD_START_MARKER="${root}/marker" TINYMOLD_SAVE_START=0 \
       TINYMOLD_CACHE_KEY=tinymold-v1-Linux-X64-rustc-lock-1-1 \
-      INPUT_PUSH=false INPUT_MAX_AGE=7d INPUT_MAX_SIZE=4G INPUT_SAVE_CACHE=true \
+      INPUT_PUSH=false INPUT_MAX_AGE=48h INPUT_MAX_SIZE=4G INPUT_SAVE_CACHE=true \
       "$@" bash "${here}/save.sh" > /dev/null
   )
 }
