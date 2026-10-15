@@ -1,7 +1,7 @@
 {
   "benchmark": "server",
   "servers": {
-    "tinymold serve": "release build, tinymold-a7ed554a21bb, uncompressed store",
+    "tinymold serve": "release build, tinymold-4bd43ab52852, uncompressed store",
     "bazel-remote": "native, github.com/buchgr/bazel-remote/v2 v2.6.2, default zstd storage"
   },
   "requests": 2000,
@@ -13,121 +13,121 @@
     {
       "server": "tinymold serve",
       "case": "hit 1 KiB p50 (ms)",
-      "median": 0.3272,
+      "median": 0.1622,
       "samples": [
-        0.1521,
-        0.2669,
-        0.335,
-        0.3422,
-        0.3272
+        0.0765,
+        0.1883,
+        0.2005,
+        0.1577,
+        0.1622
       ]
     },
     {
       "server": "tinymold serve",
       "case": "hit 1 KiB p99 (ms)",
-      "median": 1.1457,
+      "median": 0.3102,
       "samples": [
-        0.3052,
-        0.7528,
-        1.1457,
-        20.3722,
-        24.0796
+        0.133,
+        0.3757,
+        0.6501,
+        0.2869,
+        0.3102
       ]
     },
     {
       "server": "tinymold serve",
       "case": "download 4 MiB (MB/s)",
-      "median": 1063.2343,
+      "median": 1372.468,
       "samples": [
-        1576.1448,
-        1018.4948,
-        1063.2343,
-        1048.8534,
-        1140.8024
+        2307.4379,
+        1279.8255,
+        1143.4529,
+        1372.468,
+        1435.4539
       ]
     },
     {
       "server": "tinymold serve",
       "case": "upload 4 MiB (MB/s)",
-      "median": 339.1586,
+      "median": 461.2193,
       "samples": [
-        488.1936,
-        339.1586,
-        385.5481,
-        170.8123,
-        213.2402
+        468.2224,
+        376.9643,
+        416.3323,
+        461.2193,
+        467.4893
       ]
     },
     {
       "server": "bazel-remote",
       "case": "hit 1 KiB p50 (ms)",
-      "median": 0.1777,
+      "median": 0.1357,
       "samples": [
-        0.106,
-        0.1777,
-        0.1335,
-        0.1818,
-        0.2923
+        0.1351,
+        0.1778,
+        0.183,
+        0.1357,
+        0.1184
       ]
     },
     {
       "server": "bazel-remote",
       "case": "hit 1 KiB p99 (ms)",
-      "median": 0.3455,
+      "median": 0.3794,
       "samples": [
-        0.2085,
-        0.3455,
-        0.2875,
-        1.3955,
-        11.1498
+        0.9023,
+        0.5968,
+        0.3794,
+        0.2705,
+        0.2431
       ]
     },
     {
       "server": "bazel-remote",
       "case": "download 4 MiB (MB/s)",
-      "median": 887.9007,
+      "median": 982.486,
       "samples": [
-        1053.4319,
-        887.9007,
-        946.6129,
-        831.8642,
-        681.6574
+        943.3445,
+        1007.9292,
+        895.278,
+        982.486,
+        1103.8588
       ]
     },
     {
       "server": "bazel-remote",
       "case": "upload 4 MiB (MB/s)",
-      "median": 319.0815,
+      "median": 348.4215,
       "samples": [
-        387.5111,
-        319.0815,
-        379.3677,
-        301.0055,
-        318.0727
+        331.5024,
+        348.4215,
+        375.5546,
+        344.449,
+        381.3531
       ]
     },
     {
       "server": "tinymold serve",
       "case": "cold start (s)",
-      "median": 1.7276,
+      "median": 0.0171,
       "samples": [
-        1.4628,
-        1.4462,
-        1.7276,
-        1.891,
-        1.7276
+        0.0186,
+        0.0138,
+        0.0158,
+        0.0175,
+        0.0171
       ]
     },
     {
       "server": "bazel-remote",
       "case": "cold start (s)",
-      "median": 0.0797,
+      "median": 0.0674,
       "samples": [
-        0.0852,
-        0.0718,
-        0.0675,
-        0.081,
-        0.0797
+        0.0744,
+        0.0674,
+        0.0646,
+        0.0759,
+        0.0642
       ]
     }
   ],
