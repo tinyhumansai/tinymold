@@ -47,7 +47,15 @@ pub(crate) struct State {
     pub(crate) delay: Option<Duration>,
     /// How many blobs were uploaded.
     pub(crate) writes: u64,
+    /// How many of the next uploads hang for [`STALL`] instead of answering,
+    /// as a server behind a saturated disk does.
+    pub(crate) stall_writes: u64,
+    /// Blobs, by SHA-256 hash, whose every upload hangs for [`STALL`].
+    pub(crate) stalled_blobs: HashSet<String>,
 }
+
+/// How long a stalled upload hangs: longer than any test client waits.
+pub(crate) const STALL: Duration = Duration::from_secs(3);
 
 /// A running fake server; it stops when dropped.
 pub(crate) struct Server {
@@ -332,11 +340,21 @@ async fn write(state: Arc<Mutex<State>>, request: http::Request<Body>) -> http::
                 }
                 data.extend_from_slice(&chunk.data);
             }
+            let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
+            let stall = {
+                let mut state = state.lock().unwrap();
+                let once = state.stall_writes > 0;
+                state.stall_writes = state.stall_writes.saturating_sub(1);
+                once || state.stalled_blobs.contains(&hash)
+            };
+            if stall {
+                tokio::time::sleep(STALL).await;
+                return Err(Status::unavailable("stalled"));
+            }
             let mut state = state.lock().unwrap();
             if state.read_only {
                 return Err(Status::permission_denied("read only"));
             }
-            let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
             if naming::blob(&data).hash != hash {
                 return Err(Status::invalid_argument("digest mismatch"));
             }
