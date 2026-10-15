@@ -137,6 +137,11 @@ entry file and of each object, refreshed on every read and write. The
 server's store root is never the wrapper's local store root, so each has
 exactly one collector.
 
+Under pressure, plain LRU lets a burst of branch builds evict the entries
+the default branch last used, which every pull request starts from.
+[ADR 0010](../adr/0010-default-branch-builds-anchor-eviction.md) (proposed)
+keeps those entries as a reference set and evicts everything else first.
+
 Objects are stored uncompressed on disk ([ADR 0005](../adr/0005-trade-disk-for-time.md)).
 Compression happens on the wire only where a protocol negotiates it.
 
@@ -234,6 +239,9 @@ tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 - **Directory.** `--dir`, else `TINYMOLD_SERVER_DIR`, else `tinymold-server`
   beside the default wrapper store. The server refuses to use the wrapper's
   store directory.
+- **Expiry.** `--max-age` defaults to `48h`: an entry no client has read or
+  written for two days is evicted, and its objects with it once nothing
+  else names them. `--max-size` still caps the total.
 - **Persistence.** The index and last-use times live in the store directory
   and survive a restart. A restart serves hits immediately; it does not
   rebuild the index by scanning objects.

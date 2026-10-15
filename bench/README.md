@@ -4,9 +4,12 @@ tinymold exists to make Rust builds faster and smaller, so every claim it makes
 has to come with a number anyone can reproduce. This directory holds the
 harness, the corpus it builds, and the results it has produced.
 
-Six benchmarks exist today. All of them measure plain cargo, sccache, or the
-store alone, so together they are the baseline every later phase has to beat:
+Each benchmark measures tinymold against plain cargo, sccache, or both, so
+together they are the baseline every later phase has to beat:
 
+- **`commands`**: `cargo build`, `clippy`, `test` and `llvm-cov`, per mode,
+  cold (empty target and cache), then warm (target deleted, cache kept).
+  Results in [`COMMANDS.md`](COMMANDS.md); see [`commands.py`](commands.py).
 - **`scenarios`**: the full edit-loop matrix, and the main scoreboard. For
   every corpus project and every mode (`baseline`, `sccache`, and `tinymold`
   once its rustc wrapper exists), it runs eight cases:
@@ -74,6 +77,10 @@ Each heading lists the machine and toolchain the numbers came from. A number
 without its machine is not a result.
 
 <!-- results:start -->
+
+### Cache per command
+
+Build, clippy, tests and coverage, cold and then warm from the cache with the target directory deleted: see [`COMMANDS.md`](COMMANDS.md).
 
 ### Edit-loop scenarios (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3 runs, 2026-10-14)
 

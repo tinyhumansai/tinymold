@@ -11,7 +11,7 @@ branding:
 inputs:
   max-age:
     description: Remove entries not used for this long before saving (tinymold gc --max-age).
-    default: 7d
+    default: 48h
   max-size:
     description: Evict the least recently used entries beyond this size before saving (tinymold gc --max-size).
     default: 4G

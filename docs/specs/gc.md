@@ -108,7 +108,7 @@ numbers and deletes nothing.
 A store used only through the wrapper would otherwise grow with every edit:
 each one stores a new rlib, and new binaries and test executables, tens of
 megabytes for a small workspace. So after each wrapper call, tinymold starts
-`tinymold gc --keep-generations 3` in the background, when:
+`tinymold gc --keep-generations 3 --max-age 48h` in the background, when:
 
 - `TINYMOLD_AUTO_GC` is not `0`, `false`, `no` or `off`;
 - the store exists;
