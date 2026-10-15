@@ -47,6 +47,25 @@ class MergePrevious(unittest.TestCase):
         self.assertEqual(len(bench.merge_previous(dict(fresh), previous, limited=True)
                              ["results"]), 2)
 
+    def test_a_limited_merge_keeps_each_rows_own_run_count(self):
+        previous = {"benchmark": "retest", "runs": 5,
+                    "results": [row("ripgrep", "cargo", "again")]}
+        fresh = {"benchmark": "retest", "runs": 3,
+                 "results": [row("tinymold", "cargo", "again")]}
+        merged = bench.merge_previous(fresh, previous, limited=True)
+        self.assertEqual({r["project"]: r["runs"] for r in merged["results"]},
+                         {"ripgrep": 5, "tinymold": 3})
+        self.assertEqual(merged["runs"], 3)
+
+    def test_a_row_that_already_records_its_runs_keeps_them(self):
+        previous = {"benchmark": "retest", "runs": 3,
+                    "results": [dict(row("ripgrep", "cargo", "again"), runs=5)]}
+        fresh = {"benchmark": "retest", "runs": 3,
+                 "results": [row("tinymold", "cargo", "again")]}
+        merged = bench.merge_previous(fresh, previous, limited=True)
+        self.assertEqual({r["project"]: r["runs"] for r in merged["results"]},
+                         {"ripgrep": 5, "tinymold": 3})
+
     def test_recorded_toolchains_are_kept_across_runs(self):
         previous = {"benchmark": "experiments", "variants": {},
                     "toolchains": {"nightly": "rustc 1.100.0-nightly"}, "results": []}
@@ -121,6 +140,29 @@ class Retest(unittest.TestCase):
             self.assertEqual(bench.runner_counts(log), {"replayed": 2, "ran": 1})
             self.assertEqual(bench.runner_counts(Path(dir) / "absent"),
                              {"replayed": 0, "ran": 0})
+
+    def test_the_report_shows_each_rows_run_count_when_they_differ(self):
+        def side(project, mode, runs):
+            timing = {"median_s": 1.0, "min_s": 1.0, "max_s": 1.0}
+            return {"project": project, "rev": "v1", "case": "again", "mode": mode,
+                    "wall": timing, "replayed": 0, "ran": 0, "runs": runs}
+        result = {"benchmark": "retest", "machine": MACHINE, "runs": 3, "date": "2026-10-15",
+                  "results": [side("rg", "cargo", 5), side("rg", "run-test", 5),
+                              side("tm", "cargo", 3), side("tm", "run-test", 3)]}
+        table = "\n".join(report.retest_section(result))
+        self.assertIn("3/5 runs by row", table)
+        self.assertIn("| rg v1 | again | 5 |", table)
+        self.assertIn("| tm v1 | again | 3 |", table)
+
+    def test_the_result_records_the_settings_retest_configures(self):
+        settings = bench.retest_settings()
+        self.assertIn("tinymold", settings["rustc_wrapper"])
+        self.assertIn("tinymold run-test", settings["cargo_runner"])
+        self.assertNotIn("timing wrapper", settings["linker"].replace("no timing wrapper", ""))
+        self.assertNotIn("sccache", " ".join(settings.values()))
+        cargo_settings = bench.machine(bench.RETEST_CARGO_SETTINGS.format(jobs=8))["cargo_settings"]
+        self.assertTrue(cargo_settings.startswith("RUSTC_WRAPPER=tinymold on both sides"))
+        self.assertIn("no rustc wrapper", bench.machine()["cargo_settings"])
 
     def test_the_report_compares_both_sides_per_case(self):
         def side(mode, wall, replayed, ran):
