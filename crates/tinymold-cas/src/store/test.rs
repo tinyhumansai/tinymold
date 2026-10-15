@@ -350,7 +350,7 @@ fn staging_bytes_the_store_already_holds_commits_to_the_same_object() {
 }
 
 #[test]
-fn a_failing_stream_is_an_io_error_and_leaves_no_staging_file() {
+fn a_failing_stream_is_a_stream_error_and_leaves_no_staging_file() {
     struct Broken;
     impl io::Read for Broken {
         fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
@@ -361,6 +361,6 @@ fn a_failing_stream_is_an_io_error_and_leaves_no_staging_file() {
     let (_dir, store) = store();
     let error = store.stage(Broken).unwrap_err();
 
-    assert!(matches!(error, Error::Io { action: "read", .. }), "{error:?}");
+    assert!(matches!(error, Error::Stream(_)), "{error:?}");
     assert!(store.staging_files().unwrap().is_empty());
 }

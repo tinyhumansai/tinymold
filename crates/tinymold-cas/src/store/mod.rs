@@ -18,7 +18,7 @@
 //! the same bytes at once both succeed, and the store ends up with one object.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -27,7 +27,7 @@ use tinymold_hash::Digest;
 
 mod types;
 
-pub use types::{ObjectInfo, StagingFile};
+pub use types::{ObjectInfo, Staged, StagingFile};
 
 use crate::materialize::{self, Method, Strategy};
 
@@ -146,6 +146,49 @@ impl Store {
                 // Best effort: a stale staging file is garbage, not a fault.
                 let _ = fs::remove_file(&staging);
                 Err(error)
+            }
+        }
+    }
+
+    /// Streams `reader` into a private staging file and hashes it on the way,
+    /// without storing it yet.
+    ///
+    /// The returned [`Staged`] body knows its digest and size, so a caller
+    /// can check them against what a client claimed before deciding.
+    /// [`Staged::commit`] stores it; dropping it discards it. The bytes are
+    /// read once and never held in memory as a whole, which is what lets a
+    /// server accept an upload of any size.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Stream`] when `reader` fails, and [`Error::Io`] when
+    /// the staging file cannot be written. Neither leaves a staging file.
+    pub fn stage(&self, reader: impl Read) -> Result<Staged<'_>> {
+        let path = self.staging_path();
+        let file = create_new(&path)?;
+        let mut tee = Tee {
+            reader,
+            file,
+            size: 0,
+            failure: None,
+        };
+        let hashed = Digest::of_reader(&mut tee);
+        let failure = tee.failure.take();
+        drop(tee);
+        match (hashed, failure) {
+            (Ok(digest), None) => Ok(Staged {
+                store: self,
+                path,
+                digest,
+                size: tee_size_unreachable_guard(),
+            }),
+            (_, Some(failure)) => {
+                let _ = fs::remove_file(&path);
+                Err(failure.into_error(&path))
+            }
+            (Err(error), None) => {
+                let _ = fs::remove_file(&path);
+                Err(error.into())
             }
         }
     }
