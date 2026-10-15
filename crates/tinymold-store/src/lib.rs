@@ -45,6 +45,7 @@
 //! means; this crate only guarantees that a read returns exactly what was
 //! stored under it.
 
+mod disk;
 mod entry;
 mod error;
 mod gc;

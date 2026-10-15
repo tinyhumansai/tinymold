@@ -34,6 +34,7 @@ use tinymold_hash::Digest;
 
 pub use types::{GRACE, Policy, Report};
 
+use crate::disk::{io_error, read_if_present};
 use crate::{Entry, Error, Result, Store};
 
 /// One entry that may be kept.
@@ -213,18 +214,6 @@ fn read_dir(dir: &Path) -> Result<Vec<fs::DirEntry>> {
     }
 }
 
-fn read_if_present(path: &Path) -> Result<Option<Vec<u8>>> {
-    match fs::read(path) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(source) => Err(Error::Io {
-            action: "read",
-            path: path.to_path_buf(),
-            source,
-        }),
-    }
-}
-
 fn remove(path: &Path, policy: &Policy) -> Result<()> {
     if policy.dry_run {
         return Ok(());
@@ -237,15 +226,6 @@ fn remove(path: &Path, policy: &Policy) -> Result<()> {
             path: path.to_path_buf(),
             source,
         }),
-    }
-}
-
-fn io_error(action: &'static str, path: &Path) -> impl FnOnce(io::Error) -> Error {
-    let path = path.to_path_buf();
-    move |source| Error::Io {
-        action,
-        path,
-        source,
     }
 }
 
