@@ -103,8 +103,9 @@ impl Server {
         self.local_addr
     }
 
-    /// Serves until `shutdown` completes, then stops accepting and gives
-    /// open connections a few seconds to finish.
+    /// Serves until `shutdown` completes, then stops accepting, gives open
+    /// connections a few seconds to finish, and collects garbage one last
+    /// time with no grace period, so the store on disk fits its budget.
     ///
     /// Must be called inside a multi-threaded tokio runtime.
     ///
@@ -157,6 +158,21 @@ impl Server {
         drop(listener);
         collector.abort();
         let _ = tokio::time::timeout(DRAIN, graceful.shutdown()).await;
+
+        // One last collection to the budget. Nothing is uploading any more,
+        // so no grace period is needed: whatever no entry keeps can go now,
+        // before a CI job saves the store.
+        let state = self.state.clone();
+        let policy = Policy {
+            grace: Duration::ZERO,
+            now: std::time::SystemTime::now(),
+            ..self.policy
+        };
+        match tokio::task::spawn_blocking(move || collect(&state.store, &policy)).await {
+            Ok(Ok(_)) => {}
+            Ok(Err(error)) => eprintln!("tinymold serve: final collection failed: {error}"),
+            Err(_) => eprintln!("tinymold serve: final collection stopped unexpectedly"),
+        }
         Ok(())
     }
 

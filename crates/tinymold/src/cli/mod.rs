@@ -4,7 +4,7 @@
 //! writer, so every command is tested by passing a `Vec<u8>` instead of
 //! spawning the binary.
 
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -66,6 +66,10 @@ pub enum Command {
     /// Run the cache server: one store behind the remote-cache protocols of
     /// Bazel, ccache and, as they land, REAPI, Turborepo, Nx and Gradle.
     Serve(ServeArgs),
+    /// Keep Go's build cache in the cache server's store. Set it as
+    /// `GOCACHEPROG="tinymold gocacheprog"`; go runs it and speaks to it on
+    /// stdin and stdout.
+    Gocacheprog(GoCacheProgArgs),
     /// Run a test binary, replaying a recorded pass when nothing the run can
     /// observe has changed. Set it as cargo's runner:
     /// `[target.'cfg(all())'] runner = ["tinymold", "run-test"]`.
@@ -109,6 +113,16 @@ pub struct ServeArgs {
     /// How often to collect garbage (default `10m`).
     #[arg(long, value_name = "AGE")]
     pub gc_interval: Option<Age>,
+}
+
+/// Where `tinymold gocacheprog` keeps Go's cache.
+#[derive(Debug, Clone, Args)]
+pub struct GoCacheProgArgs {
+    /// The cache server's store directory. Defaults to
+    /// `TINYMOLD_SERVER_DIR`, then `tinymold-server` beside the default
+    /// wrapper store, as `tinymold serve` does; never the wrapper's store.
+    #[arg(long, value_name = "DIR")]
+    pub dir: Option<PathBuf>,
 }
 
 /// What `tinymold run-test` runs.
@@ -375,6 +389,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         Command::Stats(args) => return run_stats(args, out),
         Command::Remote(command) => return run_remote(cli, command, env, out),
         Command::Serve(args) => return crate::serve::run(cli, args, out),
+        Command::Gocacheprog(args) => crate::gocacheprog::run(cli, args, io::stdin().lock(), out)?,
         Command::RunTest(args) => return Ok(run_test(cli, args)),
     }
     Ok(Outcome::Success)

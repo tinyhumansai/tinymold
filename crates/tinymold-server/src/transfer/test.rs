@@ -57,9 +57,13 @@ async fn small_and_large_files_download_whole() {
         let bytes: Vec<u8> = (0..len).map(|i| u8::try_from(i % 251).unwrap()).collect();
         std::fs::write(&path, &bytes).unwrap();
 
-        let (body, size) = download(path).await.unwrap();
-        assert_eq!(size, len as u64);
-        assert_eq!(body.collect().await.unwrap().to_bytes(), bytes);
+        let opened = open(&path).unwrap();
+        assert_eq!(opened.len(), len as u64);
+        assert_eq!(matches!(opened, Opened::Small(_)), len as u64 <= SMALL);
+        assert_eq!(
+            opened.into_body().collect().await.unwrap().to_bytes(),
+            bytes
+        );
     }
 }
 
@@ -67,5 +71,5 @@ async fn small_and_large_files_download_whole() {
 async fn a_missing_file_downloads_as_none() {
     let dir = tempfile::tempdir().unwrap();
 
-    assert!(download(dir.path().join("gone")).await.is_none());
+    assert!(open(&dir.path().join("gone")).is_none());
 }

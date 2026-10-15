@@ -77,6 +77,10 @@ tinymold snapshot restore --replace # after a branch switch
 # Run the cache server; point ccache (or Bazel) at it.
 tinymold serve                      # http://127.0.0.1:9090, store in tinymold-server/
 CCACHE_REMOTE_STORAGE="http://127.0.0.1:9090|layout=bazel" ccache cc -c unit.c
+TURBO_API=http://127.0.0.1:9090 TURBO_TOKEN=local TURBO_TEAM=me npx turbo run build
+NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090 npx nx run-many -t build
+# Gradle: remote<HttpBuildCache> { url = uri("http://127.0.0.1:9090/gradle/") }
+GOCACHEPROG="tinymold gocacheprog" go build ./...   # Go, straight from the store
 ```
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In
@@ -144,6 +148,20 @@ Inputs, cache keys and self-hosted runners are covered in
 [`docs/specs/github-actions.md`](docs/specs/github-actions.md), and the remote
 tier in [`docs/specs/remote.md`](docs/specs/remote.md).
 
+For Turborepo, Nx or ccache in the same job, add `serve: true`: the action
+runs `tinymold serve` on loopback for the job, points those tools at it, and
+carries its store in the same GitHub cache entry. No Rust toolchain is
+needed for that.
+
+```yaml
+  - uses: tinyhumansai/tinymold@v0
+    with:
+      serve: true
+  - run: npm ci && npx turbo run build test
+  - uses: tinyhumansai/tinymold/save@v0
+    if: always()
+```
+
 The cache never links for you. A binary that depends on the crate you edited
 is still relinked in full, while unchanged crates, binaries and test
 executables are restored without compiling or linking.
@@ -200,7 +218,7 @@ the Rust side in [`docs/specs/architecture.md`](docs/specs/architecture.md).
 | --- | --- |
 | [`tinymold`](crates/tinymold) | The `tinymold` binary and its library half |
 | [`tinymold-cas`](crates/tinymold-cas) | Local content-addressed store: atomic insert, read-only objects, reflink → hardlink → copy restore |
-| [`tinymold-server`](crates/tinymold-server) | `tinymold serve`: one store behind Bazel's HTTP cache protocol (and ccache), with more protocols to come |
+| [`tinymold-server`](crates/tinymold-server) | `tinymold serve`: one store behind REAPI v2 (tinymold, Bazel, Buck2), Bazel's HTTP cache protocol (and ccache), Turborepo, Nx and Gradle's HTTP build cache |
 | [`tinymold-store`](crates/tinymold-store) | The cache server's core: namespaced entries over the CAS, and a SHA-256 index so every protocol finds the same blob |
 | [`tinymold-hash`](crates/tinymold-hash) | The BLAKE3-256 `Digest` type, streaming file hashing, and a field hasher for cache keys |
 | [`tinymold-key`](crates/tinymold-key) | rustc argument parsing, path roots, dep-info, and the two cache keys |

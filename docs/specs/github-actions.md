@@ -94,6 +94,11 @@ With a remote server:
 | `cache-key` | `''` | Extra text mixed into the GitHub cache key, to separate jobs that build different things |
 | `cache-registry` | `true` | With `github` and `both`, also keep cargo's downloads (`registry/index`, `registry/cache`, `git/db` under `CARGO_HOME`) in a GitHub cache entry of their own |
 | `remote-url`, `remote-auth`, `remote-instance` | `''` | See [`remote.md`](remote.md) |
+| `serve` | `false` | `true` runs `tinymold serve` for the rest of the job; see [Serving other tools](#serving-other-tools) |
+| `serve-dir` | `~/.cache/tinymold-server` | The server's store directory (`TINYMOLD_SERVER_DIR`) |
+| `serve-port` | `9090` | The loopback port it listens on |
+| `serve-max-size` | `4G` | The server's `--max-size`; its shutdown trims to it |
+| `turbo-team` | the repository owner | Exported as `TURBO_TEAM` |
 
 The setup step also runs `tinymold doctor`, which shows the store and the
 remote without the credential.
@@ -165,6 +170,45 @@ remote without the credential.
    crates, so losing that race costs nothing. The first job to save a
    lockfile's entry decides what it holds; a job that builds only part of
    the workspace may save only part of the crates.
+
+## Serving other tools
+
+With `serve: true`, the job also gets a cache server for tools that speak
+a remote-cache protocol ([`cache-server.md`](cache-server.md)), with no
+service to run:
+
+```yaml
+steps:
+  - uses: actions/checkout@v7
+  - uses: tinyhumansai/tinymold@v0
+    with:
+      serve: true
+  - run: npm ci && npx turbo run build test
+  - uses: tinyhumansai/tinymold/save@v0
+    if: always()
+```
+
+- **Setup** restores the server's store together with the wrapper store,
+  as one GitHub cache entry naming both paths (`TINYMOLD_CACHE_PATHS`).
+  Then it starts `tinymold serve` on `127.0.0.1:<serve-port>`, waits for
+  `/healthz`, and exports, unless the workflow already set them:
+  - `TURBO_API`, `TURBO_TOKEN` (a placeholder Turbo requires), `TURBO_TEAM`;
+  - `NX_SELF_HOSTED_REMOTE_CACHE_SERVER`;
+  - `CCACHE_REMOTE_STORAGE=http://127.0.0.1:<port>|layout=bazel`;
+  - `TINYMOLD_SERVE_URL`, for Gradle (`<url>/gradle/`) and Bazel
+    (`--remote_cache=grpc://127.0.0.1:<port>`).
+- **The server is open, on loopback only.** It needs no token file: only
+  processes on this runner can reach it.
+- **Save** stops the server first. Its shutdown collects garbage to
+  `serve-max-size` with no grace period, so the saved entry is already
+  trimmed. A job counts as having stored something new, and saves, when
+  either the wrapper or the server wrote a file; the entry's key hashes
+  both stores' new files.
+- **A Rust toolchain is optional.** Without `rustc` the cache key uses
+  `no-rustc` in place of the compiler hash.
+- **Not yet:** reading through to a remote server. With `serve: true` and a
+  remote, the server serves this job's store only; the wrapper's remote
+  tier is unchanged.
 
 ## Why one archive per job, not one GitHub cache entry per object
 

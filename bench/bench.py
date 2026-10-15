@@ -1663,12 +1663,14 @@ def main() -> None:
     retest.add_argument("--project", help="only this corpus project")
     import edits  # the edit-sequence benchmark lives in its own module
     edits.add_parser(sub)
+    import server  # so does the cache server benchmark
+    server.add_parser(sub)
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "retest": bench_retest, "edits": edits.bench_edits}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "retest": bench_retest, "edits": edits.bench_edits, "server": server.bench_server}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine(result.pop("cargo_settings", None))
     result["date"] = dt.date.today().isoformat()
