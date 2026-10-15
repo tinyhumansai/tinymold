@@ -243,82 +243,9 @@ impl RemoteCache {
             }
         }
 
-        let failure = self.runtime.block_on(async {
-            // Blobs whose upload still failed after its retries, and why.
-            let mut failed = HashSet::new();
-            let mut last = None;
-            let digests: Vec<proto::Digest> = blobs.keys().cloned().collect();
-            let mut missing = Vec::new();
-            for batch in digests.chunks(FIND_BATCH) {
-                missing.extend(retrying(|| self.client.find_missing(batch.to_vec())).await?);
-            }
-            let (store, blobs) = (&store, &blobs);
-            let mut uploads = stream::iter(missing)
-                .map(|digest| async move {
-                    let data = match blobs.get(&digest) {
-                        Some(Source::Bytes(bytes)) => bytes.clone(),
-                        Some(Source::Object(object)) => store.read(object)?,
-                        // The server asked about a blob nobody sent it.
-                        None => return Ok(None),
-                    };
-                    let result = retrying(|| self.client.write(&digest, &data)).await;
-                    Ok::<_, Error>(Some((digest, data.len(), result)))
-                })
-                .buffer_unordered(IN_FLIGHT);
-            while let Some(upload) = uploads.next().await {
-                let Some((digest, size, result)) = upload? else {
-                    continue;
-                };
-                match result {
-                    Ok(()) => {
-                        report.blobs += 1;
-                        report.bytes += size as u64;
-                    }
-                    Err(error) if transient(&error) => {
-                        failed.insert(digest);
-                        last = Some(error);
-                    }
-                    Err(error) => return Err(error),
-                }
-            }
-            // An entry goes up only once every blob it names is there, and
-            // every action before any pre-key record.
-            for (entries, action) in [(actions, true), (prekeys, false)] {
-                let mut ready = Vec::new();
-                for (key, result) in entries {
-                    let complete = result
-                        .output_files
-                        .iter()
-                        .filter_map(|file| file.digest.as_ref())
-                        .all(|digest| !failed.contains(digest));
-                    if complete {
-                        ready.push((key, result));
-                    } else {
-                        report.failed += 1;
-                    }
-                }
-                let mut updates = stream::iter(ready)
-                    .map(|(key, result)| {
-                        retrying(move || {
-                            self.client
-                                .update_action_result(key.clone(), result.clone())
-                        })
-                    })
-                    .buffer_unordered(IN_FLIGHT);
-                while let Some(update) = updates.next().await {
-                    match update {
-                        Ok(()) if action => report.actions += 1,
-                        Ok(()) => report.prekeys += 1,
-                        Err(error) if transient(&error) => {
-                            report.failed += 1;
-                            last = Some(error);
-                        }
-                        Err(error) => return Err(error),
-                    }
-                }
-            }
-            Ok::<_, Error>(last)
-        })?;
+        let failure =
+            self.runtime
+                .block_on(self.send(&store, &blobs, actions, prekeys, &mut report))?;
         // Pushing part of a store is worth something. A push that left no
         // action, or no pre-key record, cannot serve a single hit: a reader
         // finds actions only through pre-keys.
@@ -326,6 +253,93 @@ impl RemoteCache {
             Some(error) if report.actions == 0 || report.prekeys == 0 => Err(error),
             _ => Ok(report),
         }
+    }
+
+    /// Uploads the `blobs` the server lacks, then the `actions` and
+    /// `prekeys` whose blobs all went up, counting them in `report`. Returns
+    /// the last transient failure, if any call still failed after its
+    /// retries.
+    async fn send(
+        &self,
+        store: &Store,
+        blobs: &HashMap<proto::Digest, Source>,
+        actions: Vec<(proto::Digest, ActionResult)>,
+        prekeys: Vec<(proto::Digest, ActionResult)>,
+        report: &mut PushReport,
+    ) -> Result<Option<Error>> {
+        // Blobs whose upload still failed after its retries, and why.
+        let mut failed = HashSet::new();
+        let mut last = None;
+        let digests: Vec<proto::Digest> = blobs.keys().cloned().collect();
+        let mut missing = Vec::new();
+        for batch in digests.chunks(FIND_BATCH) {
+            missing.extend(retrying(|| self.client.find_missing(batch.to_vec())).await?);
+        }
+        let mut uploads = stream::iter(missing)
+            .map(|digest| async move {
+                let data = match blobs.get(&digest) {
+                    Some(Source::Bytes(bytes)) => bytes.clone(),
+                    Some(Source::Object(object)) => store.read(object)?,
+                    // The server asked about a blob nobody sent it.
+                    None => return Ok(None),
+                };
+                let result = retrying(|| self.client.write(&digest, &data)).await;
+                Ok::<_, Error>(Some((digest, data.len(), result)))
+            })
+            .buffer_unordered(IN_FLIGHT);
+        while let Some(upload) = uploads.next().await {
+            let Some((digest, size, result)) = upload? else {
+                continue;
+            };
+            match result {
+                Ok(()) => {
+                    report.blobs += 1;
+                    report.bytes += size as u64;
+                }
+                Err(error) if transient(&error) => {
+                    failed.insert(digest);
+                    last = Some(error);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        // An entry goes up only once every blob it names is there, and
+        // every action before any pre-key record.
+        for (entries, action) in [(actions, true), (prekeys, false)] {
+            let mut ready = Vec::new();
+            for (key, result) in entries {
+                let complete = result
+                    .output_files
+                    .iter()
+                    .filter_map(|file| file.digest.as_ref())
+                    .all(|digest| !failed.contains(digest));
+                if complete {
+                    ready.push((key, result));
+                } else {
+                    report.failed += 1;
+                }
+            }
+            let mut updates = stream::iter(ready)
+                .map(|(key, result)| {
+                    retrying(move || {
+                        self.client
+                            .update_action_result(key.clone(), result.clone())
+                    })
+                })
+                .buffer_unordered(IN_FLIGHT);
+            while let Some(update) = updates.next().await {
+                match update {
+                    Ok(()) if action => report.actions += 1,
+                    Ok(()) => report.prekeys += 1,
+                    Err(error) if transient(&error) => {
+                        report.failed += 1;
+                        last = Some(error);
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+        }
+        Ok(last)
     }
 
     /// With a signing key, adds the signature of the entry `result` under
