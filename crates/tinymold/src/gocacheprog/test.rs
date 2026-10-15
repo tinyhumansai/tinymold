@@ -253,3 +253,40 @@ fn hex_round_trips_and_rejects_odd_or_bad_text() {
     assert_eq!(hex_decode("abc"), None);
     assert_eq!(hex_decode("zz"), None);
 }
+
+#[test]
+fn the_command_serves_the_named_store_and_refuses_the_wrapper_store() {
+    use clap::Parser as _;
+
+    let dir = tempfile::tempdir().unwrap();
+    let server = dir.path().join("server");
+    let wrapper = dir.path().join("wrapper");
+    std::fs::create_dir_all(&wrapper).unwrap();
+    let parse = |store: &std::path::Path, target: &std::path::Path| {
+        let cli = Cli::try_parse_from([
+            "tinymold",
+            "--store",
+            store.to_str().unwrap(),
+            "gocacheprog",
+            "--dir",
+            target.to_str().unwrap(),
+        ])
+        .unwrap();
+        let crate::Command::Gocacheprog(args) = &cli.command else {
+            panic!("not a gocacheprog command");
+        };
+        let args = args.clone();
+        (cli, args)
+    };
+
+    let (cli, args) = parse(&wrapper, &server);
+    let mut output = Vec::new();
+    run(&cli, &args, &b""[..], &mut output).unwrap();
+    assert!(String::from_utf8(output).unwrap().contains("KnownCommands"));
+
+    let (cli, args) = parse(&wrapper, &wrapper);
+    assert!(matches!(
+        run(&cli, &args, &b""[..], Vec::new()),
+        Err(Error::SharedStoreDir(_))
+    ));
+}

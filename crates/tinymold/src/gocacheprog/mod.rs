@@ -30,6 +30,7 @@ use std::io::{self, BufRead, Read, Write};
 
 use tinymold_store::{Entry, FrontEnd, Namespace, Store};
 
+use crate::cli::{Cli, GoCacheProgArgs};
 use crate::{Error, Result};
 use message::{BodyLine, Request, json_bytes, json_string, parse_request};
 
@@ -75,6 +76,25 @@ pub fn serve(store: &Store, mut input: impl BufRead, mut output: impl Write) -> 
         };
         respond(&mut output, &response)?;
     }
+}
+
+/// Runs `tinymold gocacheprog` on `input` and `output`: opens the store
+/// `args` name and serves the protocol from it.
+pub(crate) fn run(
+    cli: &Cli,
+    args: &GoCacheProgArgs,
+    input: impl BufRead,
+    output: impl Write,
+) -> Result<()> {
+    let dir = args
+        .dir
+        .clone()
+        .or_else(|| crate::default_server_dir(|name| std::env::var_os(name)))
+        .ok_or(Error::NoServerDir)?;
+    if let Some(wrapper_store) = crate::cli::store_dir(cli) {
+        crate::location::refuse_shared(&dir, &wrapper_store)?;
+    }
+    serve(&Store::open(dir)?, input, output)
 }
 
 fn get(store: &Store, namespace: &Namespace, request: &Request) -> String {

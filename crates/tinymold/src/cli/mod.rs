@@ -390,16 +390,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         Command::Remote(command) => return run_remote(cli, command, env, out),
         Command::Serve(args) => return crate::serve::run(cli, args, out),
         Command::Gocacheprog(args) => {
-            let dir = args
-                .dir
-                .clone()
-                .or_else(|| crate::default_server_dir(|name| std::env::var_os(name)))
-                .ok_or(Error::NoServerDir)?;
-            if let Some(wrapper_store) = store_dir(cli) {
-                crate::location::refuse_shared(&dir, &wrapper_store)?;
-            }
-            let store = tinymold_store::Store::open(dir)?;
-            crate::gocacheprog::serve(&store, std::io::stdin().lock(), out)?;
+            crate::gocacheprog::run(cli, args, std::io::stdin().lock(), out)?;
         }
         Command::RunTest(args) => return Ok(run_test(cli, args)),
     }

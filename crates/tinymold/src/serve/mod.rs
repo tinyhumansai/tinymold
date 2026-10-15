@@ -21,8 +21,18 @@ use crate::{Error, Result};
 /// on a binary built without the `server` feature.
 #[cfg(feature = "server")]
 pub(crate) fn run(cli: &Cli, args: &ServeArgs, out: &mut impl Write) -> Result<Outcome> {
-    let server = start(cli, args, out)?;
-    server.run_blocking(tinymold_server::shutdown_signal())?;
+    run_until(cli, args, out, tinymold_server::shutdown_signal())
+}
+
+/// Runs the server described by `args` until `shutdown` completes.
+#[cfg(feature = "server")]
+fn run_until(
+    cli: &Cli,
+    args: &ServeArgs,
+    out: &mut impl Write,
+    shutdown: impl std::future::Future<Output = ()>,
+) -> Result<Outcome> {
+    start(cli, args, out)?.run_blocking(shutdown)?;
     Ok(Outcome::Success)
 }
 
