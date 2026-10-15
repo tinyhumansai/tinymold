@@ -104,6 +104,9 @@ touch "${start_marker}"
   # Incremental artifacts only help the job that wrote them.
   echo "CARGO_INCREMENTAL=0"
   echo "TINYMOLD_SERVE=${serve}"
+  if [[ -n "${INPUT_MAX_EXECUTABLE_SIZE:-}" ]]; then
+    echo "TINYMOLD_MAX_EXECUTABLE_SIZE=${INPUT_MAX_EXECUTABLE_SIZE}"
+  fi
 } >> "${GITHUB_ENV}"
 # What the GitHub cache holds: the store, and with `serve: true` the cache
 # server's store too. Restore and save must name the same paths, or GitHub
