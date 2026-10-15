@@ -28,7 +28,7 @@ use http_body_util::BodyExt as _;
 use tinymold_store::{Entry, FrontEnd, Namespace};
 
 use crate::auth::{Denied, Permission};
-use crate::front::{blocking, declared_length};
+use crate::front::{blocking, declared_length, now};
 use crate::metrics::Outcome;
 use crate::route::{self, Body, State};
 use crate::transfer::{self, UploadError};
@@ -373,12 +373,6 @@ fn error(status: StatusCode, code: &str, message: &str) -> Response<Body> {
 fn miss(state: &State) -> Response<Body> {
     record(state, Outcome::Miss, 0, 0);
     error(StatusCode::NOT_FOUND, "not_found", "artifact not found")
-}
-
-fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 fn record(state: &State, outcome: Outcome, bytes_in: u64, bytes_out: u64) {

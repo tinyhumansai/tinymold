@@ -6,6 +6,7 @@
 
 pub(crate) mod bazel_http;
 pub(crate) mod reapi;
+pub(crate) mod turbo;
 
 use http::{HeaderValue, Response, StatusCode, header};
 
@@ -34,6 +35,14 @@ pub(crate) async fn blocking<T: Send + 'static>(
     call: impl FnOnce() -> T + Send + 'static,
 ) -> Option<T> {
     tokio::task::spawn_blocking(call).await.ok()
+}
+
+/// The current time in Unix seconds, for an entry's informational
+/// `written` field.
+pub(crate) fn now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 /// The `Content-Length` a request declares, if any.

@@ -38,6 +38,7 @@ use tower::service_fn;
 use crate::auth::{Denied, Permission};
 use crate::metrics::Outcome;
 use crate::route::{Body, State};
+use crate::front::now;
 use crate::transfer;
 use types::{
     ActionCacheUpdateCapabilities, ActionResultRefs, BatchReadBlobsRequest, BatchReadBlobsResponse,
@@ -670,12 +671,6 @@ fn rpc_status(code: tonic::Code, message: &str) -> RpcStatus {
 
 fn internal(error: impl std::fmt::Display) -> Status {
     Status::internal(format!("store failed: {error}"))
-}
-
-fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 async fn blocking<T: Send + 'static>(
