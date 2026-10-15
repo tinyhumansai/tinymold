@@ -127,11 +127,10 @@ impl Metrics {
             let _ = writeln!(out, "{name}_bucket{{le=\"{bound}\"}} {value}");
         }
         let count = self.latency_count.load(Ordering::Relaxed);
-        // Microsecond totals stay exact in an f64 for centuries of requests.
-        #[allow(clippy::cast_precision_loss)]
-        let sum = self.latency_micros.load(Ordering::Relaxed) as f64 / 1e6;
+        let micros = self.latency_micros.load(Ordering::Relaxed);
+        let (seconds, fraction) = (micros / 1_000_000, micros % 1_000_000);
         let _ = writeln!(out, "{name}_bucket{{le=\"+Inf\"}} {count}");
-        let _ = writeln!(out, "{name}_sum {sum}\n{name}_count {count}");
+        let _ = writeln!(out, "{name}_sum {seconds}.{fraction:06}\n{name}_count {count}");
 
         for (name, help, kind, value) in [
             ("tinymold_store_entries", "Entries kept at the last collection.", "gauge", &self.store_entries),
