@@ -1,0 +1,45 @@
+[package]
+name = "tinymold-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "tinymold serve: one content-addressed build cache behind the remote-cache protocols of REAPI, Bazel, Turborepo, Nx and Gradle."
+readme = "../../README.md"
+keywords = ["build", "cache", "remote-cache", "reapi", "turborepo"]
+categories = ["development-tools::build-utils", "network-programming"]
+
+[dependencies]
+tinymold-hash = { workspace = true }
+tinymold-cas = { workspace = true }
+tinymold-store = { workspace = true }
+thiserror = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true, features = ["server", "http1", "http2"] }
+hyper-util = { workspace = true, features = ["server", "server-auto", "server-graceful", "http1", "http2", "tokio"] }
+http-body-util = { workspace = true }
+bytes = { workspace = true }
+base64 = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "signal"] }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+# The REAPI front-end (src/front/reapi/): tonic's generic gRPC server with
+# prost messages declared by hand, as the client in tinymold-remote does,
+# and tower's `service_fn` to turn each handler into a gRPC service.
+tonic = { workspace = true, features = ["server"] }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+tower = { workspace = true }
+tokio-stream = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# A self-signed certificate made at test time for the TLS tests, so no
+# private key is committed. Default features use ring, which the workspace
+# already builds for rustls.
+rcgen = "0.14"
+hyper = { workspace = true, features = ["client", "http1", "http2"] }
+
+[lints]
+workspace = true

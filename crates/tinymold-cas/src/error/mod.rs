@@ -43,6 +43,11 @@ pub enum Error {
         actual: Digest,
     },
 
+    /// Reading a stream passed to [`Store::stage`](crate::Store::stage)
+    /// failed, such as a connection that dropped mid-upload.
+    #[error("failed to read the stream being stored")]
+    Stream(#[source] std::io::Error),
+
     /// The materialization destination already exists.
     ///
     /// The store never overwrites: replacing a file another process may have

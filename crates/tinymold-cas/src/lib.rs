@@ -13,6 +13,10 @@
 //! data I/O at all, which is what makes a cache hit cheaper than a rebuild
 //! even for multi-hundred-megabyte artifacts.
 //!
+//! [`Store::stage`] streams a body of any size into the store and hashes it
+//! on the way, so a server can check a client's claimed digest before the
+//! object exists: [`Staged::commit`] stores it, and dropping it discards it.
+//!
 //! [`Store::objects`] and [`Store::remove`] list and delete objects, for
 //! garbage collection that lives in the layers above.
 //!
@@ -46,5 +50,5 @@ mod store;
 
 pub use error::{Error, Result};
 pub use materialize::{Method, Strategy};
-pub use store::{ObjectInfo, StagingFile, Store};
+pub use store::{ObjectInfo, Staged, StagingFile, Store};
 pub use tinymold_hash::Digest;

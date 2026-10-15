@@ -127,9 +127,15 @@ Every read and write records last use per entry and per object, as
 [`gc.md`](gc.md) does for the local store today. Eviction is LRU by entry
 within a global byte budget (`--max-size`), with an optional age limit.
 An object is removed only when no surviving entry references it. Eviction
-never removes an object that a read is streaming or a write is about to
-reference: writers pin the objects they upload until their entry is
-committed or the upload is abandoned.
+never removes an object that a write is about to reference: an object
+stored or used within the grace period (one hour by default) is kept even
+when no entry names it yet, which pins an upload until its entry is
+committed. A read that is streaming an object keeps its open file on Unix;
+elsewhere the removal fails, the collection reports it, and a later run
+retries. Last use is the mtime of the
+entry file and of each object, refreshed on every read and write. The
+server's store root is never the wrapper's local store root, so each has
+exactly one collector.
 
 Under pressure, plain LRU lets a burst of branch builds evict the entries
 the default branch last used, which every pull request starts from.
@@ -188,10 +194,10 @@ ships in the `tinymold` binary and talks to the server:
   remote is configured, and works with no server at all.
 - **Go:** `GOCACHEPROG="tinymold gocacheprog"`. Go runs it as a subprocess
   speaking JSON lines (`get`, `put`, `close`) on stdin and stdout. A `get`
-  hit must answer with a path on local disk, so the adapter materializes the
-  object into the local store and returns that path. Its namespace is
-  `native` with a Go tenant, and Go's `ActionID` and `OutputID` are kept in
-  the entry record.
+  hit must answer with a path on local disk; the adapter opens the server's
+  store directly and answers with the stored object's own read-only path.
+  Its namespace is `native/go`: the `ActionID` is the key and the
+  `OutputID` is kept in the entry's metadata. No server needs to run.
 
 ### Not yet supported
 
@@ -209,17 +215,18 @@ ships in the `tinymold` binary and talks to the server:
   everything else is routed by path prefix to the HTTP front-ends.
 - **TLS** with `--tls-cert` and `--tls-key`, or terminated at an ingress, as
   `deploy/` already does for bazel-remote.
-- **Tokens.** A token file maps each token to scopes:
-  `(front-end | *, tenant | *, read | write)`. Bearer tokens (Turbo, Nx) and
+- **Tokens.** A token file maps each token to scopes, written
+  `<front-end|*>[/<tenant|*>]:<read|write>`, one line per token:
+  `ci-token *:write`. `write` includes `read`. Bearer tokens (Turbo, Nx) and
   basic auth (Gradle, REAPI, Bazel HTTP) are both accepted, the password of
   basic auth being the token. `--allow-anonymous-reads` keeps today's
-  bazel-remote setup for forks.
-- **Secure by default.** Without `--tokens`, `serve` refuses any `--listen`
-  address that is not loopback. No option allows anonymous writes; the
-  server starts only when every network listener needs a write token.
-  Writers' entries for the REAPI front-end are signed as the
-  [remote spec](remote.md#signed-entries) describes, and the server stores
-  signatures unchanged.
+  bazel-remote setup for forks. Without a token file every request is
+  allowed, and the server then refuses to listen on anything but a
+  loopback address.
+- **Signed entries.** Writers' entries for the REAPI front-end are signed
+  as the [remote spec](remote.md#signed-entries) describes, and the server
+  stores the signatures unchanged, so a reader trusting only the writers'
+  keys cannot be poisoned through an open or compromised server.
 - **The native socket** is created with mode `0600` in the user's runtime
   directory and is trusted as the user. It is never exposed on a network.
 - Credentials never appear in logs, `status` output or error messages.
@@ -227,20 +234,24 @@ ships in the `tinymold` binary and talks to the server:
 ## Operations
 
 ```text
-tinymold serve [--listen ADDR] [--store DIR] [--max-size SIZE] [--max-age AGE]
-               [--tokens FILE] [--allow-anonymous-reads] [--tls-cert F --tls-key F]
-               [--front-ends reapi,bazel-http,turbo,nx,gradle]
+tinymold serve [--listen ADDR] [--dir DIR] [--max-size SIZE] [--max-age AGE]
+               [--max-body SIZE] [--gc-interval AGE] [--tokens FILE]
+               [--allow-anonymous-reads] [--tls-cert F --tls-key F]
 tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 ```
 
+- **Directory.** `--dir`, else `TINYMOLD_SERVER_DIR`, else `tinymold-server`
+  beside the default wrapper store. The server refuses to use the wrapper's
+  store directory.
 - **Expiry.** `--max-age` defaults to `48h`: an entry no client has read or
   written for two days is evicted, and its objects with it once nothing
   else names them. `--max-size` still caps the total.
 - **Persistence.** The index and last-use times live in the store directory
   and survive a restart. A restart serves hits immediately; it does not
   rebuild the index by scanning objects.
-- **Crash safety.** A crash loses at most uncommitted uploads. A torn index
-  write is detected on start and rolled back to the last complete state.
+- **Crash safety.** A crash loses at most uncommitted uploads. Every entry
+  and index file is written privately and renamed into place, so a torn
+  write leaves only a stale file in `pending/`, which GC sweeps.
 - **Metrics.** `GET /metrics` in Prometheus text format: requests, hits,
   misses and bytes per front-end and namespace, latency histograms, store
   bytes and evictions.
@@ -248,10 +259,11 @@ tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 
 ### In GitHub Actions
 
-The setup action gains `serve: true`. It starts `tinymold serve` on
-`localhost` for the rest of the job, with its store restored from
-`actions/cache` as the store is today, and exports each enabled front-end's
-client settings, for example:
+The setup action gains `serve: true`
+([`github-actions.md`](github-actions.md#serving-other-tools)). It starts
+`tinymold serve` on `localhost` for the rest of the job, with its store
+restored from `actions/cache` as the store is today, and exports each
+front-end's client settings, for example:
 
 ```text
 TURBO_API=http://127.0.0.1:9090  TURBO_TOKEN=…  TURBO_TEAM=ci
@@ -259,10 +271,9 @@ NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090
 CCACHE_REMOTE_STORAGE=http://127.0.0.1:9090|layout=bazel
 ```
 
-The save action stops the server, runs GC to the budget, and saves the
-store. With `remote-url` set, the local server reads through to the remote
-on a miss and the save step pushes new entries, as `tinymold remote push`
-does for Rust today.
+The save action stops the server, whose shutdown collects garbage to the
+budget, and saves the store. Reading through to a remote on a miss, with
+`remote-url` set, is not built yet (see open questions).
 
 ## Invariants
 
@@ -291,7 +302,11 @@ bazel-remote on the same machine and disk, with results committed. Targets:
 | Peak memory | does not grow with blob size |
 
 The server does not replace bazel-remote in `deploy/` or the CI
-`remote-e2e` job until it meets these on Linux and macOS.
+`remote-e2e` job until it meets these on Linux and macOS. On darwin arm64
+it meets every target the harness measures (`bench/README.md`, "Cache
+server"): small hits p50 0.16 ms and p99 0.31 ms, downloads and uploads
+faster than bazel-remote's, and a 17 ms cold start whatever the entry
+count. `FindMissingBlobs` and peak memory are not measured yet.
 
 ## Acceptance criteria
 

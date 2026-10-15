@@ -4,7 +4,7 @@
 # `if: always()`), which pushes to the remote, prints the hit rate, collects
 # garbage and saves the GitHub cache. See docs/specs/github-actions.md.
 name: tinymold
-description: Content-addressed rustc caching for cargo, kept in GitHub's cache or a shared REAPI server.
+description: Content-addressed rustc caching for cargo, and a local cache server for Turborepo, Nx and ccache, kept in GitHub's cache or a shared REAPI server.
 author: tinyhumansai
 branding:
   icon: zap
@@ -47,6 +47,21 @@ inputs:
   remote-trusted-keys:
     description: Comma-separated public keys from tinymold remote keygen; entries not signed by one of them are misses.
     default: ""
+  serve:
+    description: "`true` runs `tinymold serve` on 127.0.0.1 for the rest of the job, its store kept in GitHub's cache with tinymold's, and points Turborepo, Nx and ccache at it."
+    default: "false"
+  serve-dir:
+    description: The cache server's store directory; defaults to ~/.cache/tinymold-server.
+    default: ""
+  serve-port:
+    description: The loopback port the cache server listens on.
+    default: "9090"
+  serve-max-size:
+    description: Trim the cache server's store to this size when the job ends (tinymold serve --max-size).
+    default: 4G
+  turbo-team:
+    description: The Turborepo team exported as TURBO_TEAM; defaults to the repository owner.
+    default: ""
 
 outputs:
   store:
@@ -58,6 +73,9 @@ outputs:
   registry-hit:
     description: Whether the cargo registry was restored from an entry for this exact Cargo.lock.
     value: ${{ steps.registry.outputs.cache-hit == 'true' }}
+  serve-url:
+    description: "With `serve: true`, the cache server's URL."
+    value: ${{ steps.serve.outputs.serve-url }}
 
 runs:
   using: composite
@@ -76,6 +94,9 @@ runs:
         INPUT_REMOTE_INSTANCE: ${{ inputs.remote-instance }}
         INPUT_REMOTE_SIGNING_KEY: ${{ inputs.remote-signing-key }}
         INPUT_REMOTE_TRUSTED_KEYS: ${{ inputs.remote-trusted-keys }}
+        INPUT_SERVE: ${{ inputs.serve }}
+        INPUT_SERVE_DIR: ${{ inputs.serve-dir }}
+        INPUT_SERVE_PORT: ${{ inputs.serve-port }}
         ACTION_REPOSITORY: tinyhumansai/tinymold
       run: |
         set -euo pipefail
@@ -85,7 +106,7 @@ runs:
       if: inputs.backend == 'github' || inputs.backend == 'both'
       uses: actions/cache/restore@v6
       with:
-        path: ${{ steps.setup.outputs.store }}
+        path: ${{ steps.setup.outputs.cache-paths }}
         key: ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: |
           ${{ steps.setup.outputs.key-prefix }}-${{ hashFiles('**/Cargo.lock') }}-
@@ -106,6 +127,17 @@ runs:
         key: ${{ steps.setup.outputs.registry-key-prefix }}-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ steps.setup.outputs.registry-key-prefix }}-
+
+    # After the restore, so the server starts on the store it brought back.
+    - id: serve
+      if: inputs.serve == 'true'
+      shell: bash
+      env:
+        INPUT_SERVE_MAX_SIZE: ${{ inputs.serve-max-size }}
+        INPUT_TURBO_TEAM: ${{ inputs.turbo-team }}
+      run: |
+        set -euo pipefail
+        "${GITHUB_ACTION_PATH}/action/serve.sh"
 
     - shell: bash
       env:

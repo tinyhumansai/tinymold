@@ -49,3 +49,11 @@ fn not_found_and_existing_destinations_render() {
         "destination a already exists"
     );
 }
+
+#[test]
+fn stream_errors_keep_the_failure_as_their_source() {
+    let error = Error::Stream(std::io::Error::other("connection reset"));
+
+    assert_eq!(error.to_string(), "failed to read the stream being stored");
+    assert!(std::error::Error::source(&error).is_some());
+}
