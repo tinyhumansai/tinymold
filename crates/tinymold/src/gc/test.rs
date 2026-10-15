@@ -637,7 +637,7 @@ fn a_test_run_that_cannot_be_read_is_an_error_not_garbage() {
     }
 
     let result = collect(&fixture.root, &fixture.policy());
-    fs::set_permissions(&run, fs::Permissions::from_mode(0o644)).unwrap();
+    let _ = fs::set_permissions(&run, fs::Permissions::from_mode(0o644));
     assert!(
         matches!(
             result,

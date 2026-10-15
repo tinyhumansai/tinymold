@@ -148,6 +148,9 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
                             unit: None,
                         });
                     }
+                    // A record that is there but cannot be read is not
+                    // garbage: removing it would free the output it needs.
+                    Err(error @ tinymold_wrap::Error::Io { .. }) => return Err(error.into()),
                     // Expired, corrupt, or gone since the walk.
                     _ => {
                         remove_file(&record.path, policy)?;
