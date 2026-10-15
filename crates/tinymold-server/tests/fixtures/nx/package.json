@@ -1,0 +1,9 @@
+{
+  "name": "tinymold-nx-fixture",
+  "private": true,
+  "packageManager": "npm@11.19.0",
+  "workspaces": ["packages/*"],
+  "devDependencies": {
+    "nx": "^21"
+  }
+}
