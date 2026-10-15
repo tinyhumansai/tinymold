@@ -95,9 +95,7 @@ fn a_blob_whose_content_does_not_match_is_rejected() {
     let runtime = runtime();
     let client = client(&runtime, &config(&server));
     let digest = naming::blob(b"real");
-    runtime
-        .block_on(client.write(&digest, b"real"))
-        .unwrap();
+    runtime.block_on(client.write(&digest, b"real")).unwrap();
     server.with(|state| state.corrupt.insert(digest.hash.clone()));
 
     let result = runtime.block_on(client.read(&digest));

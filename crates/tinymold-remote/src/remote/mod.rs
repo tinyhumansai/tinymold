@@ -184,11 +184,17 @@ impl RemoteCache {
     /// input set can find its action, and one that finds an action can fetch
     /// every object it names.
     ///
+    /// A call that times out, or that the server answers as unavailable or
+    /// overloaded, is retried after each of [`RETRY_DELAYS`]. When one still
+    /// fails, only the entries that need it are left out, and
+    /// [`PushReport::failed`] counts them: the rest of the store is pushed.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Wrap`] or [`Error::Cas`] when the local store cannot
-    /// be read, and [`Error::Status`] or [`Error::Timeout`] on the first call
-    /// the server refuses, such as a write without write credentials.
+    /// be read, [`Error::Status`] on the first call the server refuses, such
+    /// as a write without write credentials, and the last [`Error::Timeout`]
+    /// or [`Error::Status`] when transient failures left nothing pushed.
     pub fn push(&self, store_dir: &Path, since: Option<SystemTime>) -> Result<PushReport> {
         let store = Store::open(store_dir)?;
         let recent = |when: SystemTime| since.is_none_or(|since| when >= since);
@@ -272,8 +278,11 @@ impl RemoteCache {
                     report.failed += 1;
                     continue;
                 }
-                match retrying(|| self.client.update_action_result(key.clone(), result.clone()))
-                    .await
+                match retrying(|| {
+                    self.client
+                        .update_action_result(key.clone(), result.clone())
+                })
+                .await
                 {
                     Ok(_) if action => report.actions += 1,
                     Ok(_) => report.prekeys += 1,

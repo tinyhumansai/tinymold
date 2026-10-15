@@ -142,7 +142,12 @@ fn an_upload_that_times_out_once_is_retried() {
     let report = impatient(&server).push(&local.root, None).unwrap();
     assert_eq!((report.actions, report.prekeys, report.failed), (1, 1, 0));
     let fetched = Store::open(local._dir.path().join("fetched")).unwrap();
-    assert!(remote(&server).fetch_action(&local.key, &fetched).unwrap().is_some());
+    assert!(
+        remote(&server)
+            .fetch_action(&local.key, &fetched)
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[test]
@@ -160,16 +165,22 @@ fn an_upload_that_keeps_failing_skips_only_the_entries_that_need_it() {
         ),
     );
     server.with(|state| {
-        state
-            .stalled_blobs
-            .insert(naming::blob(b"stuck rlib").hash);
+        state.stalled_blobs.insert(naming::blob(b"stuck rlib").hash);
     });
     let report = impatient(&server).push(&local.root, None).unwrap();
     assert_eq!(
-        (report.actions, report.prekeys, report.failed, report.skipped),
+        (
+            report.actions,
+            report.prekeys,
+            report.failed,
+            report.skipped
+        ),
         (1, 1, 1, 0)
     );
-    assert!(report.to_string().contains("1 entries not pushed"), "{report}");
+    assert!(
+        report.to_string().contains("1 entries not pushed"),
+        "{report}"
+    );
     let fetched = Store::open(local._dir.path().join("fetched")).unwrap();
     let cache = remote(&server);
     assert!(cache.fetch_action(&local.key, &fetched).unwrap().is_some());
