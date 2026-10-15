@@ -4,12 +4,16 @@ This file is the single source of truth for how humans and coding agents work
 in this repository. `CLAUDE.md` is a symlink to this file, so every agent reads
 the same instructions.
 
-tinymold is a build accelerator for Rust: content-addressed build caching,
-fast linking, a hot cache server, and hashing, with `target/` disk footprint
-as a first-class goal. Read [`README.md`](README.md) for the pitch,
-[`docs/research/README.md`](docs/research/README.md) for why, and
-[`docs/specs/architecture.md`](docs/specs/architecture.md) for the design
-before changing behavior.
+tinymold is a fast content-addressed build cache: one server and one store,
+with protocol front-ends for each ecosystem's remote cache (REAPI, Bazel
+HTTP, Turborepo, Nx, Gradle) and client adapters for toolchains that need
+one (the Rust wrapper, Go's `GOCACHEPROG`). Linking is out of scope
+([ADR 0009](docs/adr/0009-a-cache-server-with-protocol-front-ends.md)). Read
+[`README.md`](README.md) for the pitch,
+[`docs/research/README.md`](docs/research/README.md) for why,
+[`docs/specs/cache-server.md`](docs/specs/cache-server.md) for the server and
+[`docs/specs/architecture.md`](docs/specs/architecture.md) for the Rust
+adapter before changing behavior.
 
 ## Project Structure
 
