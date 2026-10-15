@@ -466,30 +466,41 @@ impl RemoteCache {
                     .ok_or_else(|| malformed("an output has no digest"))?;
                 wanted.push((name, digest));
             }
-            // Every object, and the record, in flight together: each read is
-            // a round trip.
-            let wanted = wanted
-                .into_iter()
-                .map(|(name, digest)| (blob_size(&digest), (name, digest)))
+            // Every object, and the record, in flight together under one
+            // limit: each read is a round trip. Each object goes into the
+            // store as it arrives, so memory holds only what is in flight.
+            let reads = std::iter::once((blob_size(&record), None))
+                .chain(
+                    wanted
+                        .into_iter()
+                        .map(|(name, digest)| (blob_size(&digest), Some((name, digest)))),
+                )
                 .collect();
-            // Each object goes into the store as it arrives, so memory holds
-            // only what is in flight.
-            let reads = in_flight(
-                wanted,
-                |(name, digest)| async move {
-                    let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
-                    (name, bytes)
-                },
-                |(name, bytes)| {
-                    if store.insert_bytes(&bytes?)? == name {
-                        Ok(())
-                    } else {
-                        Err(malformed("an output does not match its name"))
+            let mut text = None;
+            in_flight(
+                reads,
+                |object| {
+                    let record = &record;
+                    async move {
+                        let (name, digest) = match object {
+                            Some((name, digest)) => (Some(name), digest),
+                            None => (None, record.clone()),
+                        };
+                        let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
+                        (name, bytes)
                     }
                 },
-            );
-            let ((), text) =
-                future::try_join(reads, self.client.read_sharing(&record, IN_FLIGHT_BYTES)).await?;
+                |(name, bytes)| match name {
+                    None => {
+                        text = Some(bytes?);
+                        Ok(())
+                    }
+                    Some(name) if store.insert_bytes(&bytes?)? == name => Ok(()),
+                    Some(_) => Err(malformed("an output does not match its name")),
+                },
+            )
+            .await?;
+            let text = text.ok_or_else(|| malformed("its action record was never read"))?;
             String::from_utf8(text)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
