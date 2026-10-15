@@ -10,6 +10,7 @@ fn state() -> (tempfile::TempDir, Arc<State>) {
         store: Store::open(dir.path().join("store")).unwrap(),
         access: Access::open(),
         metrics: Metrics::default(),
+        max_body: 1024,
     };
     (dir, Arc::new(state))
 }

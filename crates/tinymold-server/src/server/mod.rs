@@ -84,6 +84,7 @@ impl Server {
                 store,
                 access,
                 metrics: Metrics::default(),
+                max_body: config.max_body,
             }),
             tls,
             policy: Policy {

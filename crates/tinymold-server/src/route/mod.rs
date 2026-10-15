@@ -11,10 +11,11 @@ use std::time::Instant;
 use bytes::Bytes;
 use http::{Method, Request, Response, StatusCode, header};
 use http_body_util::combinators::BoxBody;
-use http_body_util::{BodyExt as _, Full};
+use http_body_util::{BodyExt as _, Empty, Full};
 use tinymold_store::Store;
 
 use crate::auth::Access;
+use crate::front::bazel_http;
 use crate::metrics::Metrics;
 
 /// The body of every response: streamed, with I/O errors.
@@ -26,6 +27,8 @@ pub(crate) struct State {
     pub(crate) store: Store,
     pub(crate) access: Access,
     pub(crate) metrics: Metrics,
+    /// The largest request body accepted, in bytes.
+    pub(crate) max_body: u64,
 }
 
 /// Answers one request. Never fails: every problem becomes a status code.
@@ -38,12 +41,19 @@ where
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let started = Instant::now();
-    let response = route(&state, &request);
+    let response = route(&state, request).await;
     state.metrics.observe(started.elapsed());
     Ok(response)
 }
 
-fn route<B>(state: &State, request: &Request<B>) -> Response<Body> {
+async fn route<B>(state: &Arc<State>, request: Request<B>) -> Response<Body>
+where
+    B: hyper::body::Body<Data = Bytes> + Send + Unpin + 'static,
+    B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    if let Some(target) = bazel_http::parse(request.uri().path()) {
+        return bazel_http::handle(state, request, target).await;
+    }
     match (request.method(), request.uri().path()) {
         (&Method::GET | &Method::HEAD, "/healthz") => text(StatusCode::OK, "ok\n"),
         (&Method::GET, "/metrics") => {
@@ -56,6 +66,27 @@ fn route<B>(state: &State, request: &Request<B>) -> Response<Body> {
         }
         _ => text(StatusCode::NOT_FOUND, "not found\n"),
     }
+}
+
+/// A response with no body.
+pub(crate) fn empty(status: StatusCode) -> Response<Body> {
+    let mut response = Response::new(Empty::new().map_err(|never| match never {}).boxed());
+    *response.status_mut() = status;
+    response
+}
+
+/// A response carrying `body` of `len` bytes, or only its headers for a
+/// `HEAD` request.
+pub(crate) fn sized(body: Body, len: u64, head: bool) -> Response<Body> {
+    let mut response = if head {
+        empty(StatusCode::OK)
+    } else {
+        Response::new(body)
+    };
+    response
+        .headers_mut()
+        .insert(header::CONTENT_LENGTH, http::HeaderValue::from(len));
+    response
 }
 
 /// A plain-text response.

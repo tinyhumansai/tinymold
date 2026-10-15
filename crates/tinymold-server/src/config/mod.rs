@@ -8,6 +8,10 @@ use std::time::Duration;
 /// token file is reachable from this machine alone.
 pub const DEFAULT_LISTEN: &str = "127.0.0.1:9090";
 
+/// The largest request body accepted by default: 4 GiB, more than any build
+/// artifact a cache should hold.
+pub const DEFAULT_MAX_BODY: u64 = 4 << 30;
+
 /// How often the server collects garbage by default.
 pub const DEFAULT_GC_INTERVAL: Duration = Duration::from_secs(600);
 
@@ -40,6 +44,9 @@ pub struct Config {
     pub max_age: Option<Duration>,
     /// How often to collect garbage.
     pub gc_interval: Duration,
+    /// The largest request body accepted, in bytes. Larger uploads are
+    /// refused with the protocol's "too large" status before they are read.
+    pub max_body: u64,
 }
 
 impl Config {
@@ -56,6 +63,7 @@ impl Config {
             max_size: None,
             max_age: None,
             gc_interval: DEFAULT_GC_INTERVAL,
+            max_body: DEFAULT_MAX_BODY,
         }
     }
 }
