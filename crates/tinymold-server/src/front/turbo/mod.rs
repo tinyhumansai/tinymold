@@ -128,12 +128,11 @@ async fn download(
     let Ok(key) = namespace.key(hash.as_bytes()) else {
         return miss(state);
     };
-    let Some(artifact::Found { path, meta }) = artifact::find(state, key).await else {
+    let Some(artifact::Found { opened, meta }) = artifact::find(state, key).await else {
         return miss(state);
     };
-    let Some((body, len)) = transfer::download(path).await else {
-        return miss(state);
-    };
+    let len = opened.len();
+    let body = opened.into_body();
     record(state, Outcome::Hit, 0, if head { 0 } else { len });
     let mut response = route::sized(body, len, head);
     let headers = response.headers_mut();
