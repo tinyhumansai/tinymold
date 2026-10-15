@@ -421,14 +421,13 @@ impl RemoteCache {
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
             // The record is only used once the signature checks out, but
-            // reading both at once saves a round trip.
-            let (verified, bytes) = future::join(
+            // reading both at once saves a round trip. A refused signature
+            // drops the read at once, whatever the server is sending.
+            let ((), bytes) = future::try_join(
                 self.verify(Kind::Prekey, &key, &digest, &result),
                 self.client.read(&digest),
             )
-            .await;
-            verified?;
-            let bytes = bytes?;
+            .await?;
             String::from_utf8(bytes)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
@@ -473,7 +472,8 @@ impl RemoteCache {
                 .into_iter()
                 .map(|(name, digest)| (blob_size(&digest), (name, digest)))
                 .collect();
-            let mut objects = Vec::new();
+            // Each object goes into the store as it arrives, so memory holds
+            // only what is in flight.
             let reads = in_flight(
                 wanted,
                 |(name, digest)| async move {
@@ -481,19 +481,15 @@ impl RemoteCache {
                     (name, bytes)
                 },
                 |(name, bytes)| {
-                    objects.push((name, bytes?));
-                    Ok(())
+                    if store.insert_bytes(&bytes?)? == name {
+                        Ok(())
+                    } else {
+                        Err(malformed("an output does not match its name"))
+                    }
                 },
             );
-            let (read, text) =
-                future::join(reads, self.client.read_sharing(&record, IN_FLIGHT_BYTES)).await;
-            read?;
-            for (name, bytes) in objects {
-                if store.insert_bytes(&bytes)? != name {
-                    return Err(malformed("an output does not match its name"));
-                }
-            }
-            let text = text?;
+            let ((), text) =
+                future::try_join(reads, self.client.read_sharing(&record, IN_FLIGHT_BYTES)).await?;
             String::from_utf8(text)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
