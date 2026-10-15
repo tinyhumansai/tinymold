@@ -15,6 +15,3 @@ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
 
 It is an end-entity certificate (`CA:FALSE`): rustls refuses a CA
 certificate presented as a server's own.
-
-```text
-```
