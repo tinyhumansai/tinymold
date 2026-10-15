@@ -191,6 +191,29 @@ fn a_crate_that_bakes_in_its_out_dir_misses_in_another_worktree() {
 }
 
 #[test]
+fn a_crate_that_uses_its_out_dir_only_transformed_misses_in_another_worktree() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    // Only the length reaches the outputs, never the path itself, so no
+    // output contains the value; the two worktrees' lengths differ.
+    let source = "pub const LEN: usize = env!(\"OUT_DIR\").len();\n";
+    let a = dir.path().join("a");
+    let b = dir.path().join("a-longer-path");
+    worktree(&a, source);
+    worktree(&b, source);
+    let out_a = a.join("target/debug/build/demo-1/out");
+    let out_b = b.join("target/debug/build/demo-1/out");
+
+    let first = build(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())]);
+    assert_eq!(outcome(&first), "miss", "{first}");
+    let rlib = fs::read(a.join("target/debug/deps/libdemo-1.rlib")).unwrap();
+    let needle = out_a.to_str().unwrap().as_bytes();
+    assert!(!rlib.windows(needle.len()).any(|window| window == needle));
+    let other = build(&b, &store, &[("OUT_DIR", out_b.to_str().unwrap())]);
+    assert_eq!(outcome(&other), "miss", "{other}");
+}
+
+#[test]
 fn queries_and_other_programs_pass_through() {
     let dir = tempfile::tempdir().unwrap();
     let log = dir.path().join("log");
