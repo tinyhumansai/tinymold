@@ -77,7 +77,7 @@ fn a_body_that_does_not_match_its_sha256_claim_is_refused_and_not_stored() {
             .unwrap(),
         None
     );
-    assert!(store.cas().staging_files().unwrap().is_empty());
+    assert_eq!(store.cas().staging_files().unwrap(), Vec::new());
 }
 
 #[test]

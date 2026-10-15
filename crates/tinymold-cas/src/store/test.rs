@@ -324,7 +324,7 @@ fn a_staged_stream_commits_under_its_digest() {
 
     let digest = staged.commit().unwrap();
     assert_eq!(store.read(&digest).unwrap(), b"streamed artifact");
-    assert!(store.staging_files().unwrap().is_empty());
+    assert_eq!(store.staging_files().unwrap(), Vec::new());
 }
 
 #[test]
@@ -335,7 +335,7 @@ fn dropping_a_staged_stream_leaves_nothing_behind() {
     drop(staged);
 
     assert!(!store.contains(&digest));
-    assert!(store.staging_files().unwrap().is_empty());
+    assert_eq!(store.staging_files().unwrap(), Vec::new());
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn staging_bytes_the_store_already_holds_commits_to_the_same_object() {
 
     assert_eq!(first, second);
     assert_eq!(store.objects().unwrap().len(), 1);
-    assert!(store.staging_files().unwrap().is_empty());
+    assert_eq!(store.staging_files().unwrap(), Vec::new());
 }
 
 #[test]
@@ -362,5 +362,5 @@ fn a_failing_stream_is_a_stream_error_and_leaves_no_staging_file() {
     let error = store.stage(Broken).unwrap_err();
 
     assert!(matches!(error, Error::Stream(_)), "{error:?}");
-    assert!(store.staging_files().unwrap().is_empty());
+    assert_eq!(store.staging_files().unwrap(), Vec::new());
 }

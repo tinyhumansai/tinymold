@@ -75,9 +75,9 @@ impl FromStr for Sha256 {
             return Err(invalid());
         }
         let mut out = [0_u8; Self::LEN];
-        for (slot, pair) in out.iter_mut().zip(bytes.chunks_exact(2)) {
-            let high = nibble(pair[0]).ok_or_else(invalid)?;
-            let low = nibble(pair[1]).ok_or_else(invalid)?;
+        for (slot, &[high, low]) in out.iter_mut().zip(bytes.as_chunks::<2>().0) {
+            let high = nibble(high).ok_or_else(invalid)?;
+            let low = nibble(low).ok_or_else(invalid)?;
             *slot = high << 4 | low;
         }
         Ok(Self(out))
