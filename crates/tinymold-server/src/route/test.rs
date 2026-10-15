@@ -2,8 +2,6 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use http_body_util::BodyExt as _;
-
 use super::*;
 
 fn state() -> (tempfile::TempDir, Arc<State>) {

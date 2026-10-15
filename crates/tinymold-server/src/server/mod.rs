@@ -30,7 +30,6 @@ use crate::{Error, Result};
 const DRAIN: Duration = Duration::from_secs(10);
 
 /// A bound, not yet running, cache server.
-#[derive(Debug)]
 pub struct Server {
     listener: std::net::TcpListener,
     local_addr: SocketAddr,
@@ -38,6 +37,16 @@ pub struct Server {
     tls: Option<TlsAcceptor>,
     policy: Policy,
     gc_interval: Duration,
+}
+
+impl std::fmt::Debug for Server {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Server")
+            .field("local_addr", &self.local_addr)
+            .field("tls", &self.tls.is_some())
+            .field("policy", &self.policy)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Server {
