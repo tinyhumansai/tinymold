@@ -110,7 +110,9 @@ key=""
 if [[ "${save}" == true ]]; then
   stored="$({
     newer "${TINYMOLD_STORE}"
-    [[ "${serving}" == true ]] && newer "${TINYMOLD_SERVER_DIR}" | sed 's|^|server:|'
+    if [[ "${serving}" == true ]]; then
+      newer "${TINYMOLD_SERVER_DIR}" | sed 's|^|server:|'
+    fi
   } | sha256 | cut -c1-12)"
   key="${TINYMOLD_CACHE_KEY}-${GITHUB_JOB:-job}-${stored}"
 fi

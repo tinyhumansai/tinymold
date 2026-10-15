@@ -124,6 +124,53 @@ run_save env TINYMOLD_REGISTRY_KEY=tinymold-cargo-v1-Linux-X64-lock TINYMOLD_CAR
   INPUT_SAVE_CACHE=false
 [[ "$(output save-registry)" == false ]] || fail "save-registry is $(output save-registry)"
 
+# With `serve: true`, a server store beside the wrapper store.
+serve_runner() {
+  new_runner "$1"
+  mkdir -p "${root}/server"
+  touch -t 202001010000 "${root}/server/restored"
+}
+
+new_runner "a job that serves nothing keeps the key it had before"
+store entry-a
+run_save env
+plain="$(output key)"
+serve_runner "${current}"
+store entry-a
+run_save env TINYMOLD_SERVE=false TINYMOLD_SERVER_DIR="${root}/server"
+[[ "$(output key)" == "${plain}" ]] || fail "'$(output key)' differs from '${plain}'"
+
+serve_runner "a job whose server stored entries saves the cache"
+sleep 1
+echo entry > "${root}/server/written"
+run_save env TINYMOLD_SERVE=true TINYMOLD_SERVER_DIR="${root}/server"
+[[ "$(output save-cache)" == true ]] || fail "save-cache is $(output save-cache)"
+served="$(output key)"
+[[ -n "${served}" ]] || fail "no key was named"
+
+serve_runner "server entries set the key apart"
+sleep 1
+echo other > "${root}/server/written-elsewhere"
+run_save env TINYMOLD_SERVE=true TINYMOLD_SERVER_DIR="${root}/server"
+[[ "$(output key)" != "${served}" ]] || fail "different server entries share ${served}"
+
+serve_runner "a server that stored nothing saves nothing"
+run_save env TINYMOLD_SERVE=true TINYMOLD_SERVER_DIR="${root}/server"
+[[ "$(output save-cache)" == false ]] || fail "save-cache is $(output save-cache)"
+
+serve_runner "the server is stopped before the cache is saved"
+sleep 300 &
+server_pid=$!
+echo "${server_pid}" > "${root}/serve.pid"
+run_save env TINYMOLD_SERVE=true TINYMOLD_SERVER_DIR="${root}/server" \
+  TINYMOLD_SERVE_PID_FILE="${root}/serve.pid"
+sleep 0.2
+if kill -0 "${server_pid}" 2>/dev/null; then
+  fail "the server process is still running"
+  kill "${server_pid}"
+fi
+wait "${server_pid}" 2>/dev/null || true
+
 if [[ "${failures}" -gt 0 ]]; then
   echo "${failures} failure(s)" >&2
   exit 1
