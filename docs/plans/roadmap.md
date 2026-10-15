@@ -1,5 +1,13 @@
 # tinymold roadmap
 
+> **Refocused 2026-10-15** by [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md):
+> tinymold is one cache server with protocol front-ends, and the Rust
+> wrapper is its first adapter. The next work is
+> [`cache-server.md`](cache-server.md), which replaces Phase 6's server.
+> Phase 4's linker items, Phase 5's remaining experiments and the
+> rustc-specific Phase 7 bets are out of scope. Their recorded results stay
+> below.
+
 > **Revised 2026-10-14** against the committed baselines in
 > [`bench/README.md`](../../bench/README.md) and the second research pass
 > ([`compilers-2026.md`](../research/compilers-2026.md)). Work is ordered by the
@@ -155,6 +163,9 @@ checked out, including the units sccache refuses.
 
 ## Phase 4: Test builds and links
 
+> Since ADR 0009, only the test result cache and clippy caching remain in
+> scope. The linker deliverables below are dropped.
+
 **Goal.** Shrink `cargo test` builds after `cargo build`: 3.3 s on ripgrep
 and 4.6 s on bat today.
 
@@ -184,6 +195,9 @@ and 4.6 s on bat today.
 **Dependencies.** Phase 3.
 
 ## Phase 5: Edit loop
+
+> Closed by ADR 0009. The results below stand; the remaining experiments
+> are not planned.
 
 **Status.** First experiments done. See [`edit-loop.md`](edit-loop.md).
 
@@ -220,6 +234,10 @@ become part of a reversible `tinymold doctor --fix` profile.
 
 ## Phase 6: Hot server and remote
 
+> Replaced by [`cache-server.md`](cache-server.md): the server is now one
+> process for every protocol, and its `native` front-end carries the
+> single-flight and stat-cache work below. The exit criteria still apply.
+
 **Goal.** Share work across concurrent agents and machines. Speed on its own
 matters less here: no-op builds are already 70-100 ms.
 
@@ -249,6 +267,9 @@ matters less here: no-op builds are already 70-100 ms.
 **Dependencies.** Phase 3.
 
 ## Phase 7: Research bets
+
+> Since ADR 0009, only the bets that make caching cheaper (chunked storage,
+> test impact analysis) remain candidates.
 
 Each bet is a time-boxed spike that ends in an ADR:
 
