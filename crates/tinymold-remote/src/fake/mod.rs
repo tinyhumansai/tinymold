@@ -159,7 +159,13 @@ impl tower_service::Service<http::Request<Body>> for Service {
     fn call(&mut self, request: http::Request<Body>) -> BoxFuture {
         let state = Arc::clone(&self.state);
         Box::pin(async move {
-            let method = request.uri().path().rsplit('/').next().unwrap_or("").to_owned();
+            let method = request
+                .uri()
+                .path()
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .to_owned();
             let (required, delay) = {
                 let mut state = state.lock().unwrap();
                 let now = state.in_flight.entry(method.clone()).or_default();
@@ -183,23 +189,19 @@ async fn answer(
     required: Option<String>,
     delay: Option<Duration>,
 ) -> http::Response<Body> {
-    {
-        {
-            if let Some(delay) = delay {
-                tokio::time::sleep(delay).await;
-            }
-            if let Some(required) = required {
-                let given = request
-                    .headers()
-                    .get("authorization")
-                    .and_then(|value| value.to_str().ok());
-                if given != Some(required.as_str()) {
-                    return Status::unauthenticated("bad credential").into_http();
-                }
-            }
-            route(Arc::clone(state), request).await
+    if let Some(delay) = delay {
+        tokio::time::sleep(delay).await;
+    }
+    if let Some(required) = required {
+        let given = request
+            .headers()
+            .get("authorization")
+            .and_then(|value| value.to_str().ok());
+        if given != Some(required.as_str()) {
+            return Status::unauthenticated("bad credential").into_http();
         }
     }
+    route(Arc::clone(state), request).await
 }
 
 impl tonic::server::NamedService for Service {
@@ -292,6 +294,7 @@ async fn update_action_result(
         if let Err(status) = valid(&key) {
             return ready(Err(status));
         }
+        state.updates.push(key.hash.clone());
         state.actions.insert(key.hash, result.clone());
         ready(Ok(Response::new(result)))
     });
