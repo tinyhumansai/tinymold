@@ -61,7 +61,13 @@ into its own checkout's target/ directory.
          coverage after each: latency, link time, peak RSS, and target/ and
          store growth per step (see bench/edits.py).
 
+  commands
+         What a warm cache saves each of build, clippy, tests and coverage:
+         per command and mode, a cold run (empty target and cache), then a
+         warm one (target deleted, cache kept) (see bench/commands.py).
+
 Usage:
+  python3 bench/bench.py commands [--runs N] [--project NAME] [--modes M,..] [--commands C,..]
   python3 bench/bench.py edits [--steps N] [--project NAME] [--modes M,..] [--commands C,..]
                                [--linkers L,..] [--churn-every N]
   python3 bench/bench.py docker -- <benchmark> [args]   # the same, in the Linux image
@@ -1592,7 +1598,8 @@ def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
     """Folds the rows a run did not measure back in from the previous file.
 
     A run limited to one project replaces exactly the rows it measured, by
-    project and, for scenarios, mode and case; the rest are kept. Each row of
+    project and, for scenarios, mode and case (for commands, mode and
+    command); the rest are kept. Each row of
     a merged file carries its own `runs`, since the kept rows may come from a
     run with a different `--runs` than the file-level value, which describes
     only the latest run. Experiments
@@ -1603,9 +1610,11 @@ def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
     experiments = result["benchmark"] == "experiments"
     if previous is None or not (limited or experiments):
         return result
-    measured = {(r["project"], r.get("mode"), r.get("case")) for r in result["results"]}
-    kept = [r for r in previous["results"]
-            if (r["project"], r.get("mode"), r.get("case")) not in measured]
+    def row_key(r: dict) -> tuple:
+        return r["project"], r.get("mode"), r.get("case"), r.get("command")
+
+    measured = {row_key(r) for r in result["results"]}
+    kept = [r for r in previous["results"] if row_key(r) not in measured]
     for rows, source in ((kept, previous), (result["results"], result)):
         if "runs" in source:
             for r in rows:
@@ -1661,14 +1670,16 @@ def main() -> None:
     retest = sub.add_parser("retest", help="cargo test again: every test run against run-test")
     retest.add_argument("--runs", type=int, default=5)
     retest.add_argument("--project", help="only this corpus project")
+    import commands  # the per-command cache benchmark lives in its own module
     import edits  # the edit-sequence benchmark lives in its own module
     edits.add_parser(sub)
+    commands.add_parser(sub)
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "retest": bench_retest, "edits": edits.bench_edits}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "retest": bench_retest, "edits": edits.bench_edits, "commands": commands.bench_commands}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine(result.pop("cargo_settings", None))
     result["date"] = dt.date.today().isoformat()
