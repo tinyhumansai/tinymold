@@ -199,6 +199,7 @@ fn test_run_references_name_both_streams() {
     let run = TestRun {
         stdout: Digest::of_bytes(b"out"),
         stderr: Digest::of_bytes(b"err"),
+        segments: vec![3, 3],
     };
     write(&path, &run.encode());
     assert_eq!(

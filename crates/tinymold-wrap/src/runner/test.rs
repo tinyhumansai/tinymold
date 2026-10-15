@@ -633,3 +633,20 @@ fn a_miss_marks_the_test_binary_record_as_used() {
     let modified = fs::metadata(&record).unwrap().modified().unwrap();
     assert!(modified > old + Duration::from_secs(3600));
 }
+
+#[test]
+fn a_replay_interleaves_the_streams_as_they_were_written() {
+    use crate::exec::Stream::{Stderr, Stdout};
+    assert_eq!(
+        interleave(b"abcd", b"XY", &[1, 2, 3]),
+        Some(vec![(Stdout, &b"a"[..]), (Stderr, b"XY"), (Stdout, b"bcd")])
+    );
+    assert_eq!(
+        interleave(b"", b"err", &[0, 3]),
+        Some(vec![(Stderr, &b"err"[..])])
+    );
+    assert_eq!(interleave(b"", b"", &[]), Some(vec![]));
+    // Lengths that do not add up to the stored streams replay nothing.
+    assert_eq!(interleave(b"abcd", b"XY", &[1, 2]), None);
+    assert_eq!(interleave(b"ab", b"", &[1, 0, 2]), None);
+}

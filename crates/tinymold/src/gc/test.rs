@@ -549,7 +549,7 @@ impl Fixture {
             .root
             .join("tests/run")
             .join(Digest::of_bytes(name.as_bytes()).to_hex());
-        let text = format!("tinymold-test-run 1\nstdout {stdout}\nstderr {stderr}\n");
+        let text = format!("tinymold-test-run 1\nstdout {stdout}\nstderr {stderr}\norder\n");
         write(&path, &text, self.now - age);
         path
     }

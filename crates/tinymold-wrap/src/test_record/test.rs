@@ -62,8 +62,14 @@ fn corrupt_test_records_name_the_bad_line() {
     let empty = Digest::of_bytes(b"");
     let no_stderr = format!("tinymold-test-run 1\nstdout {empty}\n");
     assert_eq!(line_of(TestRun::decode(&no_stderr, path).unwrap_err()), 3);
-    let extra = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\nmore\n");
-    assert_eq!(line_of(TestRun::decode(&extra, path).unwrap_err()), 4);
+    let no_order = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\nmore\n");
+    assert_eq!(line_of(TestRun::decode(&no_order, path).unwrap_err()), 4);
+    let bad_order = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder 1 x\n");
+    assert_eq!(line_of(TestRun::decode(&bad_order, path).unwrap_err()), 4);
+    let glued = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder1\n");
+    assert_eq!(line_of(TestRun::decode(&glued, path).unwrap_err()), 4);
+    let extra = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder\nmore\n");
+    assert_eq!(line_of(TestRun::decode(&extra, path).unwrap_err()), 5);
 
     assert_eq!(line_of(TestBinary::decode("nope\n", path).unwrap_err()), 1);
     assert_eq!(
