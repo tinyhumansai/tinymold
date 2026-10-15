@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-8 and 10 done)
+- **Status:** Slices 1-8, 10 and 11 done; slice 9 deferred on measurements
 
 ## Goal
 
@@ -178,6 +178,14 @@ store, which the server refuses to share.
   modes.
 - Failing test first: two wrappers asking for the same missing key run
   rustc once.
+- **Deferred, on measurements.** Two wrappers asking for one key already
+  compile it once: `tinymold-wrap` takes a per-key `flock`
+  (`src/flight/`). What a daemon would add is a warm stat cache and record
+  index, and the `hit` benchmark bounds that: a warm ripgrep rebuild takes
+  0.18 s of wall time, and all ten unit restores together take 31 ms (3-7 ms
+  each, mostly placing hundreds of files, which a daemon does not avoid).
+  A socket protocol is not worth its complexity until a benchmark shows a
+  gap it would close.
 
 ### 10. `gocacheprog` adapter
 
@@ -201,6 +209,17 @@ store, which the server refuses to share.
   with `bench/report.py`.
 - If every spec target is met, switch `deploy/` to `tinymold serve` and keep
   the bazel-remote files as an alternative.
+- **As built:** `bench/server.py`, measured on darwin arm64 against a native
+  bazel-remote 2.6.2 (`go install`), five runs, medians: small hits p50
+  0.16 ms (bazel-remote 0.14 ms, runs overlapping) and p99 0.31 ms (0.38);
+  4 MiB downloads 1372 MB/s (982), uploads 461 MB/s (348); cold start on a
+  20 000-entry store 17 ms (67 ms), since the store needs no scan to start.
+  Measuring it moved two things: a small hit now looks up and opens its
+  object in one trip to the blocking pool instead of two (p50 0.33 to 0.16
+  ms), and the harness stops the cold-start clock at the first hit rather
+  than after shutdown. Not yet: Linux results, `FindMissingBlobs` (gRPC is
+  out of reach of a standard-library harness) and peak memory. `deploy/`
+  keeps bazel-remote until the Linux numbers are in.
 
 ## Verification
 
@@ -229,6 +248,6 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 6. `turbo` front-end
 - [x] 7. `nx` and `gradle` front-ends
 - [x] 8. GitHub Action `serve: true`
-- [ ] 9. Native socket and the Rust adapter
+- [ ] 9. Native socket and the Rust adapter (deferred, see above)
 - [x] 10. `gocacheprog` adapter
-- [ ] 11. Benchmark and the switch
+- [x] 11. Benchmark (darwin arm64; Linux and the `deploy/` switch pending)
