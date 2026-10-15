@@ -96,3 +96,36 @@ fn declared_inputs_cover_files_directories_and_missing_paths() {
     let later = declared_files(&store, &root, &declared, u64::MAX).unwrap();
     assert_ne!(files, later);
 }
+
+#[test]
+fn a_target_dir_nested_in_a_test_dir_hides_only_itself() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("pkg");
+    write(&root.join("tests/fixtures/a.txt"), "a");
+    write(&root.join("tests/target/debug/deps/demo-1"), "bin");
+    write(&root.join("tests/target/debug/build/x/out/gen.rs"), "gen");
+    let binary = root.join("tests/target/debug/deps/demo-1");
+    let store = dir.path().join("store");
+    let files = package_files(&store, &root, &binary, u64::MAX).unwrap();
+    assert_eq!(names(&files), ["tests/fixtures/a.txt"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn making_a_file_executable_changes_the_listing() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("pkg");
+    let script = root.join("tests/run.sh");
+    write(&script, "#!/bin/sh\n");
+    let store = dir.path().join("store");
+    let binary = dir.path().join("target/debug/deps/t");
+    let plain = package_files(&store, &root, &binary, u64::MAX).unwrap();
+    fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+    let executable = package_files(&store, &root, &binary, u64::MAX).unwrap();
+    assert_ne!(plain, executable);
+    assert_eq!(names(&executable), ["tests/run.sh!x"]);
+    let declared = declared_files(&store, &root, &["tests".to_owned()], u64::MAX).unwrap();
+    assert_eq!(names(&declared), ["tests/run.sh!x"]);
+}
