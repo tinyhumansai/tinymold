@@ -6,7 +6,7 @@
 
 use std::io::Write;
 #[cfg(feature = "server")]
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::cli::{Cli, Outcome, ServeArgs};
 use crate::{Error, Result};
@@ -36,7 +36,7 @@ fn start(cli: &Cli, args: &ServeArgs, out: &mut impl Write) -> Result<tinymold_s
         .or_else(|| crate::default_server_dir(|name| std::env::var_os(name)))
         .ok_or(Error::NoServerDir)?;
     if let Some(wrapper_store) = crate::cli::store_dir(cli) {
-        refuse_shared(&dir, &wrapper_store)?;
+        crate::location::refuse_shared(&dir, &wrapper_store)?;
     }
     let config = config(args, dir);
     let server = tinymold_server::Server::bind(&config)?;
@@ -91,17 +91,6 @@ pub(crate) fn config(args: &ServeArgs, dir: PathBuf) -> tinymold_server::Config 
         config.gc_interval = age.0;
     }
     config
-}
-
-/// Fails when `dir` is the wrapper's store: its records would look like
-/// garbage to the server's collector.
-#[cfg(feature = "server")]
-fn refuse_shared(dir: &Path, wrapper_store: &Path) -> Result<()> {
-    let canonical = |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-    if canonical(dir) == canonical(wrapper_store) {
-        return Err(Error::SharedStoreDir(dir.to_path_buf()));
-    }
-    Ok(())
 }
 
 #[cfg(all(test, feature = "server"))]
