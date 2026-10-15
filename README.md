@@ -131,7 +131,7 @@ or a checkout that touched every mtime, produce the same keys, so they share
 every entry ([cache-key spec](docs/specs/cache-key.md)). On ripgrep, a second
 worktree of the same commit builds in 0.08s instead of 3.39s, and a branch
 switch A→B→A in 0.43s instead of 1.18s
-([scenarios](bench/README.md#edit-loop-scenarios-darwin-arm64-18-cpus-rustc-1990-b940084d7-2026-09-28-3-runs-2026-10-14)).
+([scenarios](bench/README.md#results)).
 
 **It caches what other caches skip.** sccache refuses incremental builds and
 skips binaries and proc-macros. tinymold caches every rustc call cargo makes,
