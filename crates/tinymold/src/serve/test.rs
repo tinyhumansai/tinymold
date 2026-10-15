@@ -62,6 +62,7 @@ fn defaults_are_loopback_and_open() {
     assert_eq!(config.listen.to_string(), tinymold_server::DEFAULT_LISTEN);
     assert_eq!(config.tokens, None);
     assert_eq!(config.max_body, tinymold_server::DEFAULT_MAX_BODY);
+    assert_eq!(config.max_age, Some(Duration::from_secs(48 * 3600)));
 }
 
 #[test]
