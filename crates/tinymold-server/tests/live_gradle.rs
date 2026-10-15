@@ -12,7 +12,7 @@ use std::process::Command;
 fn compile(project: &Path, cache: &str) -> String {
     common::run(
         Command::new("gradle")
-            .args(["clean", "compileJava", "--build-cache", "--no-daemon", "--console=plain", "--quiet", "--rerun-tasks"])
+            .args(["clean", "compileJava", "--build-cache", "--no-daemon", "--console=plain"])
             .arg("--info")
             .current_dir(project)
             .env("TINYMOLD_GRADLE_CACHE", cache)

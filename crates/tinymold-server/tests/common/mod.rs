@@ -11,20 +11,20 @@ use tinymold_server::{Config, Server};
 use tokio::sync::oneshot;
 
 /// Whether live tests are enabled (`TINYMOLD_LIVE=1`) and `tool` runs.
-pub fn live(tool: &str) -> bool {
+pub(crate) fn live(tool: &str) -> bool {
     std::env::var_os("TINYMOLD_LIVE").is_some_and(|value| value == "1")
         && Command::new(tool).arg("--version").output().is_ok()
 }
 
 /// A fixture directory under `tests/fixtures`.
-pub fn fixture(name: &str) -> PathBuf {
+pub(crate) fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
         .join(name)
 }
 
 /// Copies the tree at `from` to `to`.
-pub fn copy_tree(from: &Path, to: &Path) {
+pub(crate) fn copy_tree(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap();
     for entry in std::fs::read_dir(from).unwrap() {
         let entry = entry.unwrap();
@@ -42,7 +42,7 @@ pub fn copy_tree(from: &Path, to: &Path) {
 /// `gitignore` becomes `.gitignore`; it is not named that in this
 /// repository so it does not apply here.
 #[allow(dead_code, reason = "the Gradle test builds outside git")]
-pub fn repository(name: &str, to: &Path) {
+pub(crate) fn repository(name: &str, to: &Path) {
     copy_tree(&fixture(name), to);
     let ignore = to.join("gitignore");
     if ignore.exists() {
@@ -57,8 +57,8 @@ pub fn repository(name: &str, to: &Path) {
 }
 
 /// A server running on a loopback port until dropped.
-pub struct Running {
-    pub addr: SocketAddr,
+pub(crate) struct Running {
+    pub(crate) addr: SocketAddr,
     stop: Option<oneshot::Sender<()>>,
 }
 
@@ -72,7 +72,7 @@ impl Drop for Running {
 
 /// Starts a server storing under `dir`, with `tokens` as its token file
 /// when given. Must be called inside a multi-threaded tokio runtime.
-pub fn start(dir: &Path, tokens: Option<&str>) -> Running {
+pub(crate) fn start(dir: &Path, tokens: Option<&str>) -> Running {
     let mut config = Config::new(dir.join("store"));
     config.listen = "127.0.0.1:0".parse().unwrap();
     if let Some(tokens) = tokens {
@@ -94,7 +94,7 @@ pub fn start(dir: &Path, tokens: Option<&str>) -> Running {
 
 /// Runs `command` and returns its combined output, failing the test when
 /// it fails.
-pub fn run(command: &mut Command) -> String {
+pub(crate) fn run(command: &mut Command) -> String {
     let output = command.output().unwrap();
     let text = format!(
         "{}{}",
