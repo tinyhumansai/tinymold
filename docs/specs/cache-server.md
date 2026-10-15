@@ -210,11 +210,14 @@ ships in the `tinymold` binary and talks to the server:
   everything else is routed by path prefix to the HTTP front-ends.
 - **TLS** with `--tls-cert` and `--tls-key`, or terminated at an ingress, as
   `deploy/` already does for bazel-remote.
-- **Tokens.** A token file maps each token to scopes:
-  `(front-end | *, tenant | *, read | write)`. Bearer tokens (Turbo, Nx) and
+- **Tokens.** A token file maps each token to scopes, written
+  `<front-end|*>[/<tenant|*>]:<read|write>`, one line per token:
+  `ci-token *:write`. `write` includes `read`. Bearer tokens (Turbo, Nx) and
   basic auth (Gradle, REAPI, Bazel HTTP) are both accepted, the password of
   basic auth being the token. `--allow-anonymous-reads` keeps today's
-  bazel-remote setup for forks.
+  bazel-remote setup for forks. Without a token file every request is
+  allowed, and the server then refuses to listen on anything but a
+  loopback address.
 - **The native socket** is created with mode `0600` in the user's runtime
   directory and is trusted as the user. It is never exposed on a network.
 - Credentials never appear in logs, `status` output or error messages.
@@ -222,12 +225,15 @@ ships in the `tinymold` binary and talks to the server:
 ## Operations
 
 ```text
-tinymold serve [--listen ADDR] [--store DIR] [--max-size SIZE] [--max-age AGE]
-               [--tokens FILE] [--allow-anonymous-reads] [--tls-cert F --tls-key F]
-               [--front-ends reapi,bazel-http,turbo,nx,gradle]
+tinymold serve [--listen ADDR] [--dir DIR] [--max-size SIZE] [--max-age AGE]
+               [--max-body SIZE] [--gc-interval AGE] [--tokens FILE]
+               [--allow-anonymous-reads] [--tls-cert F --tls-key F]
 tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 ```
 
+- **Directory.** `--dir`, else `TINYMOLD_SERVER_DIR`, else `tinymold-server`
+  beside the default wrapper store. The server refuses to use the wrapper's
+  store directory.
 - **Persistence.** The index and last-use times live in the store directory
   and survive a restart. A restart serves hits immediately; it does not
   rebuild the index by scanning objects.

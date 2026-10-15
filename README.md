@@ -196,6 +196,7 @@ the Rust side in [`docs/specs/architecture.md`](docs/specs/architecture.md).
 | --- | --- |
 | [`tinymold`](crates/tinymold) | The `tinymold` binary and its library half |
 | [`tinymold-cas`](crates/tinymold-cas) | Local content-addressed store: atomic insert, read-only objects, reflink → hardlink → copy restore |
+| [`tinymold-server`](crates/tinymold-server) | `tinymold serve`: one store behind Bazel's HTTP cache protocol (and ccache), with more protocols to come |
 | [`tinymold-store`](crates/tinymold-store) | The cache server's core: namespaced entries over the CAS, and a SHA-256 index so every protocol finds the same blob |
 | [`tinymold-hash`](crates/tinymold-hash) | The BLAKE3-256 `Digest` type, streaming file hashing, and a field hasher for cache keys |
 | [`tinymold-key`](crates/tinymold-key) | rustc argument parsing, path roots, dep-info, and the two cache keys |

@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-2 done)
+- **Status:** In progress (slices 1-4 done)
 
 ## Goal
 
@@ -87,6 +87,15 @@ Each slice is one PR, test first, with the four contract commands green.
   `/healthz` answers 200; a missing or wrong token is 401; a read-only token
   writing is 403; a token never appears in a log line or in `/metrics`.
 - Record the HTTP dependency choice and its clean-build cost in the PR.
+
+**As built, slices 3 and 4 landed together**: without a front-end, the
+access checks and request counters of slice 3 had no caller. The HTTP stack
+is hyper 1 with hyper-util's auto builder (HTTP/1.1, h2 and h2c on one
+listener) and tokio-rustls, all crates tonic already compiled for the
+REAPI client. Bodies stream through a bounded channel between hyper and
+the store's blocking reads and writes (`src/transfer/`). `tinymold serve`
+takes `--dir`, not `--store`: the global `--store` names the wrapper's
+store, which the server refuses to share.
 
 ### 4. `bazel-http` front-end
 
@@ -180,8 +189,8 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 
 - [x] 1. Store: namespaces and entries
 - [x] 2. Store: last use, pins and GC
-- [ ] 3. Server: transport, auth, health
-- [ ] 4. `bazel-http` front-end
+- [x] 3. Server: transport, auth, health
+- [x] 4. `bazel-http` front-end
 - [ ] 5. `reapi` front-end and the CI switch
 - [ ] 6. `turbo` front-end
 - [ ] 7. `nx` and `gradle` front-ends
