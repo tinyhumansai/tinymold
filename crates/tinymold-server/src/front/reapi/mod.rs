@@ -73,6 +73,9 @@ where
 {
     let state = state.clone();
     let path = request.uri().path().to_owned();
+    // One concrete body type for every call, as tonic's generated servers
+    // use.
+    let request = request.map(tonic::body::Body::new);
     let response = match path.as_str() {
         "/build.bazel.remote.execution.v2.Capabilities/GetCapabilities" => {
             Grpc::new(ProstCodec::<ServerCapabilities, GetCapabilitiesRequest>::default())
