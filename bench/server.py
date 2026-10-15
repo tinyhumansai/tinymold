@@ -163,9 +163,23 @@ def fill(server: Server, entries: int) -> str:
     for index in range(entries):
         key = hashlib.sha256(f"action {index}".encode()).hexdigest()
         path = f"/ac/{key}"
-        assert client.put(path, f"result {index}".encode() * 16) == 200
+        # A valid ActionResult with no blob references: one `stdout_raw`
+        # field (5) of 64 bytes, so bazel-remote's validation accepts it.
+        assert client.put(path, b"\x2a\x40" + f"{index:064d}".encode()) == 200
     client.close()
     return path
+
+
+def binary_version(path: str) -> str:
+    """A Go binary's main module version, as `go version -m` reports it."""
+    if shutil.which("go") is None:
+        return "unknown version"
+    report = subprocess.run(["go", "version", "-m", path], capture_output=True, text=True)
+    for line in report.stdout.splitlines():
+        fields = line.split()
+        if fields[:1] == ["mod"] and len(fields) >= 3:
+            return f"{fields[1]} {fields[2]}"
+    return "unknown version"
 
 
 def servers(args: argparse.Namespace, work: Path) -> tuple[list[Server], dict[str, str]]:
@@ -178,8 +192,7 @@ def servers(args: argparse.Namespace, work: Path) -> tuple[list[Server], dict[st
     described = {"tinymold serve": f"release build, {tinymold.name}, uncompressed store"}
     bazel_dir = work / "bazel-remote"
     if args.bazel_remote:
-        probe = subprocess.run([args.bazel_remote, "--version"], capture_output=True, text=True)
-        version = (probe.stdout + probe.stderr).strip().splitlines()[0] if (probe.stdout + probe.stderr).strip() else "unknown version"
+        version = binary_version(args.bazel_remote)
         found.append(Server("bazel-remote", BAZEL_HTTP_PORT,
                             [args.bazel_remote, "--dir", str(bazel_dir), "--max_size", "20",
                              "--http_address", f"127.0.0.1:{BAZEL_HTTP_PORT}",
@@ -217,17 +230,21 @@ def bench_server(args: argparse.Namespace) -> dict:
 
     for server in candidates:
         server.start()
-        last = fill(server, args.entries)
-        server.stop()
+        try:
+            last = fill(server, args.entries)
+        finally:
+            server.stop()
         for _ in range(args.runs):
             started = time.perf_counter()
             server.start()
-            client = Client(server.port)
-            client.get(last)
-            client.close()
+            try:
+                client = Client(server.port)
+                client.get(last)
+                client.close()
+            finally:
+                server.stop()
             samples.setdefault((server.name, "cold start (s)"), []).append(
                 time.perf_counter() - started)
-            server.stop()
 
     results = [{"server": name, "case": case,
                 "median": round(statistics.median(values), 4),

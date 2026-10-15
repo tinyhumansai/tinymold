@@ -1,0 +1,105 @@
+{
+  "benchmark": "server",
+  "servers": {
+    "tinymold serve": "release build, tinymold-a7ed554a21bb, uncompressed store",
+    "bazel-remote": "native, github.com/buchgr/bazel-remote/v2 v2.6.2, default zstd storage"
+  },
+  "requests": 200,
+  "entries": 300,
+  "not_measured": [
+    "FindMissingBlobs (gRPC)"
+  ],
+  "results": [
+    {
+      "server": "tinymold serve",
+      "case": "hit 1 KiB p50 (ms)",
+      "median": 0.2814,
+      "samples": [
+        0.2814
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "hit 1 KiB p99 (ms)",
+      "median": 0.4475,
+      "samples": [
+        0.4475
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "download 4 MiB (MB/s)",
+      "median": 1071.8333,
+      "samples": [
+        1071.8333
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "upload 4 MiB (MB/s)",
+      "median": 332.3406,
+      "samples": [
+        332.3406
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "hit 1 KiB p50 (ms)",
+      "median": 0.2332,
+      "samples": [
+        0.2332
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "hit 1 KiB p99 (ms)",
+      "median": 0.4467,
+      "samples": [
+        0.4467
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "download 4 MiB (MB/s)",
+      "median": 793.8283,
+      "samples": [
+        793.8283
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "upload 4 MiB (MB/s)",
+      "median": 300.5858,
+      "samples": [
+        300.5858
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "cold start (s)",
+      "median": 0.065,
+      "samples": [
+        0.065
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "cold start (s)",
+      "median": 0.0717,
+      "samples": [
+        0.0717
+      ]
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "tinymold release build; servers on loopback, one client connection, HTTP/1.1 keep-alive"
+  },
+  "date": "2026-10-15",
+  "runs": 1
+}
