@@ -196,6 +196,15 @@ The flag is not in the key, since it is a function of the roots.
      against another version of it.
    - **The outputs the `--emit` kinds imply must be present:** `.d`,
      `.rmeta`, and a library's `.rlib`.
+   - **An executable over `TINYMOLD_MAX_EXECUTABLE_SIZE` is not stored.**
+     When it is set (such as `256M`), a compile with an executable output
+     larger than that (a binary, a test harness, or anything else the linker
+     marked executable) is logged `not stored`, and is compiled and linked
+     again on its next miss. This is checked before anything is copied.
+     Where the store cannot reflink, it keeps a full copy of every output,
+     and a workspace whose test binaries each link a large dependency graph
+     needs twice their size in disk. A malformed size is ignored, because a
+     cache setting must never fail a build.
 3. stores the outputs in the CAS, spread over up to eight threads, then
    writes the ActionResult (`entries/<crate>/<key>`, per ADR 0004), and
    records the input set under the pre-key.

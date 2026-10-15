@@ -92,6 +92,7 @@ With a remote server:
 | `backend` | `github` | `github`, `remote`, `both`, or `none` (local store only, for self-hosted runners with a persistent `store`) |
 | `store` | `~/.cache/tinymold` | Store directory (`TINYMOLD_STORE`) |
 | `cache-key` | `''` | Extra text mixed into the GitHub cache key, to separate jobs that build different things |
+| `max-executable-size` | `''` | Exported as `TINYMOLD_MAX_EXECUTABLE_SIZE`: a compile with an executable output larger than this (such as `256M`) is not stored, and is linked again on its next miss. On a hosted runner, the store copies every output it keeps, and a workspace whose test binaries each link a large dependency graph can otherwise fill the disk |
 | `cache-registry` | `true` | With `github` and `both`, also keep cargo's downloads (`registry/index`, `registry/cache`, `git/db` under `CARGO_HOME`) in a GitHub cache entry of their own |
 | `remote-url`, `remote-auth`, `remote-instance` | `''` | See [`remote.md`](remote.md) |
 | `remote-signing-key`, `remote-trusted-keys` | `''` | Signed entries; see [`remote.md`](remote.md#signed-entries). Give the signing key only to trusted writers |

@@ -11,6 +11,8 @@ use std::path::Path;
 
 use tinymold_wrap::Config;
 
+use crate::gc::ByteSize;
+
 /// Compilers recognized by bare name; any path is recognized by its
 /// separator.
 const COMPILERS: &[&str] = &["rustc", "clippy-driver"];
@@ -37,8 +39,11 @@ fn is_program(arg: &OsStr) -> bool {
 }
 
 /// The wrapper configuration from the environment: the default store and,
-/// when `TINYMOLD_LOG` or `TINYMOLD_TRACE` is set, a log or trace file. `None` when no store location can
-/// be derived, in which case the compiler runs uncached.
+/// when `TINYMOLD_LOG` or `TINYMOLD_TRACE` is set, a log or trace file, and
+/// with `TINYMOLD_MAX_EXECUTABLE_SIZE` (such as `256M`) the largest executable
+/// output a miss stores. A malformed size stores every size: a cache setting
+/// never fails the build. `None` when no store location can be derived, in
+/// which case the compiler runs uncached.
 #[must_use]
 pub fn wrapper_config(lookup: impl Fn(&str) -> Option<OsString>) -> Option<Config> {
     let store = crate::default_store(&lookup)?;
@@ -49,6 +54,9 @@ pub fn wrapper_config(lookup: impl Fn(&str) -> Option<OsString>) -> Option<Confi
     config.trace = lookup("TINYMOLD_TRACE")
         .filter(|value| !value.is_empty())
         .map(Into::into);
+    config.max_executable = lookup("TINYMOLD_MAX_EXECUTABLE_SIZE")
+        .and_then(|value| value.to_str()?.parse::<ByteSize>().ok())
+        .map(|size| size.0);
     Some(config)
 }
 

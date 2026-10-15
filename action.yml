@@ -29,6 +29,9 @@ inputs:
   cache-key:
     description: Extra text in the GitHub cache key, to keep jobs that build different things apart.
     default: ""
+  max-executable-size:
+    description: "Don't store a compile whose executable output (a binary or test harness) is larger than this, such as `256M`; it is linked again instead. Keeps large test binaries from doubling a hosted runner's disk use. Empty stores every size."
+    default: ""
   cache-registry:
     description: "With the github and both backends, also keep cargo's downloaded crates and git dependencies (the registry index and cache, and git/db under CARGO_HOME) in GitHub's cache, keyed by Cargo.lock."
     default: "true"
@@ -89,6 +92,7 @@ runs:
         INPUT_BACKEND: ${{ inputs.backend }}
         INPUT_STORE: ${{ inputs.store }}
         INPUT_CACHE_KEY: ${{ inputs.cache-key }}
+        INPUT_MAX_EXECUTABLE_SIZE: ${{ inputs.max-executable-size }}
         INPUT_REMOTE_URL: ${{ inputs.remote-url }}
         INPUT_REMOTE_AUTH: ${{ inputs.remote-auth }}
         INPUT_REMOTE_INSTANCE: ${{ inputs.remote-instance }}
