@@ -8,8 +8,11 @@
 //! unchanged file is not read again.
 //!
 //! Left out: `.git`, any directory holding a `CACHEDIR.TAG` (cargo marks
-//! target directories with one), and the directories holding the test
-//! binary itself. A symbolic link is named by its target and not followed.
+//! target directories with one), and the build directory holding the test
+//! binary (`<build>/<profile>/deps/<binary>`), but not the directories
+//! above it. A symbolic link is named by its target and not followed. An
+//! executable file is listed as `<path>!x`, since a test that runs it
+//! fails once it is not.
 
 use std::fs;
 use std::io;
@@ -22,8 +25,8 @@ use crate::error::io;
 use crate::stat;
 
 /// Every file under `root`, the package root, apart from what the module
-/// docs leave out, sorted by path. `binary` is the test binary, whose
-/// directories are skipped.
+/// docs leave out, sorted by path. `binary` is the test binary, whose build
+/// directory is skipped.
 pub(crate) fn package_files(
     store: &Path,
     root: &Path,
@@ -31,7 +34,9 @@ pub(crate) fn package_files(
     now_ns: u64,
 ) -> Result<Vec<(String, Digest)>> {
     let mut files = Vec::new();
-    walk(store, root, "", binary, now_ns, &mut files)?;
+    // `<build>/<profile>/deps/<binary>`: three levels up.
+    let build = binary.ancestors().nth(3);
+    walk(store, root, "", build, now_ns, &mut files)?;
     files.sort();
     Ok(files)
 }
@@ -64,12 +69,12 @@ pub(crate) fn named_files(
     match fs::symlink_metadata(path) {
         Ok(meta) if meta.is_dir() => {
             let mut found = Vec::new();
-            walk(store, path, name, Path::new(""), now_ns, &mut found)?;
+            walk(store, path, name, None, now_ns, &mut found)?;
             found.sort();
             Ok(found)
         }
         Ok(meta) => Ok(vec![(
-            name.to_owned(),
+            entry_name(name.to_owned(), &meta),
             entry_digest(store, path, &meta, now_ns)?,
         )]),
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
@@ -83,7 +88,7 @@ fn walk(
     store: &Path,
     dir: &Path,
     prefix: &str,
-    binary: &Path,
+    build: Option<&Path>,
     now_ns: u64,
     files: &mut Vec<(String, Digest)>,
 ) -> Result<()> {
@@ -99,16 +104,40 @@ fn walk(
         };
         let meta = fs::symlink_metadata(&path).map_err(io("read", &path))?;
         if meta.is_dir() {
-            let skipped =
-                name == ".git" || path.join("CACHEDIR.TAG").exists() || binary.starts_with(&path);
+            let skipped = name == ".git"
+                || path.join("CACHEDIR.TAG").exists()
+                || build == Some(path.as_path());
             if !skipped {
-                walk(store, &path, &relative, binary, now_ns, files)?;
+                walk(store, &path, &relative, build, now_ns, files)?;
             }
         } else {
-            files.push((relative, entry_digest(store, &path, &meta, now_ns)?));
+            let digest = entry_digest(store, &path, &meta, now_ns)?;
+            files.push((entry_name(relative, &meta), digest));
         }
     }
     Ok(())
+}
+
+/// The name a file is listed under: `name`, with `!x` when it is an
+/// executable regular file.
+fn entry_name(name: String, meta: &fs::Metadata) -> String {
+    if meta.is_file() && is_executable(meta) {
+        format!("{name}!x")
+    } else {
+        name
+    }
+}
+
+#[cfg(unix)]
+fn is_executable(meta: &fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    meta.permissions().mode() & 0o111 != 0
+}
+
+/// Off Unix there is no executable bit to list.
+#[cfg(not(unix))]
+fn is_executable(_meta: &fs::Metadata) -> bool {
+    false
 }
 
 /// The digest of a file's content, or of a symbolic link's target.
