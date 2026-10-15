@@ -158,8 +158,8 @@ class Retest(unittest.TestCase):
         settings = bench.retest_settings()
         self.assertIn("tinymold", settings["rustc_wrapper"])
         self.assertIn("tinymold run-test", settings["cargo_runner"])
-        self.assertNotIn("timing wrapper", settings["linker"].replace("no timing wrapper", ""))
-        self.assertNotIn("sccache", " ".join(settings.values()))
+        self.assertIn("no timing wrapper", settings["linker"])
+        self.assertNotIn("sccache", " ".join(map(str, settings.values())))
         cargo_settings = bench.machine(bench.RETEST_CARGO_SETTINGS.format(jobs=8))["cargo_settings"]
         self.assertTrue(cargo_settings.startswith("RUSTC_WRAPPER=tinymold on both sides"))
         self.assertIn("no rustc wrapper", bench.machine()["cargo_settings"])
@@ -172,5 +172,5 @@ class Retest(unittest.TestCase):
         result = {"benchmark": "retest", "machine": MACHINE, "runs": 3, "date": "2026-10-15",
                   "results": [side("cargo", 4.0, 0, 0), side("run-test", 1.0, 5, 0)]}
         table = "\n".join(report.retest_section(result))
-        self.assertIn("| rg 14.1.1 | again | 4.00s (4.00–4.00) | 1.00s (1.00–1.00) | 5 / 0 | -75% |",
+        self.assertIn("| rg 14.1.1 | again | 3 | 4.00s (4.00–4.00) | 1.00s (1.00–1.00) | 5 / 0 | -75% |",
                       table)
