@@ -73,6 +73,10 @@ CARGO_TARGET_<TRIPLE>_RUNNER="tinymold run-test" RUSTC_WRAPPER=tinymold cargo te
 tinymold snapshot save              # in the worktree you built
 tinymold snapshot restore           # in a new worktree, before cargo build
 tinymold snapshot restore --replace # after a branch switch
+
+# Run the cache server; point ccache (or Bazel) at it.
+tinymold serve                      # http://127.0.0.1:9090, store in tinymold-server/
+CCACHE_REMOTE_STORAGE="http://127.0.0.1:9090|layout=bazel" ccache cc -c unit.c
 ```
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In
