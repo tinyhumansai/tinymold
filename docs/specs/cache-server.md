@@ -189,10 +189,10 @@ ships in the `tinymold` binary and talks to the server:
   remote is configured, and works with no server at all.
 - **Go:** `GOCACHEPROG="tinymold gocacheprog"`. Go runs it as a subprocess
   speaking JSON lines (`get`, `put`, `close`) on stdin and stdout. A `get`
-  hit must answer with a path on local disk, so the adapter materializes the
-  object into the local store and returns that path. Its namespace is
-  `native` with a Go tenant, and Go's `ActionID` and `OutputID` are kept in
-  the entry record.
+  hit must answer with a path on local disk; the adapter opens the server's
+  store directly and answers with the stored object's own read-only path.
+  Its namespace is `native/go`: the `ActionID` is the key and the
+  `OutputID` is kept in the entry's metadata. No server needs to run.
 
 ### Not yet supported
 
@@ -290,7 +290,11 @@ bazel-remote on the same machine and disk, with results committed. Targets:
 | Peak memory | does not grow with blob size |
 
 The server does not replace bazel-remote in `deploy/` or the CI
-`remote-e2e` job until it meets these on Linux and macOS.
+`remote-e2e` job until it meets these on Linux and macOS. On darwin arm64
+it meets every target the harness measures (`bench/README.md`, "Cache
+server"): small hits p50 0.16 ms and p99 0.31 ms, downloads and uploads
+faster than bazel-remote's, and a 17 ms cold start whatever the entry
+count. `FindMissingBlobs` and peak memory are not measured yet.
 
 ## Acceptance criteria
 

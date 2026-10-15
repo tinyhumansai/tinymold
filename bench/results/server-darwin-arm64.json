@@ -1,0 +1,145 @@
+{
+  "benchmark": "server",
+  "servers": {
+    "tinymold serve": "release build, tinymold-4bd43ab52852, uncompressed store",
+    "bazel-remote": "native, github.com/buchgr/bazel-remote/v2 v2.6.2, default zstd storage"
+  },
+  "requests": 2000,
+  "entries": 20000,
+  "not_measured": [
+    "FindMissingBlobs (gRPC)"
+  ],
+  "results": [
+    {
+      "server": "tinymold serve",
+      "case": "hit 1 KiB p50 (ms)",
+      "median": 0.1622,
+      "samples": [
+        0.0765,
+        0.1883,
+        0.2005,
+        0.1577,
+        0.1622
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "hit 1 KiB p99 (ms)",
+      "median": 0.3102,
+      "samples": [
+        0.133,
+        0.3757,
+        0.6501,
+        0.2869,
+        0.3102
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "download 4 MiB (MB/s)",
+      "median": 1372.468,
+      "samples": [
+        2307.4379,
+        1279.8255,
+        1143.4529,
+        1372.468,
+        1435.4539
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "upload 4 MiB (MB/s)",
+      "median": 461.2193,
+      "samples": [
+        468.2224,
+        376.9643,
+        416.3323,
+        461.2193,
+        467.4893
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "hit 1 KiB p50 (ms)",
+      "median": 0.1357,
+      "samples": [
+        0.1351,
+        0.1778,
+        0.183,
+        0.1357,
+        0.1184
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "hit 1 KiB p99 (ms)",
+      "median": 0.3794,
+      "samples": [
+        0.9023,
+        0.5968,
+        0.3794,
+        0.2705,
+        0.2431
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "download 4 MiB (MB/s)",
+      "median": 982.486,
+      "samples": [
+        943.3445,
+        1007.9292,
+        895.278,
+        982.486,
+        1103.8588
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "upload 4 MiB (MB/s)",
+      "median": 348.4215,
+      "samples": [
+        331.5024,
+        348.4215,
+        375.5546,
+        344.449,
+        381.3531
+      ]
+    },
+    {
+      "server": "tinymold serve",
+      "case": "cold start (s)",
+      "median": 0.0171,
+      "samples": [
+        0.0186,
+        0.0138,
+        0.0158,
+        0.0175,
+        0.0171
+      ]
+    },
+    {
+      "server": "bazel-remote",
+      "case": "cold start (s)",
+      "median": 0.0674,
+      "samples": [
+        0.0744,
+        0.0674,
+        0.0646,
+        0.0759,
+        0.0642
+      ]
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "tinymold release build; servers on loopback, one client connection, HTTP/1.1 keep-alive"
+  },
+  "date": "2026-10-15",
+  "runs": 5
+}

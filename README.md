@@ -80,6 +80,7 @@ CCACHE_REMOTE_STORAGE="http://127.0.0.1:9090|layout=bazel" ccache cc -c unit.c
 TURBO_API=http://127.0.0.1:9090 TURBO_TOKEN=local TURBO_TEAM=me npx turbo run build
 NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090 npx nx run-many -t build
 # Gradle: remote<HttpBuildCache> { url = uri("http://127.0.0.1:9090/gradle/") }
+GOCACHEPROG="tinymold gocacheprog" go build ./...   # Go, straight from the store
 ```
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In

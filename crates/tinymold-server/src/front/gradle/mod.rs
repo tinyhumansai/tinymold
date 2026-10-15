@@ -23,7 +23,7 @@ use crate::auth::Permission;
 use crate::front::{self, artifact, declared_length};
 use crate::metrics::Outcome;
 use crate::route::{self, Body, State};
-use crate::transfer::{self, UploadError};
+use crate::transfer::UploadError;
 
 /// The path every Gradle request starts with.
 const PREFIX: &str = "/gradle/";
@@ -80,9 +80,8 @@ where
         let Some(found) = artifact::find(state, key).await else {
             return miss(state);
         };
-        let Some((body, len)) = transfer::download(found.path).await else {
-            return miss(state);
-        };
+        let len = found.opened.len();
+        let body = found.opened.into_body();
         record(state, Outcome::Hit, 0, if head { 0 } else { len });
         let mut response = route::sized(body, len, head);
         response.headers_mut().insert(
