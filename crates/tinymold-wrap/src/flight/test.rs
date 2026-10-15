@@ -65,7 +65,20 @@ fn a_lock_is_held_only_while_a_claim_lives() {
     let first = claim(store.path(), &key(), Duration::from_secs(1));
     assert!(lock_held(&path));
     drop(first);
-    assert!(!lock_held(&path));
+    // Other tests spawn processes in parallel. A child forked while the
+    // claim was open shares its file description, and with it the lock,
+    // until it execs and its close-on-exec descriptors go; only then is the
+    // lock free. Waiting out that window, bounded, keeps this test from
+    // failing for the order other tests happened to run in.
+    let released = (0..200).any(|_| {
+        if lock_held(&path) {
+            std::thread::sleep(Duration::from_millis(10));
+            false
+        } else {
+            true
+        }
+    });
+    assert!(released, "the lock outlived its claim by more than 2 s");
 }
 
 #[cfg(unix)]

@@ -717,3 +717,16 @@ async fn reqwest_put(addr: std::net::SocketAddr, path: &str, body: &[u8]) -> u16
         .status()
         .as_u16()
 }
+
+#[test]
+fn a_raw_message_is_never_decoded_and_clears_to_nothing() {
+    // The server only sends raw messages; decoding one skips every field.
+    assert_eq!(
+        Raw::decode(&b"\x20\x01\x0a\x01x"[..]).unwrap(),
+        Raw::default()
+    );
+
+    let mut raw = Raw(b"\x20\x01".to_vec());
+    raw.clear();
+    assert_eq!(raw, Raw::default());
+}
