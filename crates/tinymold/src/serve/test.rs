@@ -105,3 +105,33 @@ fn a_bind_failure_is_a_server_error() {
         Error::Server(tinymold_server::Error::OpenNonLoopback(_))
     ));
 }
+
+#[test]
+fn starting_binds_and_says_where_it_listens() {
+    let dir = tempfile::tempdir().unwrap();
+    let server_dir = dir.path().join("server");
+    let wrapper = dir.path().join("wrapper");
+    let (cli, args) = parse(&[
+        "tinymold",
+        "--store",
+        wrapper.to_str().unwrap(),
+        "serve",
+        "--dir",
+        server_dir.to_str().unwrap(),
+        "--listen",
+        "127.0.0.1:0",
+    ]);
+    let mut out = Vec::new();
+
+    let server = start(&cli, &args, &mut out).unwrap();
+
+    let printed = String::from_utf8(out).unwrap();
+    assert!(
+        printed.starts_with(&format!(
+            "tinymold serve: listening on http://{}",
+            server.local_addr()
+        )),
+        "{printed}"
+    );
+    assert!(printed.contains(server_dir.to_str().unwrap()));
+}
