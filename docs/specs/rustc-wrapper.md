@@ -295,9 +295,10 @@ paths. It also remembers the executable's digest in the stat cache.
 `tinymold run-test` caches only the runs of binaries with such a record,
 and keys every file the record names ([test-cache spec](test-cache.md)).
 No record is written for `-C prefer-dynamic`, when a dynamic library is
-linked from another directory, or when a package binary or `OUT_DIR` lies
-outside the build: those binaries run or read code the runner could not
-find again from the binary.
+linked from another directory, when a `-L native=` or `-L all=` directory
+inside the build holds a shared library, or when a package binary or
+`OUT_DIR` lies outside the build: those binaries run or read code the
+runner could not find again from the binary.
 
 ## Invariants
 

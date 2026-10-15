@@ -125,9 +125,12 @@ Everything else runs unchanged, with the same argv, env and exit code.
   script's `OUT_DIR`, which a test may read at run time. The last two are
   stored as `${PROFILE}/…` or `${OUT}/…` paths. All of their contents join
   the key: an integration test's own bytes do not change when the binary
-  it runs does. No record is written for `-C prefer-dynamic`, or when any
-  of these lies outside the build. A binary tinymold did not build has no record and is never
-  cached, which also keeps `cargo run` and examples out.
+  it runs does. No record is written for `-C prefer-dynamic`, when any
+  of these lies outside the build, or when a `-L native=` (or `-L all=`)
+  directory inside the build holds a shared library, as a build script's
+  output may: the binary can load it at run time. A binary tinymold did
+  not build has no record and is never cached, which also keeps
+  `cargo run` and examples out.
 - The arguments do not contain `--bench`. `cargo bench` runs the same kind
   of binary.
 - `LLVM_PROFILE_FILE` is unset. A replayed run would not write the `.profraw`
@@ -227,8 +230,11 @@ misread that leaves an input out.
   and declared inputs are unchanged after the run: a test that writes into
   its package, or a file edited while it ran, is not recorded, since the
   key would not say what the run saw. Store stdout and stderr in the CAS,
-  then write `tests/run/<test key>` last, with the two digests (the exit
-  code is always 0). Line-based text like the other records, pinned in
+  then write `tests/run/<test key>` last, with the two digests and an
+  `order` line: the lengths of the alternating runs of output, starting
+  with stdout, as the tee threads wrote them through (the exit code is
+  always 0). A hit replays the runs in that order, flushing each, so
+  streams that share a destination (`2>&1`) read as the run wrote them. Line-based text like the other records, pinned in
   tests, listed by the catalog, and kept or evicted by `tinymold gc` like
   an action.
 - A missing object or a corrupt record runs the test again.

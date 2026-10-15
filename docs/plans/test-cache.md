@@ -66,14 +66,15 @@ Built test first, then dropped before merging. Branch
   `exes`, the package binaries cargo passed as `CARGO_BIN_EXE_<name>`; and
   `out_dirs`, the build script's `OUT_DIR`, both as `${PROFILE}/…` or
   `${OUT}/…` paths) and a `TestRun` record at `tests/run/<test key>` (the
-  stdout and stderr digests only: just passes are recorded, so the exit
-  code is always 0). Encodings pinned in `test_record/test.rs`.
+  stdout and stderr digests and the `order` of their interleaving: just
+  passes are recorded, so the exit code is always 0). Encodings pinned in `test_record/test.rs`.
 - `crates/tinymold-wrap/src/compile/`: after a hit, a remote hit or a
   stored miss of a `--test` unit that links, `note_test_binary` writes the
   `TestBinary` record for its executable and remembers the executable's
   digest in the stat cache. No record for `-C prefer-dynamic`, a dynamic
-  library linked from another directory, or a package binary or `OUT_DIR`
-  outside the build.
+  library linked from another directory, a shared library in a native
+  search path inside the build, or a package binary or `OUT_DIR` outside
+  the build.
 - `crates/tinymold-wrap/src/package_tree/` and `declared/`: list the
   package tree, with digests from the stat cache, and read
   `[package.metadata.tinymold.test]` with a strict subset of TOML.
