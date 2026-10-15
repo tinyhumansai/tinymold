@@ -55,14 +55,8 @@ where
     T: Send + 'static,
     E: Send + 'static,
 {
-    let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(DEPTH);
-    let worker = tokio::task::spawn_blocking(move || {
-        let mut reader = ChannelReader {
-            receiver,
-            current: Bytes::new(),
-        };
-        operation(&mut reader)
-    });
+    let (sender, mut reader) = pipe();
+    let worker = tokio::task::spawn_blocking(move || operation(&mut reader));
 
     let mut body = body;
     let mut total: u64 = 0;
@@ -100,8 +94,22 @@ where
     }
 }
 
-/// A blocking reader over the chunks an [`upload`] receives.
-struct ChannelReader {
+/// A blocking reader and the sender that feeds it, for streaming a body
+/// that does not arrive as an HTTP body, such as a `ByteStream.Write`.
+///
+/// Sending an error makes the reader's next read fail with it; dropping
+/// the sender ends the stream.
+pub(crate) fn pipe() -> (mpsc::Sender<io::Result<Bytes>>, ChannelReader) {
+    let (sender, receiver) = mpsc::channel(DEPTH);
+    let reader = ChannelReader {
+        receiver,
+        current: Bytes::new(),
+    };
+    (sender, reader)
+}
+
+/// A blocking reader over the chunks a [`pipe`] receives.
+pub(crate) struct ChannelReader {
     receiver: mpsc::Receiver<io::Result<Bytes>>,
     current: Bytes,
 }
