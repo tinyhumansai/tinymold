@@ -39,7 +39,12 @@ pub(crate) fn parse(manifest: &str) -> Declared {
             continue;
         }
         if line.starts_with('[') {
-            line.clone_into(&mut table);
+            // A header may carry a comment; table names hold no `#`.
+            line.split('#')
+                .next()
+                .unwrap_or("")
+                .trim_end()
+                .clone_into(&mut table);
             if table != HEADER && mentions_table(&table) {
                 return Declared::Uncached("unreadable tinymold metadata");
             }

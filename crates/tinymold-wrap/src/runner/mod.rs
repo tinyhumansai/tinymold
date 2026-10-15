@@ -131,7 +131,6 @@ fn serve(config: &Config, command: &TestCommand<'_>, prepared: &Prepared, starte
     let record_path = TestRun::path(&config.store, &prepared.key);
     if let Ok(Some(recorded)) = replay(&prepared.store, &record_path) {
         record::touch(&record_path);
-        record::touch(&prepared.binary_record);
         crate::log(config, started, "test-hit", &prepared.crate_name, "");
         return recorded;
     }
@@ -248,6 +247,8 @@ fn prepare(
         return Ok(Err("not a test binary tinymold built"));
     };
     let built = TestBinary::decode(&text, &binary_record)?;
+    // In use, hit or miss: `tinymold gc --max-age` expires it by last use.
+    record::touch(&binary_record);
     let Some(manifest) = record::read(&command.cwd.join("Cargo.toml"))? else {
         return Ok(Err("no Cargo.toml in the working directory"));
     };
