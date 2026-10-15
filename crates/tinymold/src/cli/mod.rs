@@ -4,7 +4,7 @@
 //! writer, so every command is tested by passing a `Vec<u8>` instead of
 //! spawning the binary.
 
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 

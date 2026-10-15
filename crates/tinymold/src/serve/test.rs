@@ -211,11 +211,20 @@ fn the_command_line_reaches_the_server() {
     let server_dir = dir.path().join("server");
     let wrapper = dir.path().join("wrapper");
     let (cli, _) = parse(&[
-        "tinymold", "--store", wrapper.to_str().unwrap(),
-        "serve", "--dir", server_dir.to_str().unwrap(), "--listen", "0.0.0.0:0",
+        "tinymold",
+        "--store",
+        wrapper.to_str().unwrap(),
+        "serve",
+        "--dir",
+        server_dir.to_str().unwrap(),
+        "--listen",
+        "0.0.0.0:0",
     ]);
 
     let error = crate::run(&cli, &mut Vec::new()).unwrap_err();
 
-    assert!(matches!(error, Error::Server(tinymold_server::Error::OpenNonLoopback(_))));
+    assert!(matches!(
+        error,
+        Error::Server(tinymold_server::Error::OpenNonLoopback(_))
+    ));
 }
