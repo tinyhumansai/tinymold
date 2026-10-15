@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-2 done)
+- **Status:** Slices 1-8, 10 and 11 done; slice 9 deferred on measurements
 
 ## Goal
 
@@ -88,6 +88,15 @@ Each slice is one PR, test first, with the four contract commands green.
   writing is 403; a token never appears in a log line or in `/metrics`.
 - Record the HTTP dependency choice and its clean-build cost in the PR.
 
+**As built, slices 3 and 4 landed together**: without a front-end, the
+access checks and request counters of slice 3 had no caller. The HTTP stack
+is hyper 1 with hyper-util's auto builder (HTTP/1.1, h2 and h2c on one
+listener) and tokio-rustls, all crates tonic already compiled for the
+REAPI client. Bodies stream through a bounded channel between hyper and
+the store's blocking reads and writes (`src/transfer/`). `tinymold serve`
+takes `--dir`, not `--store`: the global `--store` names the wrapper's
+store, which the server refuses to share.
+
 ### 4. `bazel-http` front-end
 
 - `GET`/`PUT`/`HEAD` on `/ac/` and `/cas/`.
@@ -107,6 +116,14 @@ Each slice is one PR, test first, with the four contract commands green.
   `bazel-http` is found by `FindMissingBlobs`.
 - Switch the CI `remote-e2e` job to `tinymold serve`, keeping a second job
   against bazel-remote so REAPI compatibility stays tested.
+- **As built:** the server declares its own messages
+  (`src/front/reapi/types.rs`) instead of sharing `tinymold-remote`'s,
+  because that crate depends on `tinymold-wrap` and because the server
+  keeps action results as raw bytes, so fields it does not declare survive.
+  Both sets are pinned against encoded bytes. CI gained a
+  `remote-e2e-serve` job beside the bazel-remote one; run locally against
+  this workspace's `tinymold-hash` and `tinymold-cas`, the rebuild from an
+  empty store served 22 of 24 cacheable compiles (91.7%) from the server.
 
 ### 6. `turbo` front-end
 
@@ -116,6 +133,12 @@ Each slice is one PR, test first, with the four contract commands green.
   team isolation, and headers returned unchanged.
 - `live_turbo` test: a two-package fixture under `crates/tinymold-server/tests/fixtures/`
   gets `FULL TURBO` on the second run.
+- **As built:** passes against turbo 2.11.8 from npm. The fixture copy is
+  made a git repository that ignores build output: outside git, turbo
+  hashes every file in a package, its own `.turbo` logs included, and no
+  two runs share a task hash. The batch query's JSON is parsed and written
+  by hand; it is a list of hex strings in and a flat map out, which does
+  not justify a JSON dependency.
 
 ### 7. `nx` and `gradle` front-ends
 
@@ -123,6 +146,12 @@ Each slice is one PR, test first, with the four contract commands green.
   `PUT` over an existing entry, pinned by a test.
 - Gradle: `/gradle/{key}`, `Expect: 100-continue`, `413` over the limit.
 - `live_nx` and `live_gradle` tests on fixtures, as in slice 6.
+- **As built:** Nx records are immutable, as its spec requires: a `PUT` to
+  a stored hash is `409` before the body is read. The three
+  single-artifact protocols (Turbo, Nx, Gradle) share
+  `src/front/artifact/`, and the live tests share `tests/common/`. Both
+  live tests pass: Nx 21.6.11 restores `[remote cache]` with a write token, and
+  Gradle 9.8.1 loads `:compileJava` from the server with basic auth.
 
 ### 8. GitHub Action `serve: true`
 
@@ -131,6 +160,14 @@ Each slice is one PR, test first, with the four contract commands green.
 - A workflow in `.github/workflows/` runs the Turbo fixture under the
   action twice and asserts the second run is fully cached.
 - Update [`../specs/github-actions.md`](../specs/github-actions.md).
+- **As built:** the server is open on loopback (no token file), started
+  after the restore so its first collection never races it, and its
+  shutdown runs a final collection with no grace period, so the save step
+  needs no separate GC command. The server's store rides in the same cache
+  entry as the wrapper store. Without `rustc` the key uses `no-rustc`, so
+  JavaScript-only jobs can use the action. CI's `action-serve-fill` and
+  `action-serve-reuse` jobs check a cross-job `FULL TURBO`. Read-through to
+  a remote is left for later.
 
 ### 9. `native` socket and the Rust adapter
 
@@ -141,6 +178,14 @@ Each slice is one PR, test first, with the four contract commands green.
   modes.
 - Failing test first: two wrappers asking for the same missing key run
   rustc once.
+- **Deferred, on measurements.** Two wrappers asking for one key already
+  compile it once: `tinymold-wrap` takes a per-key `flock`
+  (`src/flight/`). What a daemon would add is a warm stat cache and record
+  index, and the `hit` benchmark bounds that: a warm ripgrep rebuild takes
+  0.18 s of wall time, and all ten unit restores together take 31 ms (3-7 ms
+  each, mostly placing hundreds of files, which a daemon does not avoid).
+  A socket protocol is not worth its complexity until a benchmark shows a
+  gap it would close.
 
 ### 10. `gocacheprog` adapter
 
@@ -148,6 +193,12 @@ Each slice is one PR, test first, with the four contract commands green.
   `get` answering with a materialized local path.
 - Failing tests first: protocol fixtures for `get` hit, `get` miss, `put`
   and `close`. `live_go` test: `go build` twice hits on the second.
+- **As built:** the adapter opens the server's store directly (no server
+  has to run), keeps entries under `native/go`, and answers a hit's
+  `DiskPath` with the read-only object itself, so nothing is copied. Bodies
+  stream from their base64 line into the store; a failed `put` drains the
+  rest of the line so the session stays in step. Against go 1.26.3, a
+  second `go build` with an empty `GOCACHE` compiled nothing.
 
 ### 11. Benchmark and the switch
 
@@ -158,6 +209,17 @@ Each slice is one PR, test first, with the four contract commands green.
   with `bench/report.py`.
 - If every spec target is met, switch `deploy/` to `tinymold serve` and keep
   the bazel-remote files as an alternative.
+- **As built:** `bench/server.py`, measured on darwin arm64 against a native
+  bazel-remote 2.6.2 (`go install`), five runs, medians: small hits p50
+  0.16 ms (bazel-remote 0.14 ms, runs overlapping) and p99 0.31 ms (0.38);
+  4 MiB downloads 1372 MB/s (982), uploads 461 MB/s (348); cold start on a
+  20 000-entry store 17 ms (67 ms), since the store needs no scan to start.
+  Measuring it moved two things: a small hit now looks up and opens its
+  object in one trip to the blocking pool instead of two (p50 0.33 to 0.16
+  ms), and the harness stops the cold-start clock at the first hit rather
+  than after shutdown. Not yet: Linux results, `FindMissingBlobs` (gRPC is
+  out of reach of a standard-library harness) and peak memory. `deploy/`
+  keeps bazel-remote until the Linux numbers are in.
 
 ## Verification
 
@@ -180,12 +242,12 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 
 - [x] 1. Store: namespaces and entries
 - [x] 2. Store: last use, pins and GC
-- [ ] 3. Server: transport, auth, health
-- [ ] 4. `bazel-http` front-end
-- [ ] 5. `reapi` front-end and the CI switch
-- [ ] 6. `turbo` front-end
-- [ ] 7. `nx` and `gradle` front-ends
-- [ ] 8. GitHub Action `serve: true`
-- [ ] 9. Native socket and the Rust adapter
-- [ ] 10. `gocacheprog` adapter
-- [ ] 11. Benchmark and the switch
+- [x] 3. Server: transport, auth, health
+- [x] 4. `bazel-http` front-end
+- [x] 5. `reapi` front-end and the CI switch
+- [x] 6. `turbo` front-end
+- [x] 7. `nx` and `gradle` front-ends
+- [x] 8. GitHub Action `serve: true`
+- [ ] 9. Native socket and the Rust adapter (deferred, see above)
+- [x] 10. `gocacheprog` adapter
+- [x] 11. Benchmark (darwin arm64; Linux and the `deploy/` switch pending)

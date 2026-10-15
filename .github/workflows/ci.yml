@@ -207,6 +207,73 @@ jobs:
       - uses: ./save
         if: always()
 
+  # `serve: true`: the Action runs tinymold serve for the job, and Turborepo
+  # uses it as its remote cache. The fill job stores the turbo fixture's
+  # tasks; the reuse job, on a fresh runner, must replay every one of them
+  # from the server store the GitHub cache carried over.
+  action-serve-fill:
+    name: Action (serve, fill)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          cache-key: serve-self-test
+          serve: "true"
+
+      - name: Build the Turborepo fixture
+        run: |
+          set -euo pipefail
+          repo="${RUNNER_TEMP}/turbo-fixture"
+          cp -R crates/tinymold-server/tests/fixtures/turbo "${repo}"
+          cd "${repo}"
+          mv gitignore .gitignore
+          git init --quiet
+          npm install --no-audit --no-fund --loglevel=error
+          npx --no-install turbo run build --cache=remote:rw
+
+      - uses: ./save
+        if: always()
+
+  action-serve-reuse:
+    name: Action (serve, reuse)
+    needs: action-serve-fill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          cache-key: serve-self-test
+          serve: "true"
+
+      - name: Replay the Turborepo fixture from the restored server
+        run: |
+          set -euo pipefail
+          repo="${RUNNER_TEMP}/turbo-fixture"
+          cp -R crates/tinymold-server/tests/fixtures/turbo "${repo}"
+          cd "${repo}"
+          mv gitignore .gitignore
+          git init --quiet
+          npm install --no-audit --no-fund --loglevel=error
+          npx --no-install turbo run build --cache=remote:rw | tee "${RUNNER_TEMP}/turbo.log"
+          grep -q "FULL TURBO" "${RUNNER_TEMP}/turbo.log"
+          test "$(cat packages/b/dist/out.txt)" = "built b"
+
+      - uses: ./save
+        if: always()
+
   # The remote tier against a real bazel-remote, the reference server of
   # docs/adr/0006-remote-tier-reapi-bazel-remote.md: build and push, wipe every
   # local trace, then build again from the remote alone.
@@ -250,6 +317,70 @@ jobs:
 
       - name: Check the server and the credential
         run: tinymold remote check
+
+      - name: Build and push
+        run: |
+          cargo build --locked --all-targets --all-features
+          tinymold remote push --since "${TINYMOLD_SAVE_START}"
+
+      - name: Build again from the remote alone
+        run: |
+          set -euo pipefail
+          rm -rf target "${TINYMOLD_STORE}" "${TINYMOLD_LOG}"
+          cargo build --locked --all-targets --all-features
+          tinymold stats --min-hit-rate 90
+
+      - uses: ./save
+        if: always()
+        with:
+          push: "false"
+
+  remote-e2e-serve:
+    name: Remote cache (tinymold serve)
+    runs-on: ubuntu-latest
+    env:
+      # A throwaway token for the server below, not a secret.
+      REMOTE_AUTH: ci:ci-token
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          backend: remote
+          remote-url: grpc://127.0.0.1:9092
+          remote-auth: ${{ env.REMOTE_AUTH }}
+
+      - name: Start tinymold serve
+        run: |
+          set -euo pipefail
+          dir="${RUNNER_TEMP}/tinymold-serve"
+          mkdir -p "${dir}"
+          echo "ci-token *:write" > "${dir}/tokens"
+          # Not a compile: the wrapper variable must not apply to the server.
+          env -u RUSTC_WRAPPER nohup tinymold serve --dir "${dir}/store" \
+            --listen 127.0.0.1:9092 --tokens "${dir}/tokens" \
+            --allow-anonymous-reads > "${dir}/serve.log" 2>&1 &
+          for _ in $(seq 30); do
+            if nc -z 127.0.0.1 9092; then exit 0; fi
+            sleep 1
+          done
+          cat "${dir}/serve.log"
+          exit 1
+
+      - name: Check the server and the credential
+        run: tinymold remote check
+
+      - name: A wrong credential is refused
+        run: |
+          if TINYMOLD_REMOTE_AUTH=ci:wrong tinymold remote check; then
+            echo "a wrong credential was accepted" >&2
+            exit 1
+          fi
 
       - name: Build and push
         run: |

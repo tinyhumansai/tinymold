@@ -12,7 +12,7 @@
 //! The first variable that is set and non-empty wins.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Resolves the default store directory using `lookup` to read environment
 /// variables, or `None` when none of them is set.
@@ -39,6 +39,46 @@ pub fn default_store(lookup: impl Fn(&str) -> Option<OsString>) -> Option<PathBu
         return Some(PathBuf::from(cache).join("tinymold"));
     }
     set("HOME").map(|home| PathBuf::from(home).join(".cache").join("tinymold"))
+}
+
+/// Resolves the default directory of `tinymold serve`'s store using
+/// `lookup`, or `None` when none of the variables is set.
+///
+/// It is never the wrapper's store: the two have different layouts and
+/// different collectors. The order mirrors [`default_store`]:
+/// `TINYMOLD_SERVER_DIR`, then `tinymold-server` under `XDG_CACHE_HOME`,
+/// `LOCALAPPDATA` or `HOME/.cache`.
+///
+/// ```
+/// # use std::path::PathBuf;
+/// let env = |name: &str| (name == "HOME").then(|| "/home/ferris".into());
+/// assert_eq!(
+///     tinymold::default_server_dir(env),
+///     Some(PathBuf::from("/home/ferris/.cache/tinymold-server"))
+/// );
+/// ```
+#[must_use]
+pub fn default_server_dir(lookup: impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+    let set = |name: &str| lookup(name).filter(|value| !value.is_empty());
+
+    if let Some(dir) = set("TINYMOLD_SERVER_DIR") {
+        return Some(PathBuf::from(dir));
+    }
+    if let Some(cache) = set("XDG_CACHE_HOME").or_else(|| set("LOCALAPPDATA")) {
+        return Some(PathBuf::from(cache).join("tinymold-server"));
+    }
+    set("HOME").map(|home| PathBuf::from(home).join(".cache").join("tinymold-server"))
+}
+
+/// Fails when `dir` is the wrapper's store `wrapper_store`: the server's
+/// store and the wrapper's have different layouts and different collectors,
+/// and each would take the other's files for garbage.
+pub(crate) fn refuse_shared(dir: &Path, wrapper_store: &Path) -> crate::Result<()> {
+    let canonical = |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    if canonical(dir) == canonical(wrapper_store) {
+        return Err(crate::Error::SharedStoreDir(dir.to_path_buf()));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

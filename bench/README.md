@@ -364,6 +364,18 @@ Share of the second worktree's `target/` bytes that are byte-identical to someth
 | tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.1 ms |
 | tinymold cas get --strategy copy | 325.6 ms | 311.6–443.3 ms |
 
+### Cache server (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 5 runs, 2026-10-15)
+
+Medians over runs; tinymold serve: release build, tinymold-4bd43ab52852, uncompressed store; bazel-remote: native, github.com/buchgr/bazel-remote/v2 v2.6.2, default zstd storage. Small hits are 2000 GETs per run; cold start opens a store of 20000 action results. Not measured: FindMissingBlobs (gRPC).
+
+| Case | tinymold serve | bazel-remote |
+| --- | ---: | ---: |
+| hit 1 KiB p50 (ms) | 0.1622 | 0.1357 |
+| hit 1 KiB p99 (ms) | 0.3102 | 0.3794 |
+| download 4 MiB (MB/s) | 1372.47 | 982.486 |
+| upload 4 MiB (MB/s) | 461.219 | 348.421 |
+| cold start (s) | 0.0171 | 0.0674 |
+
 ### Edit sequence
 
 Cumulative edits with build, clippy, tests and coverage after each, per mode and linker: see [`EDITS.md`](EDITS.md).
