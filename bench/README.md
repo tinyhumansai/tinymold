@@ -7,6 +7,16 @@ harness, the corpus it builds, and the results it has produced.
 Six benchmarks exist today. All of them measure plain cargo, sccache, or the
 store alone, so together they are the baseline every later phase has to beat:
 
+- **`commands`**: what a warm cache saves each command developers, CI and
+  agents run: `cargo build`, `cargo clippy --all-targets`, `cargo test`
+  (its build and its run, timed apart) and `cargo llvm-cov`. Per project,
+  command and mode (plain cargo, sccache, tinymold), each run times a
+  *cold* run from an empty target directory and an empty cache, then a
+  *warm* one with the target directory deleted and the cache kept: a CI
+  runner that restored its cache, a new worktree, or a `cargo clean`. Each
+  command gets a cache of its own, so none is served by another's work.
+  Its numbers also fill the table at the top of the
+  [project README](../README.md). See [`commands.py`](commands.py).
 - **`scenarios`**: the full edit-loop matrix, and the main scoreboard. For
   every corpus project and every mode (`baseline`, `sccache`, and `tinymold`
   once its rustc wrapper exists), it runs eight cases:
