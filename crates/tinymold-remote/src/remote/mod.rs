@@ -388,8 +388,15 @@ impl RemoteCache {
                 return Ok(None);
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
-            self.verify(Kind::Prekey, &key, &digest, &result).await?;
-            let bytes = self.client.read(&digest).await?;
+            // The record is only used once the signature checks out, but
+            // reading both at once saves a round trip.
+            let (verified, bytes) = future::join(
+                self.verify(Kind::Prekey, &key, &digest, &result),
+                self.client.read(&digest),
+            )
+            .await;
+            verified?;
+            let bytes = bytes?;
             String::from_utf8(bytes)
                 .map(Some)
                 .map_err(|_| Error::Malformed {
