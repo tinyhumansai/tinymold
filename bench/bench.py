@@ -57,7 +57,14 @@ into its own checkout's target/ directory.
          restore through TINYMOLD_TRACE; with --against, another revision's
          tinymold takes alternate turns on the same store.
 
+  edits  A cumulative sequence of edits, with build, clippy, tests and
+         coverage after each: latency, link time, peak RSS, and target/ and
+         store growth per step (see bench/edits.py).
+
 Usage:
+  python3 bench/bench.py edits [--steps N] [--project NAME] [--modes M,..] [--commands C,..]
+                               [--linkers L,..] [--churn-every N]
+  python3 bench/bench.py docker -- <benchmark> [args]   # the same, in the Linux image
   python3 bench/bench.py scenarios [--runs N] [--project NAME] [--modes M,..] [--cases C,..]
                                    [--variants V,..]
   python3 bench/bench.py dedup [--project NAME]
@@ -164,6 +171,10 @@ def machine() -> dict:
         "python": platform.python_version(),
         "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, "
                           f"jobs={os.cpu_count()}, no RUSTFLAGS beyond the linker's",
+        # Set by `bench.py docker`, so a container's numbers are never read as
+        # a bare-metal Linux machine's.
+        **({"host": os.environ["TINYMOLD_BENCH_HOST"]}
+           if os.environ.get("TINYMOLD_BENCH_HOST") else {}),
     }
 
 
@@ -661,15 +672,22 @@ def unit_counts(stderr: str) -> dict[str, int]:
 
 
 class Edits:
-    """Applies one edit kind to a checkout and always restores it afterwards."""
+    """Applies one edit kind to a checkout and always restores it afterwards.
 
-    def __init__(self, src: Path, spec: dict):
+    Each edit replaces the previous one to the same file, unless `cumulative`,
+    when edits pile up until `restore` (the edit-sequence benchmark).
+    """
+
+    def __init__(self, src: Path, spec: dict, cumulative: bool = False):
         self.src, self.spec, self.saved = src, spec, {}
+        self.cumulative = cumulative
 
     def apply(self, kind: str, n: int) -> None:
         edit = self.spec[kind]
         path = self.src / edit["file"]
         text = self.saved.setdefault(path, path.read_text())
+        if self.cumulative:
+            text = path.read_text()
         if kind == "comment":
             text = f"{text}\n// tinymold-bench comment edit {n}\n"
         elif kind == "private_body":
@@ -689,9 +707,21 @@ class Edits:
 
 
 def tinymold_binary() -> Path:
-    """Builds tinymold in release mode and returns the binary's path."""
+    """Builds tinymold in release mode and returns the binary's path, or the
+    binary named by `TINYMOLD_BENCH_BIN`, to measure another build of it (say,
+    a branch's, against the base's given to `edits --against`)."""
+    if os.environ.get("TINYMOLD_BENCH_BIN"):
+        return Path(os.environ["TINYMOLD_BENCH_BIN"]).resolve()
     run(cargo("build", "--quiet", "--release", "--package", "tinymold"), cwd=ROOT, env=STOCK_ENV)
-    return ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+    built = ROOT / "target" / "release" / ("tinymold" + (".exe" if os.name == "nt" else ""))
+    # A long run must not pick up a rebuild of target/ halfway through, so it
+    # runs a copy named by content.
+    data = built.read_bytes()
+    copy = WORK / "bin" / f"tinymold-{hashlib.sha256(data).hexdigest()[:12]}{built.suffix}"
+    if not copy.exists():
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(built, copy)
+    return copy
 
 
 class Session:
@@ -1395,6 +1425,41 @@ def pct(level: dict) -> str:
     return f"{100 * level['identical_bytes'] / max(1, level['bytes']):.0f}%"
 
 
+def run_in_docker(rest: list[str]) -> None:
+    """Runs `bench.py <rest>` in the Linux bench image (bench/docker/edits.Dockerfile), so a
+    macOS machine can measure mold and wild, which are ELF-only.
+
+    The repository is mounted at its own path, together with git's common
+    directory, so worktrees and revisions resolve as on the host. Corpus
+    checkouts, their target directories, tinymold's own build and cargo's
+    registry live on Docker volumes instead: a bind mount from macOS goes
+    through the VM's file sharing, which would dominate every build. Results
+    land in bench/results/ as usual, with the host recorded in the machine.
+    The tinymold corpus project adds a git worktree under the volume, which
+    the host later sees as prunable (`git worktree prune`).
+    """
+    docker = shutil.which("docker")
+    if docker is None:
+        raise SystemExit("bench.py docker needs docker on PATH")
+    context = BENCH / "docker"
+    dockerfile = context / "edits.Dockerfile"
+    tag = "tinymold-bench-edits:" + hashlib.sha256(dockerfile.read_bytes()).hexdigest()[:12]
+    if subprocess.run([docker, "image", "inspect", tag], stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL).returncode != 0:
+        run([docker, "build", "--file", str(dockerfile), "--tag", tag, str(context)])
+    common = Path(output(["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute",
+                          "--git-common-dir"]))
+    mounts = ["--volume", f"{ROOT}:{ROOT}"]
+    if not common.is_relative_to(ROOT):
+        mounts += ["--volume", f"{common}:{common}"]
+    for volume, path in (("work", WORK), ("target", ROOT / "target"),
+                         ("registry", "/usr/local/cargo/registry")):
+        mounts += ["--volume", f"tinymold-bench-{volume}:{path}"]
+    host = f"docker on {platform.system().lower()} {platform.machine()}"
+    run([docker, "run", "--rm", "--workdir", str(ROOT), *mounts,
+         "--env", f"TINYMOLD_BENCH_HOST={host}", tag, "python3", "bench/bench.py", *rest])
+
+
 def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
     """Folds the rows a run did not measure back in from the previous file.
 
@@ -1418,6 +1483,10 @@ def merge_previous(result: dict, previous: dict | None, limited: bool) -> dict:
 
 
 def main() -> None:
+    if sys.argv[1:2] == ["docker"]:
+        rest = sys.argv[2:]
+        run_in_docker(rest[1:] if rest[:1] == ["--"] else rest)
+        return
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="benchmark", required=True)
@@ -1454,12 +1523,14 @@ def main() -> None:
     hit.add_argument("--runs", type=int, default=7)
     hit.add_argument("--project", help="only this corpus project")
     hit.add_argument("--against", help="a git rev whose tinymold takes alternate turns")
+    import edits  # the edit-sequence benchmark lives in its own module
+    edits.add_parser(sub)
     cas = sub.add_parser("cas", help="artifact restore by strategy")
     cas.add_argument("--runs", type=int, default=5)
     cas.add_argument("--size-mb", type=int, default=512)
     args = parser.parse_args()
 
-    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit}
+    benchmarks = {"ab": bench_ab, "scenarios": bench_scenarios, "dedup": bench_dedup, "cache": bench_cache, "baseline": bench_baseline, "link": bench_link, "cas": bench_cas, "ci": bench_ci, "hit": bench_hit, "edits": edits.bench_edits}
     result = benchmarks[args.benchmark](args)
     result["machine"] = machine()
     result["date"] = dt.date.today().isoformat()

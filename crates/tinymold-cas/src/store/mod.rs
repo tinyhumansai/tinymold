@@ -76,6 +76,20 @@ impl Store {
         self.object_path(digest).is_file()
     }
 
+    /// Whether an object named `digest` is in the store, refreshing its mtime
+    /// as storing the same bytes again would. A writer about to reference an
+    /// object it has not re-inserted calls this, so the object counts as
+    /// freshly stored for `tinymold gc`'s grace period.
+    #[must_use]
+    pub fn keep(&self, digest: &Digest) -> bool {
+        let object = self.object_path(digest);
+        if !object.is_file() {
+            return false;
+        }
+        touch(&object);
+        true
+    }
+
     /// Stores `bytes` and returns their digest.
     ///
     /// Inserting bytes the store already holds is a cheap no-op.
