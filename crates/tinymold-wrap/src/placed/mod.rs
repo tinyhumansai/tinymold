@@ -16,6 +16,12 @@
 //! which nothing rewrites without going through the wrapper again. A file
 //! replaced since gets a new inode or mtime. Anything else is replaced.
 //!
+//! A miss reads the same record: an output rustc left untouched, such as an
+//! object incremental rustc carried over from its last session, still has the
+//! recorded identity and an mtime from before the compile, so its digest is
+//! known and it is already in the store. Only the files rustc wrote are hashed
+//! and stored.
+//!
 //! Records live under `stat/`, beside the digest caches, so `tinymold gc`
 //! treats them as caches. Their format:
 //!
@@ -72,13 +78,21 @@ impl Placed {
     /// Whether the file `name`, whose identity is now `current`, is still the
     /// one recorded and holds `digest`.
     pub(crate) fn holds(&self, name: &str, current: Identity, digest: Digest) -> bool {
+        self.digest_of(name, current) == Some(digest)
+    }
+
+    /// The digest recorded for the file `name` when its identity is still
+    /// `current`, the one recorded.
+    pub(crate) fn digest_of(&self, name: &str, current: Identity) -> Option<Digest> {
         // Without inode numbers, size and mtime alone can coincide between
         // two different files.
-        current.ino != 0
-            && self
-                .files
-                .get(name)
-                .is_some_and(|(recorded, held)| *held == digest && *recorded == current)
+        if current.ino == 0 {
+            return None;
+        }
+        self.files
+            .get(name)
+            .filter(|(recorded, _)| *recorded == current)
+            .map(|(_, digest)| *digest)
     }
 
     /// Records that the out-dir now holds `files`.

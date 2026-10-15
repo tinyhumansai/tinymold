@@ -6,6 +6,10 @@
 //! rustc's stdout and stderr. It is written after every object it names is in
 //! the store, so a reader that finds one can always restore it.
 //!
+//! An action of an incremental compile may also carry its incremental
+//! session: a `session <name> <dir>` line after the outputs, then one
+//! `sfile <digest> <name>` line per file in it.
+//!
 //! A **pre-key record** (`prekeys/<pre-key>`) lists the input sets earlier
 //! compiles with this pre-key read: each input's normalized path, its
 //! identity when recorded (device, inode, size, mtime) and its digest, plus the
@@ -50,6 +54,23 @@ pub(crate) struct Action {
     pub(crate) stderr: Digest,
     /// Every output file.
     pub(crate) outputs: Vec<Output>,
+    /// The incremental session rustc left for this compile, when it was
+    /// incremental and the session could be found.
+    pub(crate) session: Option<SessionRecord>,
+}
+
+/// An incremental session stored with an action: restored on a hit into the
+/// directory it came from, so the next edit there compiles incrementally
+/// (see `crate::session`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SessionRecord {
+    /// The crate's incremental directory it was taken from, absolute:
+    /// `<incremental dir>/<crate>-<id>`.
+    pub(crate) dir: String,
+    /// The session directory's name, `s-<time>-<random>-<hash>`.
+    pub(crate) name: String,
+    /// Every file in it, by name.
+    pub(crate) files: Vec<(String, Digest)>,
 }
 
 /// One input file of a recorded set.
@@ -112,13 +133,22 @@ impl Action {
                 output.name
             );
         }
+        if let Some(session) = &self.session {
+            let _ = writeln!(text, "session {} {}", session.name, session.dir);
+            for (name, digest) in &session.files {
+                let _ = writeln!(text, "sfile {digest} {name}");
+            }
+        }
         text
     }
 
-    /// Every object restoring this action reads.
+    /// Every object restoring this action reads, its session's included.
     pub(crate) fn references(&self) -> Vec<Digest> {
         let mut digests = vec![self.stdout, self.stderr];
         digests.extend(self.outputs.iter().map(|output| output.digest));
+        if let Some(session) = &self.session {
+            digests.extend(session.files.iter().map(|(_, digest)| *digest));
+        }
         digests
     }
 
@@ -140,14 +170,30 @@ impl Action {
         };
         let stdout = digest_line("stdout ", 2)?;
         let stderr = digest_line("stderr ", 3)?;
-        let outputs = lines
-            .enumerate()
-            .map(|(index, line)| parse_output(line).ok_or_else(|| corrupt(index + 4)))
-            .collect::<Result<_>>()?;
+        let mut outputs = Vec::new();
+        let mut session: Option<SessionRecord> = None;
+        for (index, line) in lines.enumerate() {
+            let parsed = if let Some(rest) = line.strip_prefix("session ") {
+                // One session, after every output.
+                parse_session(rest)
+                    .filter(|_| session.is_none())
+                    .map(|record| session = Some(record))
+            } else if let Some(rest) = line.strip_prefix("sfile ") {
+                parse_named_digest(rest)
+                    .zip(session.as_mut())
+                    .map(|(file, session)| session.files.push(file))
+            } else if session.is_none() {
+                parse_output(line).map(|output| outputs.push(output))
+            } else {
+                None
+            };
+            parsed.ok_or_else(|| corrupt(index + 4))?;
+        }
         Ok(Self {
             stdout,
             stderr,
             outputs,
+            session,
         })
     }
 }
@@ -164,6 +210,26 @@ fn parse_output(line: &str) -> Option<Output> {
         executable,
         text,
     })
+}
+
+/// `<name> <dir>` of a `session` line: a session directory name and the
+/// absolute directory it came from.
+fn parse_session(text: &str) -> Option<SessionRecord> {
+    let (name, dir) = text.split_once(' ')?;
+    (is_file_name(name) && name.starts_with("s-") && Path::new(dir).is_absolute()).then(|| {
+        SessionRecord {
+            dir: dir.to_owned(),
+            name: name.to_owned(),
+            files: Vec::new(),
+        }
+    })
+}
+
+/// `<digest> <name>` of an `sfile` line.
+fn parse_named_digest(text: &str) -> Option<(String, Digest)> {
+    let (digest, name) = text.split_once(' ')?;
+    let digest = Digest::from_str(digest).ok()?;
+    is_file_name(name).then(|| (name.to_owned(), digest))
 }
 
 /// Whether `name` is one plain file name, which restoring it joins to the
