@@ -213,6 +213,7 @@ fn a_compile_without_dep_info_is_not_stored() {
         &args,
         &invocation,
         LOCK_WAIT,
+        None,
         &mut Trace::start(),
     )
     .unwrap()
@@ -657,6 +658,95 @@ fn a_remote_input_set_whose_files_differ_here_is_not_used() {
 }
 
 /// The parsed invocation of `unit`'s plain library compile.
+/// Compiles `unit` as a binary crate, storing executables up to
+/// `max_executable` bytes.
+fn serve_bin(unit: &Crate, max_executable: Option<u64>) -> Served {
+    let mut text: Vec<String> = unit
+        .args(&[])
+        .iter()
+        .map(|a| a.to_str().unwrap().to_owned())
+        .collect();
+    text[4] = "bin".to_owned();
+    text[5] = "--emit=dep-info,link".to_owned();
+    let Classified::Cacheable(invocation) = Invocation::parse(text.clone()) else {
+        panic!("cacheable");
+    };
+    let args: Vec<OsString> = text.into_iter().map(OsString::from).collect();
+    serve(
+        &unit.store,
+        None,
+        &rustc(),
+        &args,
+        &invocation,
+        LOCK_WAIT,
+        max_executable,
+        &mut Trace::start(),
+    )
+    .unwrap()
+}
+
+/// The bytes of every object in `unit`'s store.
+fn stored_bytes(unit: &Crate) -> u64 {
+    Store::open(&unit.store)
+        .unwrap()
+        .objects()
+        .unwrap()
+        .iter()
+        .map(|object| object.size)
+        .sum()
+}
+
+#[test]
+fn an_executable_over_the_limit_is_compiled_but_never_stored() {
+    let unit = Crate::new("fn main() { println!(\"hi\"); }\n");
+    for _ in 0..2 {
+        match serve_bin(&unit, Some(1)) {
+            Served::Miss {
+                code: 0,
+                stored: Err(reason),
+                ..
+            } => assert_eq!(reason, "an executable is over TINYMOLD_MAX_EXECUTABLE_SIZE"),
+            other => panic!("expected an unstored miss, got {other:?}"),
+        }
+        let output = std::process::Command::new(unit.out().join("demo-1"))
+            .output()
+            .unwrap();
+        assert_eq!(output.stdout, b"hi\n");
+    }
+    assert_eq!(stored_bytes(&unit), 0, "nothing of the binary was copied");
+}
+
+#[test]
+fn an_executable_within_the_limit_is_stored_and_hits() {
+    let unit = Crate::new("fn main() { println!(\"hi\"); }\n");
+    assert_stored(&serve_bin(&unit, Some(u64::MAX)));
+    unit.clear_outputs();
+    assert!(matches!(
+        serve_bin(&unit, Some(u64::MAX)),
+        Served::Hit { .. }
+    ));
+}
+
+#[test]
+fn the_executable_limit_leaves_libraries_alone() {
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    let args = unit.args(&[]);
+    let invocation = invocation_of(&unit);
+    assert_stored(
+        &serve(
+            &unit.store,
+            None,
+            &rustc(),
+            &args,
+            &invocation,
+            LOCK_WAIT,
+            Some(1),
+            &mut Trace::start(),
+        )
+        .unwrap(),
+    );
+}
+
 fn invocation_of(unit: &Crate) -> Invocation {
     let text: Vec<String> = unit
         .args(&[])

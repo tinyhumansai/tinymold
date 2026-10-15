@@ -54,6 +54,28 @@ fn the_wrapper_uses_the_default_store_and_an_optional_log() {
 }
 
 #[test]
+fn the_executable_limit_comes_from_the_environment_and_ignores_malformed_sizes() {
+    let with = |size: &'static str| {
+        move |name: &str| match name {
+            "TINYMOLD_STORE" => Some("/store".into()),
+            "TINYMOLD_MAX_EXECUTABLE_SIZE" => Some(size.into()),
+            _ => None,
+        }
+    };
+    assert_eq!(
+        wrapper_config(with("256M")).unwrap().max_executable,
+        Some(256 << 20)
+    );
+    assert_eq!(
+        wrapper_config(with("4096")).unwrap().max_executable,
+        Some(4096)
+    );
+    assert_eq!(wrapper_config(with("lots")).unwrap().max_executable, None);
+    let unset = |name: &str| (name == "TINYMOLD_STORE").then(|| "/store".into());
+    assert_eq!(wrapper_config(unset).unwrap().max_executable, None);
+}
+
+#[test]
 fn a_remote_is_configured_only_by_a_well_formed_url() {
     let none = |_: &str| None;
     assert!(wrapper_remote(none).is_none());
