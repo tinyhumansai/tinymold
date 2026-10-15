@@ -220,12 +220,24 @@ async fn stopping_the_server_trims_the_store_to_its_budget() {
         let mut body = vec![0_u8; 1024];
         body[0] = name[0];
         body[1] = name[1];
-        assert_eq!(http1(addr, Method::PUT, &path, body).await.0, StatusCode::OK);
+        assert_eq!(
+            http1(addr, Method::PUT, &path, body).await.0,
+            StatusCode::OK
+        );
     }
     let _ = stop.send(());
     task.await.unwrap().unwrap();
 
     let store = tinymold_store::Store::open(&config.store).unwrap();
-    let bytes: u64 = store.cas().objects().unwrap().iter().map(|object| object.size).sum();
-    assert!(bytes <= 1024, "{bytes} bytes kept, over the 1024-byte budget");
+    let bytes: u64 = store
+        .cas()
+        .objects()
+        .unwrap()
+        .iter()
+        .map(|object| object.size)
+        .sum();
+    assert!(
+        bytes <= 1024,
+        "{bytes} bytes kept, over the 1024-byte budget"
+    );
 }
