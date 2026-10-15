@@ -58,8 +58,10 @@ Dependencies point one way: `tinymold-hash` ← `tinymold-cas` ←
 `tinymold-wrap` ← `tinymold-remote` ← `tinymold`, with `tinymold-key` (pure
 key computation, depending only on `tinymold-hash`) used by `tinymold-wrap`.
 `tinymold-remote` is optional in `tinymold`, behind its default `remote`
-feature. Planned crates (`tinymold-server`, `tinymold-link`) slot into the
-same chain as described in the architecture spec.
+feature. The planned `tinymold-store` (namespaces, entries, digest index,
+GC; no network) sits on `tinymold-cas`, and `tinymold-server` (transport,
+auth, protocol front-ends) sits on it, as described in the
+[cache-server spec](docs/specs/cache-server.md).
 
 - `tinymold-hash` answers "what is the name of these bytes". No storage, no
   cache policy.
@@ -73,6 +75,10 @@ same chain as described in the architecture spec.
 - `tinymold-remote` answers "what does the shared cache hold": REAPI calls,
   SHA-256 naming, and batch upload. It is the only crate with an async
   runtime.
+- `tinymold-store` answers "what is stored under this key, in this
+  namespace". Shared by every protocol; no network, no async runtime.
+- `tinymold-server` answers "serve this protocol's request": parsing each
+  wire protocol onto the store. It never computes a client's keys.
 - `tinymold` holds the command line and whatever composes the layers.
 
 Put new code in the lowest crate that can hold it without pulling in anything
