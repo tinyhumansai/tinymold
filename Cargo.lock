@@ -864,6 +864,7 @@ dependencies = [
  "tinymold-store",
  "tokio",
  "tokio-rustls",
+ "tokio-stream",
 ]
 
 [[package]]

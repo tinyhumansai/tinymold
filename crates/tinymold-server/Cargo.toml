@@ -27,7 +27,7 @@ rustls-pki-types = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-hyper = { workspace = true, features = ["client", "http1"] }
+hyper = { workspace = true, features = ["client", "http1", "http2"] }
 tokio-stream = { workspace = true }
 
 [lints]
