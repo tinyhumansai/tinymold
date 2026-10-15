@@ -156,7 +156,7 @@ fn fit_budget(
         return Ok(references);
     };
     // Newest first, so the oldest entry is popped from the end.
-    live.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+    live.sort_by_key(|entry| std::cmp::Reverse(entry.last_used));
     while referenced_bytes > budget {
         let Some(entry) = live.pop() else { break };
         remove(&entry.path, policy)?;

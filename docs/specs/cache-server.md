@@ -127,9 +127,14 @@ Every read and write records last use per entry and per object, as
 [`gc.md`](gc.md) does for the local store today. Eviction is LRU by entry
 within a global byte budget (`--max-size`), with an optional age limit.
 An object is removed only when no surviving entry references it. Eviction
-never removes an object that a read is streaming or a write is about to
-reference: writers pin the objects they upload until their entry is
-committed or the upload is abandoned.
+never removes an object that a write is about to reference: an object
+stored or used within the grace period (one hour by default) is kept even
+when no entry names it yet, which pins an upload until its entry is
+committed. A read that is streaming an object keeps its open file on Unix;
+elsewhere a removal that fails is skipped. Last use is the mtime of the
+entry file and of each object, refreshed on every read and write. The
+server's store root is never the wrapper's local store root, so each has
+exactly one collector.
 
 Objects are stored uncompressed on disk ([ADR 0005](../adr/0005-trade-disk-for-time.md)).
 Compression happens on the wire only where a protocol negotiates it.

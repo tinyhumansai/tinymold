@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slice 1 done)
+- **Status:** In progress (slices 1-2 done)
 
 ## Goal
 
@@ -70,8 +70,12 @@ Each slice is one PR, test first, with the four contract commands green.
 
 ### 2. `tinymold-store`: last use, pins and GC
 
-- Move `crates/tinymold/src/gc` into `tinymold-store`, keeping its tests;
-  `tinymold gc` calls it from there.
+- ~~Move `crates/tinymold/src/gc` into `tinymold-store`.~~ **As built:** that
+  collector walks the wrapper's records and snapshots, so moving it would
+  make the store depend on `tinymold-wrap`. The store has its own collector,
+  `tinymold_store::collect`, over its own layout, with the same model: mtime
+  is last use, an age limit, an LRU byte budget and a grace period. A store
+  root and a wrapper store root are never the same directory.
 - Failing tests first: a pinned object survives GC; an object shared by two
   entries survives evicting one; a stale file in `pending/` is swept.
 
@@ -175,7 +179,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 ## Checklist
 
 - [x] 1. Store: namespaces and entries
-- [ ] 2. Store: last use, pins and GC
+- [x] 2. Store: last use, pins and GC
 - [ ] 3. Server: transport, auth, health
 - [ ] 4. `bazel-http` front-end
 - [ ] 5. `reapi` front-end and the CI switch
