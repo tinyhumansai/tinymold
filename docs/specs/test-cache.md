@@ -160,8 +160,11 @@ The BLAKE3 digest of these fields in order, each length-prefixed with
 7. **The package tree:** a Merkle digest of `(path, content digest)` for
    every file under the package root, except `.git`, any directory holding
    a `CACHEDIR.TAG` (cargo marks target directories with one), and the
-   directories holding the test binary. A symbolic link is named by its
-   target and not followed. Nested packages stay in: a test may read one as
+   build directory holding the test binary (`<build>/<profile>/deps/`),
+   but not the directories above it, so a target directory nested in
+   `tests/` hides only itself. A symbolic link is named by its target and
+   not followed. An executable file is listed as `<path>!x`: a test that
+   runs a checked-in script fails once it is not executable. Nested packages stay in: a test may read one as
    a fixture. It is the conservative default for fixtures: a test reading
    `tests/data/*.json` reruns when that file changes. Digests come from the
    stat cache, so only changed files are read.
