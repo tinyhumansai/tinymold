@@ -928,3 +928,18 @@ fn a_byte_string_is_found_anywhere_in_a_file_and_nowhere_else() {
     assert!(!contains(b"short", b"longer than the haystack"));
     assert!(!contains(haystack, b""));
 }
+
+#[test]
+fn a_command_line_ending_its_options_with_a_terminator_still_compiles_and_hits() {
+    // `--` ends rustc's options: anything after it is an input, so the
+    // profile remapping must go before it.
+    let unit = Crate::new("pub fn f() {}\n");
+    match unit.serve(&["--"]).unwrap() {
+        Served::Miss { code, stored, .. } => {
+            assert_eq!(code, 0);
+            stored.unwrap();
+        }
+        Served::Hit { .. } | Served::RemoteHit { .. } => panic!("the first compile cannot hit"),
+    }
+    assert!(matches!(unit.serve(&["--"]).unwrap(), Served::Hit { .. }));
+}
