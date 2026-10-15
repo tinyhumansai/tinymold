@@ -118,6 +118,81 @@ fn a_crate_that_bakes_in_its_own_path_misses_in_another_worktree() {
     assert_eq!(outcome(&other), "miss", "{other}");
 }
 
+/// A build script's output directory in the worktree at `root`, holding one
+/// generated file, saved before the build like the sources are. Returns the
+/// directory, which cargo would pass to the compile as `OUT_DIR`.
+fn generated(root: &Path, contents: &str) -> PathBuf {
+    let out = root.join("target/debug/build/demo-1/out");
+    fs::create_dir_all(&out).unwrap();
+    let path = out.join("generated.rs");
+    fs::write(&path, contents).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(10))
+        .unwrap();
+    out
+}
+
+#[test]
+fn a_crate_that_includes_a_generated_file_hits_in_another_worktree() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    let source = "include!(concat!(env!(\"OUT_DIR\"), \"/generated.rs\"));\n";
+    let a = dir.path().join("a");
+    let b = dir.path().join("second-worktree");
+    worktree(&a, source);
+    worktree(&b, source);
+    let out_a = generated(&a, "pub fn generated() -> u32 { 7 }\n");
+    let out_b = generated(&b, "pub fn generated() -> u32 { 7 }\n");
+
+    let first = build(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())]);
+    assert_eq!(outcome(&first), "miss", "{first}");
+    let other = build(&b, &store, &[("OUT_DIR", out_b.to_str().unwrap())]);
+    assert_eq!(outcome(&other), "hit", "{other}");
+
+    // The library is byte-for-byte what the first worktree built, since its
+    // outputs no longer name that worktree's build directory.
+    let rlib = |root: &Path| fs::read(root.join("target/debug/deps/libdemo-1.rlib")).unwrap();
+    assert_eq!(rlib(&a), rlib(&b));
+    let needle = out_a.to_str().unwrap().as_bytes();
+    assert!(
+        !rlib(&a)
+            .windows(needle.len())
+            .any(|window| window == needle)
+    );
+
+    // The dep-info cargo reads still names this worktree's own files.
+    let dep_info = fs::read_to_string(b.join("target/debug/deps/demo-1.d")).unwrap();
+    assert!(dep_info.contains(out_b.to_str().unwrap()), "{dep_info}");
+
+    // A different generated file is a different input.
+    let changed_b = generated(&b, "pub fn generated() -> u32 { 8 }\n");
+    let changed = build(&b, &store, &[("OUT_DIR", changed_b.to_str().unwrap())]);
+    assert_eq!(outcome(&changed), "miss", "{changed}");
+}
+
+#[test]
+fn a_crate_that_bakes_in_its_out_dir_misses_in_another_worktree() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    let source = "pub const OUT: &str = env!(\"OUT_DIR\");\n";
+    let a = dir.path().join("a");
+    let b = dir.path().join("b");
+    worktree(&a, source);
+    worktree(&b, source);
+    let out_a = a.join("target/debug/build/demo-1/out");
+    let out_b = b.join("target/debug/build/demo-1/out");
+
+    let first = build(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())]);
+    assert_eq!(outcome(&first), "miss", "{first}");
+    let again = build(&a, &store, &[("OUT_DIR", out_a.to_str().unwrap())]);
+    assert_eq!(outcome(&again), "hit", "{again}");
+    let other = build(&b, &store, &[("OUT_DIR", out_b.to_str().unwrap())]);
+    assert_eq!(outcome(&other), "miss", "{other}");
+}
+
 #[test]
 fn queries_and_other_programs_pass_through() {
     let dir = tempfile::tempdir().unwrap();

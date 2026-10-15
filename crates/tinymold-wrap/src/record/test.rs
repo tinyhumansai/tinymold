@@ -90,7 +90,13 @@ fn the_pre_key_record_encoding_is_pinned() {
                 },
                 digest: Digest::of_bytes(b""),
             }],
-            env: vec!["CARGO_PKG_VERSION".into()],
+            env: vec![
+                EnvDep::raw("CARGO_PKG_VERSION"),
+                EnvDep {
+                    name: "OUT_DIR".into(),
+                    normalized: true,
+                },
+            ],
         },
         InputSet {
             recorded_ns: 5,
@@ -100,7 +106,7 @@ fn the_pre_key_record_encoding_is_pinned() {
     ];
     let expected = "tinymold-prekey 1\nset 9\n\
         input 1 2 3 4 af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262 src/my file.rs\n\
-        env CARGO_PKG_VERSION\nset 5\n";
+        env CARGO_PKG_VERSION\nenvpath OUT_DIR\nset 5\n";
     assert_eq!(encode_sets(&sets), expected);
     assert_eq!(decode_sets(expected, Path::new("p")).unwrap(), sets);
 }
@@ -141,6 +147,7 @@ fn corrupt_records_name_the_bad_line() {
             3,
         ),
         ("tinymold-prekey 1\nset 1\nenv \n".to_owned(), 3),
+        ("tinymold-prekey 1\nset 1\nenvpath \n".to_owned(), 3),
         ("tinymold-prekey 1\nset 1\nother\n".to_owned(), 3),
     ];
     for (text, line) in prekey_cases {

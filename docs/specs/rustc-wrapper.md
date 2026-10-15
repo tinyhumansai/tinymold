@@ -112,11 +112,50 @@ fields, in order, each length-prefixed (`tinymold_hash::Hasher`):
 earlier compile with this pre-key (two-phase lookup, as in `cache-key.md`):
 
 - every input file, as its normalized path plus its content digest;
-- every `# env-dep:` variable, as its raw current value or "unset".
+- every `# env-dep:` variable, as its current value or "unset": raw, unless
+  the value was shown not to reach the outputs (below).
 
-Env values are **not** normalized. A crate that uses
-`env!("CARGO_MANIFEST_DIR")` bakes an absolute path into its output. It must
-miss in another worktree, and it does.
+**Env values are raw unless proven path-only.** A crate that writes
+`const HOME: &str = env!("CARGO_MANIFEST_DIR")` bakes an absolute path into
+its output. It must miss in another worktree, and it does. But the
+common path-valued env-dep is `OUT_DIR`, read to
+`include!(concat!(env!("OUT_DIR"), "/generated.rs"))`: the path decides only
+which file is read, and the file is already keyed by content. Keyed raw, such
+a crate, and every crate built on it, misses in every new worktree. Measured
+on OpenHuman, a first build at a new path missed 127 of 474 compiles this way
+(`bench/DOCKER.md`).
+
+So an env value is keyed with its roots replaced (`OUT_DIR` as
+`${PROFILE}/build/<pkg>-<hash>/out`) when both hold:
+
+1. the value lies under a root, so normalizing changes it; and
+2. no binary output of the compile contains the value's bytes.
+
+Condition 2 is checked when the compile is stored, by scanning its outputs.
+The input set records the decision per variable (`envpath NAME` rather than
+`env NAME`), and a lookup normalizes exactly the variables recorded that way.
+A value that is embedded fails the scan and stays raw. That covers a string
+constant, and also an `include!` under a root tinymold does not remap.
+
+**What the scan cannot see.** A value transformed before it reaches the
+output, such as only its length or a hash of it, passes the scan. That is the
+accepted residual risk of this rule. A workspace crate that reads
+`CARGO_MANIFEST_DIR` to include a file is expected to stay raw as well: its
+source paths under `${CWD}` are not remapped, so they appear in its `.rmeta`.
+
+**The profile directory is remapped on every miss.** Without it the `include!`
+case fails condition 2: rustc records the included file's absolute path in the
+`.rmeta` and debuginfo. On a miss, tinymold therefore appends
+`--remap-path-prefix=<profile dir>=${PROFILE}` to the command line, unless the
+command line already has a `--remap-path-prefix` of its own (cargo's
+`trim-paths`), in which case it adds nothing. With the remap, a crate that only
+includes generated files builds byte-identical outputs in every worktree, so
+its dependents hit as well. Dep-info keeps real paths, because rustc does not
+remap them and cargo reads them. The remap changes only where generated files
+appear to live, in diagnostics and debuginfo: `${PROFILE}/build/...`. The
+miss's own diagnostics show the placeholder; a hit expands it back to the
+worktree's path when it replays them.
+The flag is not in the key, since it is a function of the roots.
 
 ## Outputs, hits and misses
 
@@ -251,7 +290,8 @@ running the same compile twice.
 - **A hit is only served when every input matches.** Every input file named
   by the recorded dep-info matches by content, and every recorded env-dep
   value matches. Absolute workspace paths never enter the key except through
-  env values, which then make the key path-specific, and for compiles
+  env values that reach the outputs, which then make the key path-specific,
+  and for compiles
   instrumented with `-C instrument-coverage`, whose coverage mappings embed
   the workspace path, so their pre-key includes the current directory.
 - **The store is never written in place.** Restored files are private

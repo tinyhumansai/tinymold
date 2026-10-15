@@ -112,20 +112,21 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   critical path left is `libsqlite3-sys`'s build script (2.7s), which
   tinymold does not cache. Filling the store cost nothing measurable on the
   cold build (176s against 175s).
-- **A new path misses about a quarter of the graph.** The first build of a
-  copy at another path hit 347 of 474 compiles and took 165s. Repeat builds
-  at that path then hit (5.8s). The first misses are crates with build
-  scripts (`ref_cast`, `thiserror`, `serde_core`, `rustversion`), and the
-  rest are their dependents. The likely cause, not yet confirmed: these
-  crates read `OUT_DIR` through `env!`/`include!`, the key takes env values
-  raw on purpose ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md)), and
-  outputs that record the path change their dependents' keys too. If so,
-  remapping path prefixes so outputs stop depending on the checkout would
-  make a new worktree warm.
-- **A snapshot does not help a new path yet.** Restoring the first
-  checkout's `target/` (4.5-9.6s, copies on ext4) still left the six
-  workspace crates to recompile, all six missing, and that first build took
-  155s. Presumably they key on the new path for the same reason.
+- **A new path missed about a quarter of the graph; fixed since.** The
+  first build of a copy at another path hit 347 of 474 compiles and took
+  165s. The cause: crates that `include!` a file their build script wrote
+  read `env!("OUT_DIR")`, the key took that absolute path raw, and the path
+  also landed in their `.rmeta`, so every dependent missed too. tinymold now
+  remaps the profile directory on a miss and keys such a value normalized
+  when no output contains it ([`rustc-wrapper.md`](../docs/specs/rustc-wrapper.md#the-key)).
+  Re-measured on the same machine with the fix: the first build at a new path
+  takes 5.2s with 470 of 474 hits, the same as a warm build at the original
+  path. The table above predates the fix.
+- **A snapshot did not help a new path either; fixed by the same change.**
+  Restoring the first checkout's `target/` left the six workspace crates to
+  recompile, and the first build took 155s. With the fix it takes a 7.6s
+  restore plus 2.6s of build. On ext4 the restore copies every file, so it
+  now costs more than building through the wrapper alone (5.2s).
 - **sccache with incremental on never caches the slow crate.** It hit all
   378 compiles it caches, yet a warm clean build took 185s, slower than a
   cold mold build. The 136s core crate is incremental, so sccache passes it
@@ -137,9 +138,10 @@ OpenHuman 9a0a654, 2026-10-15. The table is in
   caches no linked output, plus every build script. But a core edit then
   takes 139s instead of 16.4s, because the core recompiles from scratch.
   tinymold keeps both: 4.5s warm and 19.1s per core edit.
-- **Neither cache makes a new path warm.** sccache's first build at a new
-  path took 193s (incremental on) and 187s (incremental off, 121 of 430
-  missing), against tinymold's 165s. All three are close to a cold build.
+- **sccache does not make a new path warm.** Its first build at a new path
+  took 193s (incremental on) and 187s (incremental off, 121 of 430
+  missing), close to a cold build. tinymold took 165s before the fix above
+  and 5.2s after it.
 - **Storing and restoring by copy costs the edit loop.** Without reflinks,
   storing the rebuilt binary costs about 0.7s on every edit, so a leaf edit
   takes 2.1s under tinymold against 1.1s with mold alone. A core edit takes

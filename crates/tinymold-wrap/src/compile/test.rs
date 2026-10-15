@@ -1131,3 +1131,13 @@ fn a_hit_leaves_an_existing_incremental_session_alone() {
     assert!(matches!(unit.serve(&flags).unwrap(), Served::Hit { .. }));
     assert_eq!(files_under(&incremental_dir), before);
 }
+
+#[test]
+fn a_byte_string_is_found_anywhere_in_a_file_and_nowhere_else() {
+    let haystack = b"\0\0/work/a/target/debug/build/x-1/out\0tail";
+    assert!(contains(haystack, b"/work/a/target/debug/build/x-1/out"));
+    assert!(contains(haystack, b"tail"));
+    assert!(!contains(haystack, b"/work/b/target"));
+    assert!(!contains(b"short", b"longer than the haystack"));
+    assert!(!contains(haystack, b""));
+}

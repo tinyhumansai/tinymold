@@ -13,7 +13,9 @@
 //! A **pre-key record** (`prekeys/<pre-key>`) lists the input sets earlier
 //! compiles with this pre-key read: each input's normalized path, its
 //! identity when recorded (device, inode, size, mtime) and its digest, plus the
-//! names of the env vars it read. A lookup tries each set, newest first.
+//! names of the env vars it read, each marked with whether its value is keyed
+//! as it is or with its roots replaced (see [`EnvDep`]). A lookup tries each
+//! set, newest first.
 //!
 //! Both are line-based text, like the freshness manifest, so they can be read
 //! with `cat`. Their encodings are pinned in the tests.
@@ -97,6 +99,29 @@ pub(crate) struct Identity {
     pub(crate) mtime_ns: u64,
 }
 
+/// One env var a compile read through `env!` or `option_env!`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EnvDep {
+    /// The variable's name.
+    pub(crate) name: String,
+    /// Whether the key takes its value with roots replaced by placeholders
+    /// (`OUT_DIR` as `${PROFILE}/build/<pkg>-<hash>/out`) rather than as it
+    /// is. Only set when the value lies under a root and none of the
+    /// compile's outputs contains it, so the path reached them only through
+    /// files rustc read, which the key covers by content.
+    pub(crate) normalized: bool,
+}
+
+impl EnvDep {
+    /// A variable keyed by its value as it is.
+    pub(crate) fn raw(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            normalized: false,
+        }
+    }
+}
+
 /// The inputs one earlier compile read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InputSet {
@@ -105,7 +130,7 @@ pub(crate) struct InputSet {
     /// Every input file, in dep-info order.
     pub(crate) inputs: Vec<Input>,
     /// Every env var read, in dep-info order.
-    pub(crate) env: Vec<String>,
+    pub(crate) env: Vec<EnvDep>,
 }
 
 const ACTION_HEADER: &str = "tinymold-action 1";
@@ -260,8 +285,9 @@ pub(crate) fn encode_sets(sets: &[InputSet]) -> String {
                 input.path
             );
         }
-        for name in &set.env {
-            let _ = writeln!(text, "env {name}");
+        for dep in &set.env {
+            let kind = if dep.normalized { "envpath" } else { "env" };
+            let _ = writeln!(text, "{kind} {}", dep.name);
         }
     }
     text
@@ -293,7 +319,15 @@ pub(crate) fn decode_sets(text: &str, path: &Path) -> Result<Vec<InputSet>> {
             set.inputs
                 .push(parse_input(input).ok_or_else(|| corrupt(index + 1))?);
         } else if let Some(name) = line.strip_prefix("env ").filter(|name| !name.is_empty()) {
-            set.env.push(name.to_owned());
+            set.env.push(EnvDep::raw(name));
+        } else if let Some(name) = line
+            .strip_prefix("envpath ")
+            .filter(|name| !name.is_empty())
+        {
+            set.env.push(EnvDep {
+                name: name.to_owned(),
+                normalized: true,
+            });
         } else {
             return Err(corrupt(index + 1));
         }
