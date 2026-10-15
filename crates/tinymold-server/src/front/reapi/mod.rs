@@ -40,12 +40,12 @@ use crate::metrics::Outcome;
 use crate::route::{Body, State};
 use crate::transfer;
 use types::{
-    ActionCacheUpdateCapabilities, ActionResultRefs, BatchReadBlobsRequest,
-    BatchReadBlobsResponse, BatchUpdateBlobsRequest, BatchUpdateBlobsResponse, CacheCapabilities,
-    DIGEST_SHA256, DIGEST_UNKNOWN, Digest, FindMissingBlobsRequest, FindMissingBlobsResponse,
-    GetActionResultRequest, GetCapabilitiesRequest, Raw, ReadBlobResult, ReadRequest,
-    ReadResponse, RpcStatus, SemVer, ServerCapabilities, Tree, UpdateActionResultRequest,
-    UpdateBlobResult, WriteRequest, WriteResponse,
+    ActionCacheUpdateCapabilities, ActionResultRefs, BatchReadBlobsRequest, BatchReadBlobsResponse,
+    BatchUpdateBlobsRequest, BatchUpdateBlobsResponse, CacheCapabilities, DIGEST_SHA256,
+    DIGEST_UNKNOWN, Digest, FindMissingBlobsRequest, FindMissingBlobsResponse,
+    GetActionResultRequest, GetCapabilitiesRequest, Raw, ReadBlobResult, ReadRequest, ReadResponse,
+    RpcStatus, SemVer, ServerCapabilities, Tree, UpdateActionResultRequest, UpdateBlobResult,
+    WriteRequest, WriteResponse,
 };
 
 /// The most bytes one batch call may carry, as advertised to clients.
@@ -79,7 +79,10 @@ where
     let response = match path.as_str() {
         "/build.bazel.remote.execution.v2.Capabilities/GetCapabilities" => {
             Grpc::new(ProstCodec::<ServerCapabilities, GetCapabilitiesRequest>::default())
-                .unary(service_fn(|_| async { Ok(tonic::Response::new(capabilities())) }), request)
+                .unary(
+                    service_fn(|_| async { Ok(tonic::Response::new(capabilities())) }),
+                    request,
+                )
                 .await
         }
         "/build.bazel.remote.execution.v2.ActionCache/GetActionResult" => {
@@ -96,15 +99,21 @@ where
         }
         "/build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs" => {
             let service = service_fn(move |call| find_missing_blobs(state.clone(), call));
-            Grpc::new(ProstCodec::<FindMissingBlobsResponse, FindMissingBlobsRequest>::default())
-                .unary(service, request)
-                .await
+            Grpc::new(ProstCodec::<
+                FindMissingBlobsResponse,
+                FindMissingBlobsRequest,
+            >::default())
+            .unary(service, request)
+            .await
         }
         "/build.bazel.remote.execution.v2.ContentAddressableStorage/BatchUpdateBlobs" => {
             let service = service_fn(move |call| batch_update_blobs(state.clone(), call));
-            Grpc::new(ProstCodec::<BatchUpdateBlobsResponse, BatchUpdateBlobsRequest>::default())
-                .unary(service, request)
-                .await
+            Grpc::new(ProstCodec::<
+                BatchUpdateBlobsResponse,
+                BatchUpdateBlobsRequest,
+            >::default())
+            .unary(service, request)
+            .await
         }
         "/build.bazel.remote.execution.v2.ContentAddressableStorage/BatchReadBlobs" => {
             let service = service_fn(move |call| batch_read_blobs(state.clone(), call));
@@ -207,7 +216,10 @@ async fn update_action_result(
 
 /// The stored objects an action result depends on, or `FAILED_PRECONDITION`
 /// naming how many are missing.
-fn references(store: &Store, refs: &ActionResultRefs) -> Result<Vec<tinymold_store::Digest>, Status> {
+fn references(
+    store: &Store,
+    refs: &ActionResultRefs,
+) -> Result<Vec<tinymold_store::Digest>, Status> {
     let mut digests: Vec<&Digest> = refs
         .output_files
         .iter()
@@ -295,17 +307,23 @@ async fn batch_update_blobs(
         for blob in request.requests {
             let digest = blob.digest.unwrap_or_default();
             let status = if blob.compressor != 0 {
-                rpc_status(tonic::Code::InvalidArgument, "compressed uploads are not accepted")
+                rpc_status(
+                    tonic::Code::InvalidArgument,
+                    "compressed uploads are not accepted",
+                )
             } else {
                 match sha256(&digest) {
                     Err(status) => rpc_status(status.code(), status.message()),
-                    Ok(claimed) => match store.ingest(blob.data.as_slice(), Some(Claim::Sha256(claimed))) {
-                        Ok(_) => rpc_status(tonic::Code::Ok, ""),
-                        Err(tinymold_store::Error::DigestMismatch { .. }) => {
-                            rpc_status(tonic::Code::InvalidArgument, "data does not match its digest")
+                    Ok(claimed) => {
+                        match store.ingest(blob.data.as_slice(), Some(Claim::Sha256(claimed))) {
+                            Ok(_) => rpc_status(tonic::Code::Ok, ""),
+                            Err(tinymold_store::Error::DigestMismatch { .. }) => rpc_status(
+                                tonic::Code::InvalidArgument,
+                                "data does not match its digest",
+                            ),
+                            Err(_) => rpc_status(tonic::Code::Internal, "store failed"),
                         }
-                        Err(_) => rpc_status(tonic::Code::Internal, "store failed"),
-                    },
+                    }
                 }
             };
             responses.push(UpdateBlobResult {
@@ -334,9 +352,15 @@ async fn batch_read_blobs(
             let (data, status) = match resolve(&store, &digest) {
                 Ok(Some(blob)) => match store.cas().read(&blob) {
                     Ok(data) => (data, rpc_status(tonic::Code::Ok, "")),
-                    Err(_) => (Vec::new(), rpc_status(tonic::Code::NotFound, "blob is gone")),
+                    Err(_) => (
+                        Vec::new(),
+                        rpc_status(tonic::Code::NotFound, "blob is gone"),
+                    ),
                 },
-                Ok(None) => (Vec::new(), rpc_status(tonic::Code::NotFound, "blob is not stored")),
+                Ok(None) => (
+                    Vec::new(),
+                    rpc_status(tonic::Code::NotFound, "blob is not stored"),
+                ),
                 Err(status) => (Vec::new(), rpc_status(status.code(), status.message())),
             };
             responses.push(ReadBlobResult {
@@ -385,10 +409,16 @@ async fn read(
         };
         let len = file.metadata().map_err(internal)?.len();
         if offset > len {
-            return Err(Status::out_of_range("read offset is past the end of the blob"));
+            return Err(Status::out_of_range(
+                "read offset is past the end of the blob",
+            ));
         }
         file.seek(io::SeekFrom::Start(offset)).map_err(internal)?;
-        let remaining = if limit == 0 { len - offset } else { limit.min(len - offset) };
+        let remaining = if limit == 0 {
+            len - offset
+        } else {
+            limit.min(len - offset)
+        };
         Ok(Some((file, remaining)))
     })
     .await?;
@@ -397,7 +427,12 @@ async fn read(
         record(&state, Outcome::Miss, 0, 0);
         return Err(Status::not_found("blob is not stored"));
     };
-    record(&state, Outcome::Hit, 0, usize::try_from(remaining).unwrap_or(usize::MAX));
+    record(
+        &state,
+        Outcome::Hit,
+        0,
+        usize::try_from(remaining).unwrap_or(usize::MAX),
+    );
     let (sender, receiver) = tokio::sync::mpsc::channel(4);
     tokio::task::spawn_blocking(move || stream_blob(file, remaining, &sender));
     Ok(tonic::Response::new(ReadStream::new(receiver)))
@@ -444,7 +479,9 @@ async fn write(
     let size = u64::try_from(digest.size_bytes)
         .map_err(|_| Status::invalid_argument("negative blob size"))?;
     if size > state.max_body {
-        return Err(Status::resource_exhausted("blob is larger than the server accepts"));
+        return Err(Status::resource_exhausted(
+            "blob is larger than the server accepts",
+        ));
     }
 
     let (sender, mut reader) = transfer::pipe();
@@ -476,13 +513,20 @@ async fn write(
     }
     drop(sender);
 
-    let stored = ingest.await.map_err(|_| Status::internal("store task failed"))?;
+    let stored = ingest
+        .await
+        .map_err(|_| Status::internal("store task failed"))?;
     if let Some(failure) = failure {
         return Err(failure);
     }
     match stored {
         Ok(_) => {
-            record(&state, Outcome::Write, usize::try_from(written).unwrap_or(usize::MAX), 0);
+            record(
+                &state,
+                Outcome::Write,
+                usize::try_from(written).unwrap_or(usize::MAX),
+                0,
+            );
             Ok(tonic::Response::new(WriteResponse {
                 committed_size: digest.size_bytes,
             }))
@@ -529,7 +573,9 @@ fn instance_before<'a>(resource: &'a str, segments: &[&str], at: usize) -> &'a s
 
 fn resource_digest(rest: &[&str]) -> Result<Digest, Status> {
     let (Some(hash), Some(size)) = (rest.first(), rest.get(1)) else {
-        return Err(Status::invalid_argument("resource name has no hash and size"));
+        return Err(Status::invalid_argument(
+            "resource name has no hash and size",
+        ));
     };
     let size_bytes = size
         .parse()
@@ -557,7 +603,9 @@ fn authorize(
         .map_err(|denial| {
             record(state, Outcome::Denied, 0, 0);
             match denial {
-                Denied::Unauthenticated => Status::unauthenticated("a valid credential is required"),
+                Denied::Unauthenticated => {
+                    Status::unauthenticated("a valid credential is required")
+                }
                 Denied::Forbidden => Status::permission_denied("the credential lacks this scope"),
             }
         })?;
@@ -568,7 +616,9 @@ fn check_function(function: i32) -> Result<(), Status> {
     if function == DIGEST_UNKNOWN || function == DIGEST_SHA256 {
         Ok(())
     } else {
-        Err(Status::invalid_argument("only the SHA-256 digest function is served"))
+        Err(Status::invalid_argument(
+            "only the SHA-256 digest function is served",
+        ))
     }
 }
 
@@ -587,12 +637,15 @@ fn action_key(
 
 fn sha256(digest: &Digest) -> Result<Sha256, Status> {
     if digest.size_bytes == 0 && digest.hash != EMPTY_SHA256 {
-        return Err(Status::invalid_argument("invalid zero-length SHA-256 digest"));
+        return Err(Status::invalid_argument(
+            "invalid zero-length SHA-256 digest",
+        ));
     }
     if digest.size_bytes < 0 {
         return Err(Status::invalid_argument("negative digest size"));
     }
-    Sha256::from_str(&digest.hash).map_err(|_| Status::invalid_argument("digest hash is not SHA-256 hex"))
+    Sha256::from_str(&digest.hash)
+        .map_err(|_| Status::invalid_argument("digest hash is not SHA-256 hex"))
 }
 
 /// The stored object a digest names, storing the empty blob on demand:
@@ -637,12 +690,9 @@ async fn blocking<T: Send + 'static>(
 }
 
 fn record(state: &State, outcome: Outcome, bytes_in: usize, bytes_out: usize) {
-    state.metrics.record(
-        FrontEnd::Reapi,
-        outcome,
-        bytes_in as u64,
-        bytes_out as u64,
-    );
+    state
+        .metrics
+        .record(FrontEnd::Reapi, outcome, bytes_in as u64, bytes_out as u64);
 }
 
 #[cfg(test)]

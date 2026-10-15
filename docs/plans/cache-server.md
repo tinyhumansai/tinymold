@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-4 done)
+- **Status:** In progress (slices 1-5 done)
 
 ## Goal
 
@@ -116,6 +116,14 @@ store, which the server refuses to share.
   `bazel-http` is found by `FindMissingBlobs`.
 - Switch the CI `remote-e2e` job to `tinymold serve`, keeping a second job
   against bazel-remote so REAPI compatibility stays tested.
+- **As built:** the server declares its own messages
+  (`src/front/reapi/types.rs`) instead of sharing `tinymold-remote`'s,
+  because that crate depends on `tinymold-wrap` and because the server
+  keeps action results as raw bytes, so fields it does not declare survive.
+  Both sets are pinned against encoded bytes. CI gained a
+  `remote-e2e-serve` job beside the bazel-remote one; run locally against
+  this workspace's `tinymold-hash` and `tinymold-cas`, the rebuild from an
+  empty store served 22 of 24 cacheable compiles (91.7%) from the server.
 
 ### 6. `turbo` front-end
 
@@ -191,7 +199,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 2. Store: last use, pins and GC
 - [x] 3. Server: transport, auth, health
 - [x] 4. `bazel-http` front-end
-- [ ] 5. `reapi` front-end and the CI switch
+- [x] 5. `reapi` front-end and the CI switch
 - [ ] 6. `turbo` front-end
 - [ ] 7. `nx` and `gradle` front-ends
 - [ ] 8. GitHub Action `serve: true`

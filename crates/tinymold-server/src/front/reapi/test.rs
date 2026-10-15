@@ -6,9 +6,7 @@
 use http::uri::PathAndQuery;
 use tonic::transport::Channel;
 
-use super::types::{
-    Directory, FileNode, OutputDirectoryRef, OutputFileRef, UpdateBlob,
-};
+use super::types::{Directory, FileNode, OutputDirectoryRef, OutputFileRef, UpdateBlob};
 use super::*;
 use crate::{Config, Server};
 
@@ -121,7 +119,12 @@ fn digest(bytes: &[u8]) -> Digest {
     }
 }
 
-async fn write_blob(server: &Running, instance: &str, bytes: &[u8], auth: Option<&str>) -> Result<i64, Status> {
+async fn write_blob(
+    server: &Running,
+    instance: &str,
+    bytes: &[u8],
+    auth: Option<&str>,
+) -> Result<i64, Status> {
     let digest = digest(bytes);
     let resource = format!(
         "{instance}{}uploads/0f5d/blobs/{}/{}",
@@ -132,9 +135,16 @@ async fn write_blob(server: &Running, instance: &str, bytes: &[u8], auth: Option
     // Several chunks, so the server has to put a stream together.
     let mut messages = Vec::new();
     let mut offset = 0;
-    for chunk in bytes.chunks(100_000).chain(bytes.is_empty().then_some(&[][..])) {
+    for chunk in bytes
+        .chunks(100_000)
+        .chain(bytes.is_empty().then_some(&[][..]))
+    {
         messages.push(WriteRequest {
-            resource_name: if offset == 0 { resource.clone() } else { String::new() },
+            resource_name: if offset == 0 {
+                resource.clone()
+            } else {
+                String::new()
+            },
             write_offset: offset,
             finish_write: offset + chunk.len() as i64 == bytes.len() as i64,
             data: Bytes::copy_from_slice(chunk),
@@ -156,7 +166,12 @@ async fn read_blob(server: &Running, resource: String) -> Result<Vec<u8>, Status
     read_range(server, resource, 0, 0).await
 }
 
-async fn read_range(server: &Running, resource: String, offset: i64, limit: i64) -> Result<Vec<u8>, Status> {
+async fn read_range(
+    server: &Running,
+    resource: String,
+    offset: i64,
+    limit: i64,
+) -> Result<Vec<u8>, Status> {
     let mut grpc = tonic::client::Grpc::new(server.channel.clone());
     grpc.ready().await.unwrap();
     let mut stream = grpc
@@ -221,7 +236,10 @@ fn the_message_encodings_are_pinned() {
         action_result: b"\x20\x01".to_vec(),
         digest_function: DIGEST_SHA256,
     };
-    assert_eq!(request.encode_to_vec(), b"\x0a\x01i\x1a\x02\x20\x01\x28\x01");
+    assert_eq!(
+        request.encode_to_vec(),
+        b"\x0a\x01i\x1a\x02\x20\x01\x28\x01"
+    );
     assert_eq!(Raw(b"\x20\x01".to_vec()).encode_to_vec(), b"\x20\x01");
 
     let write = WriteRequest {
@@ -236,7 +254,10 @@ fn the_message_encodings_are_pinned() {
 #[test]
 fn resource_names_split_into_instance_and_digest() {
     let (instance, digest) = read_resource("team/main/blobs/abc/12").unwrap();
-    assert_eq!((instance, digest.hash.as_str(), digest.size_bytes), ("team/main", "abc", 12));
+    assert_eq!(
+        (instance, digest.hash.as_str(), digest.size_bytes),
+        ("team/main", "abc", 12)
+    );
 
     let (instance, digest) = read_resource("blobs/abc/12").unwrap();
     assert_eq!((instance, digest.size_bytes), ("", 12));
@@ -264,7 +285,12 @@ async fn capabilities_advertise_sha256_and_api_versions() {
 
     let cache = capabilities.cache_capabilities.unwrap();
     assert_eq!(cache.digest_functions, [DIGEST_SHA256]);
-    assert!(cache.action_cache_update_capabilities.unwrap().update_enabled);
+    assert!(
+        cache
+            .action_cache_update_capabilities
+            .unwrap()
+            .update_enabled
+    );
     assert_eq!(cache.max_batch_total_size_bytes, MAX_BATCH);
     assert_eq!(capabilities.high_api_version.unwrap().major, 2);
 }
@@ -294,9 +320,14 @@ async fn an_action_result_needs_its_blobs_and_comes_back_byte_for_byte() {
 async fn action_results_are_scoped_to_their_instance() {
     let server = start().await;
     write_blob(&server, "a", b"out", None).await.unwrap();
-    unary::<_, Raw>(&server, UPDATE_RESULT, update("a", b"act", &result_with_file(b"out")), None)
-        .await
-        .unwrap();
+    unary::<_, Raw>(
+        &server,
+        UPDATE_RESULT,
+        update("a", b"act", &result_with_file(b"out")),
+        None,
+    )
+    .await
+    .unwrap();
 
     let other = unary::<_, FullResult>(&server, GET_RESULT, get("b", b"act"), None).await;
 
@@ -307,10 +338,19 @@ async fn action_results_are_scoped_to_their_instance() {
 async fn a_result_whose_blobs_were_collected_is_not_found() {
     let server = start().await;
     write_blob(&server, "", b"out", None).await.unwrap();
-    unary::<_, Raw>(&server, UPDATE_RESULT, update("", b"act", &result_with_file(b"out")), None)
-        .await
+    unary::<_, Raw>(
+        &server,
+        UPDATE_RESULT,
+        update("", b"act", &result_with_file(b"out")),
+        None,
+    )
+    .await
+    .unwrap();
+    let blob = server
+        .store
+        .find_sha256(&Sha256::of_bytes(b"out"))
+        .unwrap()
         .unwrap();
-    let blob = server.store.find_sha256(&Sha256::of_bytes(b"out")).unwrap().unwrap();
     server.store.cas().remove(&blob).unwrap();
 
     let gone = unary::<_, FullResult>(&server, GET_RESULT, get("", b"act"), None).await;
@@ -341,7 +381,9 @@ async fn an_output_directory_needs_every_file_of_its_tree() {
     let refused = unary::<_, Raw>(&server, UPDATE_RESULT, update("", b"dir", &result), None).await;
     assert_eq!(refused.unwrap_err().code(), tonic::Code::FailedPrecondition);
 
-    write_blob(&server, "", b"inside the tree", None).await.unwrap();
+    write_blob(&server, "", b"inside the tree", None)
+        .await
+        .unwrap();
     unary::<_, Raw>(&server, UPDATE_RESULT, update("", b"dir", &result), None)
         .await
         .unwrap();
@@ -357,7 +399,12 @@ async fn an_output_directory_needs_every_file_of_its_tree() {
 async fn find_missing_blobs_sees_every_protocol_and_the_empty_blob() {
     let server = start().await;
     // Uploaded through Bazel's HTTP protocol, not REAPI.
-    let client = reqwest_put(server.addr, &format!("/cas/{}", Sha256::of_bytes(b"via http")), b"via http").await;
+    let client = reqwest_put(
+        server.addr,
+        &format!("/cas/{}", Sha256::of_bytes(b"via http")),
+        b"via http",
+    )
+    .await;
     assert_eq!(client, 200);
 
     let response: FindMissingBlobsResponse = unary(
@@ -415,9 +462,28 @@ async fn batch_updates_report_each_blob() {
         .iter()
         .map(|blob| blob.status.as_ref().unwrap().code)
         .collect();
-    assert_eq!(codes, [0, tonic::Code::InvalidArgument as i32, tonic::Code::InvalidArgument as i32]);
-    assert!(server.store.find_sha256(&Sha256::of_bytes(b"good")).unwrap().is_some());
-    assert!(server.store.find_sha256(&Sha256::of_bytes(b"bad")).unwrap().is_none());
+    assert_eq!(
+        codes,
+        [
+            0,
+            tonic::Code::InvalidArgument as i32,
+            tonic::Code::InvalidArgument as i32
+        ]
+    );
+    assert!(
+        server
+            .store
+            .find_sha256(&Sha256::of_bytes(b"good"))
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        server
+            .store
+            .find_sha256(&Sha256::of_bytes(b"bad"))
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -448,16 +514,27 @@ async fn batch_reads_return_present_blobs_and_not_found_for_the_rest() {
 #[tokio::test(flavor = "multi_thread")]
 async fn bytestream_round_trips_a_large_blob_and_honours_ranges() {
     let server = start().await;
-    let blob: Vec<u8> = (0..700_000_u32).map(|i| u8::try_from(i % 241).unwrap()).collect();
+    let blob: Vec<u8> = (0..700_000_u32)
+        .map(|i| u8::try_from(i % 241).unwrap())
+        .collect();
     let digest = digest(&blob);
 
-    assert_eq!(write_blob(&server, "ci", &blob, None).await.unwrap(), digest.size_bytes);
+    assert_eq!(
+        write_blob(&server, "ci", &blob, None).await.unwrap(),
+        digest.size_bytes
+    );
     let resource = format!("ci/blobs/{}/{}", digest.hash, digest.size_bytes);
 
     assert!(read_blob(&server, resource.clone()).await.unwrap() == blob);
-    assert_eq!(read_range(&server, resource.clone(), 10, 5).await.unwrap(), &blob[10..15]);
     assert_eq!(
-        read_range(&server, resource, 800_000, 0).await.unwrap_err().code(),
+        read_range(&server, resource.clone(), 10, 5).await.unwrap(),
+        &blob[10..15]
+    );
+    assert_eq!(
+        read_range(&server, resource, 800_000, 0)
+            .await
+            .unwrap_err()
+            .code(),
         tonic::Code::OutOfRange
     );
 }
@@ -467,9 +544,12 @@ async fn bytestream_reads_of_absent_blobs_are_not_found() {
     let server = start().await;
     let digest = digest(b"absent");
 
-    let error = read_blob(&server, format!("blobs/{}/{}", digest.hash, digest.size_bytes))
-        .await
-        .unwrap_err();
+    let error = read_blob(
+        &server,
+        format!("blobs/{}/{}", digest.hash, digest.size_bytes),
+    )
+    .await
+    .unwrap_err();
 
     assert_eq!(error.code(), tonic::Code::NotFound);
 }
@@ -497,7 +577,13 @@ async fn a_write_whose_data_does_not_match_is_refused_and_not_stored() {
         .unwrap_err();
 
     assert_eq!(error.code(), tonic::Code::InvalidArgument);
-    assert!(server.store.find_sha256(&Sha256::of_bytes(b"actually")).unwrap().is_none());
+    assert!(
+        server
+            .store
+            .find_sha256(&Sha256::of_bytes(b"actually"))
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -569,9 +655,13 @@ async fn credentials_are_checked_on_every_call() {
 
     let anonymous = write_blob(&server, "", b"x", None).await.unwrap_err();
     assert_eq!(anonymous.code(), tonic::Code::Unauthenticated);
-    let reader = write_blob(&server, "", b"x", Some(&basic("reader"))).await.unwrap_err();
+    let reader = write_blob(&server, "", b"x", Some(&basic("reader")))
+        .await
+        .unwrap_err();
     assert_eq!(reader.code(), tonic::Code::PermissionDenied);
-    write_blob(&server, "", b"x", Some(&basic("writer"))).await.unwrap();
+    write_blob(&server, "", b"x", Some(&basic("writer")))
+        .await
+        .unwrap();
 
     let found: FindMissingBlobsResponse = unary(
         &server,
@@ -615,5 +705,10 @@ async fn reqwest_put(addr: std::net::SocketAddr, path: &str, body: &[u8]) -> u16
         .header(http::header::HOST, addr.to_string())
         .body(http_body_util::Full::new(Bytes::copy_from_slice(body)))
         .unwrap();
-    sender.send_request(request).await.unwrap().status().as_u16()
+    sender
+        .send_request(request)
+        .await
+        .unwrap()
+        .status()
+        .as_u16()
 }

@@ -1,6 +1,9 @@
 //! `tinymold serve`: one content-addressed build cache behind many
 //! remote-cache protocols.
 //!
+//! Front-ends today: REAPI v2 over gRPC (`tinymold`'s own remote tier,
+//! Bazel, Buck2) and Bazel's HTTP cache protocol (Bazel, ccache).
+//!
 //! A [`Server`] listens on one address and serves every front-end from one
 //! [`tinymold_store::Store`], so identical bytes are stored once whichever
 //! protocol they arrive through ([`docs/specs/cache-server.md`]). It speaks
