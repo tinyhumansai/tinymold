@@ -67,3 +67,9 @@ fn a_dependency_named_tinymold_is_not_metadata() {
     let manifest = "[dependencies]\ntinymold = \"0.1\"\n[package]\nname = \"tinymold-demo\"\n";
     assert_eq!(parse(manifest), inputs(&[]));
 }
+
+#[test]
+fn a_comment_after_the_header_is_still_the_header() {
+    let manifest = "[package.metadata.tinymold.test] # fixtures\ninputs = [\"../fixtures\"]\n";
+    assert_eq!(parse(manifest), inputs(&["../fixtures"]));
+}

@@ -610,3 +610,21 @@ fn a_shared_library_in_a_native_search_path_of_the_build_turns_caching_off() {
         "test-pass not a test binary tinymold built"
     );
 }
+
+#[test]
+fn a_miss_marks_the_test_binary_record_as_used() {
+    let dir = tempfile::tempdir().unwrap();
+    let (root, config) = package(dir.path(), "");
+    let binary = build(&root, &config);
+    let record = files_under(&config.store.join("tests/bin")).pop().unwrap();
+    let old = SystemTime::now() - Duration::from_secs(3 * 24 * 3600);
+    fs::File::options()
+        .write(true)
+        .open(&record)
+        .unwrap()
+        .set_modified(old)
+        .unwrap();
+    assert_eq!(run(&config, &root, &binary, &[], &env(&[])), 0);
+    let modified = fs::metadata(&record).unwrap().modified().unwrap();
+    assert!(modified > old + Duration::from_secs(3600));
+}
