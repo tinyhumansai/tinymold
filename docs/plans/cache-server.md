@@ -150,7 +150,7 @@ store, which the server refuses to share.
   a stored hash is `409` before the body is read. The three
   single-artifact protocols (Turbo, Nx, Gradle) share
   `src/front/artifact/`, and the live tests share `tests/common/`. Both
-  live tests pass: Nx 21 restores `[remote cache]` with a write token, and
+  live tests pass: Nx 21.6.11 restores `[remote cache]` with a write token, and
   Gradle 9.8.1 loads `:compileJava` from the server with basic auth.
 
 ### 8. GitHub Action `serve: true`
