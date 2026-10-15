@@ -5,12 +5,14 @@
 //! the upstream compile finishes. On a miss the wrapper must therefore pass
 //! rustc's output through as it is written, not when rustc exits, and keep a
 //! copy for the cache at the same time. Each stream gets a thread that writes
-//! every chunk through and appends it to a buffer.
+//! every chunk through and appends it to a buffer, and both note, in the
+//! order they write them through, which stream each chunk went to.
 
 use std::ffi::OsString;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 
 use crate::{Error, Result};
@@ -24,6 +26,34 @@ pub(crate) struct Captured {
     pub(crate) stdout: Vec<u8>,
     /// Everything written to stderr.
     pub(crate) stderr: Vec<u8>,
+    /// How the two streams interleaved: the lengths of alternating runs of
+    /// output, starting with stdout. `[1, 2, 3]` is one byte of stdout,
+    /// then two of stderr, then three of stdout; `[0, 3]` is three bytes of
+    /// stderr only.
+    pub(crate) segments: Vec<u64>,
+}
+
+/// One of the two output streams.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Stream {
+    Stdout,
+    Stderr,
+}
+
+/// Appends `len` bytes of `stream` to `segments`, laid out as
+/// [`Captured::segments`] describes.
+pub(crate) fn note_segment(segments: &mut Vec<u64>, stream: Stream, len: u64) {
+    let on_stderr = segments.len() % 2 == 0;
+    if segments.is_empty() || on_stderr == (stream == Stream::Stderr) {
+        // The current run is the other stream's: start a new one, after an
+        // empty stdout run when stderr comes first.
+        if segments.is_empty() && stream == Stream::Stderr {
+            segments.push(0);
+        }
+        segments.push(len);
+    } else if let Some(last) = segments.last_mut() {
+        *last += len;
+    }
 }
 
 /// Runs `program` with `args`, inheriting stdio, and returns its exit code.
@@ -57,24 +87,42 @@ pub(crate) fn capture(mut command: Command, program: &Path) -> Result<Captured> 
         .stderr(Stdio::piped())
         .spawn()
         .map_err(spawn_error(program))?;
-    let stdout = child.stdout.take().map(|pipe| tee(pipe, io::stdout));
-    let stderr = child.stderr.take().map(|pipe| tee(pipe, io::stderr));
+    let segments = Arc::new(Mutex::new(Vec::new()));
+    let stdout = child
+        .stdout
+        .take()
+        .map(|pipe| tee(pipe, io::stdout, Stream::Stdout, Arc::clone(&segments)));
+    let stderr = child
+        .stderr
+        .take()
+        .map(|pipe| tee(pipe, io::stderr, Stream::Stderr, Arc::clone(&segments)));
     let status = child.wait().map_err(spawn_error(program))?;
     let collect = |handle: Option<thread::JoinHandle<Vec<u8>>>| {
         handle
             .and_then(|handle| handle.join().ok())
             .unwrap_or_default()
     };
+    let stdout = collect(stdout);
+    let stderr = collect(stderr);
+    let segments = std::mem::take(&mut *segments.lock().unwrap_or_else(PoisonError::into_inner));
     Ok(Captured {
         code: status.code().unwrap_or(1),
-        stdout: collect(stdout),
-        stderr: collect(stderr),
+        stdout,
+        stderr,
+        segments,
     })
 }
 
-/// Copies `source` to the writer `sink` makes, chunk by chunk, flushing each
-/// chunk, and returns everything copied.
-fn tee<R, W>(mut source: R, sink: fn() -> W) -> thread::JoinHandle<Vec<u8>>
+/// Copies `source`, the output `stream`, to the writer `sink` makes, chunk
+/// by chunk, flushing each chunk and noting it in `segments`, and returns
+/// everything copied. A chunk is written through while `segments` is held,
+/// so the noted order is the order the chunks went out in.
+fn tee<R, W>(
+    mut source: R,
+    sink: fn() -> W,
+    stream: Stream,
+    segments: Arc<Mutex<Vec<u64>>>,
+) -> thread::JoinHandle<Vec<u8>>
 where
     R: Read + Send + 'static,
     W: Write + 'static,
@@ -88,6 +136,8 @@ where
             }
             let chunk = &buffer[..read];
             kept.extend_from_slice(chunk);
+            let mut segments = segments.lock().unwrap_or_else(PoisonError::into_inner);
+            note_segment(&mut segments, stream, read as u64);
             let mut out = sink();
             // A closed stdout must not stop the compile; the bytes are still
             // kept, and rustc's own exit status decides the outcome.
