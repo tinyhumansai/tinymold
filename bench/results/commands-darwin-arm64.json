@@ -1,0 +1,1315 @@
+{
+  "benchmark": "commands",
+  "pins": {
+    "cargo_build_jobs": 18,
+    "target_filesystem": "apfs",
+    "linker": "cc, rustc's default, behind a timing wrapper",
+    "linker_threads": "linker default; the platform cc linker takes no thread flag",
+    "output_reuse": "rustc default: each link writes a fresh output",
+    "incremental": "on for baseline; off under sccache, which refuses it"
+  },
+  "commands": [
+    "build",
+    "clippy",
+    "test",
+    "coverage"
+  ],
+  "modes": [
+    "baseline",
+    "sccache",
+    "tinymold"
+  ],
+  "results": [
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 3.9949,
+            "min_s": 3.6199,
+            "max_s": 4.5803,
+            "samples_s": [
+              4.5803,
+              3.6199,
+              3.9949
+            ]
+          },
+          "link_s": 0.3749,
+          "compiled": 33,
+          "rss_mb": 392.1,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 3.7039,
+            "min_s": 3.6547,
+            "max_s": 3.8465,
+            "samples_s": [
+              3.6547,
+              3.8465,
+              3.7039
+            ]
+          },
+          "link_s": 0.3784,
+          "compiled": 33,
+          "rss_mb": 388.9,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 3.6364,
+            "min_s": 3.275,
+            "max_s": 4.7,
+            "samples_s": [
+              3.6364,
+              3.275,
+              4.7
+            ]
+          },
+          "link_s": 0.4052,
+          "compiled": 38,
+          "rss_mb": 285.1,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 3.732,
+            "min_s": 3.3055,
+            "max_s": 3.7567,
+            "samples_s": [
+              3.3055,
+              3.7567,
+              3.732
+            ]
+          },
+          "link_s": 0.4147,
+          "compiled": 38,
+          "rss_mb": 283.0,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 4.0204,
+            "min_s": 3.7729,
+            "max_s": 5.6134,
+            "samples_s": [
+              3.7729,
+              4.0204,
+              5.6134
+            ]
+          },
+          "link_s": 0.7207,
+          "compiled": 38,
+          "rss_mb": 394.9,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 2.1201,
+            "min_s": 2.1113,
+            "max_s": 2.2278,
+            "samples_s": [
+              2.1113,
+              2.1201,
+              2.2278
+            ]
+          },
+          "link_s": 0,
+          "compiled": 0,
+          "rss_mb": 40.5,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 4.0402,
+            "min_s": 3.9195,
+            "max_s": 4.9575,
+            "samples_s": [
+              4.0402,
+              3.9195,
+              4.9575
+            ]
+          },
+          "link_s": 0.6047,
+          "compiled": 38,
+          "rss_mb": 389.0,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 2.0873,
+            "min_s": 2.0853,
+            "max_s": 2.2191,
+            "samples_s": [
+              2.0873,
+              2.0853,
+              2.2191
+            ]
+          },
+          "link_s": 0,
+          "compiled": 0,
+          "rss_mb": 40.4,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "baseline",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 8.4838,
+            "min_s": 7.5196,
+            "max_s": 8.7562,
+            "samples_s": [
+              8.7562,
+              8.4838,
+              7.5196
+            ]
+          },
+          "link_s": 0.6947,
+          "compiled": 38,
+          "rss_mb": 392.1,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 7.4845,
+            "min_s": 6.5074,
+            "max_s": 14.4095,
+            "samples_s": [
+              6.5074,
+              14.4095,
+              7.4845
+            ]
+          },
+          "link_s": 0.6618,
+          "compiled": 38,
+          "rss_mb": 391.6,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "sccache",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 4.4776,
+            "min_s": 4.0995,
+            "max_s": 4.6362,
+            "samples_s": [
+              4.0995,
+              4.6362,
+              4.4776
+            ]
+          },
+          "link_s": 0.3777,
+          "compiled": 33,
+          "rss_mb": 304.3,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 1.941,
+            "min_s": 1.8271,
+            "max_s": 1.9477,
+            "samples_s": [
+              1.9477,
+              1.8271,
+              1.941
+            ]
+          },
+          "link_s": 0.3201,
+          "compiled": 33,
+          "rss_mb": 302.8,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "sccache",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 4.4012,
+            "min_s": 4.1469,
+            "max_s": 5.4327,
+            "samples_s": [
+              4.4012,
+              4.1469,
+              5.4327
+            ]
+          },
+          "link_s": 0.4507,
+          "compiled": 38,
+          "rss_mb": 284.4,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 2.607,
+            "min_s": 2.3761,
+            "max_s": 2.649,
+            "samples_s": [
+              2.3761,
+              2.607,
+              2.649
+            ]
+          },
+          "link_s": 0.3852,
+          "compiled": 38,
+          "rss_mb": 283.5,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "sccache",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 5.0057,
+            "min_s": 4.7975,
+            "max_s": 5.101,
+            "samples_s": [
+              5.0057,
+              4.7975,
+              5.101
+            ]
+          },
+          "link_s": 0.5937,
+          "compiled": 38,
+          "rss_mb": 307.6,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 1.3351,
+            "min_s": 1.2961,
+            "max_s": 2.1159,
+            "samples_s": [
+              2.1159,
+              1.3351,
+              1.2961
+            ]
+          },
+          "link_s": 0,
+          "compiled": 0,
+          "rss_mb": 40.5,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 3.1815,
+            "min_s": 2.7367,
+            "max_s": 5.452,
+            "samples_s": [
+              2.7367,
+              5.452,
+              3.1815
+            ]
+          },
+          "link_s": 0.5733,
+          "compiled": 38,
+          "rss_mb": 306.1,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 1.1985,
+            "min_s": 1.1508,
+            "max_s": 1.2049,
+            "samples_s": [
+              1.1508,
+              1.1985,
+              1.2049
+            ]
+          },
+          "link_s": 0,
+          "compiled": 0,
+          "rss_mb": 40.5,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "sccache",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 7.3912,
+            "min_s": 6.8851,
+            "max_s": 8.5828,
+            "samples_s": [
+              8.5828,
+              6.8851,
+              7.3912
+            ]
+          },
+          "link_s": 0.7019,
+          "compiled": 38,
+          "rss_mb": 320.7,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 4.6941,
+            "min_s": 4.3203,
+            "max_s": 5.4145,
+            "samples_s": [
+              4.6941,
+              4.3203,
+              5.4145
+            ]
+          },
+          "link_s": 0.5937,
+          "compiled": 38,
+          "rss_mb": 321.1,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 4.0243,
+            "min_s": 3.9611,
+            "max_s": 4.7704,
+            "samples_s": [
+              3.9611,
+              4.0243,
+              4.7704
+            ]
+          },
+          "link_s": 0.5194,
+          "compiled": 33,
+          "rss_mb": 388.8,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 120
+          }
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 0.8069,
+            "min_s": 0.788,
+            "max_s": 0.8571,
+            "samples_s": [
+              0.8571,
+              0.788,
+              0.8069
+            ]
+          },
+          "link_s": 0,
+          "compiled": 33,
+          "rss_mb": 78.4,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 117,
+            "misses": 3
+          }
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 3.5777,
+            "min_s": 3.5703,
+            "max_s": 3.7589,
+            "samples_s": [
+              3.7589,
+              3.5703,
+              3.5777
+            ]
+          },
+          "link_s": 0.5043,
+          "compiled": 38,
+          "rss_mb": 284.0,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 147
+          }
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 0.8898,
+            "min_s": 0.887,
+            "max_s": 1.0608,
+            "samples_s": [
+              0.887,
+              0.8898,
+              1.0608
+            ]
+          },
+          "link_s": 0,
+          "compiled": 38,
+          "rss_mb": 78.4,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 141,
+            "misses": 6
+          }
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 5.1372,
+            "min_s": 4.4173,
+            "max_s": 5.4517,
+            "samples_s": [
+              4.4173,
+              5.1372,
+              5.4517
+            ]
+          },
+          "link_s": 0.7113,
+          "compiled": 38,
+          "rss_mb": 389.0,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 147
+          }
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 2.1087,
+            "min_s": 2.1023,
+            "max_s": 5.1791,
+            "samples_s": [
+              2.1087,
+              5.1791,
+              2.1023
+            ]
+          },
+          "link_s": 0,
+          "compiled": 0,
+          "rss_mb": 40.4,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 0
+          }
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 1.0994,
+            "min_s": 0.904,
+            "max_s": 1.6483,
+            "samples_s": [
+              1.0994,
+              1.6483,
+              0.904
+            ]
+          },
+          "link_s": 0,
+          "compiled": 38,
+          "rss_mb": 78.4,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 141,
+            "misses": 6
+          }
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 1.2864,
+            "min_s": 1.2512,
+            "max_s": 1.5177,
+            "samples_s": [
+              1.2864,
+              1.5177,
+              1.2512
+            ]
+          },
+          "link_s": 0,
+          "compiled": 0,
+          "rss_mb": 40.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 0
+          }
+        }
+      }
+    },
+    {
+      "project": "ripgrep",
+      "rev": "14.1.1",
+      "mode": "tinymold",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 9.3327,
+            "min_s": 6.9332,
+            "max_s": 9.4881,
+            "samples_s": [
+              9.4881,
+              6.9332,
+              9.3327
+            ]
+          },
+          "link_s": 0.716,
+          "compiled": 38,
+          "rss_mb": 394.9,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 147
+          }
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 2.7534,
+            "min_s": 2.4885,
+            "max_s": 2.7975,
+            "samples_s": [
+              2.7534,
+              2.4885,
+              2.7975
+            ]
+          },
+          "link_s": 0,
+          "compiled": 38,
+          "rss_mb": 88.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 141,
+            "misses": 6
+          }
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 16.1258,
+            "min_s": 14.7691,
+            "max_s": 16.9132,
+            "samples_s": [
+              16.9132,
+              16.1258,
+              14.7691
+            ]
+          },
+          "link_s": 2.0282,
+          "compiled": 109,
+          "rss_mb": 333.5,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 10.9339,
+            "min_s": 10.6686,
+            "max_s": 12.6357,
+            "samples_s": [
+              12.6357,
+              10.6686,
+              10.9339
+            ]
+          },
+          "link_s": 1.8223,
+          "compiled": 109,
+          "rss_mb": 330.6,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 11.03,
+            "min_s": 10.581,
+            "max_s": 20.136,
+            "samples_s": [
+              10.581,
+              11.03,
+              20.136
+            ]
+          },
+          "link_s": 1.9928,
+          "compiled": 137,
+          "rss_mb": 302.4,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 9.1874,
+            "min_s": 9.0935,
+            "max_s": 12.5283,
+            "samples_s": [
+              9.1874,
+              9.0935,
+              12.5283
+            ]
+          },
+          "link_s": 1.8238,
+          "compiled": 137,
+          "rss_mb": 303.9,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 13.5697,
+            "min_s": 11.4421,
+            "max_s": 14.649,
+            "samples_s": [
+              13.5697,
+              11.4421,
+              14.649
+            ]
+          },
+          "link_s": 5.1621,
+          "compiled": 137,
+          "rss_mb": 332.5,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 6.7517,
+            "min_s": 6.5199,
+            "max_s": 18.3092,
+            "samples_s": [
+              6.7517,
+              6.5199,
+              18.3092
+            ]
+          },
+          "link_s": 0.0562,
+          "compiled": 0,
+          "rss_mb": 161.9,
+          "failed_runs": 3
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 10.8046,
+            "min_s": 10.2745,
+            "max_s": 17.5883,
+            "samples_s": [
+              10.2745,
+              10.8046,
+              17.5883
+            ]
+          },
+          "link_s": 4.3634,
+          "compiled": 137,
+          "rss_mb": 333.2,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 6.4949,
+            "min_s": 6.3862,
+            "max_s": 7.5273,
+            "samples_s": [
+              6.3862,
+              6.4949,
+              7.5273
+            ]
+          },
+          "link_s": 0.0525,
+          "compiled": 0,
+          "rss_mb": 163.0,
+          "failed_runs": 3
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "baseline",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 23.291,
+            "min_s": 22.5015,
+            "max_s": 40.3401,
+            "samples_s": [
+              23.291,
+              22.5015,
+              40.3401
+            ]
+          },
+          "link_s": 2.6512,
+          "compiled": 137,
+          "rss_mb": 331.8,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 17.6102,
+            "min_s": 17.5704,
+            "max_s": 48.0108,
+            "samples_s": [
+              17.5704,
+              17.6102,
+              48.0108
+            ]
+          },
+          "link_s": 2.9421,
+          "compiled": 137,
+          "rss_mb": 331.3,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "sccache",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 18.2844,
+            "min_s": 17.9089,
+            "max_s": 19.4219,
+            "samples_s": [
+              17.9089,
+              18.2844,
+              19.4219
+            ]
+          },
+          "link_s": 1.6878,
+          "compiled": 109,
+          "rss_mb": 285.9,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 5.2486,
+            "min_s": 4.7854,
+            "max_s": 12.0876,
+            "samples_s": [
+              5.2486,
+              4.7854,
+              12.0876
+            ]
+          },
+          "link_s": 1.4708,
+          "compiled": 109,
+          "rss_mb": 286.5,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "sccache",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 13.7323,
+            "min_s": 12.8747,
+            "max_s": 17.9945,
+            "samples_s": [
+              13.7323,
+              12.8747,
+              17.9945
+            ]
+          },
+          "link_s": 1.9106,
+          "compiled": 137,
+          "rss_mb": 286.2,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 5.9689,
+            "min_s": 5.6879,
+            "max_s": 7.7237,
+            "samples_s": [
+              5.6879,
+              5.9689,
+              7.7237
+            ]
+          },
+          "link_s": 1.6733,
+          "compiled": 137,
+          "rss_mb": 285.5,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "sccache",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 13.3178,
+            "min_s": 12.32,
+            "max_s": 16.9512,
+            "samples_s": [
+              12.32,
+              13.3178,
+              16.9512
+            ]
+          },
+          "link_s": 4.4889,
+          "compiled": 137,
+          "rss_mb": 282.5,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 7.3228,
+            "min_s": 6.4714,
+            "max_s": 8.1532,
+            "samples_s": [
+              6.4714,
+              8.1532,
+              7.3228
+            ]
+          },
+          "link_s": 0.0577,
+          "compiled": 0,
+          "rss_mb": 157.2,
+          "failed_runs": 3
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 7.7946,
+            "min_s": 7.5528,
+            "max_s": 13.1762,
+            "samples_s": [
+              13.1762,
+              7.5528,
+              7.7946
+            ]
+          },
+          "link_s": 6.1902,
+          "compiled": 137,
+          "rss_mb": 285.8,
+          "failed_runs": 0
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 4.4191,
+            "min_s": 3.711,
+            "max_s": 4.508,
+            "samples_s": [
+              4.508,
+              3.711,
+              4.4191
+            ]
+          },
+          "link_s": 0.0672,
+          "compiled": 0,
+          "rss_mb": 157.0,
+          "failed_runs": 3
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "sccache",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 25.0691,
+            "min_s": 23.767,
+            "max_s": 44.2941,
+            "samples_s": [
+              25.0691,
+              23.767,
+              44.2941
+            ]
+          },
+          "link_s": 2.8835,
+          "compiled": 137,
+          "rss_mb": 287.6,
+          "failed_runs": 0
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 11.8752,
+            "min_s": 11.6772,
+            "max_s": 12.0829,
+            "samples_s": [
+              11.8752,
+              11.6772,
+              12.0829
+            ]
+          },
+          "link_s": 2.5518,
+          "compiled": 137,
+          "rss_mb": 286.5,
+          "failed_runs": 0
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "tinymold",
+      "command": "build",
+      "cold": {
+        "build": {
+          "wall": {
+            "median_s": 16.6707,
+            "min_s": 14.0256,
+            "max_s": 25.3923,
+            "samples_s": [
+              16.6707,
+              14.0256,
+              25.3923
+            ]
+          },
+          "link_s": 1.8024,
+          "compiled": 109,
+          "rss_mb": 331.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 393
+          }
+        }
+      },
+      "warm": {
+        "build": {
+          "wall": {
+            "median_s": 4.6559,
+            "min_s": 4.5247,
+            "max_s": 10.2794,
+            "samples_s": [
+              4.5247,
+              4.6559,
+              10.2794
+            ]
+          },
+          "link_s": 0,
+          "compiled": 109,
+          "rss_mb": 76.8,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 390,
+            "misses": 3
+          }
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "tinymold",
+      "command": "clippy",
+      "cold": {
+        "clippy": {
+          "wall": {
+            "median_s": 10.4921,
+            "min_s": 9.9909,
+            "max_s": 13.3126,
+            "samples_s": [
+              10.4921,
+              9.9909,
+              13.3126
+            ]
+          },
+          "link_s": 1.9295,
+          "compiled": 137,
+          "rss_mb": 303.3,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 579
+          }
+        }
+      },
+      "warm": {
+        "clippy": {
+          "wall": {
+            "median_s": 5.5208,
+            "min_s": 4.8881,
+            "max_s": 6.2862,
+            "samples_s": [
+              5.5208,
+              4.8881,
+              6.2862
+            ]
+          },
+          "link_s": 0,
+          "compiled": 137,
+          "rss_mb": 76.9,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 576,
+            "misses": 3
+          }
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "tinymold",
+      "command": "test",
+      "cold": {
+        "test_build": {
+          "wall": {
+            "median_s": 12.6331,
+            "min_s": 12.2969,
+            "max_s": 15.0586,
+            "samples_s": [
+              12.2969,
+              12.6331,
+              15.0586
+            ]
+          },
+          "link_s": 6.208,
+          "compiled": 137,
+          "rss_mb": 331.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 534
+          }
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 7.1664,
+            "min_s": 6.5568,
+            "max_s": 7.5862,
+            "samples_s": [
+              6.5568,
+              7.1664,
+              7.5862
+            ]
+          },
+          "link_s": 0.0689,
+          "compiled": 0,
+          "rss_mb": 161.8,
+          "failed_runs": 3,
+          "cache": {
+            "hits": 0,
+            "misses": 0
+          }
+        }
+      },
+      "warm": {
+        "test_build": {
+          "wall": {
+            "median_s": 5.46,
+            "min_s": 5.1791,
+            "max_s": 7.5345,
+            "samples_s": [
+              5.46,
+              5.1791,
+              7.5345
+            ]
+          },
+          "link_s": 0,
+          "compiled": 137,
+          "rss_mb": 76.9,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 531,
+            "misses": 3
+          }
+        },
+        "test_run": {
+          "wall": {
+            "median_s": 4.4173,
+            "min_s": 4.1473,
+            "max_s": 6.477,
+            "samples_s": [
+              4.4173,
+              4.1473,
+              6.477
+            ]
+          },
+          "link_s": 0.0846,
+          "compiled": 0,
+          "rss_mb": 161.7,
+          "failed_runs": 3,
+          "cache": {
+            "hits": 0,
+            "misses": 0
+          }
+        }
+      }
+    },
+    {
+      "project": "bat",
+      "rev": "v0.24.0",
+      "mode": "tinymold",
+      "command": "coverage",
+      "cold": {
+        "coverage": {
+          "wall": {
+            "median_s": 23.2138,
+            "min_s": 22.6044,
+            "max_s": 24.5585,
+            "samples_s": [
+              24.5585,
+              22.6044,
+              23.2138
+            ]
+          },
+          "link_s": 2.6115,
+          "compiled": 137,
+          "rss_mb": 332.6,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 0,
+            "misses": 513
+          }
+        }
+      },
+      "warm": {
+        "coverage": {
+          "wall": {
+            "median_s": 10.3878,
+            "min_s": 9.3416,
+            "max_s": 11.7284,
+            "samples_s": [
+              11.7284,
+              9.3416,
+              10.3878
+            ]
+          },
+          "link_s": 0,
+          "compiled": 137,
+          "rss_mb": 76.9,
+          "failed_runs": 0,
+          "cache": {
+            "hits": 510,
+            "misses": 3
+          }
+        }
+      }
+    }
+  ],
+  "machine": {
+    "os": "darwin",
+    "os_release": "25.5.0",
+    "arch": "arm64",
+    "cpus": 18,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "python": "3.12.0",
+    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+  },
+  "date": "2026-10-15",
+  "runs": 3
+}
