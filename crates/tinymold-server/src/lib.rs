@@ -17,9 +17,8 @@
 //! config.max_size = Some(50 << 30);
 //! let server = Server::bind(&config)?;
 //! println!("listening on {}", server.local_addr());
-//! server.run_blocking(async {
-//!     let _ = tokio::signal::ctrl_c().await;
-//! })?;
+//! // Serve until the process is stopped.
+//! server.run_blocking(std::future::pending::<()>())?;
 //! # Ok::<(), tinymold_server::Error>(())
 //! ```
 //!
