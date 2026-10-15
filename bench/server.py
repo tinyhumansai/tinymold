@@ -27,6 +27,7 @@ import os
 import shutil
 import statistics
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -177,7 +178,8 @@ def servers(args: argparse.Namespace, work: Path) -> tuple[list[Server], dict[st
     described = {"tinymold serve": f"release build, {tinymold.name}, uncompressed store"}
     bazel_dir = work / "bazel-remote"
     if args.bazel_remote:
-        version = bench.output([args.bazel_remote, "--version"]).strip() or "unknown version"
+        probe = subprocess.run([args.bazel_remote, "--version"], capture_output=True, text=True)
+        version = (probe.stdout + probe.stderr).strip().splitlines()[0] if (probe.stdout + probe.stderr).strip() else "unknown version"
         found.append(Server("bazel-remote", BAZEL_HTTP_PORT,
                             [args.bazel_remote, "--dir", str(bazel_dir), "--max_size", "20",
                              "--http_address", f"127.0.0.1:{BAZEL_HTTP_PORT}",
@@ -211,7 +213,7 @@ def bench_server(args: argparse.Namespace) -> dict:
                     samples.setdefault((server.name, case), []).extend(values)
             finally:
                 server.stop()
-            print(f"run {run + 1}/{args.runs}: {server.name} measured", file=bench.sys.stderr)
+            print(f"run {run + 1}/{args.runs}: {server.name} measured", file=sys.stderr)
 
     for server in candidates:
         server.start()

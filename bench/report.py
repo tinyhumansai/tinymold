@@ -363,6 +363,27 @@ def cas_section(result: dict) -> list[str]:
     return lines + [""]
 
 
+def server_section(result: dict) -> list[str]:
+    """`tinymold serve` against bazel-remote, one row per case."""
+    names = list(result["servers"])
+    lines = [f"### Cache server ({describe(result)})", "",
+             "Medians over runs; " + "; ".join(f"{n}: {d}" for n, d in result["servers"].items())
+             + f". Small hits are {result['requests']} GETs per run; cold start opens a store "
+             f"of {result['entries']} action results. Not measured: "
+             + ", ".join(result.get("not_measured", [])) + ".", "",
+             "| Case | " + " | ".join(names) + " |",
+             "| --- |" + " ---: |" * len(names)]
+    cases = list(dict.fromkeys(r["case"] for r in result["results"]))
+    for case in cases:
+        cells = []
+        for name in names:
+            row = next((r for r in result["results"]
+                        if r["server"] == name and r["case"] == case), None)
+            cells.append("–" if row is None else f"{row['median']:g}")
+        lines.append(f"| {case} | " + " | ".join(cells) + " |")
+    return lines + [""]
+
+
 def openhuman_section(result: dict) -> list[str]:
     """The OpenHuman Docker benchmark's table; docker_openhuman.py owns its
     layout so the report and the run print the same thing."""
@@ -564,7 +585,7 @@ def main() -> None:
     edit_sections: list[str] = []
     order = {"scenarios": 0, "ab": 1, "experiments": 2, "baseline": 3, "cache": 4, "ci": 5,
              "hit": 6, "retest": 7, "openhuman": 8, "edits": 9, "dedup": 9, "link": 10,
-             "native": 11, "cas": 12}
+             "native": 11, "cas": 12, "server": 13}
     paths = sorted(RESULTS.glob("*.json"),
                    key=lambda p: (order.get(p.name.split("-")[0], 9), p.name))
     for path in paths:
@@ -591,6 +612,8 @@ def main() -> None:
             sections += hit_section(result)
         elif result["benchmark"] == "retest":
             sections += retest_section(result)
+        elif result["benchmark"] == "server":
+            sections += server_section(result)
         elif result["benchmark"] == "openhuman-docker":
             sections += openhuman_section(result)
         elif result["benchmark"] == "edits":
