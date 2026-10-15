@@ -96,6 +96,13 @@ fn every_keyed_field_moves_the_key() {
             case.args.push("--exact".to_owned());
         }),
         ("arg order", |case| case.args.reverse()),
+        // The output is replayed, so how it is colored is part of it.
+        ("--color=", |case| {
+            case.args.insert(0, "--color=always".to_owned());
+        }),
+        ("--color value", |case| {
+            case.args.extend(strings(&["--color", "never"]));
+        }),
         ("host", |case| case.host = "linux x86_64 6.8.0".to_owned()),
         ("package tree", |case| {
             case.package_tree = tree_digest(&[("src/lib.rs".to_owned(), Digest::of_bytes(b"x"))]);
@@ -119,15 +126,9 @@ fn every_keyed_field_moves_the_key() {
 }
 
 #[test]
-fn color_and_ignored_env_vars_leave_the_key_alone() {
+fn ignored_env_vars_leave_the_key_alone() {
     let reference = Case::new().key();
     let changes: Vec<Change> = vec![
-        ("--color=", |case| {
-            case.args.insert(0, "--color=always".to_owned());
-        }),
-        ("--color value", |case| {
-            case.args.extend(strings(&["--color", "never"]));
-        }),
         ("env order", |case| case.env.reverse()),
         ("TERM", |case| {
             case.env.push(("TERM".to_owned(), "xterm".to_owned()));

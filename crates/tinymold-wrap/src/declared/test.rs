@@ -38,6 +38,11 @@ fn anything_it_cannot_read_for_certain_is_uncached() {
         "[package]\nmetadata.tinymold.test.inputs = [\"x\"]\n",
         "[package]\nmetadata = { tinymold = { test = { cache = false } } }\n",
         "[ package.metadata.tinymold.test ]\ncache = false\n",
+        // Dotted keys and inline tables at the document root.
+        "package.metadata.tinymold.test.inputs = [\"../fixtures\"]\n[package]\nname = \"a\"\n",
+        "package = { name = \"a\", metadata = { tinymold = { test = { cache = false } } } }\n",
+        "\"package\".\"metadata\".tinymold.test.cache = false\n",
+        "[package]\n\"metadata\" . tinymold.test.cache = false\n",
         // Values outside the subset.
         "[package.metadata.tinymold.test]\ninputs = ['x']\n",
         "[package.metadata.tinymold.test]\ninputs = [\"a\\\"b\"]\n",
@@ -55,4 +60,10 @@ fn anything_it_cannot_read_for_certain_is_uncached() {
             "{manifest}"
         );
     }
+}
+
+#[test]
+fn a_dependency_named_tinymold_is_not_metadata() {
+    let manifest = "[dependencies]\ntinymold = \"0.1\"\n[package]\nname = \"tinymold-demo\"\n";
+    assert_eq!(parse(manifest), inputs(&[]));
 }
