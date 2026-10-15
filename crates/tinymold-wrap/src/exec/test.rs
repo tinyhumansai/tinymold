@@ -29,12 +29,8 @@ fn a_captured_run_keeps_the_order_its_streams_were_written_in() {
         [0, 3]
     );
     let args: Vec<OsString> = vec!["-c".into(), "true".into()];
-    assert!(
-        run_captured(Path::new("sh"), &args)
-            .unwrap()
-            .segments
-            .is_empty()
-    );
+    let none: [u64; 0] = [];
+    assert_eq!(run_captured(Path::new("sh"), &args).unwrap().segments, none);
 }
 
 #[cfg(unix)]
