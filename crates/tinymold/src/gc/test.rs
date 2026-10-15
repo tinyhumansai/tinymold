@@ -621,3 +621,30 @@ fn test_binary_records_expire_like_pre_keys() {
     collect(&fixture.root, &fixture.policy()).unwrap();
     assert!(recent.exists());
 }
+
+#[cfg(unix)]
+#[test]
+fn a_test_run_that_cannot_be_read_is_an_error_not_garbage() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = Fixture::new();
+    let out = fixture.object(b"test result: ok", 3 * DAY);
+    let run = fixture.test_run("run", out, out, Duration::from_secs(60));
+    fs::set_permissions(&run, fs::Permissions::from_mode(0o000)).unwrap();
+    if fs::read(&run).is_ok() {
+        // Running as root, which reads it anyway.
+        return;
+    }
+
+    let result = collect(&fixture.root, &fixture.policy());
+    fs::set_permissions(&run, fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(
+        matches!(
+            result,
+            Err(Error::Wrap(tinymold_wrap::Error::Io { action: "read", .. }))
+        ),
+        "{result:?}"
+    );
+    assert!(run.exists());
+    assert!(fixture.store.contains(&out));
+}

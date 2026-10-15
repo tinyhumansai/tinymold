@@ -1,12 +1,14 @@
 {
   "benchmark": "retest",
-  "pins": {
+  "settings": {
     "cargo_build_jobs": 18,
     "target_filesystem": "apfs",
-    "linker": "cc, rustc's default, behind a timing wrapper",
-    "linker_threads": "linker default; the platform cc linker takes no thread flag",
-    "output_reuse": "rustc default: each link writes a fresh output",
-    "incremental": "on for baseline; off under sccache, which refuses it"
+    "rustc_wrapper": "tinymold on both sides, one fresh store per project",
+    "cargo_runner": "cargo side: none, any CARGO_TARGET_<triple>_RUNNER removed; run-test side: CARGO_TARGET_<host>_RUNNER=\"tinymold run-test\"",
+    "linker": "cc, rustc's default, with no timing wrapper",
+    "incremental": "on (CARGO_INCREMENTAL=1)",
+    "tmpdir": "one per project, emptied before every measurement",
+    "doctests": "run on both sides; rustdoc does not go through the runner"
   },
   "results": [
     {
@@ -49,7 +51,8 @@
           0,
           0
         ]
-      ]
+      ],
+      "runs": 5
     },
     {
       "project": "ripgrep",
@@ -91,7 +94,8 @@
           2,
           0
         ]
-      ]
+      ],
+      "runs": 5
     },
     {
       "project": "ripgrep",
@@ -133,7 +137,8 @@
           0,
           0
         ]
-      ]
+      ],
+      "runs": 5
     },
     {
       "project": "ripgrep",
@@ -175,7 +180,8 @@
           0,
           2
         ]
-      ]
+      ],
+      "runs": 5
     },
     {
       "project": "tinymold",
@@ -207,7 +213,8 @@
           0,
           0
         ]
-      ]
+      ],
+      "runs": 3
     },
     {
       "project": "tinymold",
@@ -239,7 +246,8 @@
           5,
           0
         ]
-      ]
+      ],
+      "runs": 3
     },
     {
       "project": "tinymold",
@@ -271,7 +279,8 @@
           0,
           0
         ]
-      ]
+      ],
+      "runs": 3
     },
     {
       "project": "tinymold",
@@ -303,7 +312,8 @@
           0,
           5
         ]
-      ]
+      ],
+      "runs": 3
     }
   ],
   "machine": {
@@ -313,7 +323,7 @@
     "cpus": 18,
     "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
     "python": "3.12.0",
-    "cargo_settings": "stock: no rustc wrapper, incremental on, full debuginfo, jobs=18, no RUSTFLAGS beyond the linker's"
+    "cargo_settings": "RUSTC_WRAPPER=tinymold on both sides, incremental on, full debuginfo, jobs=18, no RUSTFLAGS"
   },
   "date": "2026-10-15",
   "runs": 3
