@@ -4,13 +4,15 @@
 //! mtime is its last use (see `docs/specs/gc.md`). [`collect`] removes:
 //!
 //! 1. actions unused for longer than [`Policy::max_age`];
-//! 2. the least recently used remaining actions, while the objects they
+//! 2. beyond the [`Policy::keep_generations`] most recently used actions of
+//!    each unit, the older ones: earlier edits of the same crate;
+//! 3. the least recently used remaining actions, while the objects they
 //!    reference exceed [`Policy::max_size`];
-//! 3. pre-key records and digest caches older than `max_age`, and record
+//! 4. pre-key records and digest caches older than `max_age`, and record
 //!    temporaries older than the grace period;
-//! 4. objects no remaining action references and older than the grace
+//! 5. objects no remaining action references and older than the grace
 //!    period, and staging files older than it;
-//! 5. snapshots older than [`Policy::snapshots_max_age`].
+//! 6. snapshots older than [`Policy::snapshots_max_age`].
 //!
 //! Collection only ever deletes, so it cannot cause a wrong hit. An action
 //! whose object was removed fails to restore, and the wrapper then treats it
@@ -44,6 +46,10 @@ pub struct Policy {
     /// Remove actions, pre-key records and digest caches not used for this
     /// long. `None` keeps them whatever their age.
     pub max_age: Option<Duration>,
+    /// Keep at most this many actions per unit, the most recently used:
+    /// each edit of a crate stores a new action for the same unit, and the
+    /// older ones serve only a return to an earlier state. `None` keeps all.
+    pub keep_generations: Option<usize>,
     /// Evict the least recently used actions while the objects they reference
     /// take more than this many bytes. `None` sets no budget.
     pub max_size: Option<u64>,
@@ -64,6 +70,7 @@ impl Policy {
     pub fn garbage_only() -> Self {
         Self {
             max_age: None,
+            keep_generations: None,
             max_size: None,
             snapshots_max_age: None,
             dry_run: false,
@@ -86,6 +93,8 @@ impl Policy {
 struct Action {
     record: RecordFile,
     references: Vec<Digest>,
+    /// The unit it compiled: its crate and dep-info name.
+    unit: Option<(String, String)>,
 }
 
 /// Collects garbage in the store at `store` according to `policy`.
@@ -110,10 +119,15 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
     let mut actions = Vec::new();
     for record in tinymold_wrap::records(store)? {
         match &record.kind {
-            RecordKind::Action { .. } => {
-                match tinymold_wrap::action_references(&record.path) {
-                    Ok(references) if !policy.older_than(record.last_used, policy.max_age) => {
-                        actions.push(Action { record, references });
+            RecordKind::Action { crate_name, .. } => {
+                match tinymold_wrap::action_info(&record.path) {
+                    Ok(info) if !policy.older_than(record.last_used, policy.max_age) => {
+                        let unit = info.unit.map(|unit| (crate_name.clone(), unit));
+                        actions.push(Action {
+                            record,
+                            references: info.references,
+                            unit,
+                        });
                     }
                     // Expired, corrupt, or gone since the walk.
                     _ => {
@@ -151,6 +165,7 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
         }
     }
 
+    keep_generations(&mut actions, policy, &mut report)?;
     let referenced = fit_budget(&mut actions, &sizes, policy, &mut report)?;
     report.actions_kept = actions.len() as u64;
 
@@ -181,6 +196,34 @@ pub fn collect(store: &Path, policy: &Policy) -> Result<Report> {
 
     report.snapshots_removed = collect_snapshots(store, policy)?;
     Ok(report)
+}
+
+/// Evicts, of each unit's `actions`, all but the
+/// [`Policy::keep_generations`] most recently used.
+fn keep_generations(actions: &mut Vec<Action>, policy: &Policy, report: &mut Report) -> Result<()> {
+    let Some(keep) = policy.keep_generations else {
+        return Ok(());
+    };
+    // Newest first, so each unit's first `keep` actions are the ones kept.
+    actions.sort_by_key(|action| std::cmp::Reverse(action.record.last_used));
+    let mut seen: HashMap<(String, String), usize> = HashMap::new();
+    let mut kept = Vec::with_capacity(actions.len());
+    for action in actions.drain(..) {
+        let Some(unit) = &action.unit else {
+            kept.push(action);
+            continue;
+        };
+        let count = seen.entry(unit.clone()).or_insert(0);
+        *count += 1;
+        if *count <= keep {
+            kept.push(action);
+        } else {
+            remove_file(&action.record.path, policy)?;
+            report.actions_removed += 1;
+        }
+    }
+    *actions = kept;
+    Ok(())
 }
 
 /// Evicts the least recently used `actions` until the objects the rest

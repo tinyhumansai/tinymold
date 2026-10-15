@@ -351,6 +351,10 @@ Share of the second worktree's `target/` bytes that are byte-identical to someth
 | tinymold cas get --strategy hardlink | 2.9 ms | 2.7–3.1 ms |
 | tinymold cas get --strategy copy | 325.6 ms | 311.6–443.3 ms |
 
+### Edit sequence
+
+Cumulative edits with build, clippy, tests and coverage after each, per mode and linker: see [`EDITS.md`](EDITS.md).
+
 <!-- results:end -->
 
 ## Reproduce

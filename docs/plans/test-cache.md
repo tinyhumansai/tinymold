@@ -101,6 +101,12 @@ Built test first, then dropped before merging. Branch
   pre-key explicitly.
 - Tests: a lint change in `clippy.toml` misses; an unchanged second
   `cargo clippy` runs no `clippy-driver`.
+- **Done** with the edit-rebuild work ([`edit-rebuild.md`](edit-rebuild.md)).
+  clippy-driver does write `clippy.toml`, `Cargo.toml`, `CLIPPY_ARGS` and
+  `CLIPPY_CONF_DIR` into dep-info, so the full key covers them. A
+  configuration file that does not exist yet is in no dep-info, so the
+  pre-key also names the file clippy would find, or `none`
+  (`tinymold-wrap/src/driver`, `rustc-wrapper.md`).
 
 ## Slice 5: measure
 
@@ -123,6 +129,6 @@ Built test first, then dropped before merging. Branch
 - [x] Slice 1: dropped, measured (cargo ≥ 1.88 re-keys by output name)
 - [ ] Slice 2: test key
 - [ ] Slice 3: records and `run-test`
-- [ ] Slice 4: clippy-driver caching
+- [x] Slice 4: clippy-driver caching
 - [ ] Slice 5: pipeline and retest benchmarks
 - [ ] Slice 6: impact-analysis ADR

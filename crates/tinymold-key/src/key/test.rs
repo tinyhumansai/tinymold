@@ -53,6 +53,7 @@ fn key_of(invocation: &Invocation, roots: &Roots, extern_digest: &[u8]) -> Diges
         externs: &[Some(Digest::of_bytes(extern_digest))],
         search_paths: &[vec![("libnative.a".into(), Digest::of_bytes(b"archive"))]],
         linker: None,
+        driver: None,
     })
 }
 
@@ -112,6 +113,7 @@ fn every_input_moves_the_pre_key() {
         externs: &externs,
         search_paths: &search,
         linker: None,
+        driver: None,
     };
     assert_eq!(pre_key(&defaults), reference);
 
@@ -160,6 +162,13 @@ fn every_input_moves_the_pre_key() {
             "linker",
             PreKeyInputs {
                 linker: Some("cc 1"),
+                ..defaults.clone()
+            },
+        ),
+        (
+            "driver",
+            PreKeyInputs {
+                driver: Some("clippy-driver\nclippy 0.1.99\nconfig none"),
                 ..defaults.clone()
             },
         ),

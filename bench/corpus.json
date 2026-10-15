@@ -8,6 +8,7 @@
       "package": "ripgrep",
       "bin": "rg",
       "edit": "crates/core/main.rs",
+      "churn": ["--features", "pcre2"],
       "edits": {
         "comment": {"file": "crates/core/main.rs"},
         "private_body": {
@@ -25,6 +26,7 @@
       "package": "bat",
       "bin": "bat",
       "edit": "src/bin/bat/main.rs",
+      "churn": ["--features", "lessopen"],
       "edits": {
         "comment": {"file": "src/bin/bat/main.rs"},
         "private_body": {
@@ -41,6 +43,7 @@
       "rev": "HEAD",
       "package": "tinymold",
       "bin": "tinymold",
+      "churn": ["--no-default-features"],
       "edits": {
         "comment": {"file": "crates/tinymold/src/main.rs"},
         "private_body": {

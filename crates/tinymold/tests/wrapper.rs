@@ -58,6 +58,9 @@ fn build_with(root: &Path, store: &Path, env: &[(&str, &str)], extra: &[&str]) -
         .current_dir(root)
         .env("TINYMOLD_STORE", store)
         .env("TINYMOLD_LOG", &log)
+        // A background collection would race the tests that count what gc
+        // removes; the one test of it switches it back on.
+        .env("TINYMOLD_AUTO_GC", "0")
         .envs(env.iter().copied())
         .status()
         .unwrap();
@@ -313,4 +316,18 @@ fn work_used_since_the_cutoff_still_hits_after_gc_and_expired_work_misses() {
     let removed = gc(&store, &["--max-age", "0s"]);
     assert!(removed.starts_with("gc: removed 1 actions"), "{removed}");
     assert_eq!(outcome(&build(&root, &store, &[])), "miss");
+}
+
+#[test]
+fn a_wrapper_call_starts_a_background_collection_unless_switched_off() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    let root = dir.path().join("a");
+    worktree(&root, "pub fn f() {}\n");
+
+    build(&root, &store, &[]);
+    assert!(!store.join("gc-stamp").exists());
+
+    build(&root, &store, &[("TINYMOLD_AUTO_GC", "1")]);
+    assert!(store.join("gc-stamp").is_file());
 }
