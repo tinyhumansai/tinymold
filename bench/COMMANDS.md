@@ -13,17 +13,17 @@ Each command starts from an empty target directory and an empty cache. *Cold* is
 | ripgrep 14.1.1 | build | 3.99s | 4.48s | 1.94s | 4.02s | 0.81s (117/120 hits) | 5.0× |
 | ripgrep 14.1.1 | clippy | 3.64s | 4.40s | 2.61s | 3.58s | 0.89s (141/147 hits) | 4.1× |
 | ripgrep 14.1.1 | test build | 4.02s | 5.01s | 3.18s | 5.14s | 1.10s (141/147 hits) | 3.7× |
-| ripgrep 14.1.1 | test run | 2.12s | 1.34s | 1.20s | 2.11s | 1.29s | 1.6× |
+| ripgrep 14.1.1 | test run | 2.12s | 1.34s | 1.20s | 2.11s | 1.29s | not cached |
 | ripgrep 14.1.1 | coverage | 8.48s | 7.39s | 4.69s | 9.33s | 2.75s (141/147 hits) | 3.1× |
 | bat v0.24.0 | build | 16.13s | 18.28s | 5.25s | 16.67s | 4.66s (390/393 hits) | 3.5× |
 | bat v0.24.0 | clippy | 11.03s | 13.73s | 5.97s | 10.49s | 5.52s (576/579 hits) | 2.0× |
 | bat v0.24.0 | test build | 13.57s | 13.32s | 7.79s | 12.63s | 5.46s (531/534 hits) | 2.5× |
-| bat v0.24.0 | test run | 6.75s | 7.32s | 4.42s | 7.17s | 4.42s | 1.5× |
+| bat v0.24.0 | test run | 6.75s | 7.32s | 4.42s | 7.17s | 4.42s | not cached |
 | bat v0.24.0 | coverage | 23.29s | 25.07s | 11.88s | 23.21s | 10.39s (510/513 hits) | 2.2× |
 | tinymold 2b41d65 | build | 13.19s | 16.88s | 5.48s | 11.90s | 2.65s (348/357 hits) | 5.0× |
 | tinymold 2b41d65 | clippy | 8.90s | 9.64s | 3.31s | 11.46s | 4.16s (387/396 hits) | 2.1× |
 | tinymold 2b41d65 | test build | 10.35s | 10.76s | 4.04s | 9.12s | 3.05s (387/396 hits) | 3.4× |
-| tinymold 2b41d65 | test run | 5.12s | 4.84s | 3.52s | 5.05s | 5.46s | 0.9× |
+| tinymold 2b41d65 | test run | 5.12s | 4.84s | 3.52s | 5.05s | 5.46s | not cached |
 | tinymold 2b41d65 | coverage | 15.29s | 19.94s | 8.92s | 22.73s | 10.66s (384/393 hits) | 1.4× |
 
 ![Cache per command](results/commands-darwin-arm64.svg)

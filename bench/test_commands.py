@@ -79,6 +79,10 @@ RESULT = {"benchmark": "commands", "machine": {"os": "darwin", "arch": "arm64", 
 
 
 class Report(unittest.TestCase):
+    def test_test_runs_claim_no_speed_up(self):
+        self.assertEqual(report.speedup(2.0, 1.0, "test_run"), "not cached")
+        self.assertEqual(report.speedup(2.0, 1.0, "build"), "2.0×")
+
     def test_the_section_shows_cold_and_warm_per_cache_and_the_speed_up(self):
         with tempfile.TemporaryDirectory() as tmp, \
                 unittest.mock.patch.object(report, "RESULTS", Path(tmp)):
