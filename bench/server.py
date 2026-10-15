@@ -240,11 +240,13 @@ def bench_server(args: argparse.Namespace) -> dict:
             try:
                 client = Client(server.port)
                 client.get(last)
+                # Up to the first hit; how long the server takes to stop
+                # (tinymold collects garbage on the way out) is not startup.
+                samples.setdefault((server.name, "cold start (s)"), []).append(
+                    time.perf_counter() - started)
                 client.close()
             finally:
                 server.stop()
-            samples.setdefault((server.name, "cold start (s)"), []).append(
-                time.perf_counter() - started)
 
     results = [{"server": name, "case": case,
                 "median": round(statistics.median(values), 4),
