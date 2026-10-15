@@ -111,6 +111,7 @@ fn action_references_names_outputs_and_replayed_text() {
             executable: false,
             text: false,
         }],
+        session: None,
     };
     write(&path, &action.encode());
 
@@ -137,4 +138,33 @@ fn action_references_rejects_a_corrupt_or_missing_record() {
         action_references(&path),
         Err(crate::Error::CorruptRecord { line: 1, .. })
     ));
+}
+
+#[test]
+fn action_info_names_the_unit_by_its_dep_info_output() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("action");
+    let output = |name: &str, text: bool| Output {
+        name: name.to_owned(),
+        digest: Digest::of_bytes(name.as_bytes()),
+        executable: false,
+        text,
+    };
+    let action = Action {
+        stdout: Digest::of_bytes(b"out"),
+        stderr: Digest::of_bytes(b"err"),
+        outputs: vec![output("demo-1.d", true), output("libdemo-1.rlib", false)],
+        session: None,
+    };
+    write(&path, &action.encode());
+    let info = action_info(&path).unwrap();
+    assert_eq!(info.unit.as_deref(), Some("demo-1.d"));
+    assert_eq!(info.references, action_references(&path).unwrap());
+
+    let without = Action {
+        outputs: vec![output("libdemo-1.rlib", false)],
+        ..action
+    };
+    write(&path, &without.encode());
+    assert_eq!(action_info(&path).unwrap().unit, None);
 }

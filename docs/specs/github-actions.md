@@ -161,7 +161,8 @@ the store fit beside each other.
   always points at the right files. On hosted runners the checkout path
   never changes, so this costs no hits.
 - **`cargo clippy`.** Clippy wraps workspace crates with `clippy-driver`.
-  Those calls pass through uncached, but their dependencies still hit.
+  Those calls are cached too, in entries of their own that replay the lints,
+  so a re-run lints only the crates whose inputs changed.
 - **Incremental builds.** `CARGO_INCREMENTAL=0` is the CI norm, and it keeps
   a job from adding incremental artifacts that later jobs would never
   reuse.

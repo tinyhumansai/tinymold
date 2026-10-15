@@ -150,17 +150,27 @@ fn parse_entry(text: &str) -> Option<(Identity, u64, Digest)> {
 /// `program -vV`, cached in the store by the program's identity so that it
 /// runs once per toolchain rather than once per crate.
 pub(crate) fn rustc_version(store: &Path, program: &Path) -> Result<String> {
+    version(store, program, "-vV")
+}
+
+/// The output of `program <flag>`, cached like [`rustc_version`].
+pub(crate) fn version(store: &Path, program: &Path, flag: &str) -> Result<String> {
     let resolved = resolve(program).unwrap_or_else(|| program.to_path_buf());
     let identity = identity(&resolved)?;
-    let key =
-        Digest::of_bytes(format!("{} {}", resolved.display(), identity_text(identity)).as_bytes())
-            .to_hex();
-    let entry = store.join("rustc").join(key);
+    let mut key = format!("{} {}", resolved.display(), identity_text(identity));
+    if flag != "-vV" {
+        // rustc's entries predate the flag; every other flag is named.
+        key.push(' ');
+        key.push_str(flag);
+    }
+    let entry = store
+        .join("rustc")
+        .join(Digest::of_bytes(key.as_bytes()).to_hex());
     if let Some(version) = read(&entry)? {
         return Ok(version);
     }
     let output = std::process::Command::new(program)
-        .arg("-vV")
+        .arg(flag)
         .output()
         .map_err(|source| Error::Spawn {
             program: program.to_path_buf(),

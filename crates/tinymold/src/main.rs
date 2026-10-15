@@ -20,7 +20,10 @@ fn main() -> ExitCode {
         let code = match tinymold::wrapper_config(|name| std::env::var_os(name)) {
             Some(config) => {
                 let remote = tinymold::wrapper_remote(|name| std::env::var_os(name));
-                tinymold_wrap::run_with_remote(&config, remote.as_deref(), program, rest)
+                let code =
+                    tinymold_wrap::run_with_remote(&config, remote.as_deref(), program, rest);
+                tinymold::autogc::spawn_if_due(&config.store, |name| std::env::var_os(name));
+                code
             }
             None => tinymold_wrap::run_uncached(program, rest),
         };

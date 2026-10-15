@@ -55,10 +55,25 @@ wrapper call when its first argument is not a tinymold subcommand and names a
 program: a path containing a separator, or a file named `rustc` or
 `clippy-driver`.
 
-- **Cacheable:** only invocations whose program is `rustc` and which compile
-  a crate.
-- **Run unchanged:** everything else, including `-vV`, `--print`, stdin
-  input, and `clippy-driver`.
+- **Cacheable:** invocations that compile a crate, whose program is `rustc`,
+  or `clippy-driver` wrapping rustc, as `cargo clippy` runs it for workspace
+  crates (`tinymold clippy-driver <rustc> <args…>`).
+- **Run unchanged:** everything else, including `-vV`, `--print` and stdin
+  input.
+
+**clippy-driver** is rustc with lints added: it takes the same arguments,
+writes the same outputs (an `.rmeta` and dep-info for a check) and reports
+its lints as diagnostics, which a hit replays. Its pre-key adds a `driver`
+field, so its entries never serve rustc or the reverse. The field holds
+`clippy-driver --version` and the configuration file clippy would read: the
+first `.clippy.toml` or `clippy.toml` in `CLIPPY_CONF_DIR`, else the crate's
+`CARGO_MANIFEST_DIR`, else the current directory, or their nearest ancestor,
+with its normalized path and digest, or `none`. clippy's dep-info already
+lists that file, `Cargo.toml` (for the `[lints]` table) and the
+`CLIPPY_ARGS` and `CLIPPY_CONF_DIR` variables, so the full key covers them.
+The pre-key field covers what dep-info cannot: a configuration file created
+since, or present in only one worktree. Without a `driver` field, rustc's
+pre-key encodes exactly as before, so existing entries stay valid.
 
 ## The key
 
@@ -151,6 +166,29 @@ incremental compile with split debuginfo leaves hundreds of object files.
 Either way, stdout and stderr are read before any file is removed, so a
 missing replay object fails the hit with the out-dir untouched, and any
 output that cannot be placed fails the whole hit, which then runs rustc.
+
+**Incremental sessions.** A hit runs no rustc, so it leaves no incremental
+session, and a target directory filled from the store would leave the first
+edit of every crate cold. So the action of an incremental miss also stores
+the session rustc just finished
+([ADR 0008](../adr/0008-incremental-sessions-at-the-same-path.md)):
+
+- **Finding it.** It is the finished session (`s-<time>-<random>-<hash>`)
+  under `<incremental>/<crate>-*` holding a file with the inode of one of
+  the unit's output objects, since rustc hardlinks session objects into the
+  out-dir. Without split debuginfo there are no such objects. The session is
+  then the only finished session of the crate written since the compile's
+  clock reading. With two, as when a library and its tests compile at once,
+  none is stored.
+- **Storing it.** Objects that are also outputs take the outputs' digests.
+  The dep graph and query cache are inserted. The action lists them as
+  `session` and `sfile` lines, and gc keeps them with the action.
+- **Restoring it.** On a hit, the session is placed only into the crate
+  directory it came from, and only when that directory does not exist. rustc
+  discards a session from another working directory, and one rustc wrote
+  since is newer. It is written beside the crate directory, then renamed into
+  place, with its lock file, by reflink or copy and made writable. A failure
+  never fails the hit.
 
 **Outputs kept in place.** After every hit and every stored miss, the
 wrapper records the identity (device, inode, size, mtime) and digest of each

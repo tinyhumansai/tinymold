@@ -32,6 +32,7 @@
 mod catalog;
 mod clock;
 mod compile;
+mod driver;
 mod error;
 mod exec;
 mod flight;
@@ -39,6 +40,7 @@ mod parallel;
 mod placed;
 mod record;
 mod remote;
+mod session;
 mod stat;
 mod trace;
 
@@ -50,7 +52,7 @@ use std::time::{Duration, Instant};
 
 use tinymold_key::{Classified, Invocation};
 
-pub use catalog::{RecordFile, RecordKind, action_references, records};
+pub use catalog::{ActionInfo, RecordFile, RecordKind, action_info, action_references, records};
 pub use clock::{filesystem_now, written_before};
 use compile::Served;
 pub use error::{Error, Result};
@@ -86,8 +88,9 @@ impl Config {
     }
 }
 
-/// Whether `program` is a compiler the wrapper may cache: a file named
-/// `rustc`. Other wrapped programs, such as `clippy-driver`, run unchanged.
+/// Whether `program` is rustc itself: a file named `rustc`. The wrapper
+/// also caches `clippy-driver` when it wraps rustc, as `cargo clippy` runs
+/// it; every other wrapped program runs unchanged.
 #[must_use]
 pub fn is_rustc(program: &Path) -> bool {
     program.file_stem().is_some_and(|stem| stem == "rustc")
@@ -135,6 +138,11 @@ fn serve(
 ) -> (&'static str, String, i32) {
     let classified = trace.span("classify", || match utf8(args) {
         Some(text) if is_rustc(program) => Invocation::parse(text),
+        // clippy-driver's first argument is the rustc it wraps.
+        Some(mut text) if driver::is_clippy(program, &text) => {
+            text.remove(0);
+            Invocation::parse(text)
+        }
         Some(_) => Classified::PassThrough("not rustc"),
         None => Classified::PassThrough("an argument is not UTF-8"),
     });
