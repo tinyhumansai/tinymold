@@ -13,10 +13,10 @@
 //!
 //! with `include_str!` or `include_bytes!` in place of `include!`, and its
 //! shorter form `include!(env!("GENERATED_PATH"))`, where a build script
-//! sets the variable to the file itself. Anything
-//! else, such as `env!("OUT_DIR").len()`, may put something derived from the
-//! path into the output without putting the path itself there, so the
-//! caller's scan of the outputs cannot catch it.
+//! sets the variable to the file itself. Anything else, such as
+//! `env!("OUT_DIR").len()`, may put something derived from the path into the
+//! output without putting the path itself there, so the caller's scan of the
+//! outputs cannot catch it.
 //!
 //! The check is textual, so it is deliberately strict: every mention of the
 //! name outside a comment line must be one of those includes, and no `env!`
