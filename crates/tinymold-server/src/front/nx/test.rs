@@ -188,3 +188,22 @@ async fn oversized_outputs_and_other_methods_are_refused() {
         StatusCode::METHOD_NOT_ALLOWED
     );
 }
+
+#[tokio::test]
+async fn an_overlong_tenant_and_a_declared_oversized_output_are_refused() {
+    let (_dir, state) = state_with(Access::open());
+    let long = format!("/{}/v1/cache/1", "t".repeat(300));
+    assert_eq!(
+        send(&state, Method::GET, &long, b"", None).await.0,
+        StatusCode::BAD_REQUEST
+    );
+
+    let request = Request::builder()
+        .method(Method::PUT)
+        .uri("/v1/cache/2")
+        .header(header::CONTENT_LENGTH, "4096")
+        .body(Full::new(Bytes::from(vec![0_u8; 4096])))
+        .unwrap();
+    let response = route::handle(state.clone(), request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
