@@ -220,10 +220,7 @@ fn in_flight_keeps_the_bytes_in_flight_within_the_budget() {
 
 #[test]
 fn in_flight_runs_a_job_over_the_budget_alone() {
-    assert_eq!(
-        peaks(&[IN_FLIGHT_BYTES * 3, 1]),
-        (IN_FLIGHT_BYTES * 3, 1)
-    );
+    assert_eq!(peaks(&[IN_FLIGHT_BYTES * 3, 1]), (IN_FLIGHT_BYTES * 3, 1));
 }
 
 #[test]
@@ -237,7 +234,11 @@ fn in_flight_stops_at_the_first_failure() {
         |n| async move { n },
         |n| {
             seen += 1;
-            if n == 1 { Err(Error::Timeout("Write")) } else { Ok(()) }
+            if n == 1 {
+                Err(Error::Timeout("Write"))
+            } else {
+                Ok(())
+            }
         },
     ));
     assert!(matches!(result, Err(Error::Timeout("Write"))));

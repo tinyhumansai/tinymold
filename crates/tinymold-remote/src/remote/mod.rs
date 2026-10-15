@@ -48,10 +48,16 @@ pub use types::{Capabilities, PushReport};
 /// How many digests one `FindMissingBlobs` call asks about.
 const FIND_BATCH: usize = 1000;
 
-/// How many uploads, or entry updates, `push` keeps in flight at once. Each
-/// is a round trip; a CI runner an ocean away from its cache spends most of
-/// a call waiting, and one at a time leaves the link nearly idle.
-const IN_FLIGHT: usize = 32;
+/// How many calls `push` and a fetch keep in flight at once. Each is a round
+/// trip; a CI runner an ocean away from its cache spends most of a call
+/// waiting, and one at a time leaves the link nearly idle.
+const IN_FLIGHT_CALLS: usize = 32;
+
+/// How many blob bytes may be in flight at once. Each transfer holds its
+/// blob in memory, and they share the link: this bounds the memory, and
+/// every transfer's deadline allows for this many bytes beside it. A blob
+/// larger than this goes alone.
+const IN_FLIGHT_BYTES: u64 = if cfg!(test) { 64 << 10 } else { 32 << 20 };
 
 /// How long `push` waits before each retry of a call that timed out or
 /// found the server unavailable. A server behind a saturated disk can stall
@@ -275,34 +281,42 @@ impl RemoteCache {
         for batch in digests.chunks(FIND_BATCH) {
             missing.extend(retrying(|| self.client.find_missing(batch.to_vec())).await?);
         }
-        let mut uploads = stream::iter(missing)
-            .map(|digest| async move {
+        let missing = missing
+            .into_iter()
+            .map(|digest| (blob_size(&digest), digest))
+            .collect();
+        in_flight(
+            missing,
+            |digest| async move {
                 let data = match blobs.get(&digest) {
                     Some(Source::Bytes(bytes)) => bytes.clone(),
                     Some(Source::Object(object)) => store.read(object)?,
                     // The server asked about a blob nobody sent it.
                     None => return Ok(None),
                 };
-                let result = retrying(|| self.client.write(&digest, &data)).await;
+                let result =
+                    retrying(|| self.client.write_sharing(&digest, &data, IN_FLIGHT_BYTES)).await;
                 Ok::<_, Error>(Some((digest, data.len(), result)))
-            })
-            .buffer_unordered(IN_FLIGHT);
-        while let Some(upload) = uploads.next().await {
-            let Some((digest, size, result)) = upload? else {
-                continue;
-            };
-            match result {
-                Ok(()) => {
-                    report.blobs += 1;
-                    report.bytes += size as u64;
+            },
+            |upload| {
+                let Some((digest, size, result)) = upload? else {
+                    return Ok(());
+                };
+                match result {
+                    Ok(()) => {
+                        report.blobs += 1;
+                        report.bytes += size as u64;
+                    }
+                    Err(error) if transient(&error) => {
+                        failed.insert(digest);
+                        last = Some(error);
+                    }
+                    Err(error) => return Err(error),
                 }
-                Err(error) if transient(&error) => {
-                    failed.insert(digest);
-                    last = Some(error);
-                }
-                Err(error) => return Err(error),
-            }
-        }
+                Ok(())
+            },
+        )
+        .await?;
         // An entry goes up only once every blob it names is there, and
         // every action before any pre-key record.
         for (entries, action) in [(actions, true), (prekeys, false)] {
@@ -319,25 +333,29 @@ impl RemoteCache {
                     report.failed += 1;
                 }
             }
-            let mut updates = stream::iter(ready)
-                .map(|(key, result)| {
+            let ready = ready.into_iter().map(|entry| (0, entry)).collect();
+            in_flight(
+                ready,
+                |(key, result)| {
                     retrying(move || {
                         self.client
                             .update_action_result(key.clone(), result.clone())
                     })
-                })
-                .buffer_unordered(IN_FLIGHT);
-            while let Some(update) = updates.next().await {
-                match update {
-                    Ok(()) if action => report.actions += 1,
-                    Ok(()) => report.prekeys += 1,
-                    Err(error) if transient(&error) => {
-                        report.failed += 1;
-                        last = Some(error);
+                },
+                |update| {
+                    match update {
+                        Ok(()) if action => report.actions += 1,
+                        Ok(()) => report.prekeys += 1,
+                        Err(error) if transient(&error) => {
+                            report.failed += 1;
+                            last = Some(error);
+                        }
+                        Err(error) => return Err(error),
                     }
-                    Err(error) => return Err(error),
-                }
-            }
+                    Ok(())
+                },
+            )
+            .await?;
         }
         Ok(last)
     }
@@ -451,16 +469,26 @@ impl RemoteCache {
             }
             // Every object, and the record, in flight together: each read is
             // a round trip.
-            let objects = stream::iter(wanted)
-                .map(|(name, digest)| async move {
-                    let bytes = self.client.read(&digest).await?;
-                    Ok::<_, Error>((name, bytes))
-                })
-                .buffer_unordered(IN_FLIGHT)
-                .collect::<Vec<_>>();
-            let (objects, text) = future::join(objects, self.client.read(&record)).await;
-            for object in objects {
-                let (name, bytes) = object?;
+            let wanted = wanted
+                .into_iter()
+                .map(|(name, digest)| (blob_size(&digest), (name, digest)))
+                .collect();
+            let mut objects = Vec::new();
+            let reads = in_flight(
+                wanted,
+                |(name, digest)| async move {
+                    let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
+                    (name, bytes)
+                },
+                |(name, bytes)| {
+                    objects.push((name, bytes?));
+                    Ok(())
+                },
+            );
+            let (read, text) =
+                future::join(reads, self.client.read_sharing(&record, IN_FLIGHT_BYTES)).await;
+            read?;
+            for (name, bytes) in objects {
                 if store.insert_bytes(&bytes)? != name {
                     return Err(malformed("an output does not match its name"));
                 }
@@ -528,6 +556,48 @@ fn output(path: &str, digest: proto::Digest) -> OutputFile {
         path: path.to_owned(),
         digest: Some(digest),
         is_executable: false,
+    }
+}
+
+/// The size a digest declares, for the in-flight byte budget; 0 when it
+/// declares none.
+fn blob_size(digest: &proto::Digest) -> u64 {
+    u64::try_from(digest.size_bytes).unwrap_or(0)
+}
+
+/// Runs `start` on every item, oldest first, keeping up to
+/// [`IN_FLIGHT_CALLS`] of them and [`IN_FLIGHT_BYTES`] of their sizes in
+/// flight; an item larger than the budget runs alone. Hands each output to
+/// `done` as it finishes, and stops at the first error `done` returns.
+async fn in_flight<I, T, Fut>(
+    items: Vec<(u64, I)>,
+    mut start: impl FnMut(I) -> Fut,
+    mut done: impl FnMut(T) -> Result<()>,
+) -> Result<()>
+where
+    Fut: Future<Output = T>,
+{
+    let mut queue = items.into_iter().peekable();
+    let mut running = stream::FuturesUnordered::new();
+    let mut bytes = 0;
+    loop {
+        while let Some(&(size, _)) = queue.peek() {
+            let full = running.len() >= IN_FLIGHT_CALLS || bytes + size > IN_FLIGHT_BYTES;
+            if full && !running.is_empty() {
+                break;
+            }
+            let Some((size, item)) = queue.next() else {
+                break;
+            };
+            bytes += size;
+            let work = start(item);
+            running.push(async move { (size, work.await) });
+        }
+        let Some((size, output)) = running.next().await else {
+            return Ok(());
+        };
+        bytes -= size;
+        done(output)?;
     }
 }
 
