@@ -389,9 +389,7 @@ pub fn run(cli: &Cli, out: &mut impl Write) -> Result<Outcome> {
         Command::Stats(args) => return run_stats(args, out),
         Command::Remote(command) => return run_remote(cli, command, env, out),
         Command::Serve(args) => return crate::serve::run(cli, args, out),
-        Command::Gocacheprog(args) => {
-            crate::gocacheprog::run(cli, args, std::io::stdin().lock(), out)?;
-        }
+        Command::Gocacheprog(args) => crate::gocacheprog::run(cli, args, io::stdin().lock(), out)?,
         Command::RunTest(args) => return Ok(run_test(cli, args)),
     }
     Ok(Outcome::Success)
