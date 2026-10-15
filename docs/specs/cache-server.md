@@ -290,7 +290,11 @@ bazel-remote on the same machine and disk, with results committed. Targets:
 | Peak memory | does not grow with blob size |
 
 The server does not replace bazel-remote in `deploy/` or the CI
-`remote-e2e` job until it meets these on Linux and macOS.
+`remote-e2e` job until it meets these on Linux and macOS. On darwin arm64
+it meets every target the harness measures (`bench/README.md`, "Cache
+server"): small hits p50 0.16 ms and p99 0.31 ms, downloads and uploads
+faster than bazel-remote's, and a 17 ms cold start whatever the entry
+count. `FindMissingBlobs` and peak memory are not measured yet.
 
 ## Acceptance criteria
 
