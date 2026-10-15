@@ -9,7 +9,7 @@ use std::time::Duration;
 use tinymold_wrap::Remote as _;
 
 use super::*;
-use crate::fake::Server;
+use crate::fake::{STALL, Server};
 use crate::{SigningKey, TrustedKeys};
 
 /// A local store holding one action of two objects and its pre-key record.
@@ -567,6 +567,43 @@ fn an_unsigned_entry_is_refused_before_any_object_is_fetched() {
         ),
         "{result:?}"
     );
+}
+
+#[test]
+fn an_unsigned_pre_key_is_refused_without_waiting_for_its_record() {
+    // The record never arrives: a reader that waited for it would hang for
+    // the stall, or buffer whatever an untrusted server chose to send.
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+    let record = naming::blob(b"tinymold-prekey 1\nset 1\n");
+    server.with(|state| state.stalled_reads.insert(record.hash));
+    let reader = configured(&server, trusting(&SigningKey::generate()));
+    let started = std::time::Instant::now();
+    let result = reader.input_sets_of(&local.pre);
+    assert!(matches!(result, Err(Error::Untrusted { .. })), "{result:?}");
+    assert!(
+        started.elapsed() < STALL / 2,
+        "waited {:?}",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn each_object_is_stored_as_soon_as_it_arrives() {
+    // One object stalls past the timeout; the one that did arrive is already
+    // in the store rather than held in memory until every read is done.
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+    let rlib = naming::blob(b"rlib bytes");
+    server.with(|state| state.stalled_reads.insert(rlib.hash));
+    let elsewhere = tempfile::tempdir().unwrap();
+    let fresh = Store::open(elsewhere.path()).unwrap();
+    let result = impatient(&server).fetch_action_into(&local.key, &fresh);
+    assert!(matches!(result, Err(Error::Timeout("Read"))), "{result:?}");
+    let empty = tinymold_hash::Digest::of_bytes(b"");
+    assert!(fresh.contains(&empty));
 }
 
 #[test]

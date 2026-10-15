@@ -52,6 +52,8 @@ pub(crate) struct State {
     pub(crate) stall_writes: u64,
     /// Blobs, by SHA-256 hash, whose every upload hangs for [`STALL`].
     pub(crate) stalled_blobs: HashSet<String>,
+    /// Blobs, by SHA-256 hash, whose every read hangs for [`STALL`].
+    pub(crate) stalled_reads: HashSet<String>,
     /// Calls being answered right now, by method name (`Write`).
     pub(crate) in_flight: HashMap<String, u64>,
     /// The most calls of each method answered at once.
@@ -329,29 +331,36 @@ async fn find_missing_blobs(
 
 async fn read(state: Arc<Mutex<State>>, request: http::Request<Body>) -> http::Response<Body> {
     let service = tower::service_fn(move |call: Request<ReadRequest>| {
-        let resource = call.into_inner().resource_name;
-        let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
-        let state = state.lock().unwrap();
-        let Some(mut data) = state.blobs.get(&hash).cloned() else {
-            return ready(Err(Status::not_found(hash)));
-        };
-        if state.corrupt.contains(&hash)
-            && let Some(first) = data.first_mut()
-        {
-            // Same length, different content: only the hash can tell.
-            *first ^= 1;
+        let state = Arc::clone(&state);
+        async move {
+            let resource = call.into_inner().resource_name;
+            let hash = resource.split('/').rev().nth(1).unwrap_or("").to_owned();
+            if state.lock().unwrap().stalled_reads.contains(&hash) {
+                tokio::time::sleep(STALL).await;
+                return Err(Status::unavailable("stalled"));
+            }
+            let state = state.lock().unwrap();
+            let Some(mut data) = state.blobs.get(&hash).cloned() else {
+                return Err(Status::not_found(hash));
+            };
+            if state.corrupt.contains(&hash)
+                && let Some(first) = data.first_mut()
+            {
+                // Same length, different content: only the hash can tell.
+                *first ^= 1;
+            }
+            // Two chunks, so the client has to put a stream together.
+            let middle = data.len() / 2;
+            let chunks = vec![
+                Ok(ReadResponse {
+                    data: data[..middle].to_vec(),
+                }),
+                Ok(ReadResponse {
+                    data: data[middle..].to_vec(),
+                }),
+            ];
+            Ok(Response::new(tokio_stream::iter(chunks)))
         }
-        // Two chunks, so the client has to put a stream together.
-        let middle = data.len() / 2;
-        let chunks = vec![
-            Ok(ReadResponse {
-                data: data[..middle].to_vec(),
-            }),
-            Ok(ReadResponse {
-                data: data[middle..].to_vec(),
-            }),
-        ];
-        ready(Ok(Response::new(tokio_stream::iter(chunks))))
     });
     Grpc::new(ProstCodec::<ReadResponse, ReadRequest>::default())
         .server_streaming(service, request)
