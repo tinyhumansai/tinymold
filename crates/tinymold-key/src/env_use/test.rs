@@ -24,6 +24,18 @@ fn the_include_idiom_only_picks_files() {
 }
 
 #[test]
+fn including_the_value_itself_only_picks_a_file() {
+    // As `mime_guess` does, with a build script that sets the path.
+    let found = EnvUse::scan(
+        b"include!(env!(\"MIME_TYPES_GENERATED_PATH\"));\n",
+        "MIME_TYPES_GENERATED_PATH",
+    );
+    assert!(found.only_picks_included_files(), "{found:?}");
+    assert!(picks_files("static B: &[u8] = include_bytes!(env!(\"OUT_DIR\"));\n"));
+    assert!(!picks_files("include!(env!(\"OUT_DIR\").trim());\n"));
+}
+
+#[test]
 fn mentions_on_comment_lines_are_not_uses() {
     assert!(picks_files(
         "//! Run `cargo build`, which writes `OUT_DIR/x.rs`:\n\
