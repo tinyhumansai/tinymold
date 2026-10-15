@@ -15,7 +15,7 @@ use http_body_util::{BodyExt as _, Empty, Full};
 use tinymold_store::Store;
 
 use crate::auth::Access;
-use crate::front::{bazel_http, reapi, turbo};
+use crate::front::{bazel_http, gradle, nx, reapi, turbo};
 use crate::metrics::Metrics;
 
 /// The body of every response: streamed, with I/O errors.
@@ -56,6 +56,12 @@ where
     }
     if turbo::matches(request.uri().path()) {
         return turbo::handle(state, request).await;
+    }
+    if let Some(target) = gradle::parse(request.uri().path()) {
+        return gradle::handle(state, request, target).await;
+    }
+    if let Some(target) = nx::parse(request.uri().path()) {
+        return nx::handle(state, request, target).await;
     }
     if let Some(target) = bazel_http::parse(request.uri().path()) {
         return bazel_http::handle(state, request, target).await;

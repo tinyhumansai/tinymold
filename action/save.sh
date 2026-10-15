@@ -38,12 +38,37 @@ prune_registry() {
   done
 }
 
+# Every file under the directory given that this job wrote, sorted.
+newer() {
+  (cd "$1" && find . -type f -newer "${TINYMOLD_START_MARKER}" | LC_ALL=C sort)
+}
+
 backend="${TINYMOLD_BACKEND:-}"
 [[ -n "${backend}" ]] || {
   echo "::warning title=tinymold::the setup step did not run; nothing to save"
   printf 'save-cache=false\nsave-registry=false\n' >> "${GITHUB_OUTPUT}"
   exit 0
 }
+
+# Stop the cache server first: its shutdown collects garbage to its budget,
+# so what is saved below is already trimmed.
+stop_server() {
+  local pid
+  pid="$(cat "${TINYMOLD_SERVE_PID_FILE:-/nonexistent}" 2>/dev/null || true)"
+  [[ -n "${pid}" ]] || return 0
+  kill -TERM "${pid}" 2>/dev/null || return 0
+  for _ in $(seq 120); do
+    kill -0 "${pid}" 2>/dev/null || return 0
+    sleep 0.5
+  done
+  echo "::warning title=tinymold::tinymold serve did not stop within a minute; killing it"
+  kill -KILL "${pid}" 2>/dev/null || true
+}
+serving=false
+if [[ "${TINYMOLD_SERVE:-}" == true && -n "${TINYMOLD_SERVER_DIR:-}" ]]; then
+  serving=true
+  stop_server
+fi
 
 push="${INPUT_PUSH}"
 if [[ "${push}" == auto ]]; then
@@ -71,6 +96,8 @@ if [[ "${INPUT_SAVE_CACHE}" == true ]] && [[ "${backend}" == github || "${backen
   # A job that stored nothing new would only upload the store it restored.
   if grep -q " stored in " "${TINYMOLD_LOG}" 2>/dev/null; then
     save=true
+  elif [[ "${serving}" == true ]] && [[ -n "$(newer "${TINYMOLD_SERVER_DIR}" | head -n 1)" ]]; then
+    save=true
   else
     echo "tinymold: nothing new was stored; not saving the cache"
   fi
@@ -81,8 +108,12 @@ fi
 # entry apart: matrix legs share a job id, but not their new entries.
 key=""
 if [[ "${save}" == true ]]; then
-  stored="$(cd "${TINYMOLD_STORE}" &&
-    find . -type f -newer "${TINYMOLD_START_MARKER}" | LC_ALL=C sort | sha256 | cut -c1-12)"
+  stored="$({
+    newer "${TINYMOLD_STORE}"
+    if [[ "${serving}" == true ]]; then
+      newer "${TINYMOLD_SERVER_DIR}" | sed 's|^|server:|'
+    fi
+  } | sha256 | cut -c1-12)"
   key="${TINYMOLD_CACHE_KEY}-${GITHUB_JOB:-job}-${stored}"
 fi
 

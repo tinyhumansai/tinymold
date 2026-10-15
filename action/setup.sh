@@ -19,6 +19,11 @@ esac
 if [[ "${INPUT_BACKEND}" == remote || "${INPUT_BACKEND}" == both ]] && [[ -z "${INPUT_REMOTE_URL}" ]]; then
   fail "backend '${INPUT_BACKEND}' needs remote-url"
 fi
+case "${INPUT_SERVE:-false}" in
+  true | false) ;;
+  *) fail "serve must be true or false, not '${INPUT_SERVE}'" ;;
+esac
+[[ "${INPUT_SERVE_PORT:-9090}" =~ ^[0-9]+$ ]] || fail "serve-port must be a port number, not '${INPUT_SERVE_PORT}'"
 
 bin_dir="${RUNNER_TEMP}/tinymold-bin"
 mkdir -p "${bin_dir}"
@@ -81,6 +86,9 @@ binary="${bin_dir}/tinymold${exe}"
 
 store="${INPUT_STORE:-${HOME}/.cache/tinymold}"
 mkdir -p "${store}"
+serve="${INPUT_SERVE:-false}"
+server_dir="${INPUT_SERVE_DIR:-${HOME}/.cache/tinymold-server}"
+[[ "${serve}" == true ]] && mkdir -p "${server_dir}"
 # Anything in the store newer than this file was written by this job. The
 # restore that follows keeps the archive's mtimes, which are older.
 start_marker="${RUNNER_TEMP}/tinymold-start"
@@ -95,7 +103,22 @@ touch "${start_marker}"
   echo "TINYMOLD_START_MARKER=${start_marker}"
   # Incremental artifacts only help the job that wrote them.
   echo "CARGO_INCREMENTAL=0"
+  echo "TINYMOLD_SERVE=${serve}"
 } >> "${GITHUB_ENV}"
+# What the GitHub cache holds: the store, and with `serve: true` the cache
+# server's store too. Restore and save must name the same paths, or GitHub
+# treats the entries as different caches.
+if [[ "${serve}" == true ]]; then
+  {
+    echo "TINYMOLD_SERVER_DIR=${server_dir}"
+    echo "TINYMOLD_SERVE_PORT=${INPUT_SERVE_PORT:-9090}"
+    printf 'TINYMOLD_CACHE_PATHS<<TINYMOLD_EOF\n%s\n%s\nTINYMOLD_EOF\n' "${store}" "${server_dir}"
+  } >> "${GITHUB_ENV}"
+  printf 'cache-paths<<TINYMOLD_EOF\n%s\n%s\nTINYMOLD_EOF\n' "${store}" "${server_dir}" >> "${GITHUB_OUTPUT}"
+else
+  echo "TINYMOLD_CACHE_PATHS=${store}" >> "${GITHUB_ENV}"
+  echo "cache-paths=${store}" >> "${GITHUB_OUTPUT}"
+fi
 if [[ "${INPUT_BACKEND}" == remote || "${INPUT_BACKEND}" == both ]]; then
   echo "TINYMOLD_REMOTE_URL=${INPUT_REMOTE_URL}" >> "${GITHUB_ENV}"
   [[ -n "${INPUT_REMOTE_INSTANCE}" ]] && echo "TINYMOLD_REMOTE_INSTANCE=${INPUT_REMOTE_INSTANCE}" >> "${GITHUB_ENV}"
@@ -108,7 +131,12 @@ fi
 # The cache key: the store format, the platform, the caller's text and the
 # compiler. The lockfile hash, run and attempt are appended in action.yml, and
 # the job and what it stored in save.sh.
-rustc_hash="$(rustc -vV | sha256 | cut -c1-16)"
+# A job that only serves other tools' caches may have no Rust toolchain.
+if command -v rustc >/dev/null; then
+  rustc_hash="$(rustc -vV | sha256 | cut -c1-16)"
+else
+  rustc_hash=no-rustc
+fi
 prefix="tinymold-v1-${RUNNER_OS}-${RUNNER_ARCH}"
 [[ -n "${INPUT_CACHE_KEY}" ]] && prefix="${prefix}-${INPUT_CACHE_KEY}"
 {

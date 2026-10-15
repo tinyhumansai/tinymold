@@ -183,3 +183,48 @@ fn a_closed_output_is_an_output_error() {
         Err(Error::Output(_))
     ));
 }
+
+#[test]
+fn running_serves_until_shutdown_and_succeeds() {
+    let dir = tempfile::tempdir().unwrap();
+    let server_dir = dir.path().join("server");
+    let wrapper = dir.path().join("wrapper");
+    let (cli, args) = parse(&[
+        "tinymold",
+        "--store",
+        wrapper.to_str().unwrap(),
+        "serve",
+        "--dir",
+        server_dir.to_str().unwrap(),
+        "--listen",
+        "127.0.0.1:0",
+    ]);
+
+    let outcome = run_until(&cli, &args, &mut Vec::new(), async {}).unwrap();
+
+    assert_eq!(outcome, Outcome::Success);
+}
+
+#[test]
+fn the_command_line_reaches_the_server() {
+    let dir = tempfile::tempdir().unwrap();
+    let server_dir = dir.path().join("server");
+    let wrapper = dir.path().join("wrapper");
+    let (cli, _) = parse(&[
+        "tinymold",
+        "--store",
+        wrapper.to_str().unwrap(),
+        "serve",
+        "--dir",
+        server_dir.to_str().unwrap(),
+        "--listen",
+        "0.0.0.0:0",
+    ]);
+
+    let error = crate::run(&cli, &mut Vec::new()).unwrap_err();
+
+    assert!(matches!(
+        error,
+        Error::Server(tinymold_server::Error::OpenNonLoopback(_))
+    ));
+}

@@ -26,13 +26,13 @@ use std::sync::Arc;
 use bytes::Bytes;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, Request, Response, StatusCode, header};
 use http_body_util::BodyExt as _;
-use tinymold_store::{Entry, FrontEnd, Namespace};
+use tinymold_store::{FrontEnd, Namespace};
 
 use crate::auth::{Denied, Permission};
-use crate::front::{blocking, declared_length, now};
+use crate::front::{artifact, blocking, declared_length};
 use crate::metrics::Outcome;
 use crate::route::{self, Body, State};
-use crate::transfer::{self, UploadError};
+use crate::transfer::UploadError;
 
 /// The path prefix every Turbo endpoint lives under.
 const PREFIX: &str = "/v8/artifacts";
@@ -125,22 +125,14 @@ async fn download(
     hash: &str,
     head: bool,
 ) -> Response<Body> {
-    let store = state.store.clone();
-    let key = namespace.key(hash.as_bytes());
-    let found = blocking(move || {
-        let entry = store.get(&key.ok()?).ok()??;
-        let blob = *entry.blobs.first()?;
-        Some((store.cas().object_path(&blob), entry.meta))
-    })
-    .await
-    .flatten();
-
-    let Some((path, meta)) = found else {
+    let Ok(key) = namespace.key(hash.as_bytes()) else {
         return miss(state);
     };
-    let Some((body, len)) = transfer::download(path).await else {
+    let Some(artifact::Found { opened, meta }) = artifact::find(state, key).await else {
         return miss(state);
     };
+    let len = opened.len();
+    let body = opened.into_body();
     record(state, Outcome::Hit, 0, if head { 0 } else { len });
     let mut response = route::sized(body, len, head);
     let headers = response.headers_mut();
@@ -181,15 +173,7 @@ where
     let Ok(key) = namespace.key(hash.as_bytes()) else {
         return error(StatusCode::BAD_REQUEST, "bad_request", "hash too long");
     };
-    let store = state.store.clone();
-    let (result, received) = transfer::upload(request.into_body(), state.max_body, move |body| {
-        let ingested = store.ingest(body, None)?;
-        let mut entry = Entry::new(vec![ingested.digest]);
-        entry.meta = meta;
-        entry.written = now();
-        store.put(&key, &entry)
-    })
-    .await;
+    let (result, received) = artifact::put(state, request.into_body(), key, meta).await;
 
     match result {
         Ok(()) => {

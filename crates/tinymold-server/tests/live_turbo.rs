@@ -4,90 +4,43 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+mod common;
+
 use std::path::Path;
 use std::process::Command;
-
-use tinymold_server::{Config, Server};
-use tokio::sync::oneshot;
-
-fn live() -> bool {
-    std::env::var_os("TINYMOLD_LIVE").is_some_and(|value| value == "1")
-        && Command::new("npm").arg("--version").output().is_ok()
-}
-
-fn copy_tree(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).unwrap();
-    for entry in std::fs::read_dir(from).unwrap() {
-        let entry = entry.unwrap();
-        let target = to.join(entry.file_name());
-        if entry.file_type().unwrap().is_dir() {
-            copy_tree(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), target).unwrap();
-        }
-    }
-}
 
 /// Runs `turbo run build` against the server with only the remote cache,
 /// and returns its output.
 fn build(repo: &Path, api: &str) -> String {
-    let output = Command::new("npx")
-        .args(["--no-install", "turbo", "run", "build", "--cache=remote:rw"])
-        .current_dir(repo)
-        .env("TURBO_API", api)
-        .env("TURBO_TOKEN", "unused-on-an-open-server")
-        .env("TURBO_TEAM", "fixture")
-        .env("TURBO_TELEMETRY_DISABLED", "1")
-        .env("DO_NOT_TRACK", "1")
-        .output()
-        .unwrap();
-    let text = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(output.status.success(), "turbo failed:\n{text}");
-    text
+    common::run(
+        Command::new("npx")
+            .args(["--no-install", "turbo", "run", "build", "--cache=remote:rw"])
+            .current_dir(repo)
+            .env("TURBO_API", api)
+            .env("TURBO_TOKEN", "unused-on-an-open-server")
+            .env("TURBO_TEAM", "fixture")
+            .env("TURBO_TELEMETRY_DISABLED", "1")
+            .env("DO_NOT_TRACK", "1"),
+    )
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn live_turbo_replays_every_task_from_the_server() {
-    if !live() {
+    if !common::live("npm") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
-    let mut config = Config::new(dir.path().join("store"));
-    config.listen = "127.0.0.1:0".parse().unwrap();
-    let server = Server::bind(&config).unwrap();
-    let api = format!("http://{}", server.local_addr());
-    let (stop, stopped) = oneshot::channel::<()>();
-    let task = tokio::spawn(server.run(async {
-        let _ = stopped.await;
-    }));
-
+    let server = common::start(dir.path(), None);
+    let api = format!("http://{}", server.addr);
     let repo = dir.path().join("repo");
-    copy_tree(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/turbo"),
-        &repo,
-    );
-    let (first, second, restored) = tokio::task::spawn_blocking(move || {
-        // Turbo hashes the files git sees, so the copy is a repository that
-        // ignores build output, as a real one would. Outside git it would
-        // hash its own logs and never match a previous run.
-        std::fs::rename(repo.join("gitignore"), repo.join(".gitignore")).unwrap();
-        let initialized = Command::new("git")
-            .args(["init", "--quiet"])
-            .current_dir(&repo)
-            .status()
-            .unwrap();
-        assert!(initialized.success(), "git init failed");
-        let installed = Command::new("npm")
-            .args(["install", "--no-audit", "--no-fund", "--loglevel=error"])
-            .current_dir(&repo)
-            .status()
-            .unwrap();
-        assert!(installed.success(), "npm install failed");
 
+    let (first, second, restored) = tokio::task::spawn_blocking(move || {
+        common::repository("turbo", &repo);
+        common::run(
+            Command::new("npm")
+                .args(["install", "--no-audit", "--no-fund", "--loglevel=error"])
+                .current_dir(&repo),
+        );
         let first = build(&repo, &api);
         // Nothing local survives: only the server can answer.
         for package in ["a", "b"] {
@@ -112,6 +65,4 @@ async fn live_turbo_replays_every_task_from_the_server() {
         "the second run missed the server:\n{second}"
     );
     assert_eq!(restored, "built b");
-    let _ = stop.send(());
-    task.await.unwrap().unwrap();
 }

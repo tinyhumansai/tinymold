@@ -4,7 +4,10 @@
 //! an operation, checks access, calls the store on a blocking thread, and
 //! answers in its protocol's terms. None of them keeps state of its own.
 
+pub(crate) mod artifact;
 pub(crate) mod bazel_http;
+pub(crate) mod gradle;
+pub(crate) mod nx;
 pub(crate) mod reapi;
 pub(crate) mod turbo;
 

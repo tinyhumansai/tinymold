@@ -189,10 +189,10 @@ ships in the `tinymold` binary and talks to the server:
   remote is configured, and works with no server at all.
 - **Go:** `GOCACHEPROG="tinymold gocacheprog"`. Go runs it as a subprocess
   speaking JSON lines (`get`, `put`, `close`) on stdin and stdout. A `get`
-  hit must answer with a path on local disk, so the adapter materializes the
-  object into the local store and returns that path. Its namespace is
-  `native` with a Go tenant, and Go's `ActionID` and `OutputID` are kept in
-  the entry record.
+  hit must answer with a path on local disk; the adapter opens the server's
+  store directly and answers with the stored object's own read-only path.
+  Its namespace is `native/go`: the `ActionID` is the key and the
+  `OutputID` is kept in the entry's metadata. No server needs to run.
 
 ### Not yet supported
 
@@ -247,10 +247,11 @@ tinymold serve status [--url URL]    # entries, bytes, hit rate per namespace
 
 ### In GitHub Actions
 
-The setup action gains `serve: true`. It starts `tinymold serve` on
-`localhost` for the rest of the job, with its store restored from
-`actions/cache` as the store is today, and exports each enabled front-end's
-client settings, for example:
+The setup action gains `serve: true`
+([`github-actions.md`](github-actions.md#serving-other-tools)). It starts
+`tinymold serve` on `localhost` for the rest of the job, with its store
+restored from `actions/cache` as the store is today, and exports each
+front-end's client settings, for example:
 
 ```text
 TURBO_API=http://127.0.0.1:9090  TURBO_TOKEN=…  TURBO_TEAM=ci
@@ -258,10 +259,9 @@ NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090
 CCACHE_REMOTE_STORAGE=http://127.0.0.1:9090|layout=bazel
 ```
 
-The save action stops the server, runs GC to the budget, and saves the
-store. With `remote-url` set, the local server reads through to the remote
-on a miss and the save step pushes new entries, as `tinymold remote push`
-does for Rust today.
+The save action stops the server, whose shutdown collects garbage to the
+budget, and saves the store. Reading through to a remote on a miss, with
+`remote-url` set, is not built yet (see open questions).
 
 ## Invariants
 
@@ -290,7 +290,11 @@ bazel-remote on the same machine and disk, with results committed. Targets:
 | Peak memory | does not grow with blob size |
 
 The server does not replace bazel-remote in `deploy/` or the CI
-`remote-e2e` job until it meets these on Linux and macOS.
+`remote-e2e` job until it meets these on Linux and macOS. On darwin arm64
+it meets every target the harness measures (`bench/README.md`, "Cache
+server"): small hits p50 0.16 ms and p99 0.31 ms, downloads and uploads
+faster than bazel-remote's, and a 17 ms cold start whatever the entry
+count. `FindMissingBlobs` and peak memory are not measured yet.
 
 ## Acceptance criteria
 

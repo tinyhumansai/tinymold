@@ -207,6 +207,73 @@ jobs:
       - uses: ./save
         if: always()
 
+  # `serve: true`: the Action runs tinymold serve for the job, and Turborepo
+  # uses it as its remote cache. The fill job stores the turbo fixture's
+  # tasks; the reuse job, on a fresh runner, must replay every one of them
+  # from the server store the GitHub cache carried over.
+  action-serve-fill:
+    name: Action (serve, fill)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          cache-key: serve-self-test
+          serve: "true"
+
+      - name: Build the Turborepo fixture
+        run: |
+          set -euo pipefail
+          repo="${RUNNER_TEMP}/turbo-fixture"
+          cp -R crates/tinymold-server/tests/fixtures/turbo "${repo}"
+          cd "${repo}"
+          mv gitignore .gitignore
+          git init --quiet
+          npm install --no-audit --no-fund --loglevel=error
+          npx --no-install turbo run build --cache=remote:rw
+
+      - uses: ./save
+        if: always()
+
+  action-serve-reuse:
+    name: Action (serve, reuse)
+    needs: action-serve-fill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: ./
+        with:
+          install: source
+          cache-key: serve-self-test
+          serve: "true"
+
+      - name: Replay the Turborepo fixture from the restored server
+        run: |
+          set -euo pipefail
+          repo="${RUNNER_TEMP}/turbo-fixture"
+          cp -R crates/tinymold-server/tests/fixtures/turbo "${repo}"
+          cd "${repo}"
+          mv gitignore .gitignore
+          git init --quiet
+          npm install --no-audit --no-fund --loglevel=error
+          npx --no-install turbo run build --cache=remote:rw | tee "${RUNNER_TEMP}/turbo.log"
+          grep -q "FULL TURBO" "${RUNNER_TEMP}/turbo.log"
+          test "$(cat packages/b/dist/out.txt)" = "built b"
+
+      - uses: ./save
+        if: always()
+
   # The remote tier against a real bazel-remote, the reference server of
   # docs/adr/0006-remote-tier-reapi-bazel-remote.md: build and push, wipe every
   # local trace, then build again from the remote alone.
