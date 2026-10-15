@@ -42,17 +42,15 @@ pub(crate) enum Stream {
 
 /// Appends `len` bytes of `stream` to `segments`, laid out as
 /// [`Captured::segments`] describes.
-pub(crate) fn note_segment(segments: &mut Vec<u64>, stream: Stream, len: u64) {
-    let on_stderr = segments.len() % 2 == 0;
-    if segments.is_empty() || on_stderr == (stream == Stream::Stderr) {
-        // The current run is the other stream's: start a new one, after an
-        // empty stdout run when stderr comes first.
-        if segments.is_empty() && stream == Stream::Stderr {
-            segments.push(0);
-        }
-        segments.push(len);
-    } else if let Some(last) = segments.last_mut() {
-        *last += len;
+fn note_segment(segments: &mut Vec<u64>, stream: Stream, len: u64) {
+    if segments.is_empty() && stream == Stream::Stderr {
+        segments.push(0);
+    }
+    // Runs at even indexes are stdout's, at odd ones stderr's.
+    let parity = usize::from(stream == Stream::Stderr);
+    match segments.last_mut() {
+        Some(last) if (segments.len() - 1) % 2 == parity => *last += len,
+        _ => segments.push(len),
     }
 }
 
