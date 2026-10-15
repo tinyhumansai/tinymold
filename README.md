@@ -10,13 +10,6 @@ remote-cache protocols ([ADR 0009](docs/adr/0009-a-cache-server-with-protocol-fr
 In the spirit of [mold](https://github.com/rui314/mold): measure where the
 time goes, then remove that work rather than doing it slightly faster.
 
-
-> [!WARNING]
-> **🚧 DO NOT USE TINYMOLD FOR PRODUCTION BUILDS.** Use it only for
-> development and testing workflows for fast iterative changes.
-> tinymold is in it's early stages and could have bugs hence not suitable for
-> building production level code.
-
 A Rust edit-build-test loop pays the same costs over and over:
 
 - **Compiling what was already compiled somewhere.** Every worktree, branch
