@@ -175,15 +175,12 @@ async fn get_action_result(
     })
     .await?;
 
-    match found {
-        Some(body) => {
-            record(&state, Outcome::Hit, 0, body.len());
-            Ok(tonic::Response::new(Raw(body)))
-        }
-        None => {
-            record(&state, Outcome::Miss, 0, 0);
-            Err(Status::not_found("no action result"))
-        }
+    if let Some(body) = found {
+        record(&state, Outcome::Hit, 0, body.len());
+        Ok(tonic::Response::new(Raw(body)))
+    } else {
+        record(&state, Outcome::Miss, 0, 0);
+        Err(Status::not_found("no action result"))
     }
 }
 

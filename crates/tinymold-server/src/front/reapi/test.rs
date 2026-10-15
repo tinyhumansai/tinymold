@@ -112,10 +112,14 @@ where
     .map(tonic::Response::into_inner)
 }
 
+fn len(bytes: &[u8]) -> i64 {
+    i64::try_from(bytes.len()).unwrap()
+}
+
 fn digest(bytes: &[u8]) -> Digest {
     Digest {
         hash: Sha256::of_bytes(bytes).to_hex(),
-        size_bytes: bytes.len() as i64,
+        size_bytes: len(bytes),
     }
 }
 
@@ -146,10 +150,10 @@ async fn write_blob(
                 String::new()
             },
             write_offset: offset,
-            finish_write: offset + chunk.len() as i64 == bytes.len() as i64,
+            finish_write: offset + len(chunk) == len(bytes),
             data: Bytes::copy_from_slice(chunk),
         });
-        offset += chunk.len() as i64;
+        offset += len(chunk);
     }
     let mut grpc = tonic::client::Grpc::new(server.channel.clone());
     grpc.ready().await.unwrap();
@@ -525,7 +529,8 @@ async fn bytestream_round_trips_a_large_blob_and_honours_ranges() {
     );
     let resource = format!("ci/blobs/{}/{}", digest.hash, digest.size_bytes);
 
-    assert!(read_blob(&server, resource.clone()).await.unwrap() == blob);
+    let read = read_blob(&server, resource.clone()).await.unwrap();
+    assert!(read == blob, "the blob read back differs");
     assert_eq!(
         read_range(&server, resource.clone(), 10, 5).await.unwrap(),
         &blob[10..15]
