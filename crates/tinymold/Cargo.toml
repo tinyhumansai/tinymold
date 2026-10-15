@@ -20,6 +20,11 @@ tinymold-cas = { workspace = true }
 tinymold-wrap = { workspace = true }
 tinymold-remote = { workspace = true, optional = true }
 tinymold-server = { workspace = true, optional = true }
+# The cache server's store, which `tinymold gocacheprog` keeps Go's build
+# cache in. It has no network or async dependencies.
+tinymold-store = { workspace = true }
+# Go's `GOCACHEPROG` protocol carries bytes as base64 (`tinymold gocacheprog`).
+base64 = { workspace = true }
 clap = { workspace = true }
 # Copy-on-write clones of whole target directories for `tinymold snapshot`.
 reflink-copy = { workspace = true }

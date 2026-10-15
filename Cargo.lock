@@ -1077,6 +1077,7 @@ dependencies = [
 name = "tinymold"
 version = "0.0.1"
 dependencies = [
+ "base64 0.22.1",
  "clap",
  "reflink-copy",
  "tempfile",
@@ -1085,6 +1086,7 @@ dependencies = [
  "tinymold-hash",
  "tinymold-remote",
  "tinymold-server",
+ "tinymold-store",
  "tinymold-wrap",
 ]
 

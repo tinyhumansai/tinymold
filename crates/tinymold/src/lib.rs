@@ -51,6 +51,7 @@ mod doctor;
 mod error;
 pub mod fresh;
 pub mod gc;
+pub mod gocacheprog;
 mod location;
 mod serve;
 pub mod snapshot;
@@ -59,8 +60,8 @@ mod tree;
 mod wrapper;
 
 pub use cli::{
-    CasCommand, Cli, Command, FreshCommand, GcArgs, Location, Outcome, RemoteCommand, RunTestArgs,
-    ServeArgs, SnapshotCommand, StatsArgs, StrategyArg, run,
+    CasCommand, Cli, Command, FreshCommand, GcArgs, GoCacheProgArgs, Location, Outcome,
+    RemoteCommand, RunTestArgs, ServeArgs, SnapshotCommand, StatsArgs, StrategyArg, run,
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};

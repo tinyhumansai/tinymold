@@ -2,7 +2,7 @@
 # `if: always()` after `tinyhumansai/tinymold`, which it reads its settings
 # from. See docs/specs/github-actions.md.
 name: tinymold save
-description: Push new tinymold cache entries, report the hit rate, collect garbage and save the GitHub cache.
+description: Stop the cache server, push new tinymold cache entries, report the hit rate, collect garbage and save the GitHub cache.
 author: tinyhumansai
 branding:
   icon: save
@@ -39,7 +39,7 @@ runs:
     - if: steps.save.outputs.save-cache == 'true'
       uses: actions/cache/save@v6
       with:
-        path: ${{ env.TINYMOLD_STORE }}
+        path: ${{ env.TINYMOLD_CACHE_PATHS }}
         key: ${{ steps.save.outputs.key }}
 
     - if: steps.save.outputs.save-registry == 'true'

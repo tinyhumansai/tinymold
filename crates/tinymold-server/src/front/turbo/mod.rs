@@ -32,7 +32,7 @@ use crate::auth::{Denied, Permission};
 use crate::front::{artifact, blocking, declared_length};
 use crate::metrics::Outcome;
 use crate::route::{self, Body, State};
-use crate::transfer::{self, UploadError};
+use crate::transfer::UploadError;
 
 /// The path prefix every Turbo endpoint lives under.
 const PREFIX: &str = "/v8/artifacts";
@@ -128,12 +128,11 @@ async fn download(
     let Ok(key) = namespace.key(hash.as_bytes()) else {
         return miss(state);
     };
-    let Some(artifact::Found { path, meta }) = artifact::find(state, key).await else {
+    let Some(artifact::Found { opened, meta }) = artifact::find(state, key).await else {
         return miss(state);
     };
-    let Some((body, len)) = transfer::download(path).await else {
-        return miss(state);
-    };
+    let len = opened.len();
+    let body = opened.into_body();
     record(state, Outcome::Hit, 0, if head { 0 } else { len });
     let mut response = route::sized(body, len, head);
     let headers = response.headers_mut();

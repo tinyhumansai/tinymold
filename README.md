@@ -80,6 +80,7 @@ CCACHE_REMOTE_STORAGE="http://127.0.0.1:9090|layout=bazel" ccache cc -c unit.c
 TURBO_API=http://127.0.0.1:9090 TURBO_TOKEN=local TURBO_TEAM=me npx turbo run build
 NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://127.0.0.1:9090 npx nx run-many -t build
 # Gradle: remote<HttpBuildCache> { url = uri("http://127.0.0.1:9090/gradle/") }
+GOCACHEPROG="tinymold gocacheprog" go build ./...   # Go, straight from the store
 ```
 
 For the edit loop itself, set `codegen-units = 64` under `[profile.dev]`. In
@@ -146,6 +147,20 @@ then asks the server first, and the job pushes what it built at the end.
 Inputs, cache keys and self-hosted runners are covered in
 [`docs/specs/github-actions.md`](docs/specs/github-actions.md), and the remote
 tier in [`docs/specs/remote.md`](docs/specs/remote.md).
+
+For Turborepo, Nx or ccache in the same job, add `serve: true`: the action
+runs `tinymold serve` on loopback for the job, points those tools at it, and
+carries its store in the same GitHub cache entry. No Rust toolchain is
+needed for that.
+
+```yaml
+  - uses: tinyhumansai/tinymold@v0
+    with:
+      serve: true
+  - run: npm ci && npx turbo run build test
+  - uses: tinyhumansai/tinymold/save@v0
+    if: always()
+```
 
 The cache never links for you. A binary that depends on the crate you edited
 is still relinked in full, while unchanged crates, binaries and test

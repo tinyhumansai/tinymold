@@ -12,7 +12,7 @@
 //! The first variable that is set and non-empty wins.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Resolves the default store directory using `lookup` to read environment
 /// variables, or `None` when none of them is set.
@@ -68,6 +68,17 @@ pub fn default_server_dir(lookup: impl Fn(&str) -> Option<OsString>) -> Option<P
         return Some(PathBuf::from(cache).join("tinymold-server"));
     }
     set("HOME").map(|home| PathBuf::from(home).join(".cache").join("tinymold-server"))
+}
+
+/// Fails when `dir` is the wrapper's store `wrapper_store`: the server's
+/// store and the wrapper's have different layouts and different collectors,
+/// and each would take the other's files for garbage.
+pub(crate) fn refuse_shared(dir: &Path, wrapper_store: &Path) -> crate::Result<()> {
+    let canonical = |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    if canonical(dir) == canonical(wrapper_store) {
+        return Err(crate::Error::SharedStoreDir(dir.to_path_buf()));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

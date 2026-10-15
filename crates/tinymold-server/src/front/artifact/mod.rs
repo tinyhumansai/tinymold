@@ -7,7 +7,6 @@
 //! front-end.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -15,23 +14,24 @@ use tinymold_store::{Entry, Key};
 
 use crate::front::{blocking, now};
 use crate::route::State;
-use crate::transfer::{self, UploadError};
+use crate::transfer::{self, Opened, UploadError};
 
-/// A stored artifact: where its bytes are, and the metadata kept with it.
+/// A stored artifact, opened for a response, and the metadata kept with it.
 #[derive(Debug)]
 pub(crate) struct Found {
-    pub(crate) path: PathBuf,
+    pub(crate) opened: Opened,
     pub(crate) meta: BTreeMap<String, String>,
 }
 
-/// The artifact stored under `key`, if any.
+/// The artifact stored under `key`, if any, looked up and opened in one
+/// trip to the blocking pool.
 pub(crate) async fn find(state: &Arc<State>, key: Key) -> Option<Found> {
     let store = state.store.clone();
     blocking(move || {
         let entry = store.get(&key).ok()??;
         let blob = *entry.blobs.first()?;
         Some(Found {
-            path: store.cas().object_path(&blob),
+            opened: transfer::open(&store.cas().object_path(&blob))?,
             meta: entry.meta,
         })
     })

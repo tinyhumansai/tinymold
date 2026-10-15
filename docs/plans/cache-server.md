@@ -2,7 +2,7 @@
 
 - **Spec:** [`../specs/cache-server.md`](../specs/cache-server.md)
 - **Decision:** [ADR 0009](../adr/0009-a-cache-server-with-protocol-front-ends.md)
-- **Status:** In progress (slices 1-7 done)
+- **Status:** Slices 1-8, 10 and 11 done; slice 9 deferred on measurements
 
 ## Goal
 
@@ -160,6 +160,14 @@ store, which the server refuses to share.
 - A workflow in `.github/workflows/` runs the Turbo fixture under the
   action twice and asserts the second run is fully cached.
 - Update [`../specs/github-actions.md`](../specs/github-actions.md).
+- **As built:** the server is open on loopback (no token file), started
+  after the restore so its first collection never races it, and its
+  shutdown runs a final collection with no grace period, so the save step
+  needs no separate GC command. The server's store rides in the same cache
+  entry as the wrapper store. Without `rustc` the key uses `no-rustc`, so
+  JavaScript-only jobs can use the action. CI's `action-serve-fill` and
+  `action-serve-reuse` jobs check a cross-job `FULL TURBO`. Read-through to
+  a remote is left for later.
 
 ### 9. `native` socket and the Rust adapter
 
@@ -170,6 +178,14 @@ store, which the server refuses to share.
   modes.
 - Failing test first: two wrappers asking for the same missing key run
   rustc once.
+- **Deferred, on measurements.** Two wrappers asking for one key already
+  compile it once: `tinymold-wrap` takes a per-key `flock`
+  (`src/flight/`). What a daemon would add is a warm stat cache and record
+  index, and the `hit` benchmark bounds that: a warm ripgrep rebuild takes
+  0.18 s of wall time, and all ten unit restores together take 31 ms (3-7 ms
+  each, mostly placing hundreds of files, which a daemon does not avoid).
+  A socket protocol is not worth its complexity until a benchmark shows a
+  gap it would close.
 
 ### 10. `gocacheprog` adapter
 
@@ -177,6 +193,12 @@ store, which the server refuses to share.
   `get` answering with a materialized local path.
 - Failing tests first: protocol fixtures for `get` hit, `get` miss, `put`
   and `close`. `live_go` test: `go build` twice hits on the second.
+- **As built:** the adapter opens the server's store directly (no server
+  has to run), keeps entries under `native/go`, and answers a hit's
+  `DiskPath` with the read-only object itself, so nothing is copied. Bodies
+  stream from their base64 line into the store; a failed `put` drains the
+  rest of the line so the session stays in step. Against go 1.26.3, a
+  second `go build` with an empty `GOCACHE` compiled nothing.
 
 ### 11. Benchmark and the switch
 
@@ -187,6 +209,17 @@ store, which the server refuses to share.
   with `bench/report.py`.
 - If every spec target is met, switch `deploy/` to `tinymold serve` and keep
   the bazel-remote files as an alternative.
+- **As built:** `bench/server.py`, measured on darwin arm64 against a native
+  bazel-remote 2.6.2 (`go install`), five runs, medians: small hits p50
+  0.16 ms (bazel-remote 0.14 ms, runs overlapping) and p99 0.31 ms (0.38);
+  4 MiB downloads 1372 MB/s (982), uploads 461 MB/s (348); cold start on a
+  20 000-entry store 17 ms (67 ms), since the store needs no scan to start.
+  Measuring it moved two things: a small hit now looks up and opens its
+  object in one trip to the blocking pool instead of two (p50 0.33 to 0.16
+  ms), and the harness stops the cold-start clock at the first hit rather
+  than after shutdown. Not yet: Linux results, `FindMissingBlobs` (gRPC is
+  out of reach of a standard-library harness) and peak memory. `deploy/`
+  keeps bazel-remote until the Linux numbers are in.
 
 ## Verification
 
@@ -214,7 +247,7 @@ TINYMOLD_LIVE=1 cargo test -p tinymold-server live_
 - [x] 5. `reapi` front-end and the CI switch
 - [x] 6. `turbo` front-end
 - [x] 7. `nx` and `gradle` front-ends
-- [ ] 8. GitHub Action `serve: true`
-- [ ] 9. Native socket and the Rust adapter
-- [ ] 10. `gocacheprog` adapter
-- [ ] 11. Benchmark and the switch
+- [x] 8. GitHub Action `serve: true`
+- [ ] 9. Native socket and the Rust adapter (deferred, see above)
+- [x] 10. `gocacheprog` adapter
+- [x] 11. Benchmark (darwin arm64; Linux and the `deploy/` switch pending)

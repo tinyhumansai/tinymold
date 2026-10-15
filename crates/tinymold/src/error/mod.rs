@@ -60,6 +60,19 @@ pub enum Error {
     #[error("refusing to serve the wrapper's store {0}: pass a separate --dir")]
     SharedStoreDir(PathBuf),
 
+    /// The cache server's store failed, for `tinymold gocacheprog`.
+    #[error(transparent)]
+    Store(#[from] tinymold_store::Error),
+
+    /// The go command sent input that does not follow the `GOCACHEPROG`
+    /// protocol.
+    #[error("gocacheprog: {0}")]
+    CacheProg(&'static str),
+
+    /// Reading a command's input, such as the go command's requests, failed.
+    #[error("failed to read input")]
+    Input(#[source] std::io::Error),
+
     /// A remote command was run without a remote configured.
     #[error("no remote cache: set TINYMOLD_REMOTE_URL")]
     NoRemote,
