@@ -97,7 +97,8 @@ where
     }
     let head = request.method() == Method::HEAD;
     let store = state.store.clone();
-    let located = blocking(move || -> Option<std::path::PathBuf> {
+    // Look up and open in one trip to the blocking pool.
+    let opened = blocking(move || {
         let digest = match target.kind {
             Kind::Cas => store.find_sha256(&target.digest).ok()??,
             Kind::ActionCache => {
@@ -105,20 +106,18 @@ where
                 *store.get(&key).ok()??.blobs.first()?
             }
         };
-        Some(store.cas().object_path(&digest))
+        // A miss also when the object was collected after the lookup.
+        transfer::open(&store.cas().object_path(&digest))
     })
     .await
     .flatten();
 
-    match located {
-        Some(path) => match transfer::download(path).await {
-            Some((body, len)) => {
-                record(state, Outcome::Hit, 0, if head { 0 } else { len });
-                route::sized(body, len, head)
-            }
-            // Collected between the lookup and the read: a miss.
-            None => miss(state),
-        },
+    match opened {
+        Some(opened) => {
+            let len = opened.len();
+            record(state, Outcome::Hit, 0, if head { 0 } else { len });
+            route::sized(opened.into_body(), len, head)
+        }
         None => miss(state),
     }
 }

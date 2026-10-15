@@ -8,11 +8,12 @@
 //! - [`upload`] runs a store operation on a blocking thread, feeding it the
 //!   request body chunk by chunk and stopping it when the body exceeds the
 //!   size limit;
-//! - [`download`] reads an object file on a blocking thread into a
-//!   response body.
+//! - [`open`] opens an object file on the blocking thread that looked it
+//!   up, and [`Opened::into_body`] sends it: small objects whole, larger
+//!   ones streamed from another blocking thread.
 
 use std::io::{self, Read};
-use std::path::PathBuf;
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -130,48 +131,58 @@ impl Read for ChannelReader {
     }
 }
 
-/// A response body holding the file at `path`, and its length, or `None`
-/// when the file is gone.
-///
-/// Small files are read in one go; larger ones stream from a blocking
-/// thread.
-pub(crate) async fn download(path: PathBuf) -> Option<(route::Body, u64)> {
-    let opened = tokio::task::spawn_blocking(move || -> io::Result<_> {
-        let file = std::fs::File::open(&path)?;
-        let len = file.metadata()?.len();
-        if len <= SMALL {
-            let mut bytes = Vec::with_capacity(usize::try_from(len).unwrap_or(0));
-            let mut file = file;
-            file.read_to_end(&mut bytes)?;
-            return Ok((Some(Bytes::from(bytes)), None, len));
-        }
-        Ok((None, Some(file), len))
-    })
-    .await
-    .ok()?
-    .ok()?;
+/// An object opened for a response: small ones read whole, larger ones
+/// left open to stream.
+#[derive(Debug)]
+pub(crate) enum Opened {
+    /// The whole object, read in one go.
+    Small(Bytes),
+    /// The open file and its length.
+    Large(std::fs::File, u64),
+}
 
-    match opened {
-        (Some(bytes), _, len) => Some((
-            http_body_util::Full::new(bytes)
+impl Opened {
+    /// The object's length in bytes.
+    pub(crate) fn len(&self) -> u64 {
+        match self {
+            // `usize` is at most 64 bits on every supported target.
+            Self::Small(bytes) => bytes.len() as u64,
+            Self::Large(_, len) => *len,
+        }
+    }
+
+    /// The response body that sends the object.
+    pub(crate) fn into_body(self) -> route::Body {
+        match self {
+            Self::Small(bytes) => http_body_util::Full::new(bytes)
                 .map_err(|never| match never {})
                 .boxed_unsync(),
-            len,
-        )),
-        (None, Some(file), len) => {
-            let (sender, receiver) = mpsc::channel(DEPTH);
-            tokio::task::spawn_blocking(move || stream_file(file, &sender));
-            Some((
+            Self::Large(file, len) => {
+                let (sender, receiver) = mpsc::channel(DEPTH);
+                tokio::task::spawn_blocking(move || stream_file(file, &sender));
                 ChannelBody {
                     receiver,
                     remaining: len,
                 }
-                .boxed_unsync(),
-                len,
-            ))
+                .boxed_unsync()
+            }
         }
-        (None, None, _) => None,
     }
+}
+
+/// Opens the file at `path` for a response, or `None` when it is gone.
+///
+/// Blocking: call it from the blocking thread that also looked the object
+/// up, so a small hit costs one trip to the blocking pool.
+pub(crate) fn open(path: &Path) -> Option<Opened> {
+    let mut file = std::fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    if len > SMALL {
+        return Some(Opened::Large(file, len));
+    }
+    let mut bytes = Vec::with_capacity(usize::try_from(len).unwrap_or(0));
+    file.read_to_end(&mut bytes).ok()?;
+    Some(Opened::Small(Bytes::from(bytes)))
 }
 
 fn stream_file(mut file: std::fs::File, sender: &mpsc::Sender<io::Result<Bytes>>) {

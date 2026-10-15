@@ -36,6 +36,7 @@ use tonic_prost::ProstCodec;
 use tower::service_fn;
 
 use crate::auth::{Denied, Permission};
+use crate::front::now;
 use crate::metrics::Outcome;
 use crate::route::{Body, State};
 use crate::transfer;
@@ -670,12 +671,6 @@ fn rpc_status(code: tonic::Code, message: &str) -> RpcStatus {
 
 fn internal(error: impl std::fmt::Display) -> Status {
     Status::internal(format!("store failed: {error}"))
-}
-
-fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 async fn blocking<T: Send + 'static>(
