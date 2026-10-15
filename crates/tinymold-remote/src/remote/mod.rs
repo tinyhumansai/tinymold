@@ -194,7 +194,8 @@ impl RemoteCache {
     /// Returns [`Error::Wrap`] or [`Error::Cas`] when the local store cannot
     /// be read, [`Error::Status`] on the first call the server refuses, such
     /// as a write without write credentials, and the last [`Error::Timeout`]
-    /// or [`Error::Status`] when transient failures left nothing pushed.
+    /// or [`Error::Status`] when transient failures left no action or no
+    /// pre-key record pushed, since a reader then finds nothing.
     pub fn push(&self, store_dir: &Path, since: Option<SystemTime>) -> Result<PushReport> {
         let store = Store::open(store_dir)?;
         let recent = |when: SystemTime| since.is_none_or(|since| when >= since);
@@ -295,10 +296,11 @@ impl RemoteCache {
             }
             Ok::<_, Error>(last)
         })?;
-        // Pushing part of a store is worth something; pushing none of it,
-        // because every upload failed, is the failure it looks like.
+        // Pushing part of a store is worth something. A push that left no
+        // action, or no pre-key record, cannot serve a single hit: a reader
+        // finds actions only through pre-keys.
         match failure {
-            Some(error) if report.actions + report.prekeys == 0 => Err(error),
+            Some(error) if report.actions == 0 || report.prekeys == 0 => Err(error),
             _ => Ok(report),
         }
     }

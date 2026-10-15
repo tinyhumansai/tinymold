@@ -199,6 +199,21 @@ fn a_push_whose_every_upload_fails_is_an_error() {
 }
 
 #[test]
+fn a_push_that_left_no_pre_key_is_an_error() {
+    let server = Server::start();
+    // The pre-key record's blob never goes up, so no reader could find the
+    // action that did.
+    server.with(|state| {
+        state
+            .stalled_blobs
+            .insert(naming::blob(b"tinymold-prekey 1\nset 1\n").hash);
+    });
+    let local = Local::new();
+    let result = impatient(&server).push(&local.root, None);
+    assert!(matches!(result, Err(Error::Timeout("Write"))), "{result:?}");
+}
+
+#[test]
 fn a_corrupt_action_record_is_skipped() {
     let server = Server::start();
     let local = Local::new();

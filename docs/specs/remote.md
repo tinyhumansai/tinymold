@@ -122,8 +122,8 @@ A call that times out, or that the server answers as `UNAVAILABLE`,
 write for seconds, and before the retries one stall threw the whole push
 away: blobs went up, but no action did. A blob that still fails leaves out
 only the entries that name it; the report counts them as "not pushed after
-upload failures". The push exits 1 only when those failures left nothing
-pushed at all.
+upload failures". The push exits 1 when those failures left no action or
+no pre-key record pushed, since readers find actions only through pre-keys.
 
 `tinymold remote check` calls `GetCapabilities`, then uploads a small probe
 blob. It reports the server's digest functions and whether the client can
