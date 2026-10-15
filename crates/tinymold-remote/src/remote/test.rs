@@ -154,7 +154,10 @@ fn an_upload_that_keeps_failing_skips_only_the_entries_that_need_it() {
     let stuck_key = Digest::of_bytes(b"stuck key");
     write(
         &local.root.join("entries/stuck").join(stuck_key.to_hex()),
-        &format!("tinymold-action 1\noutput {stuck} 0 0 libstuck.rlib\n"),
+        &format!(
+            "tinymold-action 1\nstdout {empty}\nstderr {empty}\noutput {stuck} 0 0 libstuck.rlib\n",
+            empty = local.objects[0]
+        ),
     );
     server.with(|state| {
         state
@@ -162,7 +165,10 @@ fn an_upload_that_keeps_failing_skips_only_the_entries_that_need_it() {
             .insert(naming::blob(b"stuck rlib").hash);
     });
     let report = impatient(&server).push(&local.root, None).unwrap();
-    assert_eq!((report.actions, report.prekeys, report.failed), (1, 1, 1));
+    assert_eq!(
+        (report.actions, report.prekeys, report.failed, report.skipped),
+        (1, 1, 1, 0)
+    );
     assert!(report.to_string().contains("1 entries not pushed"), "{report}");
     let fetched = Store::open(local._dir.path().join("fetched")).unwrap();
     let cache = remote(&server);
