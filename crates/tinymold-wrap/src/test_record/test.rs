@@ -26,12 +26,25 @@ fn the_test_run_encoding_is_pinned() {
     let run = TestRun {
         stdout: Digest::of_bytes(b""),
         stderr: Digest::of_bytes(b""),
+        segments: Vec::new(),
     };
     let empty = "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
-    let expected = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\n");
+    let expected = format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder\n");
     assert_eq!(run.encode(), expected);
     assert_eq!(TestRun::decode(&expected, Path::new("r")).unwrap(), run);
     assert_eq!(run.references(), vec![run.stdout, run.stderr]);
+
+    let interleaved = TestRun {
+        segments: vec![0, 4, 12],
+        ..run
+    };
+    let expected =
+        format!("tinymold-test-run 1\nstdout {empty}\nstderr {empty}\norder 0 4 12\n");
+    assert_eq!(interleaved.encode(), expected);
+    assert_eq!(
+        TestRun::decode(&expected, Path::new("r")).unwrap(),
+        interleaved
+    );
 }
 
 #[test]
