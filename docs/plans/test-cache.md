@@ -60,37 +60,52 @@ Built test first, then dropped before merging. Branch
 
 ## Slice 3: the test-binary record and `tinymold run-test`
 
-- `crates/tinymold-wrap/src/record/`: a `TestBinary` record at
-  `tests/bin/<binary digest>` (package root as `${WS}`-relative path,
-  crate name, links-workspace-dylib flag) and a `TestRun` record at
-  `tests/run/<test key>` (exit code, stdout and stderr digests, duration,
-  tinymold version). Encodings pinned in `record/test.rs`.
-- `crates/tinymold-wrap/src/compile/`: after a hit or an ingest of a unit
-  built with `--test`, write the `TestBinary` record for its executable.
-- New module `crates/tinymold-wrap/src/runner/`: decide cacheability (record
-  present, no `--bench`, no `LLVM_PROFILE_FILE`, no workspace dylib, not
-  opted out), compute the package-tree digest with the `stat` module,
-  read `[package.metadata.tinymold.test]`, look up, replay or run. Run
-  with `exec`, teeing output; record only exit 0 without a signal. Any
-  internal error runs the binary unchanged.
-- `crates/tinymold-wrap/src/catalog/`: list both record kinds and their
-  objects, so `tinymold gc` sweeps them ([`gc.md`](../specs/gc.md)).
+- `crates/tinymold-wrap/src/test_record/`: a `TestBinary` record at
+  `tests/bin/<binary digest>` (crate name; the file names of the dynamic
+  libraries in the binary's directory that the compile linked against;
+  `exes`, the package binaries cargo passed as `CARGO_BIN_EXE_<name>`; and
+  `out_dirs`, the build script's `OUT_DIR`, both as `${PROFILE}/…` or
+  `${OUT}/…` paths) and a `TestRun` record at `tests/run/<test key>` (the
+  stdout and stderr digests only: just passes are recorded, so the exit
+  code is always 0). Encodings pinned in `test_record/test.rs`.
+- `crates/tinymold-wrap/src/compile/`: after a hit, a remote hit or a
+  stored miss of a `--test` unit that links, `note_test_binary` writes the
+  `TestBinary` record for its executable and remembers the executable's
+  digest in the stat cache. No record for `-C prefer-dynamic`, a dynamic
+  library linked from another directory, or a package binary or `OUT_DIR`
+  outside the build.
+- `crates/tinymold-wrap/src/package_tree/` and `declared/`: list the
+  package tree, with digests from the stat cache, and read
+  `[package.metadata.tinymold.test]` with a strict subset of TOML.
+- New module `crates/tinymold-wrap/src/runner/`: decide cacheability
+  (record present, no `--bench`, no `LLVM_PROFILE_FILE`, no input on
+  stdin, not opted out), key the package tree, the declared inputs and
+  every dylib, package binary and `OUT_DIR` the record names, then look
+  up, replay or run. A miss runs the binary with an empty stdin, streaming
+  its output through `exec` while capturing it, and records only exit 0
+  without a signal, and only if nothing it may have read changed during
+  the run. Any internal error runs the binary unchanged.
+- `crates/tinymold-wrap/src/catalog/`: list both record kinds and the run
+  records' objects, so `tinymold gc` sweeps them ([`gc.md`](../specs/gc.md)).
 - `crates/tinymold/src/cli/`: the `run-test [--via <program>] <binary>
-  <args…>` subcommand; `TINYMOLD_TEST_CACHE=0`; remarks under
-  `TINYMOLD_REMARKS=1`.
+  <args…>` subcommand; `TINYMOLD_TEST_CACHE=0`; `test-hit`, `test-miss`,
+  `test-pass` and `test-error` lines in the `TINYMOLD_LOG` log, which
+  `tinymold stats` counts apart from compiles.
 - Tests, each written to fail first:
   - `a_passing_run_is_replayed_without_running_the_binary`;
   - `a_failing_run_is_never_recorded`;
   - `a_changed_binary_runs_again`;
-  - `a_changed_fixture_in_the_package_runs_again`;
+  - `a_changed_file_in_the_package_runs_again`;
   - `a_declared_input_outside_the_package_runs_again_when_changed`;
-  - `a_bench_run_passes_through`;
-  - `a_coverage_run_passes_through`;
-  - `a_binary_without_a_record_passes_through`;
-  - `output_and_exit_status_match_an_unwrapped_run`;
-  - integration test in `crates/tinymold/tests/`: a two-crate workspace
-    under `cargo test` with the runner; edit the library and assert that
-    exactly the binaries linking it ran again.
+  - `a_changed_build_script_output_or_package_binary_runs_again`;
+  - `bench_coverage_and_opted_out_runs_pass_through`;
+  - `a_binary_tinymold_did_not_build_passes_through`;
+  - `a_run_whose_stdin_may_carry_input_is_never_cached`;
+  - `run_test_passes_arguments_and_exit_status_through`;
+  - integration test in `crates/tinymold/tests/run_test.rs`
+    (`cargo_test_reruns_exactly_the_binaries_an_edit_reaches`): a
+    two-crate workspace under `cargo test` with the runner; edit the
+    library and assert that exactly the binaries linking it ran again.
 
 ### Found while building slice 3
 
