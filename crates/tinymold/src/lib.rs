@@ -63,7 +63,7 @@ pub use cli::{
 };
 pub use doctor::{Report, Tool, find_on_path};
 pub use error::{Error, Result};
-pub use location::default_store;
+pub use location::{default_server_dir, default_store};
 pub use tinymold_cas;
 pub use tinymold_hash;
 #[cfg(feature = "remote")]

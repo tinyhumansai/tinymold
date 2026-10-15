@@ -21,7 +21,7 @@ hyper-util = { workspace = true, features = ["server", "server-auto", "server-gr
 http-body-util = { workspace = true }
 bytes = { workspace = true }
 base64 = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "signal"] }
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
 

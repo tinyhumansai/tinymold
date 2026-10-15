@@ -17,8 +17,8 @@
 //! config.max_size = Some(50 << 30);
 //! let server = Server::bind(&config)?;
 //! println!("listening on {}", server.local_addr());
-//! // Serve until the process is stopped.
-//! server.run_blocking(std::future::pending::<()>())?;
+//! // Serve until Ctrl-C or SIGTERM.
+//! server.run_blocking(tinymold_server::shutdown_signal())?;
 //! # Ok::<(), tinymold_server::Error>(())
 //! ```
 //!
@@ -42,4 +42,4 @@ mod transfer;
 pub use auth::{Access, Denied, Permission, Tokens};
 pub use config::{Config, DEFAULT_GC_INTERVAL, DEFAULT_LISTEN, DEFAULT_MAX_BODY, TlsFiles};
 pub use error::{Error, Result};
-pub use server::Server;
+pub use server::{Server, shutdown_signal};

@@ -41,5 +41,34 @@ pub fn default_store(lookup: impl Fn(&str) -> Option<OsString>) -> Option<PathBu
     set("HOME").map(|home| PathBuf::from(home).join(".cache").join("tinymold"))
 }
 
+/// Resolves the default directory of `tinymold serve`'s store using
+/// `lookup`, or `None` when none of the variables is set.
+///
+/// It is never the wrapper's store: the two have different layouts and
+/// different collectors. The order mirrors [`default_store`]:
+/// `TINYMOLD_SERVER_DIR`, then `tinymold-server` under `XDG_CACHE_HOME`,
+/// `LOCALAPPDATA` or `HOME/.cache`.
+///
+/// ```
+/// # use std::path::PathBuf;
+/// let env = |name: &str| (name == "HOME").then(|| "/home/ferris".into());
+/// assert_eq!(
+///     tinymold::default_server_dir(env),
+///     Some(PathBuf::from("/home/ferris/.cache/tinymold-server"))
+/// );
+/// ```
+#[must_use]
+pub fn default_server_dir(lookup: impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+    let set = |name: &str| lookup(name).filter(|value| !value.is_empty());
+
+    if let Some(dir) = set("TINYMOLD_SERVER_DIR") {
+        return Some(PathBuf::from(dir));
+    }
+    if let Some(cache) = set("XDG_CACHE_HOME").or_else(|| set("LOCALAPPDATA")) {
+        return Some(PathBuf::from(cache).join("tinymold-server"));
+    }
+    set("HOME").map(|home| PathBuf::from(home).join(".cache").join("tinymold-server"))
+}
+
 #[cfg(test)]
 mod test;

@@ -176,6 +176,30 @@ impl Server {
     }
 }
 
+/// Completes when the process is asked to stop: Ctrl-C, or `SIGTERM` on
+/// Unix, as a service manager or Kubernetes sends.
+pub async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        match signal(SignalKind::terminate()) {
+            Ok(mut terminate) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = terminate.recv() => {}
+                }
+            }
+            Err(_) => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
 /// Collects garbage now and then every `interval`, recording the store's
 /// size in the metrics. A failed collection is reported and retried on the
 /// next tick.
