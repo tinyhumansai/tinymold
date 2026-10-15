@@ -85,6 +85,10 @@ without its machine is not a result.
 
 <!-- results:start -->
 
+### Cache per command
+
+Build, clippy, tests and coverage, cold and then warm from the cache with the target directory deleted: see [`COMMANDS.md`](COMMANDS.md).
+
 ### Edit-loop scenarios (darwin arm64, 18 CPUs, rustc 1.99.0 (b940084d7 2026-09-28), 3 runs, 2026-10-14)
 
 Pinned: cargo build jobs: 18; target filesystem: apfs; linker: cc, rustc's default, behind a timing wrapper; linker threads: linker default; the platform cc linker takes no thread flag; output reuse: rustc default: each link writes a fresh output; incremental: on for baseline; off under sccache, which refuses it.
