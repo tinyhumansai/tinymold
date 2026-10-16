@@ -105,8 +105,45 @@ fn pushing_again_uploads_no_blob_twice() {
     cache.push(&local.root, None).unwrap();
     let again = cache.push(&local.root, None).unwrap();
     assert_eq!(again.blobs, 0);
-    assert_eq!(again.actions, 1);
+    assert_eq!((again.actions, again.present), (0, 1));
     assert_eq!(server.with(|state| state.writes), 4);
+}
+
+#[test]
+fn an_action_the_server_holds_is_not_read_or_written_again() {
+    let server = Server::start();
+    let local = Local::new();
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    // A push that re-read the action's objects would now find one missing
+    // and call the action incomplete.
+    local.store.remove(&local.objects[1]).unwrap();
+    let again = cache.push(&local.root, None).unwrap();
+    assert_eq!(
+        (again.actions, again.present, again.skipped, again.prekeys),
+        (0, 1, 0, 1)
+    );
+    assert!(again.to_string().contains("1 actions already on the server"), "{again}");
+}
+
+#[test]
+fn an_entry_signed_by_no_trusted_key_is_pushed_again() {
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+    // The server's copy is unsigned, so a pusher whose readers need its
+    // signature must replace it.
+    let signer = SigningKey::generate();
+    let signed = configured(&server, |config| {
+        signing(&signer)(config);
+        trusting(&signer)(config);
+    });
+    let again = signed.push(&local.root, None).unwrap();
+    assert_eq!((again.actions, again.present), (1, 0));
+    let reader = configured(&server, trusting(&signer));
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    assert!(reader.fetch_action(&local.key, &store).unwrap().is_some());
 }
 
 impl Local {
