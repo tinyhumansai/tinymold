@@ -46,6 +46,10 @@ impl fmt::Display for Capabilities {
 pub struct PushReport {
     /// Actions written to the `ActionCache`.
     pub actions: u64,
+    /// Actions the server already held, so their objects were neither read
+    /// nor sent again. In CI most of these came from the remote earlier in
+    /// the same job.
+    pub present: u64,
     /// Pre-key records written to the `ActionCache`.
     pub prekeys: u64,
     /// Actions skipped because an object they name is no longer in the local
@@ -68,6 +72,9 @@ impl fmt::Display for PushReport {
             "pushed {} actions and {} pre-keys ({} new blobs, {} bytes); skipped {} incomplete actions",
             self.actions, self.prekeys, self.blobs, self.bytes, self.skipped
         )?;
+        if self.present > 0 {
+            write!(f, "; {} actions already on the server", self.present)?;
+        }
         if self.failed > 0 {
             write!(
                 f,
