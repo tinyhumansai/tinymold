@@ -215,6 +215,7 @@ impl RemoteCache {
         let mut blobs: HashMap<proto::Digest, Source> = HashMap::new();
         let mut actions = Vec::new();
         let mut prekeys = Vec::new();
+        let mut recorded = Vec::new();
 
         for record in tinymold_wrap::records(store_dir)? {
             if !recent(record.last_used) {
@@ -222,14 +223,7 @@ impl RemoteCache {
             }
             match record.kind {
                 RecordKind::Action { key, .. } => {
-                    let key = naming::action_key(&key);
-                    match action_result(&store, &record.path, &mut blobs) {
-                        Some(mut result) => {
-                            self.sign(Kind::Action, &key, &mut result, &mut blobs);
-                            actions.push((key, result));
-                        }
-                        None => report.skipped += 1,
-                    }
+                    recorded.push((naming::action_key(&key), record.path));
                 }
                 RecordKind::PreKey { key } => {
                     let Ok(text) = fs::read(&record.path) else {
@@ -249,6 +243,26 @@ impl RemoteCache {
             }
         }
 
+        // An action the server already holds needs nothing: reading and
+        // hashing its objects again is most of a push's work when the job's
+        // compiles were remote hits.
+        let held = self
+            .runtime
+            .block_on(self.held(recorded.iter().map(|(key, _)| key.clone()).collect()))?;
+        for (key, path) in recorded {
+            if held.contains(&key) {
+                report.present += 1;
+                continue;
+            }
+            match action_result(&store, &path, &mut blobs) {
+                Some(mut result) => {
+                    self.sign(Kind::Action, &key, &mut result, &mut blobs);
+                    actions.push((key, result));
+                }
+                None => report.skipped += 1,
+            }
+        }
+
         let failure =
             self.runtime
                 .block_on(self.send(&store, &blobs, actions, prekeys, &mut report))?;
@@ -259,6 +273,34 @@ impl RemoteCache {
             Some(error) if report.actions == 0 || report.prekeys == 0 => Err(error),
             _ => Ok(report),
         }
+    }
+
+    /// The action keys among `keys` whose entry the server already holds,
+    /// and, with trusted keys, holds signed by one of them. A lookup that
+    /// fails leaves the action out, so it is pushed as before.
+    async fn held(&self, keys: Vec<proto::Digest>) -> Result<HashSet<proto::Digest>> {
+        let mut held = HashSet::new();
+        in_flight(
+            keys.into_iter().map(|key| (0, key)).collect(),
+            |key| async move {
+                let Ok(Some(result)) =
+                    retrying(|| self.client.get_action_result(key.clone())).await
+                else {
+                    return None;
+                };
+                let record = find_file(&result, ACTION_FILE, &key).ok()?;
+                self.verify(Kind::Action, &key, &record, &result)
+                    .await
+                    .ok()
+                    .map(|()| key)
+            },
+            |key| {
+                held.extend(key);
+                Ok(())
+            },
+        )
+        .await?;
+        Ok(held)
     }
 
     /// Uploads the `blobs` the server lacks, then the `actions` and
