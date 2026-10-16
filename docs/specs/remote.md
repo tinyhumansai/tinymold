@@ -114,9 +114,15 @@ tinymold remote push [--since <unix-seconds>]
 
 1. Gather local actions, and pre-key records, whose last use is at or after
    `--since` (default: all).
-2. For each action, compute the SHA-256 of every blob it needs, and ask
-   `FindMissingBlobs` for them in batches.
-3. Upload the missing blobs with ByteStream `Write`, then `UpdateActionResult`
+2. Ask `GetActionResult` for each action, up to 32 at once, and leave out
+   every action the server already holds (with trusted keys: holds signed by
+   one of them). In CI most actions used during a job came from the remote,
+   and re-reading and re-hashing their objects was most of a push's work;
+   the report counts them as "already on the server". A lookup that fails
+   only means the action is pushed as before.
+3. For each remaining action, compute the SHA-256 of every blob it needs, and
+   ask `FindMissingBlobs` for them in batches.
+4. Upload the missing blobs with ByteStream `Write`, then `UpdateActionResult`
    for the action. Pre-key entries go last, so a reader that finds an input
    set can find its action.
 
