@@ -105,7 +105,7 @@ fn pushing_again_uploads_no_blob_twice() {
     cache.push(&local.root, None).unwrap();
     let again = cache.push(&local.root, None).unwrap();
     assert_eq!(again.blobs, 0);
-    assert_eq!(again.actions, 1);
+    assert_eq!((again.actions, again.refreshed), (0, 1));
     assert_eq!(server.with(|state| state.writes), 4);
 }
 
@@ -122,8 +122,10 @@ fn saving_a_remote_hit_refreshes_it_without_reading_local_outputs() {
     let report = cache.push(&local.root, None).unwrap();
     assert_eq!(report.skipped, 0);
     assert_eq!(report.blobs, 0);
-    assert_eq!(server.with(|state| state.updates.clone()),
-        vec![naming::prekey_key(&local.pre).hash]);
+    assert_eq!(
+        server.with(|state| state.updates.clone()),
+        vec![naming::prekey_key(&local.pre).hash]
+    );
 }
 
 #[test]
@@ -133,7 +135,9 @@ fn saving_repairs_an_existing_action_whose_remote_blob_was_evicted() {
     let cache = remote(&server);
     cache.push(&local.root, None).unwrap();
     let object = naming::blob(b"rlib bytes").hash;
-    server.with(|state| { state.blobs.remove(&object); });
+    server.with(|state| {
+        state.blobs.remove(&object);
+    });
     let report = cache.push(&local.root, None).unwrap();
     assert_eq!(report.blobs, 1);
     assert_eq!(report.actions, 1);
@@ -207,6 +211,10 @@ fn a_fetch_reads_an_actions_objects_together() {
 /// Runs `sizes` through [`in_flight`] as jobs that each take 10 ms, and
 /// returns the most bytes and the most jobs that were running at once.
 fn peaks(sizes: &[u64]) -> (u64, usize) {
+    peaks_with_budget(sizes, IN_FLIGHT_BYTES)
+}
+
+fn peaks_with_budget(sizes: &[u64], budget: u64) -> (u64, usize) {
     use std::cell::Cell;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_time()
@@ -216,8 +224,9 @@ fn peaks(sizes: &[u64]) -> (u64, usize) {
     let (peak_bytes, peak_jobs) = (Cell::new(0), Cell::new(0));
     let items = sizes.iter().map(|&size| (size, size)).collect();
     runtime
-        .block_on(in_flight(
+        .block_on(in_flight_with_budget(
             items,
+            budget,
             |size| {
                 let (bytes, jobs) = (&bytes, &jobs);
                 let (peak_bytes, peak_jobs) = (&peak_bytes, &peak_jobs);
@@ -283,7 +292,7 @@ fn a_blob_over_the_budget_still_goes_up_alone() {
     let local = Local::new();
     let object = local
         .store
-        .insert_bytes(&vec![7; usize::try_from(IN_FLIGHT_BYTES * 2).unwrap()])
+        .insert_bytes(&vec![7; usize::try_from(PUSH_IN_FLIGHT_BYTES * 2).unwrap()])
         .unwrap();
     let empty = local.store.insert_bytes(b"").unwrap();
     let key = Digest::of_bytes(b"huge");
@@ -356,7 +365,15 @@ fn push_since_skips_records_not_used_since() {
     let cache = remote(&server);
     let later = SystemTime::now() + Duration::from_secs(3600);
     let report = cache.push(&local.root, Some(later)).unwrap();
-    assert_eq!(report, PushReport::default());
+    assert_eq!(
+        (
+            report.actions,
+            report.prekeys,
+            report.refreshed,
+            report.blobs
+        ),
+        (0, 0, 0, 0)
+    );
 }
 
 #[test]
@@ -950,4 +967,56 @@ fn objects_the_store_already_holds_are_not_fetched_again() {
     server.with(|state| state.blobs.retain(|hash, _| *hash == record.hash));
     let text = cache.fetch_action(&local.key, &local.store).unwrap();
     assert_eq!(text.unwrap(), local.action_text());
+}
+
+#[test]
+fn the_push_budget_overlaps_artifacts_larger_than_the_fetch_budget() {
+    let size = IN_FLIGHT_BYTES * 2;
+    assert_eq!(
+        peaks_with_budget(&[size; 3], PUSH_IN_FLIGHT_BYTES),
+        (size * 3, 3)
+    );
+}
+
+#[test]
+fn saving_republishes_an_action_after_the_signing_key_changes() {
+    let server = Server::start();
+    let local = Local::new();
+    let first = SigningKey::generate();
+    configured(&server, signing(&first))
+        .push(&local.root, None)
+        .unwrap();
+    let second = SigningKey::generate();
+    let report = configured(&server, signing(&second))
+        .push(&local.root, None)
+        .unwrap();
+    assert_eq!((report.actions, report.refreshed), (1, 0));
+    let fresh = tempfile::tempdir().unwrap();
+    let reader = configured(&server, |config| {
+        config.trusted_keys = Some(TrustedKeys::from_list(&second.public_hex()).unwrap());
+    });
+    assert!(
+        reader
+            .fetch_action(&local.key, &Store::open(fresh.path()).unwrap())
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
+fn saving_repairs_a_remote_action_with_the_wrong_record() {
+    let server = Server::start();
+    let local = Local::new();
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    server.with(|state| {
+        state
+            .actions
+            .get_mut(&naming::action_key(&local.key).hash)
+            .unwrap()
+            .output_files
+            .retain(|file| file.path != ACTION_FILE);
+    });
+    let report = cache.push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.refreshed), (1, 0));
 }

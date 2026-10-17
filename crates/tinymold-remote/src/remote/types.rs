@@ -84,7 +84,13 @@ impl fmt::Display for PushReport {
                 self.failed
             )?;
         }
-        write!(f, "; refreshed {} existing actions; phases: refresh {:.2}s, prepare {:.2}s, transfer {:.2}s",
-            self.refreshed, self.refresh_time.as_secs_f64(), self.prepare_time.as_secs_f64(), self.transfer_time.as_secs_f64())
+        write!(
+            f,
+            "; refreshed {} existing actions; phases: refresh {:.2}s, prepare {:.2}s, transfer {:.2}s",
+            self.refreshed,
+            self.refresh_time.as_secs_f64(),
+            self.prepare_time.as_secs_f64(),
+            self.transfer_time.as_secs_f64()
+        )
     }
 }

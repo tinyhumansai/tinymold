@@ -114,20 +114,29 @@ tinymold remote push [--since <unix-seconds>]
 
 1. Gather local actions, and pre-key records, whose last use is at or after
    `--since` (default: all).
-2. For each action, compute the SHA-256 of every blob it needs, and ask
-   `FindMissingBlobs` for them in batches.
-3. Upload the missing blobs with ByteStream `Write`, then `UpdateActionResult`
+2. Check existing remote actions concurrently before reading local outputs.
+   An entry with the same record, output names, and writer signature is
+   refreshed by `GetActionResult` (which counts as a use on tinymold and
+   bazel-remote). Check its dependencies with `FindMissingBlobs` too. Missing,
+   incomplete, malformed, or differently signed entries take the upload path.
+   No result returned by the remote is re-signed or republished.
+3. For actions that need uploading, compute the SHA-256 of each distinct local
+   object once per push, and ask `FindMissingBlobs` for them in batches.
+4. Upload the missing blobs with ByteStream `Write`, then `UpdateActionResult`
    for the action. Pre-key entries go last, so a reader that finds an input
    set can find its action.
 
-Up to 32 uploads, and at most 32 MiB of blobs, are in flight at once (a
+Up to 32 uploads, and at most 256 MiB of blobs, are in flight at once (a
 larger blob goes alone), then up to 32 entry updates, every action's before
 any pre-key's. The byte budget bounds the memory a push holds, and because
 the transfers share the link, each one's deadline allows for the whole
-32 MiB beside it at the 4 MiB/s floor: 8 s more than a transfer alone.
+256 MiB beside it at the 4 MiB/s floor: 64 s more than a transfer alone.
+Downloads keep their separate 32 MiB budget, since many compiler wrappers
+may run at once.
 One at a time, each call would wait out a full round trip to the server.
 
-The command reports how many entries and bytes it uploaded. It fails, with
+The command reports how many entries and bytes it uploaded, how many existing
+actions it refreshed, and the refresh, preparation, and transfer phase times. It fails, with
 exit 1, on the first rejected write, such as missing write credentials.
 
 A call that times out, or that the server answers as `UNAVAILABLE`,

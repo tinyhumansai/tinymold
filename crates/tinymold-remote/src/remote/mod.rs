@@ -274,7 +274,9 @@ impl RemoteCache {
         // action, or no pre-key record, cannot serve a single hit: a reader
         // finds actions only through pre-keys.
         match failure {
-            Some(error) if report.actions + report.refreshed == 0 || report.prekeys == 0 => Err(error),
+            Some(error) if report.actions + report.refreshed == 0 || report.prekeys == 0 => {
+                Err(error)
+            }
             _ => Ok(report),
         }
     }
@@ -313,8 +315,11 @@ impl RemoteCache {
                     // The server asked about a blob nobody sent it.
                     None => return Ok(None),
                 };
-                let result =
-                    retrying(|| self.client.write_sharing(&digest, &data, PUSH_IN_FLIGHT_BYTES)).await;
+                let result = retrying(|| {
+                    self.client
+                        .write_sharing(&digest, &data, PUSH_IN_FLIGHT_BYTES)
+                })
+                .await;
                 Ok::<_, Error>(Some((digest, data.len(), result)))
             },
             |upload| {
@@ -629,8 +634,7 @@ where
     let mut bytes: u64 = 0;
     loop {
         while let Some(&(size, _)) = queue.peek() {
-            let full =
-                running.len() >= IN_FLIGHT_CALLS || bytes.saturating_add(size) > budget;
+            let full = running.len() >= IN_FLIGHT_CALLS || bytes.saturating_add(size) > budget;
             if full && !running.is_empty() {
                 break;
             }
