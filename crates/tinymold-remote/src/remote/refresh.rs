@@ -4,7 +4,7 @@ use super::*;
 use tinymold_wrap::RecordFile;
 
 impl RemoteCache {
-    /// A successful GetActionResult counts as a use on the server. Check the
+    /// A successful `GetActionResult` counts as a use on the server. Check the
     /// local record and all remote dependencies too, so an evicted object or
     /// a changed signing key falls back to the ordinary repair/upload path.
     pub(super) async fn refresh_actions(&self, records: &[RecordFile]) -> Result<HashSet<Digest>> {
