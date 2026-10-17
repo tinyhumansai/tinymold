@@ -27,6 +27,8 @@ impl RemoteCache {
                     Ok(false) | Err(Error::Malformed { .. } | Error::Untrusted { .. }) => {}
                     // Refresh is optional: a stalled read must not prevent
                     // healthy writes from repairing or publishing entries.
+                    Err(Error::Status { status, .. }) if status.code() == tonic::Code::NotFound => {
+                    }
                     Err(error) if transient(&error) => {}
                     Err(error) => return Err(error),
                 }
@@ -60,7 +62,7 @@ impl RemoteCache {
                 return Ok(false);
             }
         } else {
-            self.verify(Kind::Action, &key, &record, &result).await?;
+            retrying(|| self.verify(Kind::Action, &key, &record, &result)).await?;
         }
         let expected: HashSet<_> = references.iter().map(Digest::to_hex).collect();
         let actual: HashSet<_> = result
