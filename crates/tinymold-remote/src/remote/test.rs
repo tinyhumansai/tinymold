@@ -1028,6 +1028,9 @@ fn a_transient_refresh_failure_falls_back_to_uploading() {
     // Exhaust the optional refresh's retries, while writes remain healthy.
     server.with(|state| state.unavailable_gets = 4);
     let report = remote(&server).push(&local.root, None).unwrap();
-    assert_eq!((report.actions, report.prekeys, report.refreshed), (1, 1, 0));
+    assert_eq!(
+        (report.actions, report.prekeys, report.refreshed),
+        (1, 1, 0)
+    );
     assert_eq!(server.with(|state| state.unavailable_gets), 0);
 }

@@ -25,6 +25,9 @@ impl RemoteCache {
                         refreshed.insert(key);
                     }
                     Ok(false) | Err(Error::Malformed { .. } | Error::Untrusted { .. }) => {}
+                    // Refresh is optional: a stalled read must not prevent
+                    // healthy writes from repairing or publishing entries.
+                    Err(error) if transient(&error) => {}
                     Err(error) => return Err(error),
                 }
                 Ok(())
