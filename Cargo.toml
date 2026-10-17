@@ -16,7 +16,7 @@ exclude = ["worktrees", "bench/.work"]
 # true`, so every crate releases under the one version the release workflow
 # bumps here (together with the internal requirements below).
 [workspace.package]
-version = "0.2.4"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.89"
 license = "GPL-3.0-only"
@@ -28,13 +28,13 @@ repository = "https://github.com/tinyhumansai/tinymold"
 # the workspace version exactly. The release workflow rewrites these
 # requirements together with `[workspace.package] version`, so they never
 # drift apart.
-tinymold-hash = { path = "crates/tinymold-hash", version = "=0.2.4" }
-tinymold-cas = { path = "crates/tinymold-cas", version = "=0.2.4" }
-tinymold-key = { path = "crates/tinymold-key", version = "=0.2.4" }
-tinymold-wrap = { path = "crates/tinymold-wrap", version = "=0.2.4" }
-tinymold-remote = { path = "crates/tinymold-remote", version = "=0.2.4" }
-tinymold-store = { path = "crates/tinymold-store", version = "=0.2.4" }
-tinymold-server = { path = "crates/tinymold-server", version = "=0.2.4" }
+tinymold-hash = { path = "crates/tinymold-hash", version = "=0.3.0" }
+tinymold-cas = { path = "crates/tinymold-cas", version = "=0.3.0" }
+tinymold-key = { path = "crates/tinymold-key", version = "=0.3.0" }
+tinymold-wrap = { path = "crates/tinymold-wrap", version = "=0.3.0" }
+tinymold-remote = { path = "crates/tinymold-remote", version = "=0.3.0" }
+tinymold-store = { path = "crates/tinymold-store", version = "=0.3.0" }
+tinymold-server = { path = "crates/tinymold-server", version = "=0.3.0" }
 # BLAKE3 is the digest for every persisted or shared cache key and object (see
 # docs/adr/0002-blake3-for-content-digests.md). Default features keep the SIMD
 # backends and runtime CPU detection; `mmap` and `rayon` stay off until the
