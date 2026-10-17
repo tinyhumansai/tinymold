@@ -1020,3 +1020,14 @@ fn saving_repairs_a_remote_action_with_the_wrong_record() {
     let report = cache.push(&local.root, None).unwrap();
     assert_eq!((report.actions, report.refreshed), (1, 0));
 }
+
+#[test]
+fn a_transient_refresh_failure_falls_back_to_uploading() {
+    let server = Server::start();
+    let local = Local::new();
+    // Exhaust the optional refresh's retries, while writes remain healthy.
+    server.with(|state| state.unavailable_gets = 4);
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!((report.actions, report.prekeys, report.refreshed), (1, 1, 0));
+    assert_eq!(server.with(|state| state.unavailable_gets), 0);
+}
