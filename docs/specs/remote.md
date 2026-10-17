@@ -120,7 +120,9 @@ tinymold remote push [--since <unix-seconds>]
    bazel-remote). Check its dependencies with `FindMissingBlobs` too. Missing,
    incomplete, malformed, or differently signed entries take the upload path.
    A transient refresh failure also falls back to the upload path after its
-   retries; it cannot discard the rest of a healthy push. No result returned
+   retries; queued refreshes then go directly to the upload path, bounding an
+   outage to the current group of at most 32 checks rather than retrying
+   every action. It cannot discard the rest of a healthy push. No result returned
    by the remote is re-signed or republished.
 3. For actions that need uploading, compute the SHA-256 of each distinct local
    object once per push, and ask `FindMissingBlobs` for them in batches.

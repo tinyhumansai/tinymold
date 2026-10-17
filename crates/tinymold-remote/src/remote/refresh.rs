@@ -1,6 +1,7 @@
 //! Refresh complete remote actions before preparing any local output bytes.
 
 use super::*;
+use std::cell::Cell;
 use tinymold_wrap::RecordFile;
 
 impl RemoteCache {
@@ -16,9 +17,24 @@ impl RemoteCache {
             })
             .collect();
         let mut refreshed = HashSet::new();
+        // One cache-wide outage costs at most the currently running group,
+        // rather than a retry schedule for every queued action in the store.
+        let unavailable = Cell::new(false);
         in_flight(
             actions,
-            |(key, path)| async move { (key, self.refresh_action(&key, path).await) },
+            |(key, path)| {
+                let unavailable = &unavailable;
+                async move {
+                    if unavailable.get() {
+                        return (key, Ok(false));
+                    }
+                    let result = self.refresh_action(&key, path).await;
+                    if result.as_ref().is_err_and(transient) {
+                        unavailable.set(true);
+                    }
+                    (key, result)
+                }
+            },
             |(key, present)| {
                 match present {
                     Ok(true) => {

@@ -1065,3 +1065,20 @@ fn an_evicted_signature_during_refresh_does_not_abort_the_push() {
         (1, 1, 0)
     );
 }
+
+#[test]
+fn a_cache_outage_stops_queued_refreshes_instead_of_retrying_every_action() {
+    let server = Server::start();
+    let local = Local::new().with_actions(100);
+    server.with(|state| state.unavailable_gets = u64::MAX);
+    let report = remote(&server).push(&local.root, None).unwrap();
+    assert_eq!(
+        (report.actions, report.prekeys, report.refreshed),
+        (101, 101, 0)
+    );
+    let attempts = server.with(|state| state.gets);
+    assert!(
+        attempts <= (IN_FLIGHT_CALLS * (RETRY_DELAYS.len() + 1)) as u64,
+        "queued actions repeated a cache-wide outage: {attempts} calls"
+    );
+}

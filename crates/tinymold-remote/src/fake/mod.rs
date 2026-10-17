@@ -45,6 +45,8 @@ pub(crate) struct State {
     pub(crate) corrupt: HashSet<String>,
     /// How long every call waits before answering.
     pub(crate) delay: Option<Duration>,
+    /// How many action reads were attempted.
+    pub(crate) gets: u64,
     /// How many upcoming action reads answer UNAVAILABLE.
     pub(crate) unavailable_gets: u64,
     /// How many blobs were uploaded.
@@ -264,6 +266,7 @@ async fn get_action_result(
         }
         let key = key.hash;
         let mut state = state.lock().unwrap();
+        state.gets += 1;
         if state.unavailable_gets > 0 {
             state.unavailable_gets -= 1;
             return ready(Err(Status::unavailable("temporary read failure")));
