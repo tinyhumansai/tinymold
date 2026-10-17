@@ -1,6 +1,7 @@
 //! What `check` and `push` report.
 
 use std::fmt;
+use std::time::Duration;
 
 /// What a server said it supports, from `GetCapabilities`, and whether this
 /// client may write to it.
@@ -44,6 +45,14 @@ impl fmt::Display for Capabilities {
 /// What one `push` uploaded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct PushReport {
+    /// Existing complete actions refreshed without reading local outputs.
+    pub refreshed: u64,
+    /// Time checking and refreshing existing remote actions.
+    pub refresh_time: Duration,
+    /// Time preparing records and hashing outputs that still need uploading.
+    pub prepare_time: Duration,
+    /// Time checking missing blobs, transferring them, and publishing records.
+    pub transfer_time: Duration,
     /// Actions written to the `ActionCache`.
     pub actions: u64,
     /// Pre-key records written to the `ActionCache`.
@@ -75,6 +84,7 @@ impl fmt::Display for PushReport {
                 self.failed
             )?;
         }
-        Ok(())
+        write!(f, "; refreshed {} existing actions; phases: refresh {:.2}s, prepare {:.2}s, transfer {:.2}s",
+            self.refreshed, self.refresh_time.as_secs_f64(), self.prepare_time.as_secs_f64(), self.transfer_time.as_secs_f64())
     }
 }
