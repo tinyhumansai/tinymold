@@ -23,13 +23,14 @@
 //! BLAKE3 digest as it enters the local store, and refuses one whose content
 //! does not match the name it was listed under.
 
+mod refresh;
 mod types;
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use futures_util::{StreamExt as _, future, stream};
 use tinymold_cas::Store;
@@ -58,6 +59,10 @@ const IN_FLIGHT_CALLS: usize = 32;
 /// every transfer's deadline allows for this many bytes beside it. A blob
 /// larger than this goes alone.
 const IN_FLIGHT_BYTES: u64 = if cfg!(test) { 64 << 10 } else { 32 << 20 };
+
+/// Push runs once per job; its larger budget overlaps large Rust artifacts
+/// without multiplying the memory budget of every concurrent wrapper.
+const PUSH_IN_FLIGHT_BYTES: u64 = if cfg!(test) { 512 << 10 } else { 256 << 20 };
 
 /// How long `push` waits before each retry of a call that timed out or
 /// found the server unavailable. A server behind a saturated disk can stall
@@ -216,14 +221,24 @@ impl RemoteCache {
         let mut actions = Vec::new();
         let mut prekeys = Vec::new();
 
-        for record in tinymold_wrap::records(store_dir)? {
-            if !recent(record.last_used) {
-                continue;
-            }
+        let records: Vec<_> = tinymold_wrap::records(store_dir)?
+            .into_iter()
+            .filter(|record| recent(record.last_used))
+            .collect();
+        let started = Instant::now();
+        let refreshed = self.runtime.block_on(self.refresh_actions(&records))?;
+        report.refresh_time = started.elapsed();
+        report.refreshed = refreshed.len() as u64;
+        let started = Instant::now();
+        let mut object_digests = HashMap::new();
+        for record in records {
             match record.kind {
                 RecordKind::Action { key, .. } => {
+                    if refreshed.contains(&key) {
+                        continue;
+                    }
                     let key = naming::action_key(&key);
-                    match action_result(&store, &record.path, &mut blobs) {
+                    match action_result(&store, &record.path, &mut blobs, &mut object_digests) {
                         Some(mut result) => {
                             self.sign(Kind::Action, &key, &mut result, &mut blobs);
                             actions.push((key, result));
@@ -249,14 +264,19 @@ impl RemoteCache {
             }
         }
 
+        report.prepare_time = started.elapsed();
+        let started = Instant::now();
         let failure =
             self.runtime
                 .block_on(self.send(&store, &blobs, actions, prekeys, &mut report))?;
+        report.transfer_time = started.elapsed();
         // Pushing part of a store is worth something. A push that left no
         // action, or no pre-key record, cannot serve a single hit: a reader
         // finds actions only through pre-keys.
         match failure {
-            Some(error) if report.actions == 0 || report.prekeys == 0 => Err(error),
+            Some(error) if report.actions + report.refreshed == 0 || report.prekeys == 0 => {
+                Err(error)
+            }
             _ => Ok(report),
         }
     }
@@ -285,8 +305,9 @@ impl RemoteCache {
             .into_iter()
             .map(|digest| (blob_size(&digest), digest))
             .collect();
-        in_flight(
+        in_flight_with_budget(
             missing,
+            PUSH_IN_FLIGHT_BYTES,
             |digest| async move {
                 let data = match blobs.get(&digest) {
                     Some(Source::Bytes(bytes)) => bytes.clone(),
@@ -294,8 +315,11 @@ impl RemoteCache {
                     // The server asked about a blob nobody sent it.
                     None => return Ok(None),
                 };
-                let result =
-                    retrying(|| self.client.write_sharing(&digest, &data, IN_FLIGHT_BYTES)).await;
+                let result = retrying(|| {
+                    self.client
+                        .write_sharing(&digest, &data, PUSH_IN_FLIGHT_BYTES)
+                })
+                .await;
                 Ok::<_, Error>(Some((digest, data.len(), result)))
             },
             |upload| {
@@ -532,6 +556,7 @@ fn action_result(
     store: &Store,
     path: &Path,
     blobs: &mut HashMap<proto::Digest, Source>,
+    object_digests: &mut HashMap<Digest, proto::Digest>,
 ) -> Option<ActionResult> {
     let text = fs::read(path).ok()?;
     let references = tinymold_wrap::action_references(path).ok()?;
@@ -543,8 +568,15 @@ fn action_result(
         if !seen.insert(object) {
             continue;
         }
-        let bytes = store.read(&object).ok()?;
-        let digest = naming::blob(&bytes);
+        let digest = match object_digests.get(&object) {
+            Some(digest) if store.contains(&object) => digest.clone(),
+            _ => {
+                let bytes = store.read(&object).ok()?;
+                let digest = naming::blob(&bytes);
+                object_digests.insert(object, digest.clone());
+                digest
+            }
+        };
         files.push(output(&object.to_hex(), digest.clone()));
         needed.push((digest, Source::Object(object)));
     }
@@ -578,6 +610,19 @@ fn blob_size(digest: &proto::Digest) -> u64 {
 /// `done` as it finishes, and stops at the first error `done` returns.
 async fn in_flight<I, T, Fut>(
     items: Vec<(u64, I)>,
+    start: impl FnMut(I) -> Fut,
+    done: impl FnMut(T) -> Result<()>,
+) -> Result<()>
+where
+    Fut: Future<Output = T>,
+{
+    in_flight_with_budget(items, IN_FLIGHT_BYTES, start, done).await
+}
+
+/// The transfer scheduler with a caller-selected byte budget.
+async fn in_flight_with_budget<I, T, Fut>(
+    items: Vec<(u64, I)>,
+    budget: u64,
     mut start: impl FnMut(I) -> Fut,
     mut done: impl FnMut(T) -> Result<()>,
 ) -> Result<()>
@@ -589,8 +634,7 @@ where
     let mut bytes: u64 = 0;
     loop {
         while let Some(&(size, _)) = queue.peek() {
-            let full =
-                running.len() >= IN_FLIGHT_CALLS || bytes.saturating_add(size) > IN_FLIGHT_BYTES;
+            let full = running.len() >= IN_FLIGHT_CALLS || bytes.saturating_add(size) > budget;
             if full && !running.is_empty() {
                 break;
             }
