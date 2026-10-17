@@ -109,6 +109,37 @@ fn pushing_again_uploads_no_blob_twice() {
     assert_eq!(server.with(|state| state.writes), 4);
 }
 
+#[test]
+fn saving_a_remote_hit_refreshes_it_without_reading_local_outputs() {
+    let server = Server::start();
+    let local = Local::new();
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    server.with(|state| state.updates.clear());
+    // A remote hit already has complete outputs on the server. Saving it
+    // must not depend on reading those potentially multi-gigabyte files.
+    local.store.remove(&local.objects[1]).unwrap();
+    let report = cache.push(&local.root, None).unwrap();
+    assert_eq!(report.skipped, 0);
+    assert_eq!(report.blobs, 0);
+    assert_eq!(server.with(|state| state.updates.clone()),
+        vec![naming::prekey_key(&local.pre).hash]);
+}
+
+#[test]
+fn saving_repairs_an_existing_action_whose_remote_blob_was_evicted() {
+    let server = Server::start();
+    let local = Local::new();
+    let cache = remote(&server);
+    cache.push(&local.root, None).unwrap();
+    let object = naming::blob(b"rlib bytes").hash;
+    server.with(|state| { state.blobs.remove(&object); });
+    let report = cache.push(&local.root, None).unwrap();
+    assert_eq!(report.blobs, 1);
+    assert_eq!(report.actions, 1);
+    assert!(server.with(|state| state.blobs.contains_key(&object)));
+}
+
 impl Local {
     /// Adds `count` more actions, each with an object of its own and a
     /// pre-key record pointing at nothing in particular.
