@@ -227,7 +227,14 @@ The flag is not in the key, since it is a function of the roots.
    hardlink, because linkers may rewrite outputs in place;
 3. sets each output's mtime to now, as if rustc had just written it, except
    for object files kept in place: rustc itself leaves the objects it reuses
-   with their old mtimes, and nothing compares them;
+   with their old mtimes, and nothing compares them. "Now" is the out-dir
+   filesystem's clock ([`filesystem_now`](../../crates/tinymold-wrap/src/clock/mod.rs)),
+   read once per hit, not the wall clock. Cargo records that a dependent unit
+   started by creating a file and reading its mtime, and Linux stamps files
+   from a coarse clock that lags the wall clock by up to a tick; an output
+   stamped from the wall clock read as up to ~4 ms newer than a dependent
+   started after it, so the next cargo invocation rebuilt everything above it
+   ("the dependency was rebuilt");
 4. replays stdout and stderr, then exits 0.
 
 Steps 2 and 3 run per output, in turn for a unit with fewer than 16
