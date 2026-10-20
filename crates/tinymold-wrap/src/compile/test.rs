@@ -1341,3 +1341,31 @@ fn restoring_text_refuses_an_unrelated_existing_file() {
     assert_eq!(fs::read(&victim).unwrap(), b"keep me");
     assert!(result.is_err(), "an unrelated file must not be overwritten");
 }
+
+#[test]
+fn restoring_a_record_cannot_replace_another_units_text_with_an_overlapping_prefix() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let mut action = many_output_action(&restoring.store, 0);
+    action.outputs[0].name = "demo-10.d".to_owned();
+    let victim = unit.out().join("demo-10.d");
+    fs::write(&victim, b"another unit").unwrap();
+    let result = restoring.restore(&action);
+    assert_eq!(fs::read(&victim).unwrap(), b"another unit");
+    assert!(result.is_err());
+}
+
+#[test]
+fn restoring_a_valid_action_preserves_other_units_with_overlapping_prefixes() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let action = many_output_action(&restoring.store, 0);
+    let victim = unit.out().join("demo-10.d");
+    fs::write(&victim, b"another unit").unwrap();
+    restoring.restore(&action).unwrap();
+    assert_eq!(fs::read(&victim).unwrap(), b"another unit");
+    // Replacing this invocation's own dep-info remains a valid warm hit.
+    restoring.restore(&action).unwrap();
+}
