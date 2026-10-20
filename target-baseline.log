@@ -337,3 +337,135 @@ test work_used_since_the_cutoff_still_hits_after_gc_and_expired_work_misses ... 
 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
 
      Running unittests src/lib.rs (target/debug/deps/tinymold_cas-b1f31594eb27f19a)
+
+running 44 tests
+test materialize::test::methods_render_lowercase ... ok
+test error::test::stream_errors_keep_the_failure_as_their_source ... ok
+test error::test::unsupported_names_the_method ... ok
+test error::test::io_errors_say_what_failed_and_where ... ok
+test error::test::not_found_and_existing_destinations_render ... ok
+test error::test::corruption_names_both_digests ... ok
+test materialize::test::making_a_missing_file_writable_fails ... ok
+test materialize::test::falls_through_every_method_and_reports_the_last_failure ... ok
+test materialize::test::an_empty_method_list_is_rejected ... ok
+test materialize::test::restores_owner_write_access_to_a_read_only_file ... ok
+test materialize::test::copy_produces_an_independent_writable_file ... ok
+test materialize::test::a_private_copy_never_shares_the_source_inode ... ok
+test store::test::insert_bytes_reports_an_unwritable_staging_area ... ok
+test materialize::test::auto_always_places_the_object ... ok
+test materialize::test::hardlink_shares_the_store_object_and_stays_read_only ... ok
+test store::test::a_failing_stream_is_a_stream_error_and_leaves_no_staging_file ... ok
+test materialize::test::a_reflink_result_is_writable_when_the_filesystem_clones ... ok
+test store::test::a_staging_write_failure_is_reported_as_a_write_error ... ok
+test store::test::dropping_a_staged_stream_leaves_nothing_behind ... ok
+test store::test::an_interrupted_read_is_retried ... ok
+test store::test::insert_file_reports_staging_failures_and_cleans_up ... ok
+test store::test::inserting_a_missing_file_fails_cleanly ... ok
+test store::test::opening_fails_when_the_root_is_a_file ... ok
+test store::test::a_staged_stream_commits_under_its_digest ... ok
+test store::test::objects_are_sharded_by_their_first_byte ... ok
+test store::test::listing_a_store_whose_objects_directory_is_a_file_fails ... ok
+test store::test::a_racing_commit_of_existing_bytes_discards_its_staging_file ... ok
+test store::test::a_rename_that_fails_is_an_io_error_naming_the_object ... ok
+test store::test::inserted_bytes_read_back_and_are_sealed ... ok
+test store::test::missing_objects_are_reported_by_digest ... ok
+test store::test::objects_of_an_empty_store_is_empty ... ok
+test store::test::materialize_reports_a_missing_object ... ok
+test store::test::inserting_the_same_bytes_twice_keeps_one_object_and_no_staging_files ... ok
+test store::test::keeping_an_object_refreshes_its_time_and_reports_whether_it_exists ... ok
+test store::test::remove_deletes_a_sealed_object_and_reports_whether_it_was_there ... ok
+test store::test::inserted_files_are_independent_of_their_source ... ok
+test store::test::remove_reports_an_object_it_cannot_delete ... ok
+test store::test::staging_files_lists_leftovers_and_remove_staging_deletes_them ... ok
+test store::test::objects_skips_files_that_are_not_objects ... ok
+test store::test::verify_detects_a_tampered_object ... ok
+test store::test::objects_lists_every_object_with_its_size ... ok
+test store::test::staging_bytes_the_store_already_holds_commits_to_the_same_object ... ok
+test store::test::materialize_creates_parents_and_refuses_to_overwrite ... ok
+test store::test::storing_bytes_already_present_refreshes_the_objects_time ... ok
+
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/public_api.rs (target/debug/deps/public_api-8c70a7866b6d02f4)
+
+running 3 tests
+test a_streamed_upload_is_checked_before_it_is_stored ... ok
+test a_second_handle_on_the_same_root_sees_the_same_objects ... ok
+test one_object_serves_many_worktrees ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_hash-525833656d70da19)
+
+running 15 tests
+test digest::test::parses_uppercase_hex ... ok
+test digest::test::hex_round_trips ... ok
+test digest::test::field_boundaries_change_the_digest ... ok
+test digest::test::equal_fields_give_equal_digests ... ok
+test digest::test::matches_the_reference_digest_of_the_empty_input ... ok
+test digest::test::debug_shows_the_hex_form ... ok
+test digest::test::rejects_hex_of_the_wrong_length ... ok
+test digest::test::raw_bytes_round_trip ... ok
+test digest::test::rejects_non_hex_characters ... ok
+test error::test::a_read_failure_names_the_path_and_keeps_its_cause ... ok
+test digest::test::a_file_and_a_slice_agree ... ok
+test error::test::invalid_hex_quotes_the_rejected_text ... ok
+test digest::test::retries_interrupted_reads_and_reports_real_failures ... ok
+test digest::test::a_missing_file_reports_its_path ... ok
+test digest::test::a_reader_and_a_slice_agree ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/public_api.rs (target/debug/deps/public_api-7e96cf4956cffc01)
+
+running 2 tests
+test hasher_and_parse_errors_are_public ... ok
+test digests_are_usable_as_map_keys_and_sort_stably ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_key-760b414a5bd61dac)
+
+running 38 tests
+test archive::test::a_changed_member_changes_the_digest ... ok
+test depinfo::test::a_trailing_backslash_in_a_value_is_kept ... ok
+test depinfo::test::an_env_dep_without_a_name_is_malformed ... ok
+test archive::test::archives_differing_only_in_build_stamps_share_a_digest ... ok
+test args::test::unknown_and_non_ascii_flags_are_kept_as_text ... ok
+test archive::test::anything_else_is_hashed_as_it_is ... ok
+test env_use::test::including_the_value_itself_only_picks_a_file ... ok
+test args::test::a_command_line_with_its_own_path_remapping_says_so ... ok
+test env_use::test::any_other_use_is_not_only_picking_files ... ok
+test args::test::spellings_of_the_same_flag_parse_the_same ... ok
+test env_use::test::a_name_the_text_cannot_see_is_opaque ... ok
+test env_use::test::mentions_on_comment_lines_are_not_uses ... ok
+test env_use::test::text_that_is_not_an_env_invocation_is_not_opaque ... ok
+test depinfo::test::reads_inputs_and_env_deps_as_rustc_writes_them ... ok
+test args::test::parses_a_real_cargo_library_compile ... ok
+test args::test::coverage_instrumentation_is_recognized_in_every_spelling ... ok
+test args::test::passes_through_what_it_cannot_key ... ok
+test env_use::test::the_include_idiom_only_picks_files ... ok
+test env_use::test::uses_add_up_across_the_files_of_one_compile ... ok
+test args::test::linking_units_are_recognized ... ok
+test args::test::dynamic_linking_of_std_is_recognized_in_every_spelling ... ok
+test error::test::malformed_dep_info_names_the_line ... ok
+test key::test::every_input_moves_the_full_key ... ok
+test key::test::the_pre_key_encoding_is_pinned ... ok
+test roots::test::replaces_the_longest_root_first ... ok
+test roots::test::the_profile_directory_is_found_for_deps_examples_and_build_scripts ... ok
+test key::test::two_worktrees_of_one_compile_share_a_pre_key ... ok
+test roots::test::a_root_without_a_usable_path_is_skipped ... ok
+test roots::test::the_profile_directory_is_remapped_to_its_placeholder ... ok
+test roots::test::two_worktrees_normalize_to_the_same_text_and_expand_to_their_own ... ok
+test key::test::an_instrumented_compile_is_keyed_by_its_workspace_path ... ok
+test test_key::test::a_tree_digest_does_not_depend_on_listing_order ... ok
+test test_key::test::a_second_worktree_shares_the_key ... ok
+test test_key::test::ignored_env_names_are_exact_or_prefixed ... ok
+test test_key::test::the_test_key_encoding_is_pinned ... ok
+test key::test::every_input_moves_the_pre_key ... ok
+test test_key::test::ignored_env_vars_leave_the_key_alone ... ok
+test test_key::test::every_keyed_field_moves_the_key ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_remote-bc6eb29b4496e341)
