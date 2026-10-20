@@ -1,10 +1,30 @@
-   Compiling tokio v1.53.3
-   Compiling errno v0.3.14
-   Compiling rustix v1.1.4
-   Compiling tempfile v3.27.0
-   Compiling tokio-util v0.7.20
-   Compiling tokio-stream v0.1.19
-   Compiling tokio-rustls v0.26.6
-   Compiling h2 v0.4.20
-   Compiling tower v0.5.3
-   Compiling hyper v1.12.0
+   Compiling tinymold-remote v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-remote)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running unittests src/lib.rs (target/debug/deps/tinymold_remote-712fa2ee9b8e685c)
+
+running 2 tests
+test remote::test::oversized_remote_records_are_refused_before_downloading_them ... FAILED
+test remote::test::an_oversized_signature_is_refused_before_downloading_it ... FAILED
+
+failures:
+
+---- remote::test::oversized_remote_records_are_refused_before_downloading_them stdout ----
+
+thread 'remote::test::oversized_remote_records_are_refused_before_downloading_them' (90290908) panicked at crates/tinymold-remote/src/remote/test.rs:1123:5:
+assertion failed: matches!(reader.fetch_action_into(&local.key, &store),
+    Err(Error::BlobSize { .. }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- remote::test::an_oversized_signature_is_refused_before_downloading_it stdout ----
+
+thread 'remote::test::an_oversized_signature_is_refused_before_downloading_it' (90290907) panicked at crates/tinymold-remote/src/remote/test.rs:1101:5:
+Err(BlobMismatch { expected: "814a3d3b028d50485b5ab401998a4af3b2549ec39e491feb6cc2a1f65606f6ca" })
+
+
+failures:
+    remote::test::an_oversized_signature_is_refused_before_downloading_it
+    remote::test::oversized_remote_records_are_refused_before_downloading_them
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p tinymold-remote --lib`
