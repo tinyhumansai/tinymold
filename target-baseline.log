@@ -315,3 +315,25 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 5 tests
 test run_test_passes_arguments_and_exit_status_through ... ok
 test a_failing_test_fails_again_instead_of_being_replayed ... ok
+test a_package_binary_outside_the_build_turns_caching_off ... ok
+test an_integration_test_reruns_when_the_binary_it_runs_changes ... ok
+test cargo_test_reruns_exactly_the_binaries_an_edit_reaches ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.75s
+
+     Running tests/wrapper.rs (target/debug/deps/wrapper-4c60d8557d7af861)
+
+running 9 tests
+test queries_and_other_programs_pass_through ... ok
+test a_wrapper_call_starts_a_background_collection_unless_switched_off ... ok
+test a_crate_that_uses_its_out_dir_only_transformed_misses_in_another_worktree ... ok
+test a_crate_that_bakes_in_its_out_dir_misses_in_another_worktree ... ok
+test a_crate_that_bakes_in_its_own_path_misses_in_another_worktree ... ok
+test a_second_worktree_hits_and_an_env_dep_change_misses ... ok
+test an_included_file_that_names_itself_misses_when_paths_are_not_remapped ... ok
+test a_crate_that_includes_a_generated_file_hits_in_another_worktree ... ok
+test work_used_since_the_cutoff_still_hits_after_gc_and_expired_work_misses ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_cas-b1f31594eb27f19a)
