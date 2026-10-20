@@ -492,6 +492,17 @@ impl RemoteCache {
                 key: key.hash.clone(),
                 reason,
             };
+            // The signature authenticates the record, not the server's
+            // output list. Parse it before fetching any artifact so a server
+            // cannot graft arbitrary downloads onto a valid signed entry.
+            let bytes = self.client.read(&record).await?;
+            let text =
+                String::from_utf8(bytes).map_err(|_| malformed("its action record is not text"))?;
+            let references: HashSet<_> =
+                tinymold_wrap::action_references_from_text(&text, Path::new(ACTION_FILE))?
+                    .into_iter()
+                    .collect();
+            let mut listed = HashSet::new();
             let mut wanted = Vec::new();
             for file in &result.output_files {
                 if file.path == ACTION_FILE || file.path == SIGNATURE_FILE {
@@ -499,56 +510,38 @@ impl RemoteCache {
                 }
                 let name = Digest::from_str(&file.path)
                     .map_err(|_| malformed("an output is not named by its digest"))?;
-                if store.contains(&name) {
-                    continue;
+                if !references.contains(&name) || !listed.insert(name) {
+                    return Err(malformed("outputs do not match the action record"));
                 }
                 let digest = file
                     .digest
                     .clone()
                     .ok_or_else(|| malformed("an output has no digest"))?;
-                wanted.push((name, digest));
+                if !store.contains(&name) {
+                    wanted.push((blob_size(&digest), (name, digest)));
+                }
             }
-            // Every object, and the record, in flight together under one
-            // limit: each read is a round trip. Each object goes into the
-            // store as it arrives, so memory holds only what is in flight.
-            let reads = std::iter::once((blob_size(&record), None))
-                .chain(
-                    wanted
-                        .into_iter()
-                        .map(|(name, digest)| (blob_size(&digest), Some((name, digest)))),
-                )
-                .collect();
-            let mut text = None;
+            if listed != references {
+                return Err(malformed("outputs do not match the action record"));
+            }
+            // Fetch only the objects the parsed record authorizes, keeping
+            // the ordinary byte budget and parallel artifact downloads.
             in_flight(
-                reads,
-                |object| {
-                    let record = &record;
-                    async move {
-                        let (name, digest) = match object {
-                            Some((name, digest)) => (Some(name), digest),
-                            None => (None, record.clone()),
-                        };
-                        let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
-                        (name, bytes)
-                    }
+                wanted,
+                |(name, digest)| async move {
+                    let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
+                    (name, bytes)
                 },
-                |(name, bytes)| match name {
-                    None => {
-                        text = Some(bytes?);
+                |(name, bytes)| {
+                    if store.insert_bytes(&bytes?)? == name {
                         Ok(())
+                    } else {
+                        Err(malformed("an output does not match its name"))
                     }
-                    Some(name) if store.insert_bytes(&bytes?)? == name => Ok(()),
-                    Some(_) => Err(malformed("an output does not match its name")),
                 },
             )
             .await?;
-            let text = text.ok_or_else(|| malformed("its action record was never read"))?;
-            String::from_utf8(text)
-                .map(Some)
-                .map_err(|_| Error::Malformed {
-                    key: key.hash,
-                    reason: "its action record is not text",
-                })
+            Ok(Some(text))
         })
     }
 }

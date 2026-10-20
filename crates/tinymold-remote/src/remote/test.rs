@@ -1154,14 +1154,20 @@ fn a_signed_record_does_not_authorize_an_unrelated_extra_blob() {
     let server = Server::start();
     let local = Local::new();
     let signer = SigningKey::generate();
-    configured(&server, signing(&signer)).push(&local.root, None).unwrap();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
     let bytes = b"attacker controlled extra object";
     let extra = Digest::of_bytes(bytes);
     server.with(|state| {
         let digest = naming::blob(bytes);
         state.blobs.insert(digest.hash.clone(), bytes.to_vec());
-        state.actions.get_mut(&naming::action_key(&local.key).hash).unwrap()
-            .output_files.push(output(&extra.to_hex(), digest));
+        state
+            .actions
+            .get_mut(&naming::action_key(&local.key).hash)
+            .unwrap()
+            .output_files
+            .push(output(&extra.to_hex(), digest));
     });
     let empty = tempfile::tempdir().unwrap();
     let store = Store::open(empty.path()).unwrap();
@@ -1169,6 +1175,9 @@ fn a_signed_record_does_not_authorize_an_unrelated_extra_blob() {
     assert!(matches!(result, Err(Error::Malformed { .. })), "{result:?}");
     assert!(!store.contains(&extra));
     for object in &local.objects {
-        assert!(!store.contains(object), "refuse the entry before fetching artifacts");
+        assert!(
+            !store.contains(object),
+            "refuse the entry before fetching artifacts"
+        );
     }
 }
