@@ -73,6 +73,15 @@ steps:
 With a remote server (see [cache security](cache-security.md) for public PRs):
 
 ```yaml
+  - name: Require trusted remote verification keys
+    shell: bash
+    env:
+      TRUSTED_KEYS: ${{ vars.TINYMOLD_REMOTE_TRUSTED_KEYS }}
+    run: |
+      if [[ -z "${TRUSTED_KEYS}" ]]; then
+        echo "::error::TINYMOLD_REMOTE_TRUSTED_KEYS must be configured"
+        exit 1
+      fi
   - uses: tinyhumansai/tinymold@v0
     with:
       backend: both

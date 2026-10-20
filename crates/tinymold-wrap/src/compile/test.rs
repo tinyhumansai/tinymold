@@ -1353,7 +1353,7 @@ fn restoring_a_record_cannot_replace_another_units_text_with_an_overlapping_pref
     fs::write(&victim, b"another unit").unwrap();
     let result = restoring.restore(&action);
     assert_eq!(fs::read(&victim).unwrap(), b"another unit");
-    assert!(result.is_err());
+    assert!(matches!(result, Err(Error::UnexpectedOutput(_))));
 }
 
 #[test]

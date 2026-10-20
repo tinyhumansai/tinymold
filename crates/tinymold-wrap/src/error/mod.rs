@@ -43,6 +43,10 @@ pub enum Error {
         line: usize,
     },
 
+    /// An action names an output that does not belong to this invocation.
+    #[error("cached output {0} does not belong to this invocation")]
+    UnexpectedOutput(String),
+
     /// A program could not be started.
     #[error("failed to run {program}")]
     Spawn {

@@ -166,7 +166,7 @@ reads answers `GetCapabilities` whatever the credential.
 - Only trusted CI holds a write credential. Pull requests from forks get no
   secrets, and read anonymously when the server allows unauthenticated
   reads, or run without a remote.
-- **Hashes establish integrity, not authorship.** Everything it returns is
+- **Hashes establish integrity, not authorship.** Everything the remote returns is
   re-hashed and checked against digests in records the client parsed itself.
   A server that returns a wrong record for a key is trusted as much as the
   CI that wrote it, which is why writes are restricted, and why readers

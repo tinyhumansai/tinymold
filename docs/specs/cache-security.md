@@ -70,6 +70,15 @@ For public PRs consuming a shared Rust remote, use a fresh runner/store,
 the public verification keys, and read-only server access. For example:
 
 ```yaml
+- name: Require trusted remote verification keys
+  shell: bash
+  env:
+    TRUSTED_KEYS: ${{ vars.TINYMOLD_REMOTE_TRUSTED_KEYS }}
+  run: |
+    if [[ -z "${TRUSTED_KEYS}" ]]; then
+      echo "::error::TINYMOLD_REMOTE_TRUSTED_KEYS must be configured"
+      exit 1
+    fi
 - uses: tinyhumansai/tinymold@v0
   with:
     backend: remote
@@ -102,6 +111,7 @@ example requires a release containing the protections described below;
 | Remote metadata | Action/pre-key records limited to 16 MiB; signatures to 1 KiB, checked before downloading |
 | Remote object list | Parsed action record must authorize exactly the distinct listed objects; extra, duplicate or missing objects refuse the entry before artifact downloads |
 | Output filenames | Action parser rejects absolute paths, directory separators, drive separators, `.` and `..` |
+| Output ownership | Validate invocation stems and the exact dep-info name before cleanup; overlapping stems cannot claim another unit |
 | Text restore | Creates a new destination, refusing an existing file or symlink instead of truncating or following it |
 | Binary restore | Reflink or exclusive-create copy, rather than a writable hardlink to the CAS |
 | Incremental restore | Session destination must be a direct child of the invocation's incremental directory |
