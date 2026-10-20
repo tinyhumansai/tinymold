@@ -1108,7 +1108,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.22.1",
  "clap",
@@ -1125,7 +1125,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-cas"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "reflink-copy",
  "tempfile",
@@ -1135,7 +1135,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-hash"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "blake3",
  "tempfile",
@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-key"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "thiserror",
  "tinymold-hash",
@@ -1152,7 +1152,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-remote"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ed25519-compact",
  "futures-util",
@@ -1174,7 +1174,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-server"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-store"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "sha2",
  "tempfile",
@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "tinymold-wrap"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "tempfile",
  "thiserror",
