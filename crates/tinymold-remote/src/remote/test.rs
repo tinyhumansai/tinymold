@@ -1203,3 +1203,38 @@ fn metadata_size_limits_include_the_boundary_and_reject_negative_sizes() {
         }
     }
 }
+
+#[test]
+fn missing_and_duplicate_action_objects_are_refused_even_when_cached_locally() {
+    for duplicate in [false, true] {
+        let server = Server::start();
+        let local = Local::new();
+        remote(&server).push(&local.root, None).unwrap();
+        server.with(|state| {
+            let result = state.actions.get_mut(&naming::action_key(&local.key).hash).unwrap();
+            if duplicate {
+                let file = result.output_files.iter().find(|file| file.path != ACTION_FILE).unwrap().clone();
+                result.output_files.push(file);
+            } else {
+                result.output_files.retain(|file| file.path != local.objects[1].to_hex());
+            }
+        });
+        let result = remote(&server).fetch_action_into(&local.key, &local.store);
+        assert!(matches!(result, Err(Error::Malformed { reason: "outputs do not match the action record", .. })), "{result:?}");
+    }
+}
+
+#[test]
+fn a_malformed_record_is_refused_before_any_artifact_is_stored() {
+    let server = Server::start();
+    let key = Digest::of_bytes(b"malformed");
+    let object = Digest::of_bytes(b"artifact");
+    plant(&server, &key, vec![
+        (ACTION_FILE.to_owned(), b"not an action".to_vec()),
+        (object.to_hex(), b"artifact".to_vec()),
+    ]);
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    assert!(matches!(remote(&server).fetch_action_into(&key, &store), Err(Error::Wrap(_))));
+    assert!(!store.contains(&object));
+}

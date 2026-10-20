@@ -168,7 +168,7 @@ reads answers `GetCapabilities` whatever the credential.
 - Only trusted CI holds a write credential. Pull requests from forks get no
   secrets, and read anonymously when the server allows unauthenticated
   reads, or run without a remote.
-- **A remote can only make a build miss.** Everything it returns is
+- **Hashes establish integrity, not authorship.** Everything it returns is
   re-hashed and checked against digests in records the client parsed itself.
   A server that returns a wrong record for a key is trusted as much as the
   CI that wrote it, which is why writes are restricted, and why readers
@@ -182,7 +182,8 @@ right. One bad bind address or a missing credential file lets anyone who
 can reach the server plant an entry that decides what a later build links.
 Signed entries make the client independent of that: a reader that names
 its trusted keys uses only entries those keys signed, so a server open to
-the world can at worst make a build miss.
+the world cannot forge a trusted record. It can still withhold entries or
+consume resources up to the client limits.
 
 - **Keys.** `tinymold remote keygen` prints a fresh ed25519 key pair as the
   two variables above. The secret goes only to trusted writers, such as CI
@@ -221,6 +222,23 @@ anonymous write while this client trusts no keys is refused with
 `Error::OpenToAnonymousWrites` and exit 1: anyone who can reach it could
 poison the cache. Either require a credential for writes or configure
 trusted keys.
+
+## Untrusted metadata
+
+The client refuses negative sizes and record blobs larger than 16 MiB before
+opening their download stream. Signature blobs are limited to 1 KiB before
+verification. Artifacts retain the separate 4 GiB blob limit.
+
+An action record is downloaded and parsed before its objects. The response's
+object names must match exactly the distinct BLAKE3 references in that record;
+missing, extra, or duplicate object names refuse the entry, even when the
+objects are already cached locally. A valid signature therefore cannot be
+reused to authorize unrelated artifact downloads. Objects still download in
+parallel, with each SHA-256 checked on receipt and BLAKE3 checked on insertion.
+This adds a record-read dependency before artifact downloads.
+
+See [cache security](cache-security.md) for public-repository trust boundaries,
+the local-store limitation, and deployment guidance.
 
 ## Acceptance criteria
 

@@ -214,9 +214,11 @@ skips binaries and proc-macros. tinymold caches every rustc call cargo makes,
 `cargo llvm-cov`, and passing test runs.
 
 **It never trades correctness for speed.** Anything that is an input is in the
-key; anything that is not stays out. Objects are immutable once stored, and a
-remote server can only make a build miss, never restore different bytes. When
-in doubt, tinymold misses.
+key; anything that is not stays out. Objects are immutable once stored, and remote blobs are checked against their
+digests. Use trusted signing keys to authenticate remote records: a writer
+without that protection can poison build outputs despite valid hashes. See
+[cache security](docs/specs/cache-security.md) before sharing a cache with
+public pull-request jobs. When in doubt, tinymold misses.
 
 The cache never links for you: a binary that depends on the crate you edited
 is still relinked in full, while unchanged crates, binaries and test
