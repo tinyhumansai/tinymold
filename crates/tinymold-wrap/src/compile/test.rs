@@ -374,6 +374,36 @@ fn a_restored_binary_is_executable_and_fresh() {
 }
 
 #[test]
+fn a_restored_output_is_never_newer_than_a_file_written_after_it() {
+    // Cargo records when it starts a unit by creating a file and reading its
+    // mtime, so on the filesystem's clock. A dependency restored by a hit
+    // must read as older than that, or the next cargo invocation sees "the
+    // dependency was rebuilt" and recompiles everything above it. Linux
+    // stamps files from a coarse clock that lags `SystemTime::now()` by up to
+    // a tick, so a restored output stamped from the fine clock read as up to
+    // ~4 ms newer than a file created just after it (EX63 runs 39393720960
+    // and 39371566398 rebuilt 367 crates this way).
+    let unit = Crate::new("pub fn answer() -> u32 { 42 }\n");
+    assert_stored(&unit.serve(&[]).unwrap());
+    for _ in 0..8 {
+        unit.clear_outputs();
+        assert!(matches!(unit.serve(&[]).unwrap(), Served::Hit { .. }));
+        let started = unit.out().join("invoked.timestamp");
+        fs::write(&started, b"").unwrap();
+        let started = fs::metadata(&started).unwrap().modified().unwrap();
+        for entry in fs::read_dir(unit.out()).unwrap() {
+            let path = entry.unwrap().path();
+            let modified = fs::metadata(&path).unwrap().modified().unwrap();
+            assert!(
+                modified <= started,
+                "{} reads as newer than a file written after it",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
 fn outputs_rustc_reuses_from_its_incremental_cache_are_stored_too() {
     // Incremental rustc hardlinks unchanged artifacts (objects, and sometimes
     // the .rmeta) back into the out-dir with their old mtimes. A hit must
