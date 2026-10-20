@@ -737,13 +737,16 @@ async fn batch_reads_refuse_a_declared_total_above_the_advertised_limit() {
     let mut claimed = digest(b"small");
     claimed.size_bytes = MAX_BATCH;
     let result: Result<BatchReadBlobsResponse, _> = unary(
-        &server, BATCH_READ,
+        &server,
+        BATCH_READ,
         BatchReadBlobsRequest {
             instance_name: String::new(),
             digests: vec![claimed, digest(b"small")],
             digest_function: DIGEST_SHA256,
-        }, None,
-    ).await;
+        },
+        None,
+    )
+    .await;
     assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
 }
 
@@ -755,13 +758,20 @@ async fn batch_reads_refuse_a_large_stored_blob_with_an_understated_size() {
     let mut claimed = digest(&bytes);
     claimed.size_bytes = 1;
     let response: BatchReadBlobsResponse = unary(
-        &server, BATCH_READ,
+        &server,
+        BATCH_READ,
         BatchReadBlobsRequest {
             instance_name: String::new(),
             digests: vec![claimed],
             digest_function: DIGEST_SHA256,
-        }, None,
-    ).await.unwrap();
+        },
+        None,
+    )
+    .await
+    .unwrap();
     assert!(response.responses[0].data.is_empty());
-    assert_eq!(response.responses[0].status.as_ref().unwrap().code, tonic::Code::InvalidArgument as i32);
+    assert_eq!(
+        response.responses[0].status.as_ref().unwrap().code,
+        tonic::Code::InvalidArgument as i32
+    );
 }
