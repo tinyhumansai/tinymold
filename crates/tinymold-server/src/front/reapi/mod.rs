@@ -388,7 +388,7 @@ async fn batch_read_blobs(
 }
 
 /// Reads one batch member only when the stored size matches its declaration.
-/// The caller has already bounded the sum of all declarations by MAX_BATCH.
+/// The caller has already bounded the sum of all declarations by `MAX_BATCH`.
 fn read_batch_blob(store: &Store, digest: &Digest) -> Result<Option<Vec<u8>>, Status> {
     let Some(blob) = resolve(store, digest)? else {
         return Ok(None);

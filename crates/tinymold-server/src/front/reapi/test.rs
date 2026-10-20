@@ -769,7 +769,7 @@ async fn batch_reads_refuse_a_large_stored_blob_with_an_understated_size() {
     )
     .await
     .unwrap();
-    assert!(response.responses[0].data.is_empty());
+    assert_eq!(response.responses[0].data, [] as [u8; 0]);
     assert_eq!(
         response.responses[0].status.as_ref().unwrap().code,
         tonic::Code::InvalidArgument as i32
