@@ -16,6 +16,12 @@ fn errors_say_what_failed_and_keep_their_cause() {
     };
     assert_eq!(corrupt.to_string(), "cache record r is corrupt at line 2");
 
+    let output = Error::UnexpectedOutput("demo-10.d".into());
+    assert_eq!(
+        output.to_string(),
+        "cached output demo-10.d does not belong to this invocation"
+    );
+
     let spawn = Error::Spawn {
         program: "rustc".into(),
         source: std::io::Error::other("x"),

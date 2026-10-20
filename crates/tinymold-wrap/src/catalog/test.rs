@@ -210,3 +210,18 @@ fn test_run_references_name_both_streams() {
     write(&path, "garbage");
     assert!(test_run_references(&path).is_err());
 }
+
+#[test]
+fn in_memory_action_references_parse_without_reading_the_diagnostic_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("absent");
+    let digest = Digest::of_bytes(b"diagnostics");
+    let text = format!("tinymold-action 1\nstdout {digest}\nstderr {digest}\n");
+    assert_eq!(
+        action_references_from_text(&text, &path).unwrap(),
+        vec![digest, digest]
+    );
+    assert!(matches!(action_references_from_text("bad", &path),
+        Err(crate::Error::CorruptRecord { path: error_path, line: 1 }) if error_path == path));
+    assert!(!path.exists());
+}

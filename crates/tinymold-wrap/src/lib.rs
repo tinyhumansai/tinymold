@@ -61,8 +61,8 @@ use std::time::{Duration, Instant};
 use tinymold_key::{Classified, Invocation};
 
 pub use catalog::{
-    ActionInfo, RecordFile, RecordKind, action_info, action_references, records,
-    test_run_references,
+    ActionInfo, RecordFile, RecordKind, action_info, action_references,
+    action_references_from_text, records, test_run_references,
 };
 pub use clock::{filesystem_now, written_before};
 use compile::Served;

@@ -1304,3 +1304,68 @@ fn a_needle_split_across_two_reads_of_an_output_is_still_found() {
     }
     assert!(file_contains(&dir.path().join("missing"), &needles, 5).is_err());
 }
+
+#[cfg(unix)]
+#[test]
+fn restoring_text_refuses_a_symlink_outside_the_units_outputs() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let mut action = many_output_action(&restoring.store, 0);
+    // A remote record may name any plain filename, including one that the
+    // unit_files cleanup does not recognize as belonging to this compile.
+    action.outputs[0].name = "unrelated.d".to_owned();
+    let victim = unit.root.join("outside.txt");
+    fs::write(&victim, b"keep me").unwrap();
+    std::os::unix::fs::symlink(&victim, unit.out().join("unrelated.d")).unwrap();
+
+    let result = restoring.restore(&action);
+    assert_eq!(fs::read(&victim).unwrap(), b"keep me");
+    assert!(
+        result.is_err(),
+        "an existing symlink must refuse the restore"
+    );
+}
+
+#[test]
+fn restoring_text_refuses_an_unrelated_existing_file() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let mut action = many_output_action(&restoring.store, 0);
+    action.outputs[0].name = "unrelated.d".to_owned();
+    let victim = unit.out().join("unrelated.d");
+    fs::write(&victim, b"keep me").unwrap();
+
+    let result = restoring.restore(&action);
+    assert_eq!(fs::read(&victim).unwrap(), b"keep me");
+    assert!(result.is_err(), "an unrelated file must not be overwritten");
+}
+
+#[test]
+fn restoring_a_record_cannot_replace_another_units_text_with_an_overlapping_prefix() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let mut action = many_output_action(&restoring.store, 0);
+    action.outputs[0].name = "demo-10.d".to_owned();
+    let victim = unit.out().join("demo-10.d");
+    fs::write(&victim, b"another unit").unwrap();
+    let result = restoring.restore(&action);
+    assert_eq!(fs::read(&victim).unwrap(), b"another unit");
+    assert!(matches!(result, Err(Error::UnexpectedOutput(_))));
+}
+
+#[test]
+fn restoring_a_valid_action_preserves_other_units_with_overlapping_prefixes() {
+    let unit = Crate::new("pub fn f() {}\n");
+    let invocation = invocation_of(&unit);
+    let restoring = unit_for(&unit, &invocation);
+    let action = many_output_action(&restoring.store, 0);
+    let victim = unit.out().join("demo-10.d");
+    fs::write(&victim, b"another unit").unwrap();
+    restoring.restore(&action).unwrap();
+    assert_eq!(fs::read(&victim).unwrap(), b"another unit");
+    // Replacing this invocation's own dep-info remains a valid warm hit.
+    restoring.restore(&action).unwrap();
+}

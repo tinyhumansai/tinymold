@@ -132,6 +132,18 @@ pub fn action_references(path: &Path) -> Result<Vec<Digest>> {
     Ok(action_info(path)?.references)
 }
 
+/// Parses an action record in memory and returns every object it references,
+/// including diagnostics and incremental session files. `path` is used only
+/// to identify the record in errors; this function performs no I/O.
+///
+/// # Errors
+///
+/// Returns [`Error::CorruptRecord`](crate::Error::CorruptRecord) when the
+/// record does not parse.
+pub fn action_references_from_text(text: &str, path: &Path) -> Result<Vec<Digest>> {
+    Ok(Action::decode(text, path)?.references())
+}
+
 /// Every object the test run recorded at `path` needs to be replayed: its
 /// stdout and stderr.
 ///

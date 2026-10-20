@@ -865,7 +865,7 @@ fn entries_tinymold_did_not_write_are_refused() {
     ));
 
     let unnamed = fetch_error(vec![
-        (ACTION_FILE.to_owned(), b"record".to_vec()),
+        (ACTION_FILE.to_owned(), record_for(b"x")),
         ("libdemo.rlib".to_owned(), b"x".to_vec()),
     ]);
     assert!(matches!(
@@ -877,7 +877,7 @@ fn entries_tinymold_did_not_write_are_refused() {
     ));
 
     let misnamed = fetch_error(vec![
-        (ACTION_FILE.to_owned(), b"record".to_vec()),
+        (ACTION_FILE.to_owned(), record_for(b"other")),
         (Digest::of_bytes(b"other").to_hex(), b"x".to_vec()),
     ]);
     assert!(matches!(
@@ -905,7 +905,7 @@ fn an_output_without_a_digest_is_refused() {
     plant(
         &server,
         &key,
-        vec![(ACTION_FILE.to_owned(), b"record".to_vec())],
+        vec![(ACTION_FILE.to_owned(), record_for(b"x"))],
     );
     server.with(|state| {
         let result = state
@@ -1081,4 +1081,186 @@ fn a_cache_outage_stops_queued_refreshes_instead_of_retrying_every_action() {
         attempts <= (IN_FLIGHT_CALLS * (RETRY_DELAYS.len() + 1)) as u64,
         "queued actions repeated a cache-wide outage: {attempts} calls"
     );
+}
+
+#[test]
+fn an_oversized_signature_is_refused_before_downloading_it() {
+    let server = Server::start();
+    let local = Local::new();
+    let signer = SigningKey::generate();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
+    server.with(|state| {
+        let result = state
+            .actions
+            .get_mut(&naming::action_key(&local.key).hash)
+            .unwrap();
+        let signature = result
+            .output_files
+            .iter_mut()
+            .find(|file| file.path == SIGNATURE_FILE)
+            .unwrap();
+        signature.digest.as_mut().unwrap().size_bytes = 1025;
+    });
+    let reads = server.with(|state| state.peak_in_flight.get("Read").copied());
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let result = configured(&server, trusting(&signer)).fetch_action_into(&local.key, &store);
+    assert!(
+        matches!(result, Err(Error::BlobSize { size: 1025, .. })),
+        "{result:?}"
+    );
+    assert_eq!(
+        server.with(|state| state.peak_in_flight.get("Read").copied()),
+        reads
+    );
+}
+
+#[test]
+fn oversized_remote_records_are_refused_before_downloading_them() {
+    let server = Server::start();
+    let local = Local::new();
+    remote(&server).push(&local.root, None).unwrap();
+    server.with(|state| {
+        for result in state.actions.values_mut() {
+            for file in &mut result.output_files {
+                if file.path == ACTION_FILE || file.path == PREKEY_FILE {
+                    file.digest.as_mut().unwrap().size_bytes = (16 << 20) + 1;
+                }
+            }
+        }
+    });
+    let reads = server.with(|state| state.peak_in_flight.get("Read").copied());
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let reader = remote(&server);
+    assert!(matches!(
+        reader.fetch_action_into(&local.key, &store),
+        Err(Error::BlobSize { .. })
+    ));
+    assert!(matches!(
+        reader.input_sets_of(&local.pre),
+        Err(Error::BlobSize { .. })
+    ));
+    assert_eq!(
+        server.with(|state| state.peak_in_flight.get("Read").copied()),
+        reads
+    );
+}
+
+#[test]
+fn a_signed_record_does_not_authorize_an_unrelated_extra_blob() {
+    let server = Server::start();
+    let local = Local::new();
+    let signer = SigningKey::generate();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
+    let bytes = b"attacker controlled extra object";
+    let extra = Digest::of_bytes(bytes);
+    server.with(|state| {
+        let digest = naming::blob(bytes);
+        state.blobs.insert(digest.hash.clone(), bytes.to_vec());
+        state
+            .actions
+            .get_mut(&naming::action_key(&local.key).hash)
+            .unwrap()
+            .output_files
+            .push(output(&extra.to_hex(), digest));
+    });
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    let result = configured(&server, trusting(&signer)).fetch_action_into(&local.key, &store);
+    assert!(matches!(result, Err(Error::Malformed { .. })), "{result:?}");
+    assert!(!store.contains(&extra));
+    for object in &local.objects {
+        assert!(
+            !store.contains(object),
+            "refuse the entry before fetching artifacts"
+        );
+    }
+}
+
+/// A valid action that references just the supplied diagnostic bytes.
+fn record_for(bytes: &[u8]) -> Vec<u8> {
+    let digest = Digest::of_bytes(bytes);
+    format!("tinymold-action 1\nstdout {digest}\nstderr {digest}\n").into_bytes()
+}
+
+#[test]
+fn metadata_size_limits_include_the_boundary_and_reject_negative_sizes() {
+    for limit in [MAX_RECORD, MAX_SIGNATURE] {
+        let mut digest = naming::blob(b"");
+        digest.size_bytes = limit;
+        assert!(metadata_size(&digest, limit).is_ok());
+        for size in [-1, limit + 1] {
+            digest.size_bytes = size;
+            assert!(matches!(
+                metadata_size(&digest, limit),
+                Err(Error::BlobSize { .. })
+            ));
+        }
+    }
+}
+
+#[test]
+fn missing_and_duplicate_action_objects_are_refused_even_when_cached_locally() {
+    for duplicate in [false, true] {
+        let server = Server::start();
+        let local = Local::new();
+        remote(&server).push(&local.root, None).unwrap();
+        server.with(|state| {
+            let result = state
+                .actions
+                .get_mut(&naming::action_key(&local.key).hash)
+                .unwrap();
+            if duplicate {
+                let file = result
+                    .output_files
+                    .iter()
+                    .find(|file| file.path != ACTION_FILE)
+                    .unwrap()
+                    .clone();
+                result.output_files.push(file);
+            } else {
+                result
+                    .output_files
+                    .retain(|file| file.path != local.objects[1].to_hex());
+            }
+        });
+        let result = remote(&server).fetch_action_into(&local.key, &local.store);
+        assert!(
+            matches!(
+                result,
+                Err(Error::Malformed {
+                    reason: "outputs do not match the action record",
+                    ..
+                })
+            ),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
+fn a_malformed_record_is_refused_before_any_artifact_is_stored() {
+    let server = Server::start();
+    let key = Digest::of_bytes(b"malformed");
+    let object = Digest::of_bytes(b"artifact");
+    plant(
+        &server,
+        &key,
+        vec![
+            (ACTION_FILE.to_owned(), b"not an action".to_vec()),
+            (object.to_hex(), b"artifact".to_vec()),
+        ],
+    );
+    let empty = tempfile::tempdir().unwrap();
+    let store = Store::open(empty.path()).unwrap();
+    assert!(matches!(
+        remote(&server).fetch_action_into(&key, &store),
+        Err(Error::Wrap(_))
+    ));
+    assert!(!store.contains(&object));
 }

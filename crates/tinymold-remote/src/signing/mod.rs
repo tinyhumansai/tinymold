@@ -4,7 +4,8 @@
 //! A cache server decides who may write, and a server set up wrong lets
 //! anyone write. With [`TrustedKeys`] configured, the client stops depending
 //! on that: an entry that a trusted [`SigningKey`] did not sign is refused,
-//! so the worst an open server can do is make a build miss.
+//! so an open server cannot forge a trusted record. It can still withhold
+//! entries or consume resources up to the client's limits.
 //!
 //! The signature is a blob of its own, listed in the entry's `ActionResult`
 //! as [`SIGNATURE_FILE`]. It signs [`message`]: the entry's kind, its

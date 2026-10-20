@@ -343,18 +343,22 @@ async fn batch_read_blobs(
     let (metadata, _, request) = call.into_parts();
     check_function(request.digest_function)?;
     authorize(&state, &metadata, &request.instance_name, Permission::Read)?;
+    // Bound the whole response, including repeated requests for one blob.
+    // Ignore negative sizes here so ordinary per-blob validation reports them.
+    let declared = request.digests.iter().try_fold(0_i64, |total, digest| {
+        total.checked_add(digest.size_bytes.max(0))
+    });
+    if declared.is_none_or(|total| total > MAX_BATCH) {
+        return Err(Status::invalid_argument(
+            "batch exceeds the maximum total size",
+        ));
+    }
     let store = state.store.clone();
     let responses = blocking(move || {
         let mut responses = Vec::new();
         for digest in request.digests {
-            let (data, status) = match resolve(&store, &digest) {
-                Ok(Some(blob)) => match store.cas().read(&blob) {
-                    Ok(data) => (data, rpc_status(tonic::Code::Ok, "")),
-                    Err(_) => (
-                        Vec::new(),
-                        rpc_status(tonic::Code::NotFound, "blob is gone"),
-                    ),
-                },
+            let (data, status) = match read_batch_blob(&store, &digest) {
+                Ok(Some(data)) => (data, rpc_status(tonic::Code::Ok, "")),
                 Ok(None) => (
                     Vec::new(),
                     rpc_status(tonic::Code::NotFound, "blob is not stored"),
@@ -381,6 +385,38 @@ async fn batch_read_blobs(
     };
     record(&state, outcome, 0, sent);
     Ok(tonic::Response::new(BatchReadBlobsResponse { responses }))
+}
+
+/// Reads one batch member only when the stored size matches its declaration.
+/// The caller has already bounded the sum of all declarations by `MAX_BATCH`.
+fn read_batch_blob(store: &Store, digest: &Digest) -> Result<Option<Vec<u8>>, Status> {
+    let Some(blob) = resolve(store, digest)? else {
+        return Ok(None);
+    };
+    let file = match std::fs::File::open(store.cas().object_path(&blob)) {
+        Ok(file) => file,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(internal(error)),
+    };
+    let declared = u64::try_from(digest.size_bytes)
+        .map_err(|_| Status::invalid_argument("negative digest size"))?;
+    if file.metadata().map_err(internal)?.len() != declared {
+        return Err(Status::invalid_argument(
+            "stored blob size does not match digest",
+        ));
+    }
+    // Even a file changed after metadata inspection cannot grow this buffer
+    // without bound. The store directory itself must remain trusted.
+    let mut data = Vec::new();
+    file.take(declared + 1)
+        .read_to_end(&mut data)
+        .map_err(internal)?;
+    if data.len() as u64 != declared {
+        return Err(Status::invalid_argument(
+            "stored blob size does not match digest",
+        ));
+    }
+    Ok(Some(data))
 }
 
 type ReadStream = tokio_stream::wrappers::ReceiverStream<Result<ReadResponse, Status>>;

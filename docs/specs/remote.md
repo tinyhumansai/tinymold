@@ -83,13 +83,11 @@ sharing a key.
    zeroed, which forces a rehash. Then try each set as the local lookup
    would.
 3. For the first full key the local store lacks, get the remote action:
-   1. fetch every listed object the local store does not hold, refusing a
-      blob whose SHA-256 is wrong;
-   2. insert each into the local CAS, which re-derives its BLAKE3 digest,
-      and refuse the entry when that digest is not the name it was listed
-      under;
-   3. fetch and decode `.tinymold/action`, and check that every digest it
-      names is now in the store; if any is missing, it is a miss.
+   1. verify the record's signature when trusted keys are configured;
+   2. fetch and parse the bounded action record, then check that its distinct
+      references match the response's object names exactly;
+   3. fetch the authorized objects missing locally, checking SHA-256 on
+      receipt and BLAKE3 on insertion into the local CAS.
 4. Write the local action and restore it, as a local hit would. The log
    outcome is `remote`.
 
@@ -97,8 +95,8 @@ Calls go through ByteStream `Read` for blobs, so blob size is not limited
 by the gRPC message size. The connection uses HTTP/2 adaptive flow-control
 windows, so reads from a distant cache are not held to a fixed window per
 round trip. Once an entry's signature checks out, its
-objects and its record are read together, within 32 concurrent calls and
-a 32 MiB byte budget, and a pre-key
+record is read first; its authorized objects are then read within 32
+concurrent calls and a 32 MiB byte budget. A pre-key
 lookup reads its signature and record together: each read is a round trip,
 and a runner far from its cache would otherwise pay one per object on every
 hit. Each call has the configured timeout, and blob
@@ -168,7 +166,7 @@ reads answers `GetCapabilities` whatever the credential.
 - Only trusted CI holds a write credential. Pull requests from forks get no
   secrets, and read anonymously when the server allows unauthenticated
   reads, or run without a remote.
-- **A remote can only make a build miss.** Everything it returns is
+- **Hashes establish integrity, not authorship.** Everything the remote returns is
   re-hashed and checked against digests in records the client parsed itself.
   A server that returns a wrong record for a key is trusted as much as the
   CI that wrote it, which is why writes are restricted, and why readers
@@ -182,7 +180,8 @@ right. One bad bind address or a missing credential file lets anyone who
 can reach the server plant an entry that decides what a later build links.
 Signed entries make the client independent of that: a reader that names
 its trusted keys uses only entries those keys signed, so a server open to
-the world can at worst make a build miss.
+the world cannot forge a trusted record. It can still withhold entries or
+consume resources up to the client limits.
 
 - **Keys.** `tinymold remote keygen` prints a fresh ed25519 key pair as the
   two variables above. The secret goes only to trusted writers, such as CI
@@ -221,6 +220,23 @@ anonymous write while this client trusts no keys is refused with
 `Error::OpenToAnonymousWrites` and exit 1: anyone who can reach it could
 poison the cache. Either require a credential for writes or configure
 trusted keys.
+
+## Untrusted metadata
+
+The client refuses negative sizes and record blobs larger than 16 MiB before
+opening their download stream. Signature blobs are limited to 1 KiB before
+verification. Artifacts retain the separate 4 GiB blob limit.
+
+An action record is downloaded and parsed before its objects. The response's
+object names must match exactly the distinct BLAKE3 references in that record;
+missing, extra, or duplicate object names refuse the entry, even when the
+objects are already cached locally. A valid signature therefore cannot be
+reused to authorize unrelated artifact downloads. Objects still download in
+parallel, with each SHA-256 checked on receipt and BLAKE3 checked on insertion.
+This adds a record-read dependency before artifact downloads.
+
+See [cache security](cache-security.md) for public-repository trust boundaries,
+the local-store limitation, and deployment guidance.
 
 ## Acceptance criteria
 

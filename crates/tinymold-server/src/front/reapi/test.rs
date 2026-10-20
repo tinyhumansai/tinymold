@@ -730,3 +730,79 @@ fn a_raw_message_is_never_decoded_and_clears_to_nothing() {
     raw.clear();
     assert_eq!(raw, Raw::default());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn batch_reads_refuse_a_declared_total_above_the_advertised_limit() {
+    let server = start().await;
+    let mut claimed = digest(b"small");
+    claimed.size_bytes = MAX_BATCH;
+    let result: Result<BatchReadBlobsResponse, _> = unary(
+        &server,
+        BATCH_READ,
+        BatchReadBlobsRequest {
+            instance_name: String::new(),
+            digests: vec![claimed, digest(b"small")],
+            digest_function: DIGEST_SHA256,
+        },
+        None,
+    )
+    .await;
+    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn batch_reads_refuse_a_large_stored_blob_with_an_understated_size() {
+    let server = start().await;
+    let bytes = vec![42; usize::try_from(MAX_BATCH).unwrap() + 1];
+    server.store.ingest(bytes.as_slice(), None).unwrap();
+    let mut claimed = digest(&bytes);
+    claimed.size_bytes = 1;
+    let response: BatchReadBlobsResponse = unary(
+        &server,
+        BATCH_READ,
+        BatchReadBlobsRequest {
+            instance_name: String::new(),
+            digests: vec![claimed],
+            digest_function: DIGEST_SHA256,
+        },
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.responses[0].data, [] as [u8; 0]);
+    assert_eq!(
+        response.responses[0].status.as_ref().unwrap().code,
+        tonic::Code::InvalidArgument as i32
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn batch_reads_refuse_an_overflowing_declared_total() {
+    let server = start().await;
+    let mut claimed = digest(b"x");
+    claimed.size_bytes = i64::MAX;
+    let result: Result<BatchReadBlobsResponse, _> = unary(
+        &server,
+        BATCH_READ,
+        BatchReadBlobsRequest {
+            instance_name: String::new(),
+            digests: vec![claimed.clone(), claimed],
+            digest_function: DIGEST_SHA256,
+        },
+        None,
+    )
+    .await;
+    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+}
+
+#[test]
+fn a_batch_member_at_the_size_limit_can_be_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    let bytes = vec![23; usize::try_from(MAX_BATCH).unwrap()];
+    store.ingest(bytes.as_slice(), None).unwrap();
+    assert_eq!(
+        read_batch_blob(&store, &digest(&bytes)).unwrap().unwrap(),
+        bytes
+    );
+}

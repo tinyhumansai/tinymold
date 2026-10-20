@@ -49,6 +49,21 @@ pub use types::{Capabilities, PushReport};
 /// How many digests one `FindMissingBlobs` call asks about.
 const FIND_BATCH: usize = 1000;
 
+/// Metadata is much smaller than artifacts. Check server-supplied sizes
+/// before opening a stream, including before signature verification.
+const MAX_RECORD: i64 = 16 << 20;
+const MAX_SIGNATURE: i64 = 1024;
+
+fn metadata_size(digest: &proto::Digest, limit: i64) -> Result<()> {
+    if digest.size_bytes < 0 || digest.size_bytes > limit {
+        return Err(Error::BlobSize {
+            hash: digest.hash.clone(),
+            size: digest.size_bytes,
+        });
+    }
+    Ok(())
+}
+
 /// How many calls `push` and a fetch keep in flight at once. Each is a round
 /// trip; a CI runner an ocean away from its cache spends most of a call
 /// waiting, and one at a time leaves the link nearly idle.
@@ -433,6 +448,7 @@ impl RemoteCache {
                 key: key.hash.clone(),
                 reason: "it is not signed",
             })?;
+        metadata_size(&signature, MAX_SIGNATURE)?;
         let blob = self.client.read(&signature).await?;
         trusted.verify(kind, key, record, &blob)
     }
@@ -444,6 +460,7 @@ impl RemoteCache {
                 return Ok(None);
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
+            metadata_size(&digest, MAX_RECORD)?;
             // The record is only used once the signature checks out, but
             // reading both at once saves a round trip. A refused signature
             // drops the read at once, whatever the server is sending.
@@ -468,12 +485,24 @@ impl RemoteCache {
                 return Ok(None);
             };
             let record = find_file(&result, ACTION_FILE, &key)?;
+            metadata_size(&record, MAX_RECORD)?;
             // Before any object: an untrusted entry fetches nothing.
             self.verify(Kind::Action, &key, &record, &result).await?;
             let malformed = |reason| Error::Malformed {
                 key: key.hash.clone(),
                 reason,
             };
+            // The signature authenticates the record, not the server's
+            // output list. Parse it before fetching any artifact so a server
+            // cannot graft arbitrary downloads onto a valid signed entry.
+            let bytes = self.client.read(&record).await?;
+            let text =
+                String::from_utf8(bytes).map_err(|_| malformed("its action record is not text"))?;
+            let references: HashSet<_> =
+                tinymold_wrap::action_references_from_text(&text, Path::new(ACTION_FILE))?
+                    .into_iter()
+                    .collect();
+            let mut listed = HashSet::new();
             let mut wanted = Vec::new();
             for file in &result.output_files {
                 if file.path == ACTION_FILE || file.path == SIGNATURE_FILE {
@@ -481,56 +510,38 @@ impl RemoteCache {
                 }
                 let name = Digest::from_str(&file.path)
                     .map_err(|_| malformed("an output is not named by its digest"))?;
-                if store.contains(&name) {
-                    continue;
+                if !references.contains(&name) || !listed.insert(name) {
+                    return Err(malformed("outputs do not match the action record"));
                 }
                 let digest = file
                     .digest
                     .clone()
                     .ok_or_else(|| malformed("an output has no digest"))?;
-                wanted.push((name, digest));
+                if !store.contains(&name) {
+                    wanted.push((blob_size(&digest), (name, digest)));
+                }
             }
-            // Every object, and the record, in flight together under one
-            // limit: each read is a round trip. Each object goes into the
-            // store as it arrives, so memory holds only what is in flight.
-            let reads = std::iter::once((blob_size(&record), None))
-                .chain(
-                    wanted
-                        .into_iter()
-                        .map(|(name, digest)| (blob_size(&digest), Some((name, digest)))),
-                )
-                .collect();
-            let mut text = None;
+            if listed != references {
+                return Err(malformed("outputs do not match the action record"));
+            }
+            // Fetch only the objects the parsed record authorizes, keeping
+            // the ordinary byte budget and parallel artifact downloads.
             in_flight(
-                reads,
-                |object| {
-                    let record = &record;
-                    async move {
-                        let (name, digest) = match object {
-                            Some((name, digest)) => (Some(name), digest),
-                            None => (None, record.clone()),
-                        };
-                        let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
-                        (name, bytes)
-                    }
+                wanted,
+                |(name, digest)| async move {
+                    let bytes = self.client.read_sharing(&digest, IN_FLIGHT_BYTES).await;
+                    (name, bytes)
                 },
-                |(name, bytes)| match name {
-                    None => {
-                        text = Some(bytes?);
+                |(name, bytes)| {
+                    if store.insert_bytes(&bytes?)? == name {
                         Ok(())
+                    } else {
+                        Err(malformed("an output does not match its name"))
                     }
-                    Some(name) if store.insert_bytes(&bytes?)? == name => Ok(()),
-                    Some(_) => Err(malformed("an output does not match its name")),
                 },
             )
             .await?;
-            let text = text.ok_or_else(|| malformed("its action record was never read"))?;
-            String::from_utf8(text)
-                .map(Some)
-                .map_err(|_| Error::Malformed {
-                    key: key.hash,
-                    reason: "its action record is not text",
-                })
+            Ok(Some(text))
         })
     }
 }

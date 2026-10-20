@@ -530,6 +530,17 @@ impl Unit<'_> {
 
     /// Places every output of `action` and replays rustc's output.
     fn restore(&self, action: &Action) -> Result<()> {
+        // Validate names before cleanup. A remote record must not turn a
+        // shared stem prefix into permission to replace another unit's files.
+        let prefixes = self.invocation.output_prefixes();
+        let dep_info = format!("{}.d", prefixes[1]);
+        for output in &action.outputs {
+            if !matches_output_stem(&output.name, &prefixes)
+                || (output.text && output.name != dep_info)
+            {
+                return Err(Error::UnexpectedOutput(output.name.clone()));
+            }
+        }
         // Read the replayed text first, so a missing object fails the hit
         // before any output is touched.
         let stdout = self.expand_object(&action.stdout)?;
@@ -604,7 +615,15 @@ impl Unit<'_> {
         let destination = self.out_dir.join(&output.name);
         if output.text {
             let text = self.expand_object(&output.digest)?;
-            fs::write(&destination, text).map_err(io("write", &destination))?;
+            // Records may come from a remote. Like binary materialization,
+            // refuse existing files and symlinks rather than following them.
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&destination)
+                .map_err(io("create", &destination))?;
+            file.write_all(text.as_bytes())
+                .map_err(io("write", &destination))?;
         } else if !in_place {
             // A reflink or a copy, never a hardlink: a linker may rewrite
             // its output in place, and that must not be the store's inode.
@@ -967,9 +986,7 @@ impl Unit<'_> {
         for entry in entries {
             let entry = entry.map_err(io("read", &self.out_dir))?;
             if let Some(name) = entry.file_name().to_str()
-                && prefixes
-                    .iter()
-                    .any(|prefix| name.starts_with(prefix.as_str()))
+                && matches_output_stem(name, &prefixes)
             {
                 files.push((name.to_owned(), entry.path()));
             }
@@ -1034,6 +1051,15 @@ impl Unit<'_> {
 
 /// How many bytes of an output [`file_contains`] holds in memory at once.
 const SCAN_CHUNK: usize = 1 << 20;
+
+/// A unit stem ends before an extension (or at the filename's end), so
+/// demo-1 does not claim demo-10's files in a shared output directory.
+fn matches_output_stem(name: &str, prefixes: &[String; 2]) -> bool {
+    prefixes.iter().any(|prefix| {
+        name.strip_prefix(prefix.as_str())
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
+    })
+}
 
 /// Whether each of `needles` occurs anywhere in the file at `path`, read
 /// `chunk` bytes at a time, so a large output never has to fit in memory.
