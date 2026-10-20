@@ -83,13 +83,11 @@ sharing a key.
    zeroed, which forces a rehash. Then try each set as the local lookup
    would.
 3. For the first full key the local store lacks, get the remote action:
-   1. fetch every listed object the local store does not hold, refusing a
-      blob whose SHA-256 is wrong;
-   2. insert each into the local CAS, which re-derives its BLAKE3 digest,
-      and refuse the entry when that digest is not the name it was listed
-      under;
-   3. fetch and decode `.tinymold/action`, and check that every digest it
-      names is now in the store; if any is missing, it is a miss.
+   1. verify the record's signature when trusted keys are configured;
+   2. fetch and parse the bounded action record, then check that its distinct
+      references match the response's object names exactly;
+   3. fetch the authorized objects missing locally, checking SHA-256 on
+      receipt and BLAKE3 on insertion into the local CAS.
 4. Write the local action and restore it, as a local hit would. The log
    outcome is `remote`.
 
@@ -97,8 +95,8 @@ Calls go through ByteStream `Read` for blobs, so blob size is not limited
 by the gRPC message size. The connection uses HTTP/2 adaptive flow-control
 windows, so reads from a distant cache are not held to a fixed window per
 round trip. Once an entry's signature checks out, its
-objects and its record are read together, within 32 concurrent calls and
-a 32 MiB byte budget, and a pre-key
+record is read first; its authorized objects are then read within 32
+concurrent calls and a 32 MiB byte budget. A pre-key
 lookup reads its signature and record together: each read is a round trip,
 and a runner far from its cache would otherwise pay one per object on every
 hit. Each call has the configured timeout, and blob

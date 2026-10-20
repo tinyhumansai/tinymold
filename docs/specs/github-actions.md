@@ -70,7 +70,7 @@ steps:
     if: always()
 ```
 
-With a remote server:
+With a remote server (see [cache security](cache-security.md) for public PRs):
 
 ```yaml
   - uses: tinyhumansai/tinymold@v0
@@ -78,6 +78,7 @@ With a remote server:
       backend: both
       remote-url: grpcs://cache.example.com
       remote-auth: ${{ secrets.TINYMOLD_REMOTE_AUTH }}
+      remote-trusted-keys: ${{ vars.TINYMOLD_REMOTE_TRUSTED_KEYS }}
 ```
 
 ## Inputs
