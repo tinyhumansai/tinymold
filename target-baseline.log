@@ -113,3 +113,7 @@
    Compiling h2 v0.4.20
    Compiling tower v0.5.3
    Compiling hyper v1.12.0
+   Compiling hyper-util v0.1.21
+   Compiling tokio-rustls v0.26.6
+   Compiling hyper-timeout v0.5.2
+   Compiling tonic v0.14.6
