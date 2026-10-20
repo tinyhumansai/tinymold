@@ -865,7 +865,7 @@ fn entries_tinymold_did_not_write_are_refused() {
     ));
 
     let unnamed = fetch_error(vec![
-        (ACTION_FILE.to_owned(), b"record".to_vec()),
+        (ACTION_FILE.to_owned(), record_for(b"x")),
         ("libdemo.rlib".to_owned(), b"x".to_vec()),
     ]);
     assert!(matches!(
@@ -877,7 +877,7 @@ fn entries_tinymold_did_not_write_are_refused() {
     ));
 
     let misnamed = fetch_error(vec![
-        (ACTION_FILE.to_owned(), b"record".to_vec()),
+        (ACTION_FILE.to_owned(), record_for(b"other")),
         (Digest::of_bytes(b"other").to_hex(), b"x".to_vec()),
     ]);
     assert!(matches!(
@@ -905,7 +905,7 @@ fn an_output_without_a_digest_is_refused() {
     plant(
         &server,
         &key,
-        vec![(ACTION_FILE.to_owned(), b"record".to_vec())],
+        vec![(ACTION_FILE.to_owned(), record_for(b"x"))],
     );
     server.with(|state| {
         let result = state
@@ -1179,5 +1179,27 @@ fn a_signed_record_does_not_authorize_an_unrelated_extra_blob() {
             !store.contains(object),
             "refuse the entry before fetching artifacts"
         );
+    }
+}
+
+/// A valid action that references just the supplied diagnostic bytes.
+fn record_for(bytes: &[u8]) -> Vec<u8> {
+    let digest = Digest::of_bytes(bytes);
+    format!("tinymold-action 1\nstdout {digest}\nstderr {digest}\n").into_bytes()
+}
+
+#[test]
+fn metadata_size_limits_include_the_boundary_and_reject_negative_sizes() {
+    for limit in [MAX_RECORD, MAX_SIGNATURE] {
+        let mut digest = naming::blob(b"");
+        digest.size_bytes = limit;
+        assert!(metadata_size(&digest, limit).is_ok());
+        for size in [-1, limit + 1] {
+            digest.size_bytes = size;
+            assert!(matches!(
+                metadata_size(&digest, limit),
+                Err(Error::BlobSize { .. })
+            ));
+        }
     }
 }
