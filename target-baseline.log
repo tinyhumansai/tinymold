@@ -1391,3 +1391,200 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 test runner::test::a_package_without_a_manifest_passes_through ... ok
 test compile::test::an_executable_over_the_limit_is_compiled_but_never_stored ... ok
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_passing_run_is_replayed_without_running_the_binary ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_run_that_writes_into_its_package_is_not_recorded ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_run_whose_stdin_may_carry_input_is_never_cached ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+thread 'main' (90243671) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/env.rs:878:51:
+called `Result::unwrap()` on an `Err` value: "--\xFF"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test runner::test::arguments_and_env_vars_that_are_not_utf8_pass_through ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_changed_binary_runs_again ... ok
+
+running 1 test
+test it_works ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::bench_coverage_and_opted_out_runs_pass_through ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::run_test_uncached_runs_the_binary_as_asked ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_shared_library_in_a_native_search_path_of_the_build_turns_caching_off ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_via_program_runs_the_binary_and_joins_the_key ... ok
+test stat::test::rustc_version_runs_once_per_compiler_identity ... ok
+
+test result: ok. 161 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.45s
+
+   Doc-tests tinymold
+
+running 4 tests
+test crates/tinymold/src/location/mod.rs - location::default_server_dir (line 52) ... ok
+test crates/tinymold/src/location/mod.rs - location::default_store (line 23) ... ok
+test crates/tinymold/src/doctor/mod.rs - doctor::find_on_path (line 141) ... ok
+test crates/tinymold/src/lib.rs - (line 33) ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 2.17s; merged doctests compilation took 1.02s
+   Doc-tests tinymold_cas
+
+running 1 test
+test crates/tinymold-cas/src/lib.rs - (line 25) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.56s; merged doctests compilation took 0.12s
+   Doc-tests tinymold_hash
+
+running 3 tests
+test crates/tinymold-hash/src/digest/mod.rs - digest::Digest::of_bytes (line 45) ... ok
+test crates/tinymold-hash/src/digest/mod.rs - digest::Hasher (line 128) ... ok
+test crates/tinymold-hash/src/lib.rs - (line 15) ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.52s; merged doctests compilation took 0.11s
+   Doc-tests tinymold_key
+
+running 1 test
+test crates/tinymold-key/src/lib.rs - (line 26) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.55s; merged doctests compilation took 0.13s
+   Doc-tests tinymold_remote
+
+running 1 test
+test crates/tinymold-remote/src/lib.rs - (line 17) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.56s; merged doctests compilation took 0.15s
+   Doc-tests tinymold_server
+
+running 1 test
+test crates/tinymold-server/src/lib.rs - (line 17) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 1.30s; merged doctests compilation took 0.89s
+   Doc-tests tinymold_store
+
+running 1 test
+test crates/tinymold-store/src/lib.rs - (line 26) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.57s; merged doctests compilation took 0.13s
+   Doc-tests tinymold_wrap
+
+running 1 test
+test crates/tinymold-wrap/src/lib.rs - (line 20) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.54s; merged doctests compilation took 0.10s
