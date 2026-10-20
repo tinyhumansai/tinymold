@@ -24,7 +24,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tinymold_cas::{Store, Strategy};
 use tinymold_hash::Digest;
@@ -564,15 +564,22 @@ impl Unit<'_> {
                 Err(error) => return Err(io("replace", &path)(error)),
             }
         }
+        // Stamp restored outputs from the out-dir's own clock, the clock cargo
+        // reads when it records that a dependent unit started. Linux stamps
+        // files from a coarse clock that lags the wall clock by up to a tick,
+        // so an output stamped `SystemTime::now()` read as newer than a
+        // dependent started just after it, and the next cargo invocation
+        // rebuilt everything above it ("the dependency was rebuilt").
+        let written = UNIX_EPOCH + Duration::from_nanos(filesystem_now(&self.out_dir)?);
         let placements = if action.outputs.len() < PARALLEL_RESTORE_MIN {
             action
                 .outputs
                 .iter()
-                .map(|output| self.place(output, kept.contains(&output.name)))
+                .map(|output| self.place(output, kept.contains(&output.name), written))
                 .collect::<Result<Vec<_>>>()?
         } else {
             parallel::map(&action.outputs, "restoring outputs", |output| {
-                self.place(output, kept.contains(&output.name))
+                self.place(output, kept.contains(&output.name), written)
             })?
         };
         let placements: Vec<Placement> = placements.into_iter().flatten().collect();
@@ -585,9 +592,15 @@ impl Unit<'_> {
         Ok(())
     }
 
-    /// Places one output of a hit in the out-dir, freshly modified, unless
-    /// it is `in_place` already; returns a binary output as it now is.
-    fn place(&self, output: &Output, in_place: bool) -> Result<Option<Placement>> {
+    /// Places one output of a hit in the out-dir, modified at `written` (the
+    /// out-dir filesystem's now), unless it is `in_place` already; returns a
+    /// binary output as it now is.
+    fn place(
+        &self,
+        output: &Output,
+        in_place: bool,
+        written: SystemTime,
+    ) -> Result<Option<Placement>> {
         let destination = self.out_dir.join(&output.name);
         if output.text {
             let text = self.expand_object(&output.digest)?;
@@ -614,7 +627,7 @@ impl Unit<'_> {
                 .write(true)
                 .open(&destination)
                 .map_err(io("open", &destination))?;
-            file.set_modified(SystemTime::now())
+            file.set_modified(written)
                 .map_err(io("set the mtime of", &destination))?;
         }
         if output.text {
