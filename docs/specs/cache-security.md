@@ -75,7 +75,7 @@ the public verification keys, and read-only server access. For example:
   env:
     TRUSTED_KEYS: ${{ vars.TINYMOLD_REMOTE_TRUSTED_KEYS }}
   run: |
-    if [[ -z "${TRUSTED_KEYS}" ]]; then
+    if [[ -z "${TRUSTED_KEYS//[[:space:]]/}" ]]; then
       echo "::error::TINYMOLD_REMOTE_TRUSTED_KEYS must be configured"
       exit 1
     fi
