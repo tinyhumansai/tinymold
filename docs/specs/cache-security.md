@@ -95,6 +95,7 @@ example requires a release containing the protections described below;
 | Boundary | Protection |
 | --- | --- |
 | Server upload | Streamed into private staging; content-derived names; claimed digests checked before committing |
+| REAPI batch reads | Declared total limited to 4 MiB with overflow checks; actual stored sizes checked before bounded reads |
 | Server network access | Token scopes distinguish read and write; an unauthenticated listener is restricted to loopback |
 | Remote artifact reads | SHA-256 verified on receipt, BLAKE3 verified on insertion |
 | Remote authorship | Ed25519 verification of records when trusted keys are configured |

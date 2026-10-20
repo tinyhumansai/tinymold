@@ -775,3 +775,34 @@ async fn batch_reads_refuse_a_large_stored_blob_with_an_understated_size() {
         tonic::Code::InvalidArgument as i32
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn batch_reads_refuse_an_overflowing_declared_total() {
+    let server = start().await;
+    let mut claimed = digest(b"x");
+    claimed.size_bytes = i64::MAX;
+    let result: Result<BatchReadBlobsResponse, _> = unary(
+        &server,
+        BATCH_READ,
+        BatchReadBlobsRequest {
+            instance_name: String::new(),
+            digests: vec![claimed.clone(), claimed],
+            digest_function: DIGEST_SHA256,
+        },
+        None,
+    )
+    .await;
+    assert_eq!(result.unwrap_err().code(), tonic::Code::InvalidArgument);
+}
+
+#[test]
+fn a_batch_member_at_the_size_limit_can_be_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    let bytes = vec![23; usize::try_from(MAX_BATCH).unwrap()];
+    store.ingest(bytes.as_slice(), None).unwrap();
+    assert_eq!(
+        read_batch_blob(&store, &digest(&bytes)).unwrap().unwrap(),
+        bytes
+    );
+}

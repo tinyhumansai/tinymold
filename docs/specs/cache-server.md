@@ -336,3 +336,14 @@ count. `FindMissingBlobs` and peak memory are not measured yet.
 - **Wire compression.** REAPI's compressed-blobs (zstd) and HTTP
   `Content-Encoding`: worth negotiating on localhost, where it only costs?
 - **Windows.** The native socket needs a named-pipe equivalent.
+
+
+### Untrusted batch reads
+
+REAPI `BatchReadBlobs` refuses a request whose total declared blob size exceeds
+the advertised 4 MiB batch limit, including duplicate digests and integer
+overflow. Each stored blob's actual size must match its requested digest
+before its bytes are read into memory. Reads are also bounded against file
+growth between the size check and reading. Clients use ByteStream for larger
+objects. See [cache security](cache-security.md) for the public-repository
+trust boundary and remaining availability limits.
