@@ -117,3 +117,183 @@
    Compiling tokio-rustls v0.26.6
    Compiling hyper-timeout v0.5.2
    Compiling tonic v0.14.6
+   Compiling tonic-prost v0.14.6
+   Compiling tinymold-server v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-server)
+   Compiling tinymold-remote v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-remote)
+   Compiling tinymold v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.49s
+     Running unittests src/lib.rs (target/debug/deps/tinymold-a71b0e817824a050)
+
+running 160 tests
+test cli::test::every_strategy_maps_to_the_store_strategy ... ok
+test autogc::test::a_store_that_does_not_exist_is_never_collected ... ok
+test cli::test::outcomes_map_to_exit_codes ... ok
+test autogc::test::a_stamp_from_the_future_does_not_claim_a_collection ... ok
+test autogc::test::automatic_collection_is_on_unless_switched_off ... ok
+test cli::test::locations_default_to_the_cwd_and_cargo_target_dir ... ok
+test autogc::test::a_collection_is_due_once_per_interval ... ok
+test cli::test::rejects_a_malformed_digest_at_parse_time ... ok
+test cli::test::hash_fails_on_a_missing_file ... ok
+test cli::test::doctor_describes_the_remote_without_its_credential ... ok
+test cli::test::snapshot_commands_need_a_store ... ok
+test autogc::test::the_collection_keeps_recent_generations_of_the_given_store ... ok
+test autogc::test::the_collection_drops_entries_unused_for_48_hours ... ok
+test cli::test::gc_rejects_an_unparsable_age_or_size ... ok
+test cli::test::remote_commands_need_a_remote ... ok
+test cli::test::stats_fails_on_a_log_it_cannot_read ... ok
+test cli::test::a_store_path_that_is_a_file_is_an_error ... ok
+test doctor::test::extracts_fields_from_verbose_version_output ... ok
+test doctor::test::a_missing_rustc_is_reported_not_fatal ... ok
+test cli::test::stats_of_a_log_not_written_yet_has_no_hit_rate ... ok
+test cli::test::has_reports_absence_through_the_outcome ... ok
+test cli::test::hash_prints_digest_and_path_like_b3sum ... ok
+test doctor::test::reports_a_configured_remote ... ok
+test error::test::a_missing_log_location_says_how_to_give_one ... ok
+test error::test::a_missing_remote_says_how_to_configure_one ... ok
+test error::test::freshness_and_snapshot_errors_say_what_went_wrong ... ok
+test error::test::invalid_limits_say_what_is_accepted ... ok
+test error::test::library_errors_convert_and_render_transparently ... ok
+test error::test::output_errors_keep_their_cause ... ok
+test cli::test::remote_keygen_prints_a_matching_key_pair_without_a_remote ... ok
+test error::test::remote_errors_convert_transparently ... ok
+test error::test::store_location_error_tells_the_user_how_to_fix_it ... ok
+test error::test::wrapper_errors_convert_transparently ... ok
+test fresh::test::a_corrupt_manifest_names_the_bad_line ... ok
+test cli::test::stats_summarizes_a_log_and_checks_the_hit_rate ... ok
+test doctor::test::finds_only_tools_that_exist ... ok
+test cli::test::store_errors_propagate ... ok
+test cli::test::gc_reports_what_it_removed_from_the_store ... ok
+test cli::test::remote_push_of_an_empty_store_sends_nothing_and_check_needs_a_server ... ok
+test fresh::test::a_missing_or_non_directory_target_has_no_fingerprints ... ok
+test cli::test::put_get_has_and_verify_round_trip_through_a_store ... ok
+test fresh::test::paths_that_cannot_be_one_manifest_line_are_skipped ... ok
+test cli::test::fresh_record_then_restore_reports_counts ... ok
+test fresh::test::record_fails_on_an_unreadable_workspace ... ok
+test fresh::test::a_corrupt_manifest_on_disk_is_reported ... ok
+test fresh::test::an_unreadable_profile_directory_is_an_error ... ok
+test cli::test::snapshot_save_without_a_name_needs_a_git_checkout ... ok
+test fresh::test::a_changed_file_older_than_the_outputs_is_made_newer ... ok
+test fresh::test::a_second_record_reuses_digests_of_unchanged_files ... ok
+test fresh::test::only_cargo_fingerprints_move_the_stamp ... ok
+test fresh::test::the_manifest_encoding_is_pinned ... ok
+test fresh::test::times_convert_to_nanoseconds_and_back ... ok
+test fresh::test::a_file_rewritten_within_a_coarse_tick_of_the_record_is_hashed_again ... ok
+test fresh::test::record_counts_files_with_unencodable_names_as_skipped ... ok
+test cli::test::snapshot_save_list_and_restore_round_trip ... ok
+test fresh::test::write_atomically_reports_an_unwritable_location ... ok
+test fresh::test::record_ignores_an_unreadable_previous_manifest ... ok
+test gc::test::a_shorter_grace_sweeps_young_unreferenced_objects ... ok
+test fresh::test::records_workspace_files_but_not_git_targets_or_nested_checkouts ... ok
+test fresh::test::restore_without_a_manifest_does_nothing ... ok
+test gc::test::a_record_that_cannot_be_removed_is_an_error ... ok
+test gc::test::a_dry_run_reports_the_same_numbers_and_removes_nothing ... ok
+test gc::test::ages_parse_with_every_unit_and_reject_anything_else ... ok
+test doctor::test::a_failing_rustc_yields_no_output ... ok
+test fresh::test::restore_leaves_changed_and_missing_files_alone ... ok
+test fresh::test::restore_undoes_a_touch_that_did_not_change_content ... ok
+test fresh::test::restore_refuses_after_a_build_changed_the_target ... ok
+test gc::test::an_unreadable_snapshots_path_is_an_error ... ok
+test gc::test::a_test_run_that_cannot_be_read_is_an_error_not_garbage ... ok
+test fresh::test::every_fingerprint_location_cargo_uses_is_read ... ok
+test gc::test::a_young_unreferenced_object_is_left_for_an_ingest_in_progress ... ok
+test gc::test::sizes_parse_plain_or_with_a_binary_suffix_and_reject_anything_else ... ok
+test gc::test::sizes_display_in_the_largest_fitting_unit ... ok
+test fresh::test::verified_restore_hashes_even_when_mtimes_match_and_memoizes ... ok
+test gc::test::a_test_run_keeps_its_output_until_it_expires ... ok
+test gc::test::snapshot_expiry_without_a_snapshots_directory_removes_nothing ... ok
+test gc::test::usage_of_a_missing_store_is_zero_and_creates_nothing ... ok
+test gc::test::old_lock_files_go_unless_a_wrapper_holds_them ... ok
+test gc::test::an_object_shared_by_two_actions_survives_until_neither_is_kept ... ok
+test gc::test::an_action_unused_past_the_cutoff_goes_and_a_recent_one_stays ... ok
+test gc::test::a_size_budget_keeps_the_most_recently_used_actions_that_fit ... ok
+test gc::test::snapshots_older_than_their_cutoff_go ... ok
+test gocacheprog::test::a_body_line_cut_off_mid_string_is_an_input_error ... ok
+test gc::test::evicting_for_size_frees_only_objects_no_kept_action_shares ... ok
+test gc::test::usage_counts_objects_and_bytes ... ok
+test gocacheprog::test::a_body_that_is_not_a_json_string_is_an_input_error ... ok
+test gocacheprog::test::a_closed_output_is_an_output_error ... ok
+test gocacheprog::test::a_session_starts_by_announcing_its_commands ... ok
+test gocacheprog::test::a_body_of_the_wrong_size_is_refused_and_the_session_stays_in_step ... ok
+test gc::test::old_pre_keys_caches_and_temporaries_go_and_corrupt_actions_are_dropped ... ok
+test gc::test::without_limits_only_garbage_goes ... ok
+test gocacheprog::test::hex_round_trips_and_rejects_odd_or_bad_text ... ok
+test gocacheprog::test::json_strings_escape_quotes_backslashes_and_controls ... ok
+test gocacheprog::test::malformed_requests_are_refused ... ok
+test gocacheprog::test::requests_parse_with_escapes_and_the_old_object_id_name ... ok
+test location::test::an_explicit_store_wins ... ok
+test gocacheprog::test::blank_lines_between_requests_are_skipped ... ok
+test gocacheprog::test::an_unknown_action_is_a_miss ... ok
+test location::test::local_app_data_is_used_on_windows_style_environments ... ok
+test location::test::the_server_dir_prefers_its_own_variable_and_never_the_wrapper_store ... ok
+test location::test::empty_variables_are_ignored ... ok
+test location::test::nothing_set_means_no_location ... ok
+test location::test::xdg_cache_home_beats_home ... ok
+test serve::test::arguments_become_a_server_configuration ... ok
+test gc::test::test_binary_records_expire_like_pre_keys ... ok
+test serve::test::a_tls_certificate_needs_a_key ... ok
+test serve::test::a_bind_failure_is_a_server_error ... ok
+test serve::test::defaults_are_loopback_and_open ... ok
+test gocacheprog::test::close_answers_and_ends_the_session ... ok
+test serve::test::the_command_line_reaches_the_server ... ok
+test gocacheprog::test::input_that_is_not_the_protocol_ends_the_session_with_an_error ... ok
+test serve::test::serving_the_wrapper_store_is_refused ... ok
+test serve::test::the_scheme_follows_tls ... ok
+test gocacheprog::test::unknown_commands_are_answered_with_an_error ... ok
+test gocacheprog::test::the_command_serves_the_named_store_and_refuses_the_wrapper_store ... ok
+test gocacheprog::test::a_put_output_is_served_back_from_its_disk_path ... ok
+test serve::test::a_closed_output_is_an_output_error ... ok
+test doctor::test::reads_the_toolchain_through_rustc ... ok
+test cli::test::output_failures_are_reported ... ok
+test cli::test::doctor_prints_a_report ... ok
+test doctor::test::reports_every_searched_tool_with_its_location ... ok
+test gocacheprog::test::an_empty_output_has_no_body_line ... ok
+test gc::test::each_unit_keeps_only_its_most_recent_generations ... ok
+test stats::test::an_empty_log_says_so ... ok
+test stats::test::counts_every_outcome_and_skips_lines_it_cannot_read ... ok
+test stats::test::keeps_the_slowest_misses_slowest_first ... ok
+test serve::test::starting_binds_and_says_where_it_listens ... ok
+test doctor::test::reports_the_size_of_an_existing_store ... ok
+test stats::test::test_runs_are_counted_apart_from_compiles ... ok
+test stats::test::renders_text_and_markdown ... ok
+test stats::test::the_hit_rate_counts_cacheable_invocations_only ... ok
+test serve::test::running_serves_until_shutdown_and_succeeds ... ok
+test tree::test::a_walk_into_a_missing_parent_reports_the_path ... ok
+test tree::test::a_whole_tree_clone_that_cannot_happen_falls_back_cleanly ... ok
+test tree::test::a_walk_of_a_missing_source_reports_the_source ... ok
+test tree::test::describes_how_the_tree_was_placed ... ok
+test tree::test::refuses_a_source_that_is_not_a_directory ... ok
+test tree::test::set_modified_works_on_a_read_only_file ... ok
+test wrapper::test::a_remote_is_configured_only_by_a_well_formed_url ... ok
+test wrapper::test::compilers_and_paths_are_wrapper_calls ... ok
+test wrapper::test::subcommands_and_flags_are_not ... ok
+test tree::test::refuses_an_existing_destination ... ok
+test wrapper::test::the_executable_limit_comes_from_the_environment_and_ignores_malformed_sizes ... ok
+test wrapper::test::the_wrapper_uses_the_default_store_and_an_optional_log ... ok
+test snapshot::test::restore_reports_missing_snapshots ... ok
+test snapshot::test::a_snapshot_without_a_manifest_scores_zero ... ok
+test snapshot::test::snapshot_names_are_single_plain_path_components ... ok
+test snapshot::test::store_failures_carry_the_path ... ok
+test tree::test::clones_a_tree_with_contents_mtimes_and_symlinks ... ok
+test snapshot::test::a_snapshot_whose_outputs_moved_is_refused_and_removed ... ok
+test tree::test::the_file_walk_alone_preserves_contents_and_mtimes ... ok
+test snapshot::test::a_second_worktree_restores_a_snapshot_and_gets_the_built_mtimes ... ok
+test snapshot::test::replacing_deletes_a_target_without_a_valid_manifest ... ok
+test snapshot::test::a_file_that_differs_from_the_snapshot_is_made_newer_than_its_outputs ... ok
+test snapshot::test::saving_again_replaces_the_snapshot_and_list_shows_it ... ok
+test snapshot::test::restore_by_name_replaces_an_existing_target_only_when_asked ... ok
+test snapshot::test::equal_mtimes_from_another_workspace_are_not_trusted ... ok
+test snapshot::test::replacing_keeps_a_valid_target_as_an_automatic_snapshot ... ok
+test snapshot::test::the_best_match_is_the_snapshot_sharing_the_most_content ... ok
+test cli::test::git_head_names_the_checked_out_commit ... ok
+
+test result: ok. 160 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running unittests src/main.rs (target/debug/deps/tinymold-22a916be828c6d03)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (target/debug/deps/cli-7744ac15fe05febc)
+
+running 3 tests
