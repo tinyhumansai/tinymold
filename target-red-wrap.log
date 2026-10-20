@@ -1,0 +1,45 @@
+   Compiling libc v0.2.189
+   Compiling getrandom v0.4.3
+   Compiling once_cell v1.21.4
+   Compiling syn v3.0.3
+   Compiling thiserror-impl v2.0.20
+   Compiling thiserror v2.0.20
+   Compiling errno v0.3.14
+   Compiling rustix v1.1.4
+   Compiling tempfile v3.27.0
+   Compiling tinymold-hash v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-hash)
+   Compiling tinymold-key v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-key)
+   Compiling tinymold-cas v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-cas)
+   Compiling tinymold-wrap v0.3.1 (/Users/enamakel/work/tinymold/worktrees/harden-untrusted-cache/crates/tinymold-wrap)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.77s
+     Running unittests src/lib.rs (target/debug/deps/tinymold_wrap-71fdc4ade3a9cf7e)
+
+running 2 tests
+test compile::test::restoring_text_refuses_a_symlink_outside_the_units_outputs ... FAILED
+test compile::test::restoring_text_refuses_an_unrelated_existing_file ... FAILED
+
+failures:
+
+---- compile::test::restoring_text_refuses_a_symlink_outside_the_units_outputs stdout ----
+
+thread 'compile::test::restoring_text_refuses_a_symlink_outside_the_units_outputs' (90282440) panicked at crates/tinymold-wrap/src/compile/test.rs:1323:5:
+assertion `left == right` failed
+  left: [100, 101, 109, 111, 45, 49, 46, 100, 58, 32, 115, 114, 99, 47, 108, 105, 98, 46, 114, 115, 10]
+ right: [107, 101, 101, 112, 32, 109, 101]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- compile::test::restoring_text_refuses_an_unrelated_existing_file stdout ----
+
+thread 'compile::test::restoring_text_refuses_an_unrelated_existing_file' (90282441) panicked at crates/tinymold-wrap/src/compile/test.rs:1338:5:
+assertion `left == right` failed
+  left: [100, 101, 109, 111, 45, 49, 46, 100, 58, 32, 115, 114, 99, 47, 108, 105, 98, 46, 114, 115, 10]
+ right: [107, 101, 101, 112, 32, 109, 101]
+
+
+failures:
+    compile::test::restoring_text_refuses_a_symlink_outside_the_units_outputs
+    compile::test::restoring_text_refuses_an_unrelated_existing_file
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p tinymold-wrap --lib`
