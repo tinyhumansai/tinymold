@@ -592,8 +592,9 @@ impl Unit<'_> {
         Ok(())
     }
 
-    /// Places one output of a hit in the out-dir, freshly modified, unless
-    /// it is `in_place` already; returns a binary output as it now is.
+    /// Places one output of a hit in the out-dir, modified at `written` (the
+    /// out-dir filesystem's now), unless it is `in_place` already; returns a
+    /// binary output as it now is.
     fn place(
         &self,
         output: &Output,
