@@ -469,3 +469,856 @@ test test_key::test::every_keyed_field_moves_the_key ... ok
 test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
      Running unittests src/lib.rs (target/debug/deps/tinymold_remote-bc6eb29b4496e341)
+
+running 93 tests
+test config::test::base64_matches_rfc_4648_vectors ... ok
+test config::test::grpc_urls_become_channel_uris ... ok
+test config::test::every_variable_is_read ... ok
+test config::test::malformed_credentials_and_timeouts_are_rejected ... ok
+test config::test::malformed_urls_are_rejected ... ok
+test config::test::malformed_keys_are_rejected ... ok
+test config::test::no_url_means_no_remote ... ok
+test config::test::the_credential_is_never_printed ... ok
+test client::test::the_credential_is_kept_out_of_debug_output ... ok
+test error::test::configuration_errors_say_what_is_accepted ... ok
+test client::test::transfers_get_time_in_proportion_to_their_size ... ok
+test client::test::a_transfer_sharing_the_link_gets_time_for_everything_in_flight ... ok
+test error::test::setup_and_local_errors_render ... ok
+test error::test::call_errors_name_the_call ... ok
+test naming::test::action_keys_are_the_full_key_and_pre_keys_are_salted ... ok
+test naming::test::blobs_are_named_by_sha256_and_size ... ok
+test naming::test::resources_follow_the_reapi_grammar ... ok
+test client::test::a_blob_declared_too_large_or_negative_is_refused_before_reading ... ok
+test proto::test::a_digest_is_hash_one_and_size_two ... ok
+test proto::test::action_cache_requests_put_the_digest_function_where_reapi_does ... ok
+test proto::test::an_action_result_lists_files_at_two_and_the_exit_code_at_four ... ok
+test proto::test::byte_stream_messages_carry_data_at_ten ... ok
+test proto::test::capabilities_decode_digest_functions_and_whether_updates_are_enabled ... ok
+test proto::test::find_missing_blobs_sends_digests_at_two_and_reads_them_back_at_two ... ok
+test remote::test::a_connection_the_server_closed_is_retried ... ok
+test client::test::tls_endpoints_and_credentials_are_set_up ... ok
+test client::test::an_unreachable_server_fails_the_call ... ok
+test config::test::signing_and_trusted_keys_are_read ... ok
+test remote::test::a_proxy_whose_server_is_restarting_is_retried ... ok
+test client::test::reading_a_missing_blob_is_a_not_found_status ... ok
+test client::test::capabilities_report_sha256_and_whether_updates_are_allowed ... ok
+test client::test::a_stream_longer_than_its_declared_size_is_cut_off ... ok
+test client::test::a_read_only_server_refuses_writes ... ok
+test client::test::a_blob_whose_content_does_not_match_is_rejected ... ok
+test client::test::a_key_sent_without_a_size_is_refused_as_bazel_remote_refuses_it ... ok
+test remote::test::a_pre_key_record_that_is_not_text_is_refused ... ok
+test client::test::the_credential_is_sent_on_every_call ... ok
+test client::test::an_action_result_round_trips_and_a_missing_one_is_none ... ok
+test remote::test::a_corrupt_action_record_is_skipped ... ok
+test remote::test::an_action_whose_object_is_gone_is_skipped ... ok
+test remote::test::a_read_only_server_fails_the_push ... ok
+test remote::test::an_output_without_a_digest_is_refused ... ok
+test remote::test::a_signed_entry_whose_record_is_swapped_is_refused ... ok
+test remote::test::a_pushed_action_is_fetched_into_an_empty_store ... ok
+test remote::test::an_entry_signed_by_an_untrusted_key_is_refused ... ok
+test remote::test::check_accepts_an_open_server_when_entries_must_be_signed ... ok
+test remote::test::a_reader_without_trusted_keys_still_uses_signed_entries ... ok
+test remote::test::check_reports_capabilities ... ok
+test remote::test::check_refuses_a_server_open_to_anonymous_writes ... ok
+test remote::test::a_signed_entry_is_fetched_by_a_reader_that_trusts_its_key ... ok
+test remote::test::check_tells_a_refused_credential_from_an_anonymous_read_only_client ... ok
+test remote::test::an_evicted_signature_during_refresh_does_not_abort_the_push ... ok
+test remote::test::an_unsigned_entry_is_refused_before_any_object_is_fetched ... ok
+test remote::test::an_unsigned_pre_key_is_refused_without_waiting_for_its_record ... ok
+test remote::test::entries_tinymold_did_not_write_are_refused ... ok
+test remote::test::in_flight_stops_at_the_first_failure ... ok
+test remote::test::a_blob_over_the_budget_still_goes_up_alone ... ok
+test remote::test::objects_the_store_already_holds_are_not_fetched_again ... ok
+test remote::test::push_since_skips_records_not_used_since ... ok
+test remote::test::a_transient_refresh_failure_falls_back_to_uploading ... ok
+test remote::test::pushing_again_uploads_no_blob_twice ... ok
+test client::test::large_and_empty_blobs_survive_chunked_transfers ... ok
+test remote::test::saving_a_remote_hit_refreshes_it_without_reading_local_outputs ... ok
+test remote::test::in_flight_runs_a_job_over_the_budget_alone ... ok
+test remote::test::saving_repairs_a_remote_action_with_the_wrong_record ... ok
+test remote::test::saving_repairs_an_existing_action_whose_remote_blob_was_evicted ... ok
+test remote::test::unknown_keys_are_none ... ok
+test signing::test::a_fixed_seed_gives_a_pinned_key_and_signature ... ok
+test remote::test::signed_pushes_are_idempotent ... ok
+test signing::test::a_malformed_signature_is_untrusted ... ok
+test signing::test::a_list_of_trusted_keys_accepts_any_of_them ... ok
+test signing::test::a_signature_by_a_trusted_key_verifies ... ok
+test signing::test::a_signature_by_another_key_is_untrusted ... ok
+test signing::test::bad_keys_are_refused ... ok
+test signing::test::keys_round_trip_through_hex ... ok
+test signing::test::the_signed_message_is_pinned ... ok
+test signing::test::a_signature_is_bound_to_its_kind_key_and_record ... ok
+test remote::test::saving_republishes_an_action_after_the_signing_key_changes ... ok
+test remote::test::every_action_goes_up_before_any_pre_key ... ok
+test remote::test::the_push_budget_overlaps_artifacts_larger_than_the_fetch_budget ... ok
+test remote::test::in_flight_keeps_small_jobs_together_up_to_the_call_limit ... ok
+test remote::test::in_flight_keeps_the_bytes_in_flight_within_the_budget ... ok
+test remote::test::a_fetch_reads_an_actions_objects_together ... ok
+test remote::test::a_signed_pre_key_reads_its_signature_and_record_together ... ok
+test remote::test::a_cache_outage_stops_queued_refreshes_instead_of_retrying_every_action ... ok
+test client::test::a_server_that_stalls_times_out ... ok
+test remote::test::a_fetch_keeps_its_record_within_the_call_limit ... ok
+test remote::test::each_object_is_stored_as_soon_as_it_arrives ... ok
+test remote::test::an_upload_that_times_out_once_is_retried ... ok
+test remote::test::push_overlaps_its_calls_over_a_slow_link ... ok
+test remote::test::a_push_whose_every_upload_fails_is_an_error ... ok
+test remote::test::a_push_that_left_no_pre_key_is_an_error ... ok
+test remote::test::an_upload_that_keeps_failing_skips_only_the_entries_that_need_it ... ok
+
+test result: ok. 93 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_server-4e882193c24478f3)
+
+running 79 tests
+test error::test::token_file_errors_name_the_line ... ok
+test error::test::runtime_errors_keep_their_cause ... ok
+test error::test::an_open_non_loopback_listener_names_the_address ... ok
+test auth::test::an_open_policy_allows_everything ... ok
+test auth::test::a_missing_token_file_is_a_read_error ... ok
+test auth::test::malformed_lines_are_reported_by_number ... ok
+test auth::test::a_debug_dump_never_shows_a_token ... ok
+test front::bazel_http::test::paths_parse_with_and_without_a_tenant ... ok
+test auth::test::a_missing_or_unknown_credential_is_unauthenticated ... ok
+test auth::test::anonymous_reads_allow_reading_but_never_writing ... ok
+test auth::test::a_read_token_is_limited_to_its_scopes ... ok
+test auth::test::a_write_token_may_read_and_write_anywhere ... ok
+test auth::test::basic_auth_presents_the_password_as_the_token ... ok
+test front::gradle::test::paths_parse_with_an_optional_tenant ... ok
+test front::bazel_http::test::a_cas_body_that_does_not_match_its_name_is_refused_and_not_stored ... ok
+test front::bazel_http::test::a_miss_is_not_found_and_counted ... ok
+test front::nx::test::paths_parse_with_an_optional_tenant ... ok
+test front::bazel_http::test::other_methods_are_not_allowed ... ok
+test front::nx::test::a_miss_is_not_found ... ok
+test front::reapi::test::a_raw_message_is_never_decoded_and_clears_to_nothing ... ok
+test front::nx::test::an_overlong_tenant_and_a_declared_oversized_output_are_refused ... ok
+test front::bazel_http::test::bodies_over_the_limit_are_refused ... ok
+test front::gradle::test::an_entry_declared_too_large_is_refused_before_it_is_read ... ok
+test front::bazel_http::test::a_blob_round_trips_through_cas ... ok
+test front::bazel_http::test::head_reports_the_length_without_a_body ... ok
+test front::bazel_http::test::credentials_are_checked ... ok
+test front::nx::test::oversized_outputs_and_other_methods_are_refused ... ok
+test front::gradle::test::a_cache_entry_round_trips ... ok
+test front::nx::test::a_task_output_round_trips ... ok
+test front::gradle::test::misses_and_tenants ... ok
+test front::bazel_http::test::an_action_result_round_trips_and_is_scoped_to_its_tenant ... ok
+test front::nx::test::a_read_only_token_cannot_write ... ok
+test front::reapi::test::a_write_whose_data_does_not_match_is_refused_and_not_stored ... ok
+test front::bazel_http::test::an_action_value_is_also_a_cas_blob ... ok
+test front::gradle::test::basic_auth_carries_the_token_and_401_challenges ... ok
+test front::reapi::test::resource_names_split_into_instance_and_digest ... ok
+test front::reapi::test::the_message_encodings_are_pinned ... ok
+test front::reapi::test::bytestream_reads_of_absent_blobs_are_not_found ... ok
+test front::gradle::test::a_later_upload_replaces_an_entry ... ok
+test front::nx::test::records_are_immutable ... ok
+test front::reapi::test::an_action_result_needs_its_blobs_and_comes_back_byte_for_byte ... ok
+test front::turbo::test::batch_queries_parse_only_hex_hash_lists ... ok
+test front::nx::test::tenants_are_separate ... ok
+test front::reapi::test::batch_updates_report_each_blob ... ok
+test front::reapi::test::unserved_methods_are_unimplemented ... ok
+test front::reapi::test::action_results_are_scoped_to_their_instance ... ok
+test front::turbo::test::json_strings_are_escaped ... ok
+test front::reapi::test::invalid_digests_and_functions_are_refused ... ok
+test front::reapi::test::a_result_whose_blobs_were_collected_is_not_found ... ok
+test front::reapi::test::capabilities_advertise_sha256_and_api_versions ... ok
+test front::turbo::test::teams_come_from_team_id_then_slug ... ok
+test metrics::test::a_collection_sets_the_store_gauges ... ok
+test front::reapi::test::batch_reads_return_present_blobs_and_not_found_for_the_rest ... ok
+test front::reapi::test::non_contiguous_writes_are_refused ... ok
+test metrics::test::latency_lands_in_every_bucket_at_or_above_it ... ok
+test metrics::test::requests_are_counted_per_front_end_and_outcome ... ok
+test transfer::test::a_failing_body_is_reported_as_a_body_error ... ok
+test front::turbo::test::an_artifact_over_the_limit_is_refused ... ok
+test transfer::test::an_operation_error_is_passed_back ... ok
+test transfer::test::an_upload_feeds_the_whole_body_to_the_operation ... ok
+test transfer::test::a_missing_file_downloads_as_none ... ok
+test transfer::test::an_upload_over_the_limit_is_refused_and_the_operation_sees_an_error ... ok
+test front::reapi::test::an_output_directory_needs_every_file_of_its_tree ... ok
+test front::reapi::test::find_missing_blobs_sees_every_protocol_and_the_empty_blob ... ok
+test front::turbo::test::events_are_accepted ... ok
+test front::turbo::test::malformed_requests_are_refused ... ok
+test front::turbo::test::a_batch_query_reports_size_duration_and_tag_or_null ... ok
+test front::turbo::test::status_reports_enabled ... ok
+test route::test::unknown_paths_are_not_found ... ok
+test route::test::metrics_render_and_count_latency ... ok
+test route::test::health_answers_ok ... ok
+test front::turbo::test::an_artifact_round_trips_with_its_headers ... ok
+test front::reapi::test::credentials_are_checked_on_every_call ... ok
+test front::turbo::test::a_turbo_artifact_dedupes_with_other_protocols ... ok
+test front::turbo::test::bearer_tokens_are_checked_per_team ... ok
+test front::turbo::test::teams_do_not_see_each_others_artifacts ... ok
+test front::turbo::test::head_reports_existence_without_a_body ... ok
+test transfer::test::small_and_large_files_download_whole ... ok
+test front::reapi::test::bytestream_round_trips_a_large_blob_and_honours_ranges ... ok
+
+test result: ok. 79 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/live_ccache.rs (target/debug/deps/live_ccache-0658d440b7ff546e)
+
+running 1 test
+test live_ccache_hits_the_server_from_an_empty_local_cache ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live_gradle.rs (target/debug/deps/live_gradle-fb167cdf30a1f3be)
+
+running 1 test
+test live_gradle_loads_compiled_classes_from_the_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live_nx.rs (target/debug/deps/live_nx-efa57551633acf14)
+
+running 1 test
+test live_nx_restores_a_task_from_the_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/live_turbo.rs (target/debug/deps/live_turbo-85a30173504e60fa)
+
+running 1 test
+test live_turbo_replays_every_task_from_the_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/server.rs (target/debug/deps/server-72fa20a43eae2fe2)
+
+running 11 tests
+test an_open_server_refuses_a_non_loopback_address ... ok
+test bad_configuration_files_are_reported ... ok
+test an_address_in_use_is_a_bind_error ... ok
+test a_non_loopback_address_is_allowed_with_a_token_file ... ok
+test a_tls_key_file_without_a_key_is_refused ... ok
+test run_blocking_starts_its_own_runtime_and_returns_on_shutdown ... ok
+test serves_http1 ... ok
+test serves_plaintext_http2 ... ok
+test serves_https_with_the_configured_certificate ... ok
+test stopping_the_server_trims_the_store_to_its_budget ... ok
+test a_large_blob_streams_both_ways ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_store-202f5eb02ca5d5e9)
+
+running 54 tests
+test entry::test::a_record_without_the_magic_is_malformed ... ok
+test entry::test::metadata_must_be_utf8 ... ok
+test entry::test::an_empty_entry_round_trips ... ok
+test entry::test::the_entry_encoding_is_pinned ... ok
+test entry::test::metadata_over_the_limit_is_refused ... ok
+test entry::test::trailing_bytes_are_malformed ... ok
+test entry::test::an_entry_round_trips ... ok
+test entry::test::metadata_keys_must_be_in_order ... ok
+test error::test::a_digest_mismatch_names_both_digests ... ok
+test error::test::a_missing_object_names_it ... ok
+test entry::test::a_truncated_record_is_malformed ... ok
+test error::test::io_errors_say_what_failed_and_where ... ok
+test namespace::test::a_namespace_reports_what_it_was_built_from ... ok
+test namespace::test::an_overlong_client_key_is_refused ... ok
+test namespace::test::an_overlong_tenant_is_refused ... ok
+test namespace::test::front_end_names_are_stable ... ok
+test namespace::test::tenant_and_key_boundaries_cannot_bleed_into_each_other ... ok
+test namespace::test::the_same_client_key_for_two_tenants_is_two_store_keys ... ok
+test namespace::test::the_same_client_key_in_two_front_ends_is_two_store_keys ... ok
+test namespace::test::the_store_key_encoding_is_pinned ... ok
+test sha256::test::hex_round_trips_in_either_case ... ok
+test sha256::test::malformed_hex_is_refused ... ok
+test sha256::test::raw_bytes_round_trip_and_debug_shows_the_hex ... ok
+test sha256::test::the_empty_input_matches_the_standard_vector ... ok
+test gc::test::an_unreadable_entry_directory_is_an_error ... ok
+test store::test::a_body_that_does_not_match_its_blake3_claim_is_refused ... ok
+test store::test::a_body_that_does_not_match_its_sha256_claim_is_refused_and_not_stored ... ok
+test gc::test::a_malformed_entry_is_removed ... ok
+test gc::test::stale_pending_and_staging_files_are_swept_and_fresh_ones_kept ... ok
+test store::test::a_corrupt_entry_file_is_reported_as_malformed ... ok
+test store::test::claims_display_their_function_and_digest ... ok
+test gc::test::a_damaged_index_file_is_swept_after_the_grace_period ... ok
+test gc::test::the_sha256_index_forgets_objects_that_were_removed ... ok
+test store::test::a_damaged_index_file_is_a_miss ... ok
+test gc::test::an_entry_that_cannot_be_removed_is_an_error ... ok
+test store::test::an_entry_naming_a_missing_object_is_refused ... ok
+test store::test::a_matching_claim_is_accepted ... ok
+test gc::test::a_dry_run_reports_without_removing ... ok
+test gc::test::a_read_refreshes_the_last_use_of_an_entry_and_its_objects ... ok
+test store::test::entries_and_index_files_are_sharded_by_their_first_byte ... ok
+test gc::test::garbage_only_keeps_every_entry_and_what_it_references ... ok
+test store::test::an_unreadable_entry_is_an_io_error ... ok
+test gc::test::an_object_shared_by_two_entries_survives_evicting_one ... ok
+test gc::test::an_object_uploaded_within_the_grace_period_survives_without_an_entry ... ok
+test store::test::an_entry_reads_back_after_it_is_put ... ok
+test store::test::ingest_names_a_body_by_both_digests ... ok
+test store::test::an_entry_that_cannot_be_written_is_an_io_error_and_leaves_no_pending_file ... ok
+test store::test::the_sha256_index_misses_once_the_object_is_gone ... ok
+test gc::test::entries_unused_for_longer_than_max_age_are_removed_with_their_objects ... ok
+test store::test::the_sha256_index_finds_an_ingested_body ... ok
+test store::test::a_put_replaces_the_previous_entry ... ok
+test store::test::writes_leave_no_pending_files ... ok
+test gc::test::the_least_recently_used_entries_go_first_to_fit_the_budget ... ok
+test store::test::the_same_client_key_in_two_namespaces_holds_two_entries ... ok
+
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/public_api.rs (target/debug/deps/public_api-8a983a550a974ccf)
+
+running 4 tests
+test a_wrong_claim_is_an_error_the_caller_can_match ... ok
+test a_reopened_store_serves_what_it_held ... ok
+test a_key_written_through_one_front_end_misses_through_another ... ok
+test a_blob_uploaded_through_one_protocol_is_found_by_another_and_stored_once ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/tinymold_wrap-ca8535581cbb5726)
+
+running 161 tests
+test clock::test::a_fine_timestamp_is_written_before_any_later_instant ... ok
+test clock::test::a_timestamp_at_the_end_of_time_is_never_written_before ... ok
+test clock::test::a_timestamps_tick_is_inferred_from_its_trailing_zeros ... ok
+test clock::test::a_whole_second_is_written_before_only_once_two_seconds_have_passed ... ok
+test clock::test::nanos_saturate_before_the_epoch ... ok
+test compile::test::a_byte_string_is_found_anywhere_in_a_file_and_nowhere_else ... ok
+test catalog::test::records_of_an_empty_store_is_empty ... ok
+test catalog::test::records_fails_when_a_directory_cannot_be_read ... ok
+test catalog::test::action_references_names_outputs_and_replayed_text ... ok
+test catalog::test::action_references_rejects_a_corrupt_or_missing_record ... ok
+test clock::test::the_filesystem_clock_fails_where_no_file_can_be_written ... ok
+test catalog::test::records_reports_size_and_last_use ... ok
+test catalog::test::action_info_names_the_unit_by_its_dep_info_output ... ok
+test catalog::test::test_run_references_name_both_streams ... ok
+test clock::test::the_filesystem_clock_is_read_from_a_file_it_leaves_no_trace_of ... ok
+test catalog::test::records_lists_test_runs_and_test_binaries ... ok
+test catalog::test::records_lists_actions_pre_keys_caches_locks_and_temporaries ... ok
+test compile::test::a_hit_with_many_outputs_fails_when_one_object_is_missing ... ok
+{"$message_type":"diagnostic","message":"this file contains an unclosed delimiter","code":null,"level":"error","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpQswNWa/src/lib.rs","byte_start":13,"byte_end":14,"line_start":1,"line_end":1,"column_start":14,"column_end":15,"is_primary":false,"text":[{"text":"pub fn broken( {","highlight_start":14,"highlight_end":15}],"label":"unclosed delimiter","suggested_replacement":null,"suggestion_applicability":null,"expansion":null},{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpQswNWa/src/lib.rs","byte_start":15,"byte_end":16,"line_start":1,"line_end":1,"column_start":16,"column_end":17,"is_primary":false,"text":[{"text":"pub fn broken( {","highlight_start":16,"highlight_end":17}],"label":"unclosed delimiter","suggested_replacement":null,"suggestion_applicability":null,"expansion":null},{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpQswNWa/src/lib.rs","byte_start":17,"byte_end":17,"line_start":1,"line_end":1,"column_start":18,"column_end":18,"is_primary":true,"text":[{"text":"pub fn broken( {","highlight_start":18,"highlight_end":18}],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":"error: this file contains an unclosed delimiter\n --> /var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpQswNWa/src/lib.rs:1:18\n  |\n1 | pub fn broken( {\n  |              - -^\n  |              | |\n  |              | unclosed delimiter\n  |              unclosed delimiter\n\n"}
+{"$message_type":"diagnostic","message":"aborting due to 1 previous error","code":null,"level":"error","spans":[],"children":[],"rendered":"error: aborting due to 1 previous error\n\n"}
+test compile::test::a_hit_with_many_outputs_restores_every_one_fresh_with_its_content_and_mode ... ok
+test compile::test::a_failed_compile_is_not_stored ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpHJsbQ2/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmphQgpkB/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpHJsbQ2/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNISzbC/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmphQgpkB/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpPx2w7v/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpGIOlK5/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpd3EtAp/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4rrOLL/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp348fNt/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpR2oh2T/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpGIOlK5/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNISzbC/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpU6Wjgu/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpd3EtAp/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpPx2w7v/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4M9Xfa/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpHJsbQ2/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmphQgpkB/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4rrOLL/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6OIFyq/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp348fNt/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpR2oh2T/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpU6Wjgu/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4M9Xfa/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6OIFyq/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpGIOlK5/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpd3EtAp/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpPx2w7v/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_compile_without_dep_info_is_not_stored ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpU6Wjgu/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4rrOLL/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4M9Xfa/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpR2oh2T/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6OIFyq/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp348fNt/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbiHked/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbiHked/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpHJsbQ2/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpHJsbQ2/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpHJsbQ2/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbiHked/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpd3EtAp/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpd3EtAp/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpd3EtAp/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpU6Wjgu/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpU6Wjgu/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpU6Wjgu/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6OIFyq/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6OIFyq/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6OIFyq/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_command_line_ending_its_options_with_a_terminator_still_compiles_and_hits ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNLoKoy/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_hit_replaces_an_output_changed_since_it_was_placed ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp348fNt/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp348fNt/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp348fNt/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpkJwIMD/target/debug/deps/demo-1.d","emit":"dep-info"}
+test compile::test::a_hit_removes_stale_outputs_of_the_same_unit ... ok
+test compile::test::a_hit_records_its_last_use_on_the_action_and_pre_key ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/demo-1.d","emit":"dep-info"}
+test compile::test::a_needle_split_across_two_reads_of_an_output_is_still_found ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpkJwIMD/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/demo-1.d","emit":"dep-info"}
+test compile::test::a_hit_keeps_outputs_already_in_place ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbiHked/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbiHked/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbiHked/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpkJwIMD/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_hit_leaves_an_existing_incremental_session_alone ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpPx2w7v/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_hit_without_a_placement_record_replaces_every_output ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpPx2w7v/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpPx2w7v/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4rrOLL/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpkJwIMD/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpkJwIMD/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpkJwIMD/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4rrOLL/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+test compile::test::a_miss_is_stored_and_the_same_compile_then_hits_with_identical_outputs ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp6emOv2/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4rrOLL/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_missing_extern_is_an_error_before_rustc_runs ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_compile_with_other_sources_does_not_wait ... ok
+test compile::test::a_changed_source_misses_and_both_versions_then_hit ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp5b8pNt/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_hit_whose_objects_are_gone_runs_rustc_again ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4M9Xfa/target/debug/deps/demo-1.d","emit":"dep-info"}
+test compile::test::a_local_miss_is_served_from_the_remote_and_then_hits_locally ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4M9Xfa/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp4M9Xfa/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpfyDzTd/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpfyDzTd/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpR2oh2T/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpfyDzTd/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpR2oh2T/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+test compile::test::a_failing_remote_only_makes_the_unit_compile ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpR2oh2T/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpvgzrqK/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp8BMdb6/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpmUqbvp/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpxNAZgq/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpvgzrqK/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpxNAZgq/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp8BMdb6/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpmUqbvp/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpyfSDxS/target/debug/deps/demo-1.d","emit":"dep-info"}
+test compile::test::a_held_lock_is_waited_for_only_until_the_limit ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpvgzrqK/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpmUqbvp/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpxNAZgq/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp8BMdb6/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::an_output_whose_identity_changed_or_object_is_gone_is_stored_again ... ok
+test compile::test::an_output_written_during_the_compile_is_hashed_again ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+test compile::test::an_untouched_placed_output_is_carried_over_without_hashing ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+test compile::test::a_remote_without_the_unit_is_a_plain_miss ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpM0AK9v/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNMPFkI/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpoDRrlh/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpfyDzTd/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpoDRrlh/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpfyDzTd/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpoDRrlh/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpfyDzTd/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp7Qz8sr/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp7Qz8sr/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::an_input_modified_during_the_compile_is_not_stored ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp7Qz8sr/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_miss_leaves_the_last_use_of_other_actions_alone ... ok
+test compile::test::an_input_rewritten_within_a_coarse_tick_of_the_compile_is_not_stored ... ok
+test declared::test::a_comment_after_the_header_is_still_the_header ... ok
+test declared::test::a_dependency_named_tinymold_is_not_metadata ... ok
+test declared::test::a_manifest_without_the_table_declares_nothing ... ok
+test declared::test::anything_it_cannot_read_for_certain_is_uncached ... ok
+test declared::test::cache_false_opts_the_package_out ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpDhiObe/target/debug/deps/demo-1.d","emit":"dep-info"}
+test declared::test::reads_inputs_on_one_line_or_several ... ok
+test driver::test::a_directory_named_like_a_configuration_is_skipped ... ok
+test driver::test::clippy_driver_wrapping_rustc_is_recognized ... ok
+test driver::test::other_programs_and_clippy_without_rustc_are_not ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpDhiObe/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpDhiObe/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpAV6HFA/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_restored_output_is_never_newer_than_a_file_written_after_it ... ok
+test compile::test::an_output_that_is_a_directory_is_not_stored ... ok
+test driver::test::the_nearest_configuration_wins_and_the_dotted_name_first ... ok
+test error::test::errors_say_what_failed_and_keep_their_cause ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpyfSDxS/target/debug/deps/demo-1","emit":"link"}
+1{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpvgzrqK/target/debug/deps/demo-1.d","emit":"dep-info"}
+out
+err
+test exec::test::a_captured_run_keeps_both_streams_and_the_exit_code ... ok
+test exec::test::a_missing_program_is_a_spawn_error ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp8BMdb6/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpvgzrqK/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpmUqbvp/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp8BMdb6/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpmUqbvp/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpvgzrqK/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpmUqbvp/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmp8BMdb6/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test exec::test::a_pass_through_returns_the_exit_code ... ok
+test flight::test::a_free_key_is_claimed_at_once ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpyfSDxS/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpyfSDxS/target/debug/deps/demo-1","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_remote_action_missing_an_object_is_a_miss_with_the_reason ... ok
+test flight::test::a_lock_is_held_only_while_a_claim_lives ... ok
+test flight::test::a_store_that_cannot_hold_locks_leaves_the_compile_unlocked ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNMPFkI/target/debug/deps/demo-1","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpM0AK9v/target/debug/deps/demo-1","emit":"link"}
+test compile::test::a_remote_input_set_whose_files_differ_here_is_not_used ... ok
+test flight::test::an_unreadable_lock_counts_as_held ... ok
+test compile::test::a_remote_action_naming_a_file_outside_the_output_directory_is_not_restored ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test package_tree::test::a_symlink_is_named_by_its_target_and_not_followed ... ok
+test package_tree::test::a_changed_or_added_file_changes_the_listing ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+test package_tree::test::a_target_dir_nested_in_a_test_dir_hides_only_itself ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpcNZzuG/target/debug/deps/demo-1.d","emit":"dep-info"}
+test package_tree::test::declared_inputs_cover_files_directories_and_missing_paths ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpcNZzuG/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test package_tree::test::making_a_file_executable_changes_the_listing ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNMPFkI/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpNMPFkI/target/debug/deps/demo-1","emit":"link"}
+test parallel::test::a_panic_after_another_worker_failed_is_still_an_error ... ok
+test package_tree::test::lists_every_file_but_git_and_target_dirs ... ok
+test parallel::test::a_panicking_worker_is_an_error_naming_the_task ... ok
+test parallel::test::every_item_is_mapped_and_results_keep_the_item_order ... ok
+test parallel::test::items_are_spread_over_more_than_one_thread ... ok
+test parallel::test::no_items_need_no_work ... ok
+test placed::test::a_file_is_held_only_with_its_identity_and_digest_unchanged ... ok
+test parallel::test::the_first_failing_item_fails_the_whole_map ... ok
+test placed::test::the_record_format_is_pinned ... ok
+test record::test::a_session_section_out_of_place_or_naming_a_path_is_corrupt ... ok
+test record::test::an_output_name_that_leaves_the_output_directory_is_corrupt ... ok
+test record::test::corrupt_records_name_the_bad_line ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpcNZzuG/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test record::test::records_are_written_whole_and_read_back ... ok
+test record::test::the_action_encoding_is_pinned ... ok
+test record::test::the_pre_key_record_encoding_is_pinned ... ok
+test record::test::the_session_section_encoding_is_pinned ... ok
+test placed::test::a_saved_record_loads_back_and_a_bad_one_is_empty ... ok
+test flight::test::a_wait_gives_up_at_the_limit ... ok
+test compile::test::an_executable_within_the_limit_is_stored_and_hits ... ok
+test runner::test::a_binary_that_cannot_be_hashed_still_runs_and_fails ... ok
+test compile::test::the_executable_limit_leaves_libraries_alone ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"diagnostic","message":"writing `&Vec` instead of `&[_]` involves a new object where a slice will do","code":{"code":"clippy::ptr_arg","explanation":null},"level":"warning","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg","code":null,"level":"help","spans":[],"children":[],"rendered":null},{"message":"`#[warn(clippy::ptr_arg)]` on by default","code":null,"level":"note","spans":[],"children":[],"rendered":null},{"message":"change this to","code":null,"level":"help","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":"&[u8]","suggestion_applicability":"Unspecified","expansion":null}],"children":[],"rendered":null}],"rendered":"warning: writing `&Vec` instead of `&[_]` involves a new object where a slice will do\n --> /var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/src/lib.rs:1:13\n  |\n1 | pub fn f(x: &Vec<u8>) -> usize { x.len() }\n  |             ^^^^^^^^\n  |\n  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg\n  = note: `#[warn(clippy::ptr_arg)]` on by default\nhelp: change this to\n  |\n1 - pub fn f(x: &Vec<u8>) -> usize { x.len() }\n1 + pub fn f(x: &[u8]) -> usize { x.len() }\n  |\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"diagnostic","message":"writing `&Vec` instead of `&[_]` involves a new object where a slice will do","code":{"code":"clippy::ptr_arg","explanation":null},"level":"warning","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg","code":null,"level":"help","spans":[],"children":[],"rendered":null},{"message":"`#[warn(clippy::ptr_arg)]` on by default","code":null,"level":"note","spans":[],"children":[],"rendered":null},{"message":"change this to","code":null,"level":"help","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":"&[u8]","suggestion_applicability":"Unspecified","expansion":null}],"children":[],"rendered":null}],"rendered":"warning: writing `&Vec` instead of `&[_]` involves a new object where a slice will do\n --> /var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/src/lib.rs:1:13\n  |\n1 | pub fn f(x: &Vec<u8>) -> usize { x.len() }\n  |             ^^^^^^^^\n  |\n  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg\n  = note: `#[warn(clippy::ptr_arg)]` on by default\nhelp: change this to\n  |\n1 - pub fn f(x: &Vec<u8>) -> usize { x.len() }\n1 + pub fn f(x: &[u8]) -> usize { x.len() }\n  |\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+test driver::test::the_identity_names_the_version_and_follows_the_configuration ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"diagnostic","message":"1 warning emitted","code":null,"level":"warning","spans":[],"children":[],"rendered":"warning: 1 warning emitted\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"diagnostic","message":"1 warning emitted","code":null,"level":"warning","spans":[],"children":[],"rendered":"warning: 1 warning emitted\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmphQgpkB/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmphQgpkB/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmphQgpkB/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_compile_another_build_is_running_is_waited_for_then_restored ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/demo-1.d","emit":"dep-info"}
+test flight::test::a_held_key_is_waited_for_until_it_is_released ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpT9Msbx/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::native_libraries_are_part_of_the_key ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpGIOlK5/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpGIOlK5/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpGIOlK5/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_compile_whose_twin_stored_nothing_runs_after_the_wait ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"diagnostic","message":"writing `&Vec` instead of `&[_]` involves a new object where a slice will do","code":{"code":"clippy::ptr_arg","explanation":null},"level":"warning","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg","code":null,"level":"help","spans":[],"children":[],"rendered":null},{"message":"`#[warn(clippy::ptr_arg)]` on by default","code":null,"level":"note","spans":[],"children":[],"rendered":null},{"message":"change this to","code":null,"level":"help","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":"&[u8]","suggestion_applicability":"Unspecified","expansion":null}],"children":[],"rendered":null}],"rendered":"warning: writing `&Vec` instead of `&[_]` involves a new object where a slice will do\n --> /var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/src/lib.rs:1:13\n  |\n1 | pub fn f(x: &Vec<u8>) -> usize { x.len() }\n  |             ^^^^^^^^\n  |\n  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg\n  = note: `#[warn(clippy::ptr_arg)]` on by default\nhelp: change this to\n  |\n1 - pub fn f(x: &Vec<u8>) -> usize { x.len() }\n1 + pub fn f(x: &[u8]) -> usize { x.len() }\n  |\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpgQbfYu/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"diagnostic","message":"1 warning emitted","code":null,"level":"warning","spans":[],"children":[],"rendered":"warning: 1 warning emitted\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"diagnostic","message":"writing `&Vec` instead of `&[_]` involves a new object where a slice will do","code":{"code":"clippy::ptr_arg","explanation":null},"level":"warning","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg","code":null,"level":"help","spans":[],"children":[],"rendered":null},{"message":"`#[warn(clippy::ptr_arg)]` on by default","code":null,"level":"note","spans":[],"children":[],"rendered":null},{"message":"change this to","code":null,"level":"help","spans":[{"file_name":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/src/lib.rs","byte_start":12,"byte_end":20,"line_start":1,"line_end":1,"column_start":13,"column_end":21,"is_primary":true,"text":[{"text":"pub fn f(x: &Vec<u8>) -> usize { x.len() }","highlight_start":13,"highlight_end":21}],"label":null,"suggested_replacement":"&[u8]","suggestion_applicability":"Unspecified","expansion":null}],"children":[],"rendered":null}],"rendered":"warning: writing `&Vec` instead of `&[_]` involves a new object where a slice will do\n --> /var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/src/lib.rs:1:13\n  |\n1 | pub fn f(x: &Vec<u8>) -> usize { x.len() }\n  |             ^^^^^^^^\n  |\n  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#ptr_arg\n  = note: `#[warn(clippy::ptr_arg)]` on by default\nhelp: change this to\n  |\n1 - pub fn f(x: &Vec<u8>) -> usize { x.len() }\n1 + pub fn f(x: &[u8]) -> usize { x.len() }\n  |\n\n"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"diagnostic","message":"1 warning emitted","code":null,"level":"warning","spans":[],"children":[],"rendered":"warning: 1 warning emitted\n\n"}
+test compile::test::clippy_driver_compiles_are_cached_with_their_lints ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpJE47D1/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_rustc_entry_never_serves_clippy_driver_or_back ... ok
+22test compile::test::a_restored_binary_is_executable_and_fresh ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpM0AK9v/target/debug/deps/demo-1.d","emit":"dep-info"}
+333errtest exec::test::a_captured_run_keeps_the_order_its_streams_were_written_in ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpM0AK9v/target/debug/deps/demo-1","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpMdT33T/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_hit_restores_the_incremental_session_and_the_next_edit_reuses_it ... ok
+test runner::test::a_replay_interleaves_the_streams_as_they_were_written ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpbayLIL/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::a_miss_after_an_incremental_edit_stores_carried_over_objects_by_their_bytes ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_binary_tinymold_did_not_build_passes_through ... ok
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/libdemo-1.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/demo-1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/libdemo-1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpXM207Q/target/debug/deps/libdemo-1.rlib","emit":"link"}
+test compile::test::outputs_rustc_reuses_from_its_incremental_cache_are_stored_too ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_cached_run_reads_an_empty_stdin ... ok
+test runner::test::a_via_program_that_cannot_start_fails_the_run ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_changed_build_script_output_or_package_binary_runs_again ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_changed_dynamic_library_beside_the_binary_runs_again ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_changed_env_var_runs_again_but_an_ignored_one_does_not ... ok
+test session::test::a_session_whose_object_is_gone_leaves_nothing_behind ... ok
+test session::test::a_stored_session_is_restored_only_where_none_exists_at_its_own_path ... ok
+test session::test::only_finished_session_directories_count ... ok
+test session::test::the_units_session_is_the_one_sharing_an_inode_with_its_objects ... ok
+test session::test::without_objects_the_only_session_written_since_the_start_is_the_units ... ok
+test stat::test::a_corrupt_stat_entry_is_ignored ... ok
+test stat::test::a_digest_is_reused_until_the_file_changes ... ok
+test stat::test::a_whole_second_mtime_is_not_trusted_within_its_tick ... ok
+test stat::test::archives_are_digested_without_their_build_stamps ... ok
+test stat::test::linker_identity_names_the_file_or_says_it_is_missing ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_changed_file_in_the_package_runs_again ... ok
+test stat::test::validity_needs_an_inode_an_equal_identity_and_an_older_mtime ... ok
+test test::a_cache_error_falls_back_to_running_rustc ... ok
+test test::a_compile_misses_then_hits_and_says_so ... ok
+error: this file contains an unclosed delimiter
+ --> /var/folders/2s/3wlgyy817nl3czlpqr8hjj9c0000gn/T/.tmpaarKiB/lib.rs:1:13
+  |
+1 | pub fn f( {
+  |         - -^
+  |         | |
+  |         | unclosed delimiter
+  |         unclosed delimiter
+
+error: aborting due to 1 previous error
+
+test test::a_failed_compile_reports_rustc_exit_code ... ok
+test test::a_failing_remote_is_noted_on_the_miss ... ok
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+test test::a_trace_records_a_pass_through ... ok
+test test::a_trace_records_each_step_of_a_miss_and_a_hit ... ok
+test test::a_unit_served_by_the_remote_is_logged_as_remote ... ok
+test test::only_programs_named_rustc_are_cached ... ok
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+binary: rustc
+commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+commit-date: 2026-10-13
+host: aarch64-apple-darwin
+release: 1.99.1
+LLVM version: 23.1.1
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+binary: rustc
+commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+commit-date: 2026-10-13
+host: aarch64-apple-darwin
+release: 1.99.1
+LLVM version: 23.1.1
+test test::queries_other_programs_and_odd_arguments_pass_through ... ok
+test test_record::test::a_dylib_outside_the_binary_directory_is_corrupt ... ok
+test test_record::test::an_exe_or_out_dir_outside_the_build_is_corrupt ... ok
+test test_record::test::corrupt_test_records_name_the_bad_line ... ok
+test test_record::test::only_paths_inside_the_build_can_be_recorded ... ok
+test test_record::test::records_live_under_tests ... ok
+test test_record::test::the_test_binary_encoding_is_pinned ... ok
+test test_record::test::the_test_run_encoding_is_pinned ... ok
+test trace::test::a_span_returns_its_value_and_records_in_order ... ok
+test trace::test::each_step_is_one_chrome_trace_complete_event ... ok
+test trace::test::labels_are_escaped_as_json_strings ... ok
+test trace::test::writing_appends_and_skips_an_unwritable_path ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_corrupt_run_record_runs_the_test_again ... ok
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test it_works ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test runner::test::a_declared_input_outside_the_package_runs_again_when_changed ... ok
