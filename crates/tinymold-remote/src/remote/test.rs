@@ -1088,18 +1088,33 @@ fn an_oversized_signature_is_refused_before_downloading_it() {
     let server = Server::start();
     let local = Local::new();
     let signer = SigningKey::generate();
-    configured(&server, signing(&signer)).push(&local.root, None).unwrap();
+    configured(&server, signing(&signer))
+        .push(&local.root, None)
+        .unwrap();
     server.with(|state| {
-        let result = state.actions.get_mut(&naming::action_key(&local.key).hash).unwrap();
-        let signature = result.output_files.iter_mut().find(|file| file.path == SIGNATURE_FILE).unwrap();
+        let result = state
+            .actions
+            .get_mut(&naming::action_key(&local.key).hash)
+            .unwrap();
+        let signature = result
+            .output_files
+            .iter_mut()
+            .find(|file| file.path == SIGNATURE_FILE)
+            .unwrap();
         signature.digest.as_mut().unwrap().size_bytes = 1025;
     });
     let reads = server.with(|state| state.peak_in_flight.get("Read").copied());
     let empty = tempfile::tempdir().unwrap();
     let store = Store::open(empty.path()).unwrap();
     let result = configured(&server, trusting(&signer)).fetch_action_into(&local.key, &store);
-    assert!(matches!(result, Err(Error::BlobSize { size: 1025, .. })), "{result:?}");
-    assert_eq!(server.with(|state| state.peak_in_flight.get("Read").copied()), reads);
+    assert!(
+        matches!(result, Err(Error::BlobSize { size: 1025, .. })),
+        "{result:?}"
+    );
+    assert_eq!(
+        server.with(|state| state.peak_in_flight.get("Read").copied()),
+        reads
+    );
 }
 
 #[test]
@@ -1120,7 +1135,16 @@ fn oversized_remote_records_are_refused_before_downloading_them() {
     let empty = tempfile::tempdir().unwrap();
     let store = Store::open(empty.path()).unwrap();
     let reader = remote(&server);
-    assert!(matches!(reader.fetch_action_into(&local.key, &store), Err(Error::BlobSize { .. })));
-    assert!(matches!(reader.input_sets_of(&local.pre), Err(Error::BlobSize { .. })));
-    assert_eq!(server.with(|state| state.peak_in_flight.get("Read").copied()), reads);
+    assert!(matches!(
+        reader.fetch_action_into(&local.key, &store),
+        Err(Error::BlobSize { .. })
+    ));
+    assert!(matches!(
+        reader.input_sets_of(&local.pre),
+        Err(Error::BlobSize { .. })
+    ));
+    assert_eq!(
+        server.with(|state| state.peak_in_flight.get("Read").copied()),
+        reads
+    );
 }

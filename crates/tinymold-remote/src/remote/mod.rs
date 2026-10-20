@@ -49,6 +49,21 @@ pub use types::{Capabilities, PushReport};
 /// How many digests one `FindMissingBlobs` call asks about.
 const FIND_BATCH: usize = 1000;
 
+/// Metadata is much smaller than artifacts. Check server-supplied sizes
+/// before opening a stream, including before signature verification.
+const MAX_RECORD: i64 = 16 << 20;
+const MAX_SIGNATURE: i64 = 1024;
+
+fn metadata_size(digest: &proto::Digest, limit: i64) -> Result<()> {
+    if digest.size_bytes < 0 || digest.size_bytes > limit {
+        return Err(Error::BlobSize {
+            hash: digest.hash.clone(),
+            size: digest.size_bytes,
+        });
+    }
+    Ok(())
+}
+
 /// How many calls `push` and a fetch keep in flight at once. Each is a round
 /// trip; a CI runner an ocean away from its cache spends most of a call
 /// waiting, and one at a time leaves the link nearly idle.
@@ -433,6 +448,7 @@ impl RemoteCache {
                 key: key.hash.clone(),
                 reason: "it is not signed",
             })?;
+        metadata_size(&signature, MAX_SIGNATURE)?;
         let blob = self.client.read(&signature).await?;
         trusted.verify(kind, key, record, &blob)
     }
@@ -444,6 +460,7 @@ impl RemoteCache {
                 return Ok(None);
             };
             let digest = find_file(&result, PREKEY_FILE, &key)?;
+            metadata_size(&digest, MAX_RECORD)?;
             // The record is only used once the signature checks out, but
             // reading both at once saves a round trip. A refused signature
             // drops the read at once, whatever the server is sending.
@@ -468,6 +485,7 @@ impl RemoteCache {
                 return Ok(None);
             };
             let record = find_file(&result, ACTION_FILE, &key)?;
+            metadata_size(&record, MAX_RECORD)?;
             // Before any object: an untrusted entry fetches nothing.
             self.verify(Kind::Action, &key, &record, &result).await?;
             let malformed = |reason| Error::Malformed {

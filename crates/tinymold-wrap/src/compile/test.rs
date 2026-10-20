@@ -1321,7 +1321,10 @@ fn restoring_text_refuses_a_symlink_outside_the_units_outputs() {
 
     let result = restoring.restore(&action);
     assert_eq!(fs::read(&victim).unwrap(), b"keep me");
-    assert!(result.is_err(), "an existing symlink must refuse the restore");
+    assert!(
+        result.is_err(),
+        "an existing symlink must refuse the restore"
+    );
 }
 
 #[test]

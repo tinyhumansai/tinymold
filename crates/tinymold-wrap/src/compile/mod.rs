@@ -604,7 +604,15 @@ impl Unit<'_> {
         let destination = self.out_dir.join(&output.name);
         if output.text {
             let text = self.expand_object(&output.digest)?;
-            fs::write(&destination, text).map_err(io("write", &destination))?;
+            // Records may come from a remote. Like binary materialization,
+            // refuse existing files and symlinks rather than following them.
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&destination)
+                .map_err(io("create", &destination))?;
+            file.write_all(text.as_bytes())
+                .map_err(io("write", &destination))?;
         } else if !in_place {
             // A reflink or a copy, never a hardlink: a linker may rewrite
             // its output in place, and that must not be the store's inode.
