@@ -80,7 +80,7 @@ hyper-util = { version = "0.1", default-features = false }
 http-body-util = { version = "0.1", default-features = false }
 bytes = { version = "1", default-features = false, features = ["std"] }
 # Basic-auth credentials (Gradle, Bazel HTTP, REAPI) arrive base64-encoded.
-base64 = { version = "0.22", default-features = false, features = ["std"] }
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 # TLS for `tinymold serve --tls-cert/--tls-key`, with the ring provider tonic
 # already uses; rustls-pki-types reads the PEM files.
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }

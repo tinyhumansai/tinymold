@@ -1110,7 +1110,7 @@ dependencies = [
 name = "tinymold"
 version = "0.3.2"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "clap",
  "reflink-copy",
  "tempfile",
@@ -1176,7 +1176,7 @@ dependencies = [
 name = "tinymold-server"
 version = "0.3.2"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "http",
  "http-body-util",
